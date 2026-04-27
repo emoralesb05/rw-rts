@@ -97,8 +97,17 @@ export class WorldScene extends Phaser.Scene {
       }
     );
 
+    // Burst protection — Cursor turns can fire 10–30 tool_use events in <1s.
+    // Skip animations for the same unit within MIN_GAP so tween queue doesn't
+    // spiral.
+    const lastAnimAt = new Map<string, number>();
+    const MIN_GAP_MS = 250;
     const handler = (e: Event) => {
       const ev = (e as CustomEvent<AgentEvent>).detail;
+      const now = performance.now();
+      const last = lastAnimAt.get(ev.sessionId) ?? 0;
+      if (now - last < MIN_GAP_MS) return;
+      lastAnimAt.set(ev.sessionId, now);
       this.animateEvent(ev);
     };
     window.addEventListener("kh:event", handler as EventListener);

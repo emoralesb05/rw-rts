@@ -7,7 +7,7 @@ export const ROLE_PALETTE: Record<UnitRole, { color: number; label: string; fact
   donald: { color: 0x6cc6ff, label: "Donald", faction: "Royal Mage" },
   goofy: { color: 0x7af0c0, label: "Goofy", faction: "Royal Knight" },
   organization: { color: 0x111111, label: "XIII", faction: "Organization" },
-  unversed: { color: 0x4d2cc6, label: "?", faction: "Unversed" },
+  unversed: { color: 0x4d2cc6, label: "Vanitas", faction: "Unversed" },
 };
 
 export const ROLE_HEX: Record<UnitRole, string> = Object.fromEntries(

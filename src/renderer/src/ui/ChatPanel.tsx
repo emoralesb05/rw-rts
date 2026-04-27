@@ -160,16 +160,22 @@ export function ChatPanel() {
   const selectUnit = useStore((s) => s.selectUnit);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => {
+  const RENDER_CAP = 80;
+  const { filtered, hiddenCount } = useMemo(() => {
+    let f: AgentEvent[];
     if (selectedUnitId) {
-      return events.filter((e) => e.sessionId === selectedUnitId).slice().reverse();
-    }
-    if (activeWorldId) {
+      f = events.filter((e) => e.sessionId === selectedUnitId);
+    } else if (activeWorldId) {
       const world = worlds[activeWorldId];
       const allowedSessions = new Set(world?.unitIds ?? []);
-      return events.filter((e) => allowedSessions.has(e.sessionId)).slice().reverse();
+      f = events.filter((e) => allowedSessions.has(e.sessionId));
+    } else {
+      f = events.slice();
     }
-    return events.slice().reverse();
+    // Newest-first list; render only the most recent RENDER_CAP for perf,
+    // but show oldest at top of the visible window so it reads chronologically.
+    const recent = f.slice(0, RENDER_CAP).reverse();
+    return { filtered: recent, hiddenCount: Math.max(0, f.length - RENDER_CAP) };
   }, [events, selectedUnitId, activeWorldId, worlds]);
 
   const showBadges = !selectedUnitId;
@@ -197,6 +203,11 @@ export function ChatPanel() {
         )}
       </div>
       <div className="chat-stream">
+        {hiddenCount > 0 && (
+          <div className="chat-marker">
+            <span className="chat-marker-text">{hiddenCount} earlier events hidden</span>
+          </div>
+        )}
         {filtered.map((e, i) => {
           const unit = units[e.sessionId];
           const prev = filtered[i - 1];

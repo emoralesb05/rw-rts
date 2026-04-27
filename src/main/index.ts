@@ -5,6 +5,7 @@ import { bus } from "./event-bus";
 import { AgentManager } from "./agent-manager";
 import { startHookBridge, stopHookBridge } from "./adapters/claude-hook";
 import { startCursorAdapter, stopCursorAdapter } from "./adapters/cursor";
+import { startCodexWatch, stopCodexWatch } from "./adapters/codex-watch";
 import {
   installHooks,
   uninstallHooks,
@@ -66,6 +67,7 @@ if (!app.isPackaged) {
 app.whenReady().then(async () => {
   startHookBridge();
   startCursorAdapter();
+  startCodexWatch();
   createWindow();
 
   process.on("SIGUSR1", async () => {
@@ -82,15 +84,15 @@ app.whenReady().then(async () => {
 
   process.on("SIGUSR2", async () => {
     const cwd = resolve(".");
-    AgentManager.spawn("claude", {
+    void AgentManager.spawn("claude", {
       prompt: "List the files in the current directory and tell me about them.",
       cwd,
     });
-    AgentManager.spawn("claude", {
+    void AgentManager.spawn("claude", {
       prompt: "Search the web for the latest Claude Code release notes.",
       cwd,
     });
-    AgentManager.spawn("claude", {
+    void AgentManager.spawn("claude", {
       prompt: "Read package.json and summarize the dependencies.",
       cwd,
     });
@@ -106,8 +108,9 @@ app.whenReady().then(async () => {
 
   ipcMain.handle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
     const cwd = resolve(req.cwd || ".");
-    const tool = req.tool === "cursor" ? "cursor" : "claude";
-    const agent = AgentManager.spawn(tool, { prompt: req.prompt, cwd });
+    const tool: "claude" | "cursor" | "codex" =
+      req.tool === "cursor" ? "cursor" : req.tool === "codex" ? "codex" : "claude";
+    const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
     return { unitId: agent.unitId, sessionId: agent.sessionId };
   });
 
@@ -146,6 +149,7 @@ app.on("window-all-closed", () => {
   AgentManager.killAll();
   stopHookBridge();
   stopCursorAdapter();
+  stopCodexWatch();
   if (process.platform !== "darwin") app.quit();
 });
 
@@ -153,4 +157,5 @@ app.on("will-quit", () => {
   AgentManager.killAll();
   stopHookBridge();
   stopCursorAdapter();
+  stopCodexWatch();
 });

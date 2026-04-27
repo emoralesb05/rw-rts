@@ -8,8 +8,13 @@ import {
   listCursorAgents,
   getCursorAgent,
 } from "./adapters/cursor-cli";
+import {
+  spawnCodexAgent,
+  listCodexAgents,
+  getCodexAgent,
+} from "./adapters/codex-cli";
 
-export type SpawnableTool = "claude" | "cursor";
+export type SpawnableTool = "claude" | "cursor" | "codex";
 
 type AnyAgent = {
   unitId: string;
@@ -19,20 +24,21 @@ type AnyAgent = {
   kill(): void;
 };
 
-function spawn(
+async function spawn(
   tool: SpawnableTool,
   opts: { prompt: string; cwd: string }
-): AnyAgent {
+): Promise<AnyAgent> {
   if (tool === "cursor") return spawnCursorAgent(opts);
+  if (tool === "codex") return spawnCodexAgent(opts);
   return spawnClaudeAgent(opts);
 }
 
 function get(unitId: string): AnyAgent | undefined {
-  return getClaudeAgent(unitId) ?? getCursorAgent(unitId);
+  return getClaudeAgent(unitId) ?? getCursorAgent(unitId) ?? getCodexAgent(unitId);
 }
 
 function list(): AnyAgent[] {
-  return [...listClaudeAgents(), ...listCursorAgents()];
+  return [...listClaudeAgents(), ...listCursorAgents(), ...listCodexAgents()];
 }
 
 export const AgentManager = {

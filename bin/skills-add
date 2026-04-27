@@ -1,12 +1,30 @@
 #!/usr/bin/env bash
-# Wrapper for `npx skills add` that limits which agent directories get
-# mirror-symlinks. Without this, the CLI scatters .adal/, .augment/, .crush/,
-# .junie/, etc. across the repo for every supported agent.
-#
-# Keep-list:
-#   - universal    → .agents/skills (the canonical content)
-#   - claude-code  → .claude/skills
-#   - cursor       → .cursor/skills
-#   - codex        → .codex/skills
+# Wrapper for `npx skills add` that limits the agent dirs the CLI scatters
+# into and ensures every installed skill is symlinked into our four
+# keep-list dirs:
+#   - .agents/skills (universal — canonical content)
+#   - .claude/skills
+#   - .cursor/skills
+#   - .codex/skills
 set -e
-exec npx skills add "$@" --agent universal,claude-code,cursor,codex --yes
+
+npx skills add "$@" \
+  --agent universal \
+  --agent claude-code \
+  --agent cursor \
+  --agent codex \
+  --yes
+
+# Some target combinations end up with only .agents + .claude populated,
+# so backfill .cursor and .codex by symlinking from the canonical store.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$ROOT/.cursor/skills" "$ROOT/.codex/skills"
+for skill in "$ROOT"/.agents/skills/*; do
+  [ -e "$skill" ] || continue
+  name="$(basename "$skill")"
+  for dir in "$ROOT/.cursor/skills" "$ROOT/.codex/skills"; do
+    if [ ! -e "$dir/$name" ]; then
+      ln -s "../../.agents/skills/$name" "$dir/$name"
+    fi
+  done
+done

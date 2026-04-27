@@ -1,11 +1,26 @@
 export type AgentTool = "claude" | "cursor" | "codex";
 
 export type UnitRole =
+  // Claude — Keyblade Wielders + Royal Court
   | "sora"
   | "riku"
   | "kairi"
   | "donald"
   | "goofy"
+  | "mickey"
+  // Cursor — BBS / Days / Re:CoM
+  | "ventus"
+  | "aqua"
+  | "terra"
+  | "roxas"
+  | "namine"
+  // Codex — FF guests in KH
+  | "cloud"
+  | "leon"
+  | "tifa"
+  | "aerith"
+  | "yuffie"
+  // Generic faction fallbacks (kept for compatibility)
   | "organization"
   | "unversed";
 

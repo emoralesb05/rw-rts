@@ -12,7 +12,7 @@ export const IPC = {
 export type SpawnAgentRequest = {
   prompt: string;
   cwd: string;
-  tool?: "claude" | "cursor";
+  tool?: "claude" | "cursor" | "codex";
   role?: string;
   name?: string;
 };

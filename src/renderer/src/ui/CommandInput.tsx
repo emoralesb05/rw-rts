@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useStore } from "../store";
 
-type Tool = "claude" | "cursor";
+type Tool = "claude" | "cursor" | "codex";
+
+const TOOLS: Tool[] = ["claude", "cursor", "codex"];
 
 export function CommandInput() {
   const [text, setText] = useState("");
@@ -44,26 +46,19 @@ export function CommandInput() {
     <div className="command">
       {!selected && (
         <div className="command-tool" role="tablist" aria-label="agent tool">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tool === "claude"}
-            className={"command-tool-btn" + (tool === "claude" ? " active" : "")}
-            onClick={() => setTool("claude")}
-            title="Spawn a Claude Code agent"
-          >
-            claude
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tool === "cursor"}
-            className={"command-tool-btn" + (tool === "cursor" ? " active" : "")}
-            onClick={() => setTool("cursor")}
-            title="Spawn a Cursor agent"
-          >
-            cursor
-          </button>
+          {TOOLS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tool === t}
+              className={"command-tool-btn" + (tool === t ? " active" : "")}
+              onClick={() => setTool(t)}
+              title={`Spawn a ${t} agent`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       )}
       <input
