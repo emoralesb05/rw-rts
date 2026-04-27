@@ -88,28 +88,6 @@ app.whenReady().then(async () => {
     }
   });
 
-  process.on("SIGUSR2", async () => {
-    const cwd = resolve(".");
-    void AgentManager.spawn("claude", {
-      prompt: "List the files in the current directory and tell me about them.",
-      cwd,
-    });
-    void AgentManager.spawn("claude", {
-      prompt: "Search the web for the latest Claude Code release notes.",
-      cwd,
-    });
-    void AgentManager.spawn("claude", {
-      prompt: "Read package.json and summarize the dependencies.",
-      cwd,
-    });
-    console.log("[kh-rts] spawned 3 dev agents, will enter world in 4s");
-    setTimeout(() => {
-      mainWindow?.webContents.executeJavaScript(
-        `(() => { const s = window.__khStore; if (!s) return false; const ws = s.getState().worlds; const ids = Object.keys(ws); if (!ids.length) return false; s.getState().selectWorld(ids[0]); return true; })()`
-      );
-    }, 4000);
-  });
-
   await offerHookInstall();
 
   ipcMain.handle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {

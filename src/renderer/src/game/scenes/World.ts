@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import { ROLE_PALETTE } from "../units";
 import {
   drawKHUnit,
@@ -213,8 +213,10 @@ export class WorldScene extends Phaser.Scene {
         const d = this.isoToScreen(x, y + 1);
         const fill = (x + y) % 2 === 0 ? 0x0a1130 : 0x0d1638;
         g.fillStyle(fill, 1);
-        g.fillPoints([a, b, c, d], true);
-        g.strokePoints([a, b, c, d, a]);
+        const ring = [a, b, c, d] as Phaser.Math.Vector2[];
+        const ringClosed = [a, b, c, d, a] as Phaser.Math.Vector2[];
+        g.fillPoints(ring, true);
+        g.strokePoints(ringClosed);
       }
     }
   }

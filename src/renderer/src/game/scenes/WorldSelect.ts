@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import { useStore } from "../../store";
 
 type PlanetRef = {

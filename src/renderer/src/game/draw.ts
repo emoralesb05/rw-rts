@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import type { UnitRole } from "@shared/events";
 
 export const UNIT_ROLES: UnitRole[] = [
@@ -509,8 +509,9 @@ export function drawKHUnit(
         { x: -14, y: -2 },
         { x: -8, y: -14 },
       ];
-      body.fillPoints(pts, true);
-      body.strokePoints(pts, true, true);
+      const ptsV2 = pts as Phaser.Math.Vector2[];
+      body.fillPoints(ptsV2, true);
+      body.strokePoints(ptsV2, true, true);
       objs.push(body);
       // Glowing eye
       objs.push(scene.add.circle(0, -4, 3.5, 0xffd86b));

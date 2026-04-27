@@ -11,7 +11,7 @@
  * (`<role>.png`), and finally to drawn primitives.
  */
 
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import type { UnitRole } from "@shared/events";
 import { UNIT_ROLES } from "./draw";
 
