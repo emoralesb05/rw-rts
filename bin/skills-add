@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Wrapper for `npx skills add` that limits which agent directories get
+# mirror-symlinks. Without this, the CLI scatters .adal/, .augment/, .crush/,
+# .junie/, etc. across the repo for every supported agent.
+#
+# Keep-list:
+#   - universal    → .agents/skills (the canonical content)
+#   - claude-code  → .claude/skills
+#   - cursor       → .cursor/skills
+#   - codex        → .codex/skills
+set -e
+exec npx skills add "$@" --agent universal,claude-code,cursor,codex --yes
