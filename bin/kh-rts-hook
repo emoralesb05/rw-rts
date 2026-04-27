@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""kh-rts-managed: forwards Claude Code hook payloads to the kh-rts GUI socket.
+
+Reads the hook JSON payload from stdin and pipes it to ~/.claude/kh-rts.sock
+via a Unix-domain socket, then half-closes so claude isn't blocked waiting on
+a server reply. Silent if the socket isn't listening (GUI not running).
+"""
+import os, socket, sys
+
+SOCK = os.path.join(os.path.expanduser("~"), ".claude", "kh-rts.sock")
+
+if not os.path.exists(SOCK):
+    sys.exit(0)
+
+try:
+    data = sys.stdin.buffer.read()
+    if not data:
+        sys.exit(0)
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(2.0)
+    s.connect(SOCK)
+    s.sendall(data)
+    s.shutdown(socket.SHUT_WR)
+    s.close()
+except Exception:
+    # Never fail a hook — we don't want to break claude if the GUI is wedged.
+    pass

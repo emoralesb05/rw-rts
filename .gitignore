@@ -1,0 +1,13 @@
+node_modules
+out
+dist
+.DS_Store
+*.log
+.env
+.env.local
+.vite
+bun.lockb
+assets/sprites/kh/*
+!assets/sprites/kh/.gitkeep
+assets/sounds/kh/*
+!assets/sounds/kh/.gitkeep
