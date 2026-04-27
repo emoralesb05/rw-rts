@@ -1,8 +1,9 @@
 /**
  * Sound loader. Probes /sounds/kh/{name}.{ext} for each sound name; if present,
- * plays via HTMLAudio. If absent, silent. Drop your own files into
- * assets/sounds/kh/ to enable.
+ * plays via HTMLAudio. If absent, falls back to a synthesized cue from
+ * audio/synth.ts so the app has audio feedback out of the box.
  */
+import { playCue, type SynthCue } from "./synth";
 
 export type SoundName =
   | "tool"
@@ -62,14 +63,18 @@ export async function preloadSounds() {
 export function play(name: SoundName, volume = 0.6) {
   if (_muted) return;
   const audio = cache.get(name);
-  if (!audio) return;
-  try {
-    const clone = audio.cloneNode(true) as HTMLAudioElement;
-    clone.volume = volume;
-    void clone.play().catch(() => {});
-  } catch {
-    // ignore
+  if (audio) {
+    try {
+      const clone = audio.cloneNode(true) as HTMLAudioElement;
+      clone.volume = volume;
+      void clone.play().catch(() => {});
+    } catch {
+      // ignore
+    }
+    return;
   }
+  // No file — fall back to synthesized cue.
+  playCue(name as SynthCue);
 }
 
 export function isMuted() {

@@ -155,22 +155,30 @@ export class WorldSelectScene extends Phaser.Scene {
       .text(0, 62, label, { fontSize: "12px", color: "#e6ecff", fontFamily: "ui-monospace, monospace" })
       .setOrigin(0.5);
 
-    const container = this.add.container(0, 0, [ring, planet, countText, labelText]);
-    container.setSize(120, 130);
-    const hit = new Phaser.Geom.Circle(0, 0, 50);
-    container.setInteractive(hit, Phaser.Geom.Circle.Contains, true);
-
-    container.on("pointerover", () => {
+    // Invisible hit-pad — Phaser container hit-areas have alignment quirks
+    // when the container has children at varied local positions. Putting an
+    // explicit interactive circle on top is more reliable.
+    const hitPad = this.add.circle(0, 0, 58, 0xffffff, 0);
+    hitPad.setInteractive({ useHandCursor: true });
+    hitPad.on("pointerover", () => {
       this.tweens.add({ targets: planet, scale: 1.12, duration: 120 });
       ring.setStrokeStyle(2, 0xffd86b, 0.9);
     });
-    container.on("pointerout", () => {
+    hitPad.on("pointerout", () => {
       this.tweens.add({ targets: planet, scale: 1, duration: 120 });
       ring.setStrokeStyle(1, 0xffd86b, 0.45);
     });
-    container.on("pointerdown", () => {
+    hitPad.on("pointerdown", () => {
       useStore.getState().selectWorld(worldId);
     });
+
+    const container = this.add.container(0, 0, [
+      ring,
+      planet,
+      countText,
+      labelText,
+      hitPad,
+    ]);
 
     return { worldId, container, planet, ring, countText, labelText };
   }

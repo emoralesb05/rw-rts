@@ -11,11 +11,35 @@ type Store = {
   worlds: Record<string, WorldState>;
   selectedUnitId: string | null;
   activeWorldId: string | null;
+  mutedSessionIds: Record<string, true>;
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
+  toggleMute(sessionId: string): void;
 };
+
+const MUTED_KEY = "kh-rts:muted-sessions";
+function loadMuted(): Record<string, true> {
+  try {
+    const raw = localStorage.getItem(MUTED_KEY);
+    if (!raw) return {};
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return {};
+    const out: Record<string, true> = {};
+    for (const id of arr) if (typeof id === "string") out[id] = true;
+    return out;
+  } catch {
+    return {};
+  }
+}
+function saveMuted(m: Record<string, true>) {
+  try {
+    localStorage.setItem(MUTED_KEY, JSON.stringify(Object.keys(m)));
+  } catch {
+    // ignore
+  }
+}
 
 const MAX_EVENTS = 500;
 
@@ -47,6 +71,14 @@ function roleFor(
 const _queue: AgentEvent[] = [];
 let _flushScheduled = false;
 
+// Pending Task/Agent calls — when a parent fires this and a new session
+// starts within PARENT_LINK_WINDOW_MS in the same cwd, treat the new unit
+// as the parent's child.
+type PendingTask = { parentSessionId: string; cwd: string; time: number };
+const _pendingTasks: PendingTask[] = [];
+const PARENT_LINK_WINDOW_MS = 8000;
+const TASK_NAMES = new Set(["Task", "Agent", "task_v2", "task"]);
+
 function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   const id = event.sessionId;
   const worldId = worldIdFromCwd(event.cwd);
@@ -74,6 +106,36 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   if (event.kind === "session_start" && event.source === "spawned") {
     unit.spawnedHere = true;
   }
+  // Subagent linkage: an explicit parentSessionId on the event wins;
+  // otherwise on session_start, look for a recently-fired Task in this cwd.
+  const explicitParent = event.payload.parentSessionId as string | undefined;
+  if (explicitParent && !unit.parentSessionId) {
+    unit.parentSessionId = explicitParent;
+  } else if (event.kind === "session_start" && !unit.parentSessionId) {
+    const now = event.timestamp;
+    while (
+      _pendingTasks.length > 0 &&
+      now - _pendingTasks[0].time > PARENT_LINK_WINDOW_MS
+    ) {
+      _pendingTasks.shift();
+    }
+    const match = _pendingTasks.find(
+      (p) => p.cwd === event.cwd && p.parentSessionId !== id
+    );
+    if (match) unit.parentSessionId = match.parentSessionId;
+  }
+  // Record pending Task call so the next session_start in this cwd can link.
+  if (
+    event.kind === "tool_use" &&
+    typeof event.payload.name === "string" &&
+    TASK_NAMES.has(event.payload.name)
+  ) {
+    _pendingTasks.push({
+      parentSessionId: id,
+      cwd: event.cwd,
+      time: event.timestamp,
+    });
+  }
   unit.role = role;
   unit.lastActivity = event.timestamp;
   unit.lastTool = lastToolName;
@@ -87,6 +149,11 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       break;
     case "session_end":
       unit.status = unit.hp <= 0 ? "fallen" : "complete";
+      break;
+    case "subagent_spawn":
+      // Hook bridge maps Claude's SubagentStop here. Promote the parent
+      // (this unit) to Mickey — the king summoning his court back.
+      if (unit.tool === "claude") unit.role = "mickey";
       break;
     case "tool_use":
       unit.status = event.payload.name === "Bash" ? "casting" : "working";
@@ -114,10 +181,24 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     label: worldLabel(event.cwd),
     unitIds,
   };
+  // If a subagent (this unit has a parent) just ended, promote the parent
+  // to Mickey to mark "court returned to the king".
+  const extraUnits: Record<string, UnitState> = {};
+  if (
+    event.kind === "session_end" &&
+    unit.parentSessionId &&
+    unit.tool === "claude"
+  ) {
+    const parent = state.units[unit.parentSessionId];
+    if (parent && parent.role !== "mickey") {
+      extraUnits[unit.parentSessionId] = { ...parent, role: "mickey" };
+    }
+  }
+
   return {
     events,
     eventCount,
-    units: { ...state.units, [id]: unit },
+    units: { ...state.units, [id]: unit, ...extraUnits },
     worlds,
   };
 }
@@ -129,6 +210,7 @@ export const useStore = create<Store>((set) => ({
   worlds: {},
   selectedUnitId: null,
   activeWorldId: null,
+  mutedSessionIds: loadMuted(),
 
   ingest(event) {
     _queue.push(event);
@@ -154,5 +236,14 @@ export const useStore = create<Store>((set) => ({
   },
   selectWorld(id) {
     set({ activeWorldId: id });
+  },
+  toggleMute(sessionId) {
+    set((state) => {
+      const next = { ...state.mutedSessionIds };
+      if (next[sessionId]) delete next[sessionId];
+      else next[sessionId] = true;
+      saveMuted(next);
+      return { mutedSessionIds: next };
+    });
   },
 }));

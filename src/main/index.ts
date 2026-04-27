@@ -6,13 +6,19 @@ import { AgentManager } from "./agent-manager";
 import { startHookBridge, stopHookBridge } from "./adapters/claude-hook";
 import { startCursorAdapter, stopCursorAdapter } from "./adapters/cursor";
 import { startCodexWatch, stopCodexWatch } from "./adapters/codex-watch";
+import { playFixture, stopAllFixtures } from "./adapters/fixture";
 import {
   installHooks,
   uninstallHooks,
   getStatus,
   isInstalled,
 } from "./hook-installer";
-import { IPC, type SpawnAgentRequest, type SendPromptRequest } from "@shared/ipc";
+import {
+  IPC,
+  type SpawnAgentRequest,
+  type SendPromptRequest,
+  type PlayFixtureRequest,
+} from "@shared/ipc";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -140,6 +146,11 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle(IPC.HooksStatus, () => getStatus());
 
+  ipcMain.handle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
+    const cwd = resolve(req.cwd || ".");
+    playFixture(req.scenario, cwd);
+  });
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -150,6 +161,7 @@ app.on("window-all-closed", () => {
   stopHookBridge();
   stopCursorAdapter();
   stopCodexWatch();
+  stopAllFixtures();
   if (process.platform !== "darwin") app.quit();
 });
 
@@ -158,4 +170,5 @@ app.on("will-quit", () => {
   stopHookBridge();
   stopCursorAdapter();
   stopCodexWatch();
+  stopAllFixtures();
 });

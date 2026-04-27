@@ -8,6 +8,36 @@ import { useStore } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
 import type { AgentEvent, UnitState } from "@shared/events";
 
+function SelectedUnitBar({ unit, onClear }: { unit: UnitState; onClear: () => void }) {
+  const palette = ROLE_PALETTE[unit.role];
+  const cwdShort = unit.cwd.split("/").slice(-2).join("/");
+  return (
+    <div className="chat-selected-bar">
+      <span
+        className="chat-selected-portrait"
+        style={{ background: ROLE_HEX[unit.role] }}
+      />
+      <div className="chat-selected-info">
+        <div className="chat-selected-name">
+          {palette.label}
+          <span className="chat-selected-meta"> · {unit.tool} · {unit.status}</span>
+        </div>
+        <div className="chat-selected-meta">
+          {cwdShort}
+          {unit.lastTool ? ` · last: ${unit.lastTool}` : ""}
+        </div>
+      </div>
+      <div className="chat-selected-bars">
+        <div className="bar hp"><div style={{ width: `${unit.hp}%` }} /></div>
+        <div className="bar mp"><div style={{ width: `${unit.mp}%` }} /></div>
+      </div>
+      <button className="chat-clear" onClick={onClear} title="clear selection">
+        ×
+      </button>
+    </div>
+  );
+}
+
 const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk };
 
 function UnitBadge({ unit }: { unit: UnitState }) {
@@ -160,23 +190,25 @@ export function ChatPanel() {
   const selectUnit = useStore((s) => s.selectUnit);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const muted = useStore((s) => s.mutedSessionIds);
   const RENDER_CAP = 80;
   const { filtered, hiddenCount } = useMemo(() => {
     let f: AgentEvent[];
     if (selectedUnitId) {
+      // When a unit is explicitly selected, show its events even if muted.
       f = events.filter((e) => e.sessionId === selectedUnitId);
     } else if (activeWorldId) {
       const world = worlds[activeWorldId];
       const allowedSessions = new Set(world?.unitIds ?? []);
-      f = events.filter((e) => allowedSessions.has(e.sessionId));
+      f = events.filter(
+        (e) => allowedSessions.has(e.sessionId) && !muted[e.sessionId]
+      );
     } else {
-      f = events.slice();
+      f = events.filter((e) => !muted[e.sessionId]);
     }
-    // Newest-first list; render only the most recent RENDER_CAP for perf,
-    // but show oldest at top of the visible window so it reads chronologically.
     const recent = f.slice(0, RENDER_CAP).reverse();
     return { filtered: recent, hiddenCount: Math.max(0, f.length - RENDER_CAP) };
-  }, [events, selectedUnitId, activeWorldId, worlds]);
+  }, [events, selectedUnitId, activeWorldId, worlds, muted]);
 
   const showBadges = !selectedUnitId;
 
@@ -184,24 +216,23 @@ export function ChatPanel() {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [filtered.length]);
 
+  const selectedUnit = selectedUnitId ? units[selectedUnitId] : null;
+
   return (
     <div className="chat-panel">
-      <div className="chat-panel-header">
-        <span>
-          {selectedUnitId
-            ? "selected unit"
-            : activeWorldId
+      {selectedUnit ? (
+        <SelectedUnitBar unit={selectedUnit} onClear={() => selectUnit(null)} />
+      ) : (
+        <div className="chat-panel-header">
+          <span>
+            {activeWorldId
               ? `world: ${worlds[activeWorldId]?.label ?? "?"}`
               : "all worlds"}
-          {" · "}
-          {filtered.length} events
-        </span>
-        {selectedUnitId && (
-          <button className="chat-clear" onClick={() => selectUnit(null)}>
-            clear filter
-          </button>
-        )}
-      </div>
+            {" · "}
+            {filtered.length} events
+          </span>
+        </div>
+      )}
       <div className="chat-stream">
         {hiddenCount > 0 && (
           <div className="chat-marker">

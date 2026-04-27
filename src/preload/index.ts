@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
-import { IPC, type SpawnAgentRequest, type SendPromptRequest, type HooksStatus } from "../shared/ipc";
+import {
+  IPC,
+  type SpawnAgentRequest,
+  type SendPromptRequest,
+  type HooksStatus,
+  type PlayFixtureRequest,
+} from "../shared/ipc";
 import type { AgentEvent } from "../shared/events";
 
 const api = {
@@ -30,6 +36,9 @@ const api = {
   },
   hooksStatus() {
     return ipcRenderer.invoke(IPC.HooksStatus) as Promise<HooksStatus>;
+  },
+  playFixture(req: PlayFixtureRequest) {
+    return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
   },
 };
 

@@ -64,6 +64,7 @@ export type UnitState = {
   lastActivity: number;
   lastTool?: string;
   spawnedHere: boolean;
+  parentSessionId?: string;
 };
 
 export type WorldState = {
@@ -89,8 +90,8 @@ const CLAUDE_ROSTER: ToolNameRoleMap = {
   Task: "kairi",
   Agent: "kairi",
   TaskCreate: "kairi",
-  // Mickey is reserved for SubagentStop / orchestration-leadership signals
-  SubagentStop: "mickey",
+  // Mickey is promoted via the subagent-end path in store.ts, not via
+  // tool-name mapping (hook event names never reach lastToolName).
 };
 
 // Cursor's tools (read_file_v2, glob_file_search, run_terminal_command_v2,

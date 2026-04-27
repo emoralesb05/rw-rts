@@ -10,9 +10,10 @@ export function PhaserGame() {
 
   useEffect(() => {
     if (!hostRef.current || gameRef.current) return;
+    const host = hostRef.current;
     const game = new Phaser.Game({
       type: Phaser.AUTO,
-      parent: hostRef.current,
+      parent: host,
       backgroundColor: "#04060d",
       scale: {
         mode: Phaser.Scale.RESIZE,
@@ -22,6 +23,18 @@ export function PhaserGame() {
       scene: [WorldSelectScene, WorldScene],
     });
     gameRef.current = game;
+
+    // Phaser RESIZE mode only watches window.resize. Our stage size changes
+    // when the side panel or unit dock layout shifts (CSS grid, no window
+    // resize). Without this, the canvas internal resolution diverges from
+    // the displayed CSS size and pointer hits land in the wrong place
+    // (typical symptom: only clicks near the top-left of an object register).
+    const ro = new ResizeObserver(() => {
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      if (w > 0 && h > 0) game.scale.resize(w, h);
+    });
+    ro.observe(host);
 
     let lastWorldId: string | null = useStore.getState().activeWorldId;
     const unsub = useStore.subscribe((state) => {
@@ -38,6 +51,7 @@ export function PhaserGame() {
     });
 
     return () => {
+      ro.disconnect();
       unsub();
       game.destroy(true);
       gameRef.current = null;

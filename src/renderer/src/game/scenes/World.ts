@@ -18,6 +18,7 @@ type SpriteRef = {
   container: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
   glow: Phaser.GameObjects.Arc;
+  selectRing: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
   hpRing: Phaser.GameObjects.Arc;
   mpRing: Phaser.GameObjects.Arc;
@@ -25,6 +26,8 @@ type SpriteRef = {
   homeTy: number;
   role: string;
   status: string;
+  parentSessionId?: string;
+  tether?: Phaser.GameObjects.Graphics;
 };
 
 const FILE_SITES: {
@@ -88,14 +91,7 @@ export class WorldScene extends Phaser.Scene {
       useStore.getState().selectWorld(null);
     });
 
-    this.input.on(
-      "pointerdown",
-      (_p: Phaser.Input.Pointer, targets: Phaser.GameObjects.GameObject[]) => {
-        const hit = targets.find((t) => t.getData("unitId"));
-        if (hit)
-          useStore.getState().selectUnit(hit.getData("unitId") as string);
-      }
-    );
+    // Per-unit hitPads handle pointerdown directly — no scene-level handler.
 
     // Burst protection — Cursor turns can fire 10–30 tool_use events in <1s.
     // Skip animations for the same unit within MIN_GAP so tween queue doesn't
@@ -143,6 +139,18 @@ export class WorldScene extends Phaser.Scene {
       this.headerText.setText(world ? `▸ ${world.label}` : "");
     }
 
+    // Selection highlight — gold rotating ring on the selected unit.
+    const selectedId = state.selectedUnitId;
+    for (const [id, ref] of this.sprites) {
+      if (id === selectedId) {
+        ref.selectRing.setVisible(true);
+        ref.selectRing.setStrokeStyle(2, 0xffd86b, 0.85);
+        ref.selectRing.rotation = (this.time.now / 800) % (Math.PI * 2);
+      } else if (ref.selectRing.visible) {
+        ref.selectRing.setVisible(false);
+      }
+    }
+
     for (const ref of this.sprites.values()) {
       const home = this.isoToScreen(ref.homeTx, ref.homeTy);
       if (ref.status === "idle") {
@@ -151,6 +159,30 @@ export class WorldScene extends Phaser.Scene {
         if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
           ref.container.x += dx * 0.05;
           ref.container.y += dy * 0.05;
+        }
+      }
+      // Draw tether to parent if linked
+      if (ref.parentSessionId) {
+        const parent = this.sprites.get(ref.parentSessionId);
+        if (!ref.tether) {
+          ref.tether = this.add.graphics();
+          ref.tether.setDepth(-1);
+        }
+        ref.tether.clear();
+        if (parent && parent.container.scene) {
+          ref.tether.lineStyle(2, 0xffd86b, 0.5);
+          ref.tether.lineBetween(
+            parent.container.x,
+            parent.container.y,
+            ref.container.x,
+            ref.container.y
+          );
+          // Small star bead at midpoint, animated by phase
+          const mx = (parent.container.x + ref.container.x) / 2;
+          const my = (parent.container.y + ref.container.y) / 2;
+          const phase = (this.time.now / 600) % 1;
+          ref.tether.fillStyle(0xffd86b, 0.7 - phase * 0.5);
+          ref.tether.fillCircle(mx, my, 3 + phase * 4);
         }
       }
     }
@@ -223,6 +255,7 @@ export class WorldScene extends Phaser.Scene {
     });
     for (const [id, ref] of this.sprites) {
       if (!seen.has(id)) {
+        ref.tether?.destroy();
         ref.container.destroy(true);
         this.sprites.delete(id);
       }
@@ -239,6 +272,10 @@ export class WorldScene extends Phaser.Scene {
     const { x, y } = this.isoToScreen(homeTx, homeTy);
 
     const glow = this.add.circle(0, 6, 20, palette.color, 0.28);
+    const selectRing = this.add
+      .arc(0, 4, 30, 0, 360, false, 0xffd86b, 0)
+      .setStrokeStyle(2, 0xffd86b, 0)
+      .setVisible(false);
 
     const body = this.add.container(0, 0);
     const overrideKey = TEXTURE_KEY(unit.role);
@@ -265,18 +302,28 @@ export class WorldScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // Use an explicit invisible "hit pad" rectangle as the interactive
+    // surface, sized to cover the full visible silhouette (head + body +
+    // hair). This is more reliable than relying on Container hit-area math,
+    // which can drift across Phaser versions when scale is applied.
+    const hitPad = this.add
+      .rectangle(0, 0, 44, 64, 0xffffff, 0)
+      .setOrigin(0.5, 0.5);
+    hitPad.setInteractive({ useHandCursor: true });
+    hitPad.setData("unitId", unit.id);
+    hitPad.on("pointerdown", () => {
+      useStore.getState().selectUnit(unit.id);
+    });
+
     const container = this.add.container(x, y, [
       glow,
+      selectRing,
       body,
       hpRing,
       mpRing,
       label,
+      hitPad,
     ]);
-    container.setSize(40, 60);
-    container.setInteractive(
-      new Phaser.Geom.Rectangle(-20, -32, 40, 60),
-      Phaser.Geom.Rectangle.Contains
-    );
     container.setData("unitId", unit.id);
 
     this.tweens.add({
@@ -287,10 +334,15 @@ export class WorldScene extends Phaser.Scene {
       duration: 1200 + Math.random() * 400,
     });
 
+    if (unit.parentSessionId) {
+      container.setScale(0.7);
+    }
+
     const ref: SpriteRef = {
       container,
       body,
       glow,
+      selectRing,
       label,
       hpRing,
       mpRing,
@@ -298,6 +350,7 @@ export class WorldScene extends Phaser.Scene {
       homeTy,
       role: unit.role,
       status: unit.status,
+      parentSessionId: unit.parentSessionId,
     };
     this.updateSpriteState(ref, unit);
     return ref;
@@ -327,6 +380,10 @@ export class WorldScene extends Phaser.Scene {
     const mpPct = Math.max(0, Math.min(1, unit.mp / 100));
     ref.hpRing.endAngle = -90 + 360 * hpPct;
     ref.mpRing.endAngle = -90 + 360 * mpPct;
+    if (ref.parentSessionId !== unit.parentSessionId) {
+      ref.parentSessionId = unit.parentSessionId;
+      ref.container.setScale(unit.parentSessionId ? 0.7 : 1);
+    }
   }
 
   private animateEvent(ev: AgentEvent) {

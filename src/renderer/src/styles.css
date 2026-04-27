@@ -68,6 +68,103 @@ body, html, #root {
   z-index: 5;
 }
 
+.unit-dock {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 6;
+  background: rgba(10, 17, 48, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  max-width: calc(100% - 24px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.unit-dock-header {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.unit-dock-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, auto);
+  gap: 4px;
+  max-height: 180px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+.unit-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 60px;
+  grid-template-rows: auto auto;
+  gap: 2px 6px;
+  align-items: center;
+  background: rgba(20, 32, 74, 0.7);
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+  min-width: 100px;
+}
+.unit-tile:hover { border-color: var(--line); }
+.unit-tile.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(108, 198, 255, 0.45) inset;
+}
+.unit-tile.ghosted { opacity: 0.5; }
+.unit-tile.muted { opacity: 0.55; }
+.unit-tile-portrait {
+  grid-row: 1 / span 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  position: relative;
+}
+.unit-tile-tool {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.65);
+  text-transform: uppercase;
+}
+.unit-tile-name {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.unit-tile-bars {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+}
+.unit-tile-bars .bar { height: 3px; }
+.unit-tile-mute-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  padding: 1px 3px;
+}
+
 .btn {
   background: var(--panel-2);
   color: var(--text);
@@ -80,6 +177,16 @@ body, html, #root {
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: #04060d; border-color: var(--accent); }
 .btn.danger { color: var(--danger); }
+
+select.btn {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%236cc6ff'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  cursor: pointer;
+}
 
 .side {
   background: var(--panel);
@@ -128,6 +235,45 @@ body, html, #root {
   font-size: 11px;
   padding: 0;
 }
+
+.chat-selected-bar {
+  display: grid;
+  grid-template-columns: 28px 1fr 70px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(108, 198, 255, 0.08), transparent);
+}
+.chat-selected-portrait {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.chat-selected-info { min-width: 0; }
+.chat-selected-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-selected-meta {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-selected-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chat-selected-bars .bar { height: 4px; }
 .chat-stream {
   overflow-y: auto;
   padding: 12px 14px 16px;
@@ -396,6 +542,16 @@ body, html, #root {
   gap: 10px;
   padding: 8px 0;
 }
+.unit-mute {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+}
+.unit-mute:hover { opacity: 1; }
 .unit-card .swatch {
   width: 14px; height: 14px; border-radius: 50%;
 }

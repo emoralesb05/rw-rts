@@ -7,7 +7,21 @@ export const IPC = {
   InstallHooks: "kh:install-hooks",
   UninstallHooks: "kh:uninstall-hooks",
   HooksStatus: "kh:hooks-status",
+  PlayFixture: "kh:play-fixture",
 } as const;
+
+export type FixtureScenario =
+  | "claude-starter"
+  | "cursor-turn"
+  | "codex-shell"
+  | "subagent"
+  | "stress"
+  | "demo";
+
+export type PlayFixtureRequest = {
+  scenario: FixtureScenario;
+  cwd?: string;
+};
 
 export type SpawnAgentRequest = {
   prompt: string;

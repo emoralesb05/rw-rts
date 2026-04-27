@@ -1,4 +1,9 @@
-import type { SpawnAgentRequest, SendPromptRequest, HooksStatus } from "@shared/ipc";
+import type {
+  SpawnAgentRequest,
+  SendPromptRequest,
+  HooksStatus,
+  PlayFixtureRequest,
+} from "@shared/ipc";
 import type { AgentEvent } from "@shared/events";
 
 declare global {
@@ -12,6 +17,7 @@ declare global {
       installHooks(): Promise<HooksStatus>;
       uninstallHooks(): Promise<HooksStatus>;
       hooksStatus(): Promise<HooksStatus>;
+      playFixture(req: PlayFixtureRequest): Promise<void>;
     };
   }
 }

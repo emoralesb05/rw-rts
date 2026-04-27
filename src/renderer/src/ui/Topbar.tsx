@@ -29,6 +29,28 @@ export function Topbar() {
         {worldCount} worlds · {unitCount} units · {eventCount} events
       </span>
       <span className="spacer" />
+      <select
+        className="btn"
+        defaultValue=""
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v) {
+            void window.kh.playFixture({ scenario: v as never });
+            e.target.value = "";
+          }
+        }}
+        title="run a scripted demo (no API tokens used)"
+      >
+        <option value="" disabled>
+          ▶ demo
+        </option>
+        <option value="demo">demo · all 3 tools</option>
+        <option value="claude-starter">claude · starter</option>
+        <option value="cursor-turn">cursor · multi-tool turn</option>
+        <option value="codex-shell">codex · shell</option>
+        <option value="subagent">claude · subagent (Mickey)</option>
+        <option value="stress">stress · 30 events</option>
+      </select>
       <button
         className="btn"
         onClick={() => setMuted(toggleMuted())}

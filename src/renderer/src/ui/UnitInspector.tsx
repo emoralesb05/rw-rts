@@ -6,6 +6,8 @@ export function UnitInspector() {
   const activeWorldId = useStore((s) => s.activeWorldId);
   const units = useStore((s) => s.units);
   const selectUnit = useStore((s) => s.selectUnit);
+  const muted = useStore((s) => s.mutedSessionIds);
+  const toggleMute = useStore((s) => s.toggleMute);
 
   const list = Object.values(units).filter(
     (u) => !activeWorldId || u.worldId === activeWorldId
@@ -47,6 +49,20 @@ export function UnitInspector() {
               <div className="bar hp"><div style={{ width: `${u.hp}%` }} /></div>
               <div className="bar mp"><div style={{ width: `${u.mp}%` }} /></div>
             </div>
+            <button
+              className="unit-mute"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleMute(u.sessionId);
+              }}
+              title={
+                muted[u.sessionId]
+                  ? "unmute — show events from this unit in the chat"
+                  : "mute — hide events from this unit in the chat"
+              }
+            >
+              {muted[u.sessionId] ? "🔇" : "🔊"}
+            </button>
           </div>
         );
       })}
