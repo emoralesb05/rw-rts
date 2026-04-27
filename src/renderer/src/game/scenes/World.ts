@@ -6,9 +6,36 @@ import {
   UNIT_ROLES,
   SPRITE_URL,
   TEXTURE_KEY,
+  SPRITE_DEFAULT_URL,
+  TEXTURE_DEFAULT_KEY,
 } from "../draw";
+import {
+  registerSpritesheetPreload,
+  getSpritesheetConfig,
+  getIdleAnimKey,
+  createRoleAnimations,
+} from "../sprite-assets";
+import { drawShadow, type HeartlessRef } from "../heartless";
+import type {
+  UnitRole,
+  Heartless,
+  DriveForm,
+  AgentEvent,
+  UnitState,
+} from "@shared/events";
 import { useStore } from "../../store";
-import type { AgentEvent, UnitState } from "@shared/events";
+
+const DRIVE_COLOR: Record<DriveForm, number> = {
+  valor: 0xff5a3c,
+  wisdom: 0x4ec9ff,
+  final: 0xffd86b,
+};
+
+const DRIVE_LABEL: Record<DriveForm, string> = {
+  valor: "VALOR FORM",
+  wisdom: "WISDOM FORM",
+  final: "FINAL FORM",
+};
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -18,6 +45,7 @@ type SpriteRef = {
   container: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
   glow: Phaser.GameObjects.Arc;
+  driveAura: Phaser.GameObjects.Arc;
   selectRing: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
   hpRing: Phaser.GameObjects.Arc;
@@ -26,6 +54,7 @@ type SpriteRef = {
   homeTy: number;
   role: string;
   status: string;
+  driveForm?: DriveForm;
   parentSessionId?: string;
   tether?: Phaser.GameObjects.Graphics;
 };
@@ -50,11 +79,14 @@ const FILE_SITES: {
 
 export class WorldScene extends Phaser.Scene {
   private sprites = new Map<string, SpriteRef>();
+  private heartless = new Map<string, HeartlessRef>();
   private fileTiles = new Map<string, { tx: number; ty: number }>();
   private headerText!: Phaser.GameObjects.Text;
+  private munnyText!: Phaser.GameObjects.Text;
   private backBtn!: Phaser.GameObjects.Text;
   private lastEventCount = -1;
   private lastUnitsKey = "";
+  private lastHeartlessKey = "";
   private worldId: string | null = null;
 
   constructor() {
@@ -65,9 +97,14 @@ export class WorldScene extends Phaser.Scene {
     this.load.on("loaderror", (file: { key: string }) => {
       void file;
     });
+    // Load both stills and animated sheets, user override + shipped default.
+    // populateBody picks: sheet override → sheet default → still override →
+    // still default → drawn primitives.
     for (const role of UNIT_ROLES) {
       this.load.image(TEXTURE_KEY(role), SPRITE_URL(role));
+      this.load.image(TEXTURE_DEFAULT_KEY(role), SPRITE_DEFAULT_URL(role));
     }
+    registerSpritesheetPreload(this);
   }
 
   create() {
@@ -81,6 +118,13 @@ export class WorldScene extends Phaser.Scene {
       fontFamily: "system-ui",
       fontStyle: "bold",
     });
+    this.munnyText = this.add
+      .text(this.scale.width - 20, 18, "", {
+        fontSize: "13px",
+        color: "#ffd86b",
+        fontFamily: "ui-monospace, monospace",
+      })
+      .setOrigin(1, 0);
     this.backBtn = this.add
       .text(20, 44, "← back to gummi map", {
         fontSize: "11px",
@@ -110,16 +154,21 @@ export class WorldScene extends Phaser.Scene {
     this.events.once("shutdown", () => {
       window.removeEventListener("kh:event", handler as EventListener);
       this.sprites.clear();
+      this.heartless.clear();
       this.fileTiles.clear();
       this.lastEventCount = -1;
       this.lastUnitsKey = "";
+      this.lastHeartlessKey = "";
     });
 
     this.scale.on("resize", () => this.repositionHeader());
     this.repositionHeader();
+
+    // Register idle/swing animations for each role from the loaded sheets.
+    createRoleAnimations(this.anims, this.textures);
   }
 
-  update() {
+  update(_t: number, delta: number) {
     const state = useStore.getState();
     const ec = state.eventCount;
     this.worldId = state.activeWorldId;
@@ -128,16 +177,25 @@ export class WorldScene extends Phaser.Scene {
     const key = ids
       .map((id) => {
         const u = state.units[id];
-        return u ? `${id}:${u.role}:${u.status}:${u.hp}:${u.mp}` : id;
+        return u
+          ? `${id}:${u.role}:${u.status}:${u.hp}:${u.mp}:${u.driveForm ?? ""}`
+          : id;
       })
       .join("|");
+    const hKey = (world?.heartless ?? []).map((h) => h.id).join(",");
 
     if (ec !== this.lastEventCount || key !== this.lastUnitsKey) {
       this.lastEventCount = ec;
       this.lastUnitsKey = key;
       this.syncSprites(ids.map((id) => state.units[id]).filter(Boolean));
       this.headerText.setText(world ? `▸ ${world.label}` : "");
+      this.munnyText.setText(world ? `µ ${world.munny}` : "");
     }
+    if (hKey !== this.lastHeartlessKey) {
+      this.lastHeartlessKey = hKey;
+      this.syncHeartless(world?.heartless ?? []);
+    }
+    this.tickHeartlessAi(delta);
 
     // Selection highlight — gold rotating ring on the selected unit.
     const selectedId = state.selectedUnitId;
@@ -191,6 +249,7 @@ export class WorldScene extends Phaser.Scene {
   private repositionHeader() {
     if (this.backBtn) this.backBtn.setPosition(20, 44);
     if (this.headerText) this.headerText.setPosition(20, 18);
+    if (this.munnyText) this.munnyText.setPosition(this.scale.width - 20, 18);
   }
 
   private isoToScreen(tx: number, ty: number) {
@@ -274,20 +333,17 @@ export class WorldScene extends Phaser.Scene {
     const { x, y } = this.isoToScreen(homeTx, homeTy);
 
     const glow = this.add.circle(0, 6, 20, palette.color, 0.28);
+    const driveAura = this.add
+      .circle(0, 4, 36, 0xffffff, 0)
+      .setStrokeStyle(0, 0xffffff, 0)
+      .setVisible(false);
     const selectRing = this.add
       .arc(0, 4, 30, 0, 360, false, 0xffd86b, 0)
       .setStrokeStyle(2, 0xffd86b, 0)
       .setVisible(false);
 
     const body = this.add.container(0, 0);
-    const overrideKey = TEXTURE_KEY(unit.role);
-    if (this.textures.exists(overrideKey)) {
-      const img = this.add.image(0, 0, overrideKey);
-      img.setScale(Math.min(36 / img.width, 48 / img.height));
-      body.add(img);
-    } else {
-      body.add(drawKHUnit(this, unit.role));
-    }
+    this.populateBody(body, unit.role);
 
     const hpRing = this.add
       .arc(0, 4, 22, -90, 270, false, 0xff6b8a, 0)
@@ -318,6 +374,7 @@ export class WorldScene extends Phaser.Scene {
     });
 
     const container = this.add.container(x, y, [
+      driveAura,
       glow,
       selectRing,
       body,
@@ -344,6 +401,7 @@ export class WorldScene extends Phaser.Scene {
       container,
       body,
       glow,
+      driveAura,
       selectRing,
       label,
       hpRing,
@@ -358,24 +416,48 @@ export class WorldScene extends Phaser.Scene {
     return ref;
   }
 
+  private populateBody(body: Phaser.GameObjects.Container, role: UnitRole) {
+    // Prefer animated spritesheet (override > default) → still PNG (override
+    // > default) → drawn primitives.
+    const sheet = getSpritesheetConfig(role, this.textures);
+    if (sheet) {
+      const spr = this.add.sprite(0, 0, sheet.textureKey, 0);
+      spr.setScale(Math.min(40 / sheet.frameWidth, 56 / sheet.frameHeight));
+      const idle = getIdleAnimKey(role);
+      if (this.anims.exists(idle)) spr.play(idle);
+      body.add(spr);
+      return;
+    }
+    const stillKey = this.textures.exists(TEXTURE_KEY(role))
+      ? TEXTURE_KEY(role)
+      : this.textures.exists(TEXTURE_DEFAULT_KEY(role))
+        ? TEXTURE_DEFAULT_KEY(role)
+        : null;
+    if (stillKey) {
+      const img = this.add.image(0, 0, stillKey);
+      img.setScale(Math.min(40 / img.width, 56 / img.height));
+      body.add(img);
+      return;
+    }
+    body.add(drawKHUnit(this, role));
+  }
+
   private updateSpriteState(ref: SpriteRef, unit: UnitState) {
     if (!ref.container.scene) return;
     if (ref.role !== unit.role) {
       const palette = ROLE_PALETTE[unit.role];
       ref.body.removeAll(true);
-      const overrideKey = TEXTURE_KEY(unit.role);
-      if (this.textures.exists(overrideKey)) {
-        const img = this.add.image(0, 0, overrideKey);
-        img.setScale(Math.min(36 / img.width, 48 / img.height));
-        ref.body.add(img);
-      } else {
-        ref.body.add(drawKHUnit(this, unit.role));
-      }
+      this.populateBody(ref.body, unit.role);
       ref.glow.fillColor = palette.color;
       ref.label.setText(palette.label);
       ref.role = unit.role;
     }
+    const prevStatus = ref.status;
     ref.status = unit.status;
+    if (prevStatus !== unit.status) {
+      if (unit.status === "fallen") this.deathPose(ref);
+      else if (unit.status === "complete") this.victoryPose(ref);
+    }
     const ghosted = unit.status === "complete" || unit.status === "fallen";
     ref.container.setAlpha(ghosted ? 0.35 : 1);
     const hpPct = Math.max(0, Math.min(1, unit.hp / 100));
@@ -386,6 +468,173 @@ export class WorldScene extends Phaser.Scene {
       ref.parentSessionId = unit.parentSessionId;
       ref.container.setScale(unit.parentSessionId ? 0.7 : 1);
     }
+    if (ref.driveForm !== unit.driveForm) {
+      this.applyDriveForm(ref, unit.driveForm);
+    }
+  }
+
+  private applyDriveForm(ref: SpriteRef, drive: DriveForm | undefined) {
+    const prev = ref.driveForm;
+    ref.driveForm = drive;
+    if (!drive) {
+      ref.driveAura.setVisible(false);
+      ref.driveAura.setAlpha(0);
+      this.tweens.killTweensOf(ref.driveAura);
+      return;
+    }
+    const color = DRIVE_COLOR[drive];
+    ref.driveAura.setVisible(true);
+    ref.driveAura.fillColor = color;
+    ref.driveAura.setAlpha(0.15);
+    ref.driveAura.setStrokeStyle(2, color, 0.85);
+    this.tweens.killTweensOf(ref.driveAura);
+    this.tweens.add({
+      targets: ref.driveAura,
+      alpha: { from: 0.18, to: 0.42 },
+      yoyo: true,
+      repeat: -1,
+      duration: 700,
+    });
+    if (prev !== drive) this.driveActivationFlash(ref, drive, color);
+  }
+
+  private victoryPose(ref: SpriteRef) {
+    if (!ref.container.scene) return;
+    const x = ref.container.x;
+    const y = ref.container.y;
+    // light beam from above — wide vertical column that fades.
+    const beam = this.add.rectangle(x, y - 80, 26, 200, 0xffd86b, 0.45);
+    beam.setOrigin(0.5, 0);
+    this.tweens.add({
+      targets: beam,
+      alpha: 0,
+      duration: 1400,
+      onComplete: () => beam.destroy(),
+    });
+    // Keyblade-raise: scale up + tiny upward hop, body angle wobble.
+    this.tweens.add({
+      targets: ref.body,
+      angle: { from: -10, to: 10 },
+      yoyo: true,
+      repeat: 1,
+      duration: 200,
+    });
+    this.tweens.add({
+      targets: ref.container,
+      y: y - 14,
+      yoyo: true,
+      duration: 380,
+      ease: "Sine.easeOut",
+    });
+    // Star burst overhead.
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i) / 6;
+      const star = this.add.star(x, y - 20, 5, 2, 5, 0xffd86b);
+      this.tweens.add({
+        targets: star,
+        x: x + Math.cos(angle) * 38,
+        y: y - 20 + Math.sin(angle) * 38,
+        alpha: 0,
+        scale: 0.3,
+        duration: 800,
+        onComplete: () => star.destroy(),
+      });
+    }
+    // CLEAR banner.
+    const banner = this.add
+      .text(x, y - 64, "CLEAR", {
+        fontSize: "14px",
+        color: "#ffd86b",
+        fontStyle: "bold",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        padding: { x: 8, y: 3 },
+      })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: banner,
+      y: y - 90,
+      alpha: 0,
+      duration: 1400,
+      ease: "Sine.easeOut",
+      onComplete: () => banner.destroy(),
+    });
+  }
+
+  private deathPose(ref: SpriteRef) {
+    if (!ref.container.scene) return;
+    const x = ref.container.x;
+    const y = ref.container.y;
+    // Body slumps + tilts.
+    this.tweens.add({
+      targets: ref.body,
+      angle: 75,
+      y: 8,
+      duration: 600,
+      ease: "Quad.easeIn",
+    });
+    // Dark heart escapes — opposite of the heartless death flourish.
+    const heart = this.add.star(x, y, 4, 3, 8, 0x4a2070);
+    heart.setStrokeStyle(1, 0x9d6bff, 0.85);
+    this.tweens.add({
+      targets: heart,
+      y: y - 50,
+      alpha: 0,
+      angle: -360,
+      duration: 1100,
+      onComplete: () => heart.destroy(),
+    });
+    // KO banner.
+    const banner = this.add
+      .text(x, y - 50, "K.O.", {
+        fontSize: "13px",
+        color: "#ff5a3c",
+        fontStyle: "bold",
+        backgroundColor: "rgba(0,0,0,0.7)",
+        padding: { x: 8, y: 3 },
+      })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: banner,
+      y: y - 80,
+      alpha: 0,
+      duration: 1400,
+      onComplete: () => banner.destroy(),
+    });
+  }
+
+  private driveActivationFlash(
+    ref: SpriteRef,
+    drive: DriveForm,
+    color: number
+  ) {
+    // Bright expanding ring + name banner that floats up and fades.
+    const x = ref.container.x;
+    const y = ref.container.y;
+    const ring = this.add.circle(x, y + 4, 30, color, 0).setStrokeStyle(3, color, 1);
+    this.tweens.add({
+      targets: ring,
+      radius: 90,
+      alpha: 0,
+      duration: 600,
+      onComplete: () => ring.destroy(),
+    });
+    const banner = this.add
+      .text(x, y - 60, DRIVE_LABEL[drive], {
+        fontSize: "11px",
+        color: "#" + color.toString(16).padStart(6, "0"),
+        fontStyle: "bold",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        padding: { x: 6, y: 2 },
+      })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: banner,
+      y: y - 90,
+      alpha: 0,
+      duration: 1100,
+      ease: "Sine.easeOut",
+      onComplete: () => banner.destroy(),
+    });
   }
 
   private animateEvent(ev: AgentEvent) {
@@ -509,5 +758,164 @@ export class WorldScene extends Phaser.Scene {
       duration: 50,
       onComplete: () => (ref.container.x = baseX),
     });
+  }
+
+  private syncHeartless(list: Heartless[]) {
+    const seen = new Set<string>();
+    for (const h of list) {
+      seen.add(h.id);
+      if (this.heartless.has(h.id)) continue;
+      this.spawnHeartlessVisual(h);
+    }
+    for (const [id, ref] of this.heartless) {
+      if (!seen.has(id)) {
+        this.poofHeartless(ref);
+        this.heartless.delete(id);
+      }
+    }
+  }
+
+  private spawnHeartlessVisual(h: Heartless) {
+    // Spawn at a random edge tile so they crawl in from the dark border —
+    // this reads as "invasion" rather than just popping in.
+    const edge = Math.floor(Math.random() * 4);
+    let tx = 0;
+    let ty = 0;
+    switch (edge) {
+      case 0:
+        tx = Math.random() * GRID;
+        ty = -1;
+        break;
+      case 1:
+        tx = GRID;
+        ty = Math.random() * GRID;
+        break;
+      case 2:
+        tx = Math.random() * GRID;
+        ty = GRID;
+        break;
+      case 3:
+        tx = -1;
+        ty = Math.random() * GRID;
+        break;
+    }
+    const { x, y } = this.isoToScreen(tx, ty);
+    const shadow = this.add.ellipse(0, 12, 22, 6, 0x000000, 0.5);
+    const body = drawShadow(this);
+    const container = this.add.container(x, y, [shadow, body]);
+    container.setScale(0.2);
+    container.setAlpha(0);
+    this.tweens.add({
+      targets: container,
+      scale: 1,
+      alpha: 1,
+      duration: 320,
+      ease: "Back.easeOut",
+    });
+    // ground-rise pre-roll: pulse a dark splotch where they emerge
+    const splotch = this.add.ellipse(x, y + 12, 30, 10, 0x05050a, 0.7);
+    this.tweens.add({
+      targets: splotch,
+      scale: 1.6,
+      alpha: 0,
+      duration: 420,
+      onComplete: () => splotch.destroy(),
+    });
+    this.heartless.set(h.id, {
+      id: h.id,
+      type: h.type,
+      targetUnitId: h.targetUnitId,
+      container,
+      body,
+      shadow,
+      bobOffset: Math.random() * Math.PI * 2,
+      lastLungeAt: 0,
+    });
+  }
+
+  private poofHeartless(ref: HeartlessRef) {
+    if (!ref.container.scene) return;
+    const x = ref.container.x;
+    const y = ref.container.y;
+    // central released heart — the KH visual cue for a Heartless dying
+    const heart = this.add.star(x, y - 4, 4, 3, 8, 0xff89a3);
+    heart.setStrokeStyle(1, 0xffffff, 0.9);
+    this.tweens.add({
+      targets: heart,
+      y: y - 36,
+      alpha: 0,
+      angle: 360,
+      duration: 700,
+      onComplete: () => heart.destroy(),
+    });
+    // dark dispersion puffs
+    for (let i = 0; i < 5; i++) {
+      const p = this.add.circle(x, y, 3, 0x05050a, 0.95);
+      const angle = (Math.PI * 2 * i) / 5 + Math.random() * 0.4;
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * 26,
+        y: y + Math.sin(angle) * 26,
+        alpha: 0,
+        scale: 0.2,
+        duration: 460,
+        onComplete: () => p.destroy(),
+      });
+    }
+    this.tweens.add({
+      targets: ref.container,
+      scale: 0,
+      alpha: 0,
+      duration: 240,
+      onComplete: () => ref.container.destroy(),
+    });
+  }
+
+  private tickHeartlessAi(delta: number) {
+    if (this.heartless.size === 0) return;
+    const dt = delta / 1000;
+    const SPEED = 70;
+    const ATTACK_RANGE = 38;
+    const LUNGE_COOLDOWN = 1100;
+    for (const ref of this.heartless.values()) {
+      if (!ref.container.scene) continue;
+      // pick the target sprite (or fallback: scene center)
+      let targetX = this.scale.width / 2;
+      let targetY = this.scale.height / 2;
+      if (ref.targetUnitId) {
+        const sprite = this.sprites.get(ref.targetUnitId);
+        if (sprite && sprite.container.scene) {
+          targetX = sprite.container.x;
+          targetY = sprite.container.y - 4;
+        }
+      }
+      const dx = targetX - ref.container.x;
+      const dy = targetY - ref.container.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > ATTACK_RANGE) {
+        ref.container.x += (dx / dist) * SPEED * dt;
+        ref.container.y += (dy / dist) * SPEED * dt;
+      } else {
+        // close enough — periodic lunge attack
+        const now = this.time.now;
+        if (now - ref.lastLungeAt > LUNGE_COOLDOWN) {
+          ref.lastLungeAt = now;
+          const baseX = ref.container.x;
+          const baseY = ref.container.y;
+          this.tweens.add({
+            targets: ref.container,
+            x: baseX + (dx / dist) * 14,
+            y: baseY + (dy / dist) * 14,
+            yoyo: true,
+            duration: 140,
+            ease: "Quad.easeOut",
+          });
+        }
+      }
+      // bob + face target
+      const phase = this.time.now / 250 + ref.bobOffset;
+      ref.body.y = Math.sin(phase) * 1.6;
+      ref.body.scaleX = dx < 0 ? -1 : 1;
+    }
   }
 }

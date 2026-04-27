@@ -38,6 +38,10 @@ export type AgentEvent = {
   sessionId: string;
   tool: AgentTool;
   cwd: string;
+  // Repo root for cwd — stamped by the main-process event bus before emit.
+  // The renderer keys worlds by this, so any subdir of the same repo lands
+  // on the same KH world. Falls back to cwd when no repo root is found.
+  repoRoot?: string;
   timestamp: number;
   kind: AgentEventKind;
   payload: {
@@ -50,6 +54,8 @@ export type AgentEvent = {
   };
   source: "spawned" | "hook";
 };
+
+export type DriveForm = "valor" | "wisdom" | "final";
 
 export type UnitState = {
   id: string;
@@ -65,13 +71,36 @@ export type UnitState = {
   lastTool?: string;
   spawnedHere: boolean;
   parentSessionId?: string;
+  driveForm?: DriveForm;
+  driveFormUntil?: number;
 };
+
+export type HeartlessType = "shadow" | "soldier" | "large_body";
+
+export type Heartless = {
+  id: string;
+  type: HeartlessType;
+  worldId: string;
+  targetUnitId?: string;
+  hp: number;
+  spawnedAt: number;
+};
+
+export type WorldAlertLevel =
+  | "idle"
+  | "active"
+  | "warning"
+  | "danger"
+  | "cleared";
 
 export type WorldState = {
   id: string;
   path: string;
   label: string;
   unitIds: string[];
+  heartless: Heartless[];
+  alertLevel: WorldAlertLevel;
+  munny: number;
 };
 
 type ToolNameRoleMap = Record<string, UnitRole>;

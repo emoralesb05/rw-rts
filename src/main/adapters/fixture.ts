@@ -174,6 +174,42 @@ function subagentSummon(cwd: string): FakeUnit[] {
   ];
 }
 
+function heartlessRaid(cwd: string): FakeUnit {
+  // Stresses the combat layer: errors that summon Heartless, edits that
+  // clear them, occasional follow-up errors so the world goes warning →
+  // danger → cleared.
+  return {
+    sessionId: `combat-${randomUUID()}`,
+    tool: "claude",
+    cwd,
+    events: [
+      { delayMs: 200, kind: "session_start", text: "running tests..." },
+      { delayMs: 800, kind: "tool_use", toolName: "Bash", input: { command: "bun test" } },
+      { delayMs: 600, kind: "tool_result", output: "FAIL src/foo.test.ts" },
+      { delayMs: 200, kind: "error", text: "1 test failed" },
+      { delayMs: 1200, kind: "error", text: "type error in src/foo.ts" },
+      { delayMs: 1500, kind: "error", text: "lint warnings" },
+      { delayMs: 900, kind: "tool_use", toolName: "Read", input: { file_path: "src/foo.ts" } },
+      { delayMs: 500, kind: "tool_result", output: "..." },
+      { delayMs: 800, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      { delayMs: 500, kind: "tool_result", output: "applied" },
+      { delayMs: 600, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      { delayMs: 500, kind: "tool_result", output: "applied" },
+      { delayMs: 700, kind: "error", text: "still failing" },
+      { delayMs: 1000, kind: "tool_use", toolName: "Bash", input: { command: "bun test" } },
+      { delayMs: 900, kind: "tool_result", output: "PASS" },
+      { delayMs: 600, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      { delayMs: 500, kind: "tool_result", output: "applied" },
+      {
+        delayMs: 700,
+        kind: "assistant_text",
+        text: "Tests pass. Heartless cleared.",
+      },
+      { delayMs: 400, kind: "session_end", text: "exit 0" },
+    ],
+  };
+}
+
 function stressBurst(cwd: string): FakeUnit {
   const events: ScriptedEvent[] = [
     { delayMs: 50, kind: "session_start", text: "stress test" },
@@ -193,6 +229,7 @@ export type FixtureScenarioId =
   | "codex-shell"
   | "subagent"
   | "stress"
+  | "combat"
   | "demo";
 
 export function playFixture(scenario: FixtureScenarioId, cwd: string) {
@@ -212,6 +249,9 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "stress":
       schedule(stressBurst(c));
+      break;
+    case "combat":
+      schedule(heartlessRaid(c));
       break;
     case "demo":
       // Fire all three tools in parallel for a "show me everything" demo.

@@ -1,13 +1,35 @@
 import * as Phaser from "phaser";
 import { useStore } from "../../store";
+import type { WorldAlertLevel } from "@shared/events";
+import {
+  drawGummiWorld,
+  themeFor,
+  themeLabel,
+  type WorldTheme,
+} from "../gummi-worlds";
 
 type PlanetRef = {
   worldId: string;
   container: Phaser.GameObjects.Container;
-  planet: Phaser.GameObjects.Arc;
+  themeIcon: Phaser.GameObjects.Container;
   ring: Phaser.GameObjects.Arc;
+  alertRing: Phaser.GameObjects.Arc;
   countText: Phaser.GameObjects.Text;
   labelText: Phaser.GameObjects.Text;
+  themeText: Phaser.GameObjects.Text;
+  heartBadge: Phaser.GameObjects.Container;
+  heartCount: Phaser.GameObjects.Text;
+  clearedMark: Phaser.GameObjects.Star;
+  theme: WorldTheme;
+  alertLevel: WorldAlertLevel;
+};
+
+const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
+  idle: 0x2a3556,
+  active: 0x6cc6ff,
+  warning: 0xffb86c,
+  danger: 0xff5a3c,
+  cleared: 0xffd86b,
 };
 
 export class WorldSelectScene extends Phaser.Scene {
@@ -64,7 +86,13 @@ export class WorldSelectScene extends Phaser.Scene {
 
     const ec = useStore.getState().eventCount;
     const worlds = useStore.getState().worlds;
-    const key = Object.keys(worlds).sort().map((k) => `${k}:${worlds[k].unitIds.length}`).join("|");
+    const key = Object.keys(worlds)
+      .sort()
+      .map(
+        (k) =>
+          `${k}:${worlds[k].unitIds.length}:${worlds[k].alertLevel}:${worlds[k].heartless.length}`
+      )
+      .join("|");
     if (ec !== this.lastEventCount || key !== this.lastWorldsKey) {
       this.lastEventCount = ec;
       this.lastWorldsKey = key;
@@ -73,8 +101,39 @@ export class WorldSelectScene extends Phaser.Scene {
 
     for (const ref of this.planets.values()) {
       ref.ring.rotation = this.t * 0.0015;
-      const pulse = 1 + Math.sin(this.t * 0.004) * 0.04;
-      ref.planet.setScale(pulse);
+      // Alert-level driven pulse: danger pulses fast, cleared steady.
+      let pulseSpeed = 0.004;
+      let pulseAmp = 0.04;
+      switch (ref.alertLevel) {
+        case "danger":
+          pulseSpeed = 0.012;
+          pulseAmp = 0.1;
+          break;
+        case "warning":
+          pulseSpeed = 0.008;
+          pulseAmp = 0.06;
+          break;
+        case "active":
+          pulseSpeed = 0.006;
+          pulseAmp = 0.05;
+          break;
+        case "cleared":
+          pulseSpeed = 0.002;
+          pulseAmp = 0.02;
+          break;
+      }
+      const pulse = 1 + Math.sin(this.t * pulseSpeed) * pulseAmp;
+      ref.themeIcon.setScale(pulse);
+
+      // Alert ring breathes — alpha modulated by sine
+      const breath =
+        ref.alertLevel === "idle"
+          ? 0.25
+          : 0.4 + (Math.sin(this.t * pulseSpeed * 1.4) + 1) * 0.25;
+      ref.alertRing.setStrokeStyle(2.5, ALERT_RING_COLOR[ref.alertLevel], breath);
+
+      // Cleared mark slowly rotates
+      ref.clearedMark.rotation = this.t * 0.001;
     }
   }
 
@@ -131,7 +190,9 @@ export class WorldSelectScene extends Phaser.Scene {
         this.planets.set(world.id, ref);
       } else {
         ref.countText.setText(String(world.unitIds.length));
+        ref.labelText.setText(world.label);
       }
+      this.applyAlertState(ref, world.alertLevel, world.heartless.length);
     }
     for (const [id, ref] of this.planets) {
       if (!seen.has(id)) {
@@ -142,45 +203,138 @@ export class WorldSelectScene extends Phaser.Scene {
     this.repositionPlanets();
   }
 
-  private createPlanet(worldId: string, label: string, unitCount: number): PlanetRef {
-    const palette = [0x4d7eff, 0x9d6bff, 0x6cc6ff, 0xffd86b, 0x7af0c0, 0xff6b8a];
-    const color = palette[Math.abs(hash(worldId)) % palette.length];
+  private applyAlertState(
+    ref: PlanetRef,
+    level: WorldAlertLevel,
+    heartlessCount: number
+  ) {
+    ref.alertLevel = level;
+    const ringColor = ALERT_RING_COLOR[level];
+    ref.ring.setStrokeStyle(1.4, ringColor, 0.55);
+    // Dim idle worlds so dangerous ones grab the eye. The themed icon is
+    // a Container — drop its alpha rather than recoloring primitives.
+    if (level === "idle") {
+      ref.themeIcon.setAlpha(0.55);
+    } else {
+      ref.themeIcon.setAlpha(1);
+    }
+    ref.clearedMark.setVisible(level === "cleared");
+    if (heartlessCount > 0) {
+      ref.heartBadge.setVisible(true);
+      ref.heartCount.setText(String(heartlessCount));
+    } else {
+      ref.heartBadge.setVisible(false);
+    }
+  }
 
-    const ring = this.add.circle(0, 0, 58, 0x000000, 0).setStrokeStyle(1, 0xffd86b, 0.45);
-    const planet = this.add.circle(0, 0, 38, color, 0.95).setStrokeStyle(2, 0xffffff, 0.6);
+  private createPlanet(worldId: string, label: string, unitCount: number): PlanetRef {
+    const theme = themeFor(worldId);
+
+    // Outer alert ring — colored by alert level, breathes via update().
+    const alertRing = this.add
+      .circle(0, 0, 70, 0x000000, 0)
+      .setStrokeStyle(2.5, 0x2a3556, 0.4);
+    const ring = this.add
+      .circle(0, 0, 58, 0x000000, 0)
+      .setStrokeStyle(1.4, 0x2a3556, 0.55);
+
+    // Themed world icon (atmosphere disc + silhouette) replaces the plain
+    // colored disc. Each repo deterministically lands on the same KH world.
+    const themeIcon = drawGummiWorld(this, theme);
+
+    // Unit count rendered as a small badge on the lower-right of the icon
+    // so the silhouette stays readable.
+    const countBg = this.add
+      .circle(0, 0, 11, 0x04060d, 0.92)
+      .setStrokeStyle(1.5, 0xffd86b, 0.95);
     const countText = this.add
-      .text(0, 0, String(unitCount), { fontSize: "20px", color: "#04060d", fontStyle: "bold" })
+      .text(0, 0, String(unitCount), {
+        fontSize: "12px",
+        color: "#ffd86b",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    const countBadge = this.add.container(30, 26, [countBg, countText]);
+
+    const themeText = this.add
+      .text(0, 50, themeLabel(theme).toUpperCase(), {
+        fontSize: "9px",
+        color: "#ffd86b",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+      })
       .setOrigin(0.5);
     const labelText = this.add
-      .text(0, 62, label, { fontSize: "12px", color: "#e6ecff", fontFamily: "ui-monospace, monospace" })
+      .text(0, 64, label, {
+        fontSize: "11px",
+        color: "#8aa0d0",
+        fontFamily: "ui-monospace, monospace",
+      })
       .setOrigin(0.5);
+
+    // Heartless count badge — small dark circle with yellow number,
+    // positioned at upper-right of the planet. Hidden when count = 0.
+    const heartBadgeBg = this.add
+      .circle(0, 0, 13, 0x05050a, 0.95)
+      .setStrokeStyle(1.5, 0xffd86b, 1);
+    const heartCount = this.add
+      .text(0, 0, "0", {
+        fontSize: "12px",
+        color: "#ffd86b",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    const heartBadge = this.add.container(30, -28, [heartBadgeBg, heartCount]);
+    heartBadge.setVisible(false);
+
+    // Cleared world checkmark — gold star above the planet.
+    const clearedMark = this.add
+      .star(0, -52, 5, 4, 9, 0xffd86b)
+      .setStrokeStyle(1, 0xffffff, 0.95);
+    clearedMark.setVisible(false);
 
     // Invisible hit-pad — Phaser container hit-areas have alignment quirks
     // when the container has children at varied local positions. Putting an
     // explicit interactive circle on top is more reliable.
-    const hitPad = this.add.circle(0, 0, 58, 0xffffff, 0);
+    const hitPad = this.add.circle(0, 0, 70, 0xffffff, 0);
     hitPad.setInteractive({ useHandCursor: true });
     hitPad.on("pointerover", () => {
-      this.tweens.add({ targets: planet, scale: 1.12, duration: 120 });
-      ring.setStrokeStyle(2, 0xffd86b, 0.9);
+      this.tweens.add({ targets: themeIcon, scale: 1.12, duration: 120 });
     });
     hitPad.on("pointerout", () => {
-      this.tweens.add({ targets: planet, scale: 1, duration: 120 });
-      ring.setStrokeStyle(1, 0xffd86b, 0.45);
+      this.tweens.add({ targets: themeIcon, scale: 1, duration: 120 });
     });
     hitPad.on("pointerdown", () => {
       useStore.getState().selectWorld(worldId);
     });
 
     const container = this.add.container(0, 0, [
+      alertRing,
       ring,
-      planet,
-      countText,
+      themeIcon,
+      clearedMark,
+      themeText,
       labelText,
+      countBadge,
+      heartBadge,
       hitPad,
     ]);
 
-    return { worldId, container, planet, ring, countText, labelText };
+    return {
+      worldId,
+      container,
+      themeIcon,
+      ring,
+      alertRing,
+      countText,
+      labelText,
+      themeText,
+      heartBadge,
+      heartCount,
+      clearedMark,
+      theme,
+      alertLevel: "idle",
+    };
   }
 
   private repositionPlanets() {
@@ -200,8 +354,3 @@ export class WorldSelectScene extends Phaser.Scene {
   }
 }
 
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  return h;
-}

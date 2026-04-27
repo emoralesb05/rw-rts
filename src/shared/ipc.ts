@@ -16,6 +16,7 @@ export type FixtureScenario =
   | "codex-shell"
   | "subagent"
   | "stress"
+  | "combat"
   | "demo";
 
 export type PlayFixtureRequest = {

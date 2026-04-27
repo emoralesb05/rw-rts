@@ -49,6 +49,7 @@ export function Topbar() {
         <option value="cursor-turn">cursor · multi-tool turn</option>
         <option value="codex-shell">codex · shell</option>
         <option value="subagent">claude · subagent (Mickey)</option>
+        <option value="combat">combat · heartless raid</option>
         <option value="stress">stress · 30 events</option>
       </select>
       <button
