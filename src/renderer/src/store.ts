@@ -1,9 +1,8 @@
 import { create } from "zustand";
 import type { AgentEvent, UnitState, UnitRole, WorldState } from "@shared/events";
-import { ROLE_BY_TOOL_NAME } from "@shared/events";
+import { ROLE_BY_TOOL, ROLE_FALLBACK } from "@shared/events";
 import { play } from "./audio/sounds";
 
-const ROLE_ORDER: UnitRole[] = ["sora", "riku", "kairi", "donald", "goofy"];
 
 type Store = {
   events: AgentEvent[];
@@ -29,11 +28,17 @@ function worldLabel(cwd: string): string {
   return parts[parts.length - 1] || cwd;
 }
 
-function roleFor(tool: AgentEvent["tool"], lastToolName?: string, current?: UnitRole): UnitRole {
-  if (tool === "cursor") return "organization";
-  if (tool === "codex") return "unversed";
-  if (lastToolName && ROLE_BY_TOOL_NAME[lastToolName]) return ROLE_BY_TOOL_NAME[lastToolName];
-  return current ?? ROLE_ORDER[0];
+function roleFor(
+  tool: AgentEvent["tool"],
+  lastToolName?: string,
+  current?: UnitRole
+): UnitRole {
+  if (lastToolName) {
+    const map = ROLE_BY_TOOL[tool];
+    const matched = map?.[lastToolName];
+    if (matched) return matched;
+  }
+  return current ?? ROLE_FALLBACK[tool];
 }
 
 // Batch incoming events into one store update per animation frame so

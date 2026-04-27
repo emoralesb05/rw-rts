@@ -7,6 +7,17 @@ export const UNIT_ROLES: UnitRole[] = [
   "kairi",
   "donald",
   "goofy",
+  "mickey",
+  "ventus",
+  "aqua",
+  "terra",
+  "roxas",
+  "namine",
+  "cloud",
+  "leon",
+  "tifa",
+  "aerith",
+  "yuffie",
   "organization",
   "unversed",
 ];
@@ -220,6 +231,266 @@ export function drawKHUnit(
       objs.push(scene.add.circle(0, -7, 1, 0xffffff, 0.9));
       // Silver chain detail
       objs.push(scene.add.rectangle(0, 4, 2, 16, 0xc0c0c8, 0.6));
+      break;
+    }
+    case "mickey": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 16, 14, 0x111111)
+          .setStrokeStyle(1.5, 0xffd86b, 1)
+      );
+      objs.push(scene.add.rectangle(-7, 19, 5, 3, 0xffd86b));
+      objs.push(scene.add.rectangle(7, 19, 5, 3, 0xffd86b));
+      // Tan face
+      objs.push(scene.add.circle(0, -4, 11, 0xe6b187).setStrokeStyle(1, 0x000000, 0.8));
+      // Iconic ears — two big black circles on top
+      objs.push(scene.add.circle(-9, -16, 7, 0x111111).setStrokeStyle(1, 0xffffff, 0.4));
+      objs.push(scene.add.circle(9, -16, 7, 0x111111).setStrokeStyle(1, 0xffffff, 0.4));
+      // Eyes
+      objs.push(scene.add.ellipse(-3.5, -4, 3, 4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -4, 3, 4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -4, 1.2, 0x000000));
+      objs.push(scene.add.circle(3.5, -4, 1.2, 0x000000));
+      // Black nose
+      objs.push(scene.add.circle(0, 1, 1.6, 0x000000));
+      break;
+    }
+    case "ventus": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 14, 0xfff4a6)
+          .setStrokeStyle(1.5, 0x808080, 0.8)
+      );
+      objs.push(scene.add.rectangle(0, 12, 1.4, 14, 0x808080));
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Spiky blond hair (similar to Sora's pattern but lighter)
+      const hair = scene.add.graphics();
+      hair.fillStyle(0xe9d24a, 1);
+      hair.lineStyle(1, 0xa78a26, 0.9);
+      hair.fillTriangle(-12, -6, -3, -22, -2, -7);
+      hair.fillTriangle(-5, -6, 2, -22, 6, -7);
+      hair.fillTriangle(3, -6, 12, -20, 11, -7);
+      hair.fillEllipse(0, -7, 22, 6);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x4ec9ff));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x4ec9ff));
+      break;
+    }
+    case "aqua": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 14, 0x4ec9ff)
+          .setStrokeStyle(1.5, 0xffffff, 0.85)
+      );
+      objs.push(scene.add.rectangle(0, 12, 16, 4, 0x2080c8));
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Short blue bobbed hair
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x4ec9ff, 1);
+      hair.lineStyle(1, 0x2a7aab, 0.9);
+      hair.fillEllipse(0, -10, 22, 12);
+      hair.fillEllipse(-9, -3, 5, 12);
+      hair.fillEllipse(9, -3, 5, 12);
+      // Forehead bangs
+      hair.fillTriangle(-8, -9, 0, -3, -2, -8);
+      hair.fillTriangle(8, -9, 0, -3, 2, -8);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x4ec9ff));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x4ec9ff));
+      break;
+    }
+    case "terra": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 20, 16, 0x9c6638)
+          .setStrokeStyle(1.5, 0x000000, 0.8)
+      );
+      objs.push(scene.add.rectangle(0, 18, 18, 6, 0x5d3a1f));
+      objs.push(scene.add.circle(0, -4, 12, SKIN).setStrokeStyle(1, 0x3a2010, 0.8));
+      // Short brown hair, swept back
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x6b4423, 1);
+      hair.lineStyle(1, 0x3d2814, 0.9);
+      hair.fillEllipse(0, -10, 24, 10);
+      hair.fillTriangle(-10, -10, 4, -16, -2, -8);
+      hair.fillTriangle(10, -10, -4, -16, 2, -8);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.6, 3.2, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.6, 3.2, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1.1, 0x6b4423));
+      objs.push(scene.add.circle(3.5, -3, 1.1, 0x6b4423));
+      break;
+    }
+    case "roxas": {
+      // Black Org-coat body
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 14, 0x0a0a14)
+          .setStrokeStyle(1.5, 0xffffff, 0.5)
+      );
+      objs.push(scene.add.rectangle(0, 12, 1.6, 14, 0xffd86b));
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Spiky blond hair (Sora-like silhouette but yellow)
+      const hair = scene.add.graphics();
+      hair.fillStyle(0xeae0a8, 1);
+      hair.lineStyle(1, 0xb4a55a, 0.9);
+      hair.fillTriangle(-12, -6, -3, -22, -2, -7);
+      hair.fillTriangle(-5, -6, 2, -24, 6, -7);
+      hair.fillTriangle(3, -6, 12, -20, 11, -7);
+      hair.fillEllipse(0, -7, 22, 6);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x4ec9ff));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x4ec9ff));
+      break;
+    }
+    case "namine": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 16, 0xffffff)
+          .setStrokeStyle(1.5, 0xc06090, 0.8)
+      );
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Long pale blonde hair cascading down
+      const hair = scene.add.graphics();
+      hair.fillStyle(0xf2e7b9, 1);
+      hair.lineStyle(1, 0x9a8a4a, 0.7);
+      hair.fillEllipse(0, -10, 22, 12);
+      hair.fillEllipse(-10, 4, 6, 22);
+      hair.fillEllipse(10, 4, 6, 22);
+      // Bangs
+      hair.fillTriangle(-8, -8, 4, -6, -2, 0);
+      hair.fillTriangle(2, -8, 10, -6, 6, 0);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x4ec9ff));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x4ec9ff));
+      break;
+    }
+    case "cloud": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 16, 0x2a3a5e)
+          .setStrokeStyle(1.5, 0xffd86b, 0.7)
+      );
+      objs.push(scene.add.rectangle(-9, 12, 4, 14, 0x4a5a7e)); // shoulder pauldron
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.8));
+      // BIG spiky blond hair — taller spikes
+      const hair = scene.add.graphics();
+      hair.fillStyle(0xe9d24a, 1);
+      hair.lineStyle(1, 0xa78a26, 1);
+      hair.fillTriangle(-13, -6, -4, -26, -2, -7);
+      hair.fillTriangle(-6, -6, 0, -28, 6, -7);
+      hair.fillTriangle(2, -6, 8, -26, 12, -7);
+      hair.fillTriangle(8, -8, 14, -22, 12, -7);
+      hair.fillEllipse(0, -8, 24, 6);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x4ec9ff));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x4ec9ff));
+      break;
+    }
+    case "leon": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 16, 0x1a1a22)
+          .setStrokeStyle(1.5, 0xffffff, 0.4)
+      );
+      objs.push(scene.add.rectangle(0, 12, 16, 3, 0xffffff)); // belt
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.8));
+      // Short brown hair, side-parted
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x6b4423, 1);
+      hair.lineStyle(1, 0x3d2814, 0.9);
+      hair.fillEllipse(0, -10, 22, 10);
+      hair.fillTriangle(-10, -8, 6, -14, -2, -6);
+      objs.push(hair);
+      // Scar — small diagonal line across nose bridge
+      objs.push(scene.add.line(0, 0, -2, -2, 4, 1, 0xa83a3a).setLineWidth(0.8));
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x2a5a8a));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x2a5a8a));
+      break;
+    }
+    case "tifa": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 14, 0xffffff)
+          .setStrokeStyle(1.5, 0x000000, 0.6)
+      );
+      objs.push(scene.add.rectangle(0, 16, 16, 6, 0x111111));
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Long dark hair
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x111111, 1);
+      hair.lineStyle(1, 0x000000, 1);
+      hair.fillEllipse(0, -10, 22, 14);
+      hair.fillEllipse(-10, 6, 6, 24);
+      hair.fillEllipse(10, 6, 6, 24);
+      hair.fillTriangle(-8, -8, 4, -6, -2, 2);
+      hair.fillTriangle(2, -8, 10, -6, 6, 2);
+      objs.push(hair);
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0xa83a5d));
+      objs.push(scene.add.circle(3.5, -3, 1, 0xa83a5d));
+      break;
+    }
+    case "aerith": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 16, 0xff89a3)
+          .setStrokeStyle(1.5, 0xffffff, 0.7)
+      );
+      objs.push(scene.add.rectangle(0, 13, 18, 3, 0xb4566a));
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Brown braided long hair
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x8a5530, 1);
+      hair.lineStyle(1, 0x3d2814, 0.9);
+      hair.fillEllipse(0, -10, 22, 10);
+      hair.fillEllipse(0, 12, 6, 22); // braid down the back
+      hair.fillTriangle(-8, -8, 4, -6, -2, 0);
+      hair.fillTriangle(2, -8, 10, -6, 6, 0);
+      objs.push(hair);
+      // Pink ribbon
+      objs.push(scene.add.rectangle(0, -8, 18, 2, 0xff89a3));
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x6cd17a));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x6cd17a));
+      break;
+    }
+    case "yuffie": {
+      objs.push(
+        scene.add
+          .rectangle(0, 12, 18, 14, 0x6cd17a)
+          .setStrokeStyle(1.5, 0xffffff, 0.7)
+      );
+      objs.push(scene.add.rectangle(0, 16, 16, 4, 0xffd86b)); // belt
+      objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
+      // Short black hair with headband
+      const hair = scene.add.graphics();
+      hair.fillStyle(0x1a1a22, 1);
+      hair.lineStyle(1, 0x000000, 1);
+      hair.fillEllipse(0, -10, 22, 10);
+      hair.fillTriangle(-10, -8, 4, -14, -2, -6);
+      hair.fillTriangle(10, -8, -4, -14, 2, -6);
+      objs.push(hair);
+      // Yellow headband
+      objs.push(scene.add.rectangle(0, -10, 22, 2, 0xffd86b));
+      objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+      objs.push(scene.add.circle(-3.5, -3, 1, 0x111111));
+      objs.push(scene.add.circle(3.5, -3, 1, 0x111111));
       break;
     }
     case "unversed": {
