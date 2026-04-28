@@ -627,3 +627,410 @@ select.btn {
 .bar > div { height: 100%; }
 .hp > div { background: linear-gradient(90deg, #ff8aa1, #ff6b8a); }
 .mp > div { background: linear-gradient(90deg, #6cc6ff, #4d7eff); }
+
+/* ──────────────────── Throne Room ─────────────────────────────── */
+
+.throne-room {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 12% 28%, rgba(255, 216, 107, 0.10) 1px, transparent 2.5px),
+    radial-gradient(circle at 78% 64%, rgba(108, 198, 255, 0.09) 1px, transparent 2.5px),
+    radial-gradient(circle at 45% 82%, rgba(255, 255, 255, 0.06) 1px, transparent 2.5px),
+    radial-gradient(circle at 88% 12%, rgba(255, 216, 107, 0.08) 1px, transparent 2.5px),
+    radial-gradient(circle at 22% 70%, rgba(255, 216, 107, 0.06) 1px, transparent 2.5px),
+    radial-gradient(ellipse 60% 70% at 50% 0%, rgba(255, 216, 107, 0.16) 0%, rgba(0,0,0,0) 60%),
+    linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 9%, rgba(0,0,0,0) 91%, rgba(0,0,0,0.55) 100%),
+    radial-gradient(ellipse 80% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%),
+    linear-gradient(to bottom, #0a0518 0%, #1a0a30 48%, #0a0518 100%);
+  overflow: hidden;
+  padding: 18px 24px 18px 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  pointer-events: auto;
+}
+.throne-room::before {
+  /* Twin throne-room banners: warm gold vertical streaks down the sides. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 216, 107, 0) 0%,
+      rgba(255, 216, 107, 0.10) 12%,
+      rgba(214, 64, 64, 0.14) 55%,
+      rgba(214, 64, 64, 0) 95%) left top / 38px 100% no-repeat,
+    linear-gradient(180deg,
+      rgba(255, 216, 107, 0) 0%,
+      rgba(255, 216, 107, 0.10) 12%,
+      rgba(214, 64, 64, 0.14) 55%,
+      rgba(214, 64, 64, 0) 95%) right top / 38px 100% no-repeat;
+}
+.throne-room::after {
+  /* Faint castle hall silhouette at the bottom — anchors the perspective. */
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 200px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(108, 198, 255, 0.08) 0%, rgba(0,0,0,0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.throne-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 1;
+}
+.throne-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.throne-banner-title {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 1.4px;
+}
+.throne-banner-sub {
+  color: var(--muted);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.4px;
+}
+.kingdom-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.kingdom-stats strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+.dispatch-btn {
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #0a0518;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.dispatch-btn:hover {
+  filter: brightness(1.1);
+}
+
+.throne-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+.throne-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.throne-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+.throne-section-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+.throne-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  padding: 18px;
+  background: rgba(10, 17, 48, 0.45);
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.throne-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.throne-card {
+  background: rgba(20, 32, 74, 0.65);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.throne-card.ghosted {
+  opacity: 0.5;
+}
+.throne-card-head {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.throne-card-portrait {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.throne-card-portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  image-rendering: pixelated;
+}
+.throne-card-name-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.throne-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.tool-pill {
+  align-self: flex-start;
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid transparent;
+}
+.tool-pill.tool-claude {
+  color: #ffd86b;
+  background: rgba(255, 216, 107, 0.12);
+  border-color: rgba(255, 216, 107, 0.45);
+}
+.tool-pill.tool-cursor {
+  color: #c9a4ff;
+  background: rgba(157, 107, 255, 0.14);
+  border-color: rgba(157, 107, 255, 0.5);
+}
+.tool-pill.tool-codex {
+  color: #7af0c0;
+  background: rgba(122, 240, 192, 0.12);
+  border-color: rgba(122, 240, 192, 0.5);
+}
+.throne-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.throne-card-mood {
+  font-style: italic;
+}
+.throne-card-world-link {
+  background: transparent;
+  color: var(--accent);
+  border: none;
+  font-size: 10.5px;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+  padding: 0;
+}
+.throne-card-world-link:hover {
+  text-decoration: underline;
+}
+.throne-card-bars {
+  display: grid;
+  grid-template-columns: 18px 1fr 24px;
+  gap: 4px 6px;
+  font-size: 9.5px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.bar-row {
+  display: contents;
+}
+.bar-label {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bar-num {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.throne-card-bars .bar {
+  margin-top: 2px;
+  height: 4px;
+}
+.bar.focus > div {
+  background: linear-gradient(90deg, #ffd86b, #ff89a3);
+}
+.throne-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.throne-card-time {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.throne-card-actions {
+  display: flex;
+  gap: 4px;
+}
+.card-verb {
+  background: rgba(10, 17, 48, 0.85);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.card-verb:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.card-verb:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.card-verb.destructive:hover:not(:disabled) {
+  border-color: #ff5a3c;
+  color: #ff5a3c;
+}
+
+.throne-letter-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.throne-letter {
+  background: rgba(20, 32, 74, 0.65);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.throne-letter.sev-critical { border-left-color: #ff5a3c; }
+.throne-letter.sev-important { border-left-color: #ffd86b; }
+.throne-letter.sev-notable { border-left-color: #6cc6ff; }
+.throne-letter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.throne-letter-tag {
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.throne-letter-tag.sev-critical {
+  color: #ff5a3c;
+  background: rgba(255, 90, 60, 0.12);
+}
+.throne-letter-tag.sev-important {
+  color: #ffd86b;
+  background: rgba(255, 216, 107, 0.12);
+}
+.throne-letter-tag.sev-notable {
+  color: #6cc6ff;
+  background: rgba(108, 198, 255, 0.12);
+}
+.throne-letter-time {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.throne-letter-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.throne-letter-body {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.throne-letter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+.letter-verb {
+  background: rgba(10, 17, 48, 0.85);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 10.5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.letter-verb:hover {
+  border-color: var(--accent);
+}
+.letter-verb.primary {
+  background: var(--accent-2);
+  color: #04060d;
+  border-color: var(--accent-2);
+  font-weight: 700;
+}
+.letter-verb.primary:hover {
+  filter: brightness(1.1);
+}
+.letter-verb.ghost {
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+.letter-verb.ghost:hover {
+  color: var(--text);
+}

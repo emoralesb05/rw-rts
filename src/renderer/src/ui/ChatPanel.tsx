@@ -19,8 +19,10 @@ function SelectedUnitBar({ unit, onClear }: { unit: UnitState; onClear: () => vo
       />
       <div className="chat-selected-info">
         <div className="chat-selected-name">
-          {palette.label}
-          <span className="chat-selected-meta"> · {unit.tool} · {unit.status}</span>
+          {unit.displayName}
+          <span className="chat-selected-meta">
+            {" · "}{palette.faction}{" · "}{unit.tool}{" · "}{unit.status}
+          </span>
         </div>
         <div className="chat-selected-meta">
           {cwdShort}
@@ -41,11 +43,11 @@ function SelectedUnitBar({ unit, onClear }: { unit: UnitState; onClear: () => vo
 const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk };
 
 function UnitBadge({ unit }: { unit: UnitState }) {
-  const palette = ROLE_PALETTE[unit.role];
+  void ROLE_PALETTE;
   return (
     <div className="chat-unit-badge">
       <span className="chat-unit-dot" style={{ background: ROLE_HEX[unit.role] }} />
-      <span className="chat-unit-name">{palette.label}</span>
+      <span className="chat-unit-name">{unit.displayName}</span>
       <span className="chat-unit-tool">{unit.tool}</span>
     </div>
   );

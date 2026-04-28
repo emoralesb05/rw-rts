@@ -19,6 +19,13 @@ import {
   type SendPromptRequest,
   type PlayFixtureRequest,
 } from "@shared/ipc";
+import type { PersistedState } from "@shared/events";
+import {
+  loadPersisted,
+  setPersisted,
+  resetPersisted,
+  flushPersisted,
+} from "./persistent-state";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -54,8 +61,8 @@ async function offerHookInstall() {
     buttons: ["Install hooks", "Skip"],
     defaultId: 0,
     cancelId: 1,
-    title: "kh-rts hook bridge",
-    message: "Install Claude Code hooks so this app can visualize your other Claude sessions?",
+    title: "keykeeper hook bridge",
+    message: "Install Claude Code hooks so keykeeper can watch your other Claude sessions?",
     detail:
       "Adds entries to ~/.claude/settings.json that forward tool-call events to a local socket. " +
       "Uninstall any time from the Settings menu.",
@@ -129,6 +136,12 @@ app.whenReady().then(async () => {
     playFixture(req.scenario, cwd);
   });
 
+  ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());
+  ipcMain.handle(IPC.SavePersisted, (_e, state: PersistedState) => {
+    setPersisted(state);
+  });
+  ipcMain.handle(IPC.ResetPersisted, () => resetPersisted());
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -149,4 +162,5 @@ app.on("will-quit", () => {
   stopCursorAdapter();
   stopCodexWatch();
   stopAllFixtures();
+  flushPersisted();
 });

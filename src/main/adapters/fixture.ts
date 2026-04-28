@@ -10,7 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { bus } from "../event-bus";
-import type { AgentEvent, AgentTool } from "@shared/events";
+import { archetypeFor, type AgentEvent, type AgentTool, type UnitRole } from "@shared/events";
 
 type ScriptedEvent = {
   delayMs: number;
@@ -81,7 +81,7 @@ function claudeStarter(cwd: string): FakeUnit {
         delayMs: 900,
         kind: "assistant_text",
         text:
-          "It's an Electron desktop app called **kh-rts**. Stack: Electron, Phaser 3, React 19, Streamdown.\n\nLet me check the source.",
+          "It's an Electron desktop app called **kh-rts**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
       },
       { delayMs: 800, kind: "tool_use", toolName: "Glob", input: { pattern: "src/**/*.ts" } },
       { delayMs: 600, kind: "tool_result", output: "31 files" },
@@ -210,6 +210,51 @@ function heartlessRaid(cwd: string): FakeUnit {
   };
 }
 
+// Per-archetype summon. Synthesizes a /tmp cwd whose `(tool, repoRoot)` hash
+// lands on the desired archetype, since archetype assignment is locked per
+// wielder identity. Each summon lands in its own demo world tile.
+const WIELDER_LABEL: Record<UnitRole, string> = {
+  keyblader1: "vaelens-grove",
+  keyblader2: "selenes-bower",
+  keyblader3: "ryders-forge",
+  keyblader4: "lyris-cove",
+};
+
+function findCwdForRole(target: UnitRole, tool: AgentTool): string {
+  for (let i = 0; i < 1000; i++) {
+    const candidate = `/tmp/${WIELDER_LABEL[target]}-${i}`;
+    if (archetypeFor(tool, candidate) === target) return candidate;
+  }
+  throw new Error(`fixture: could not synthesize cwd for ${target}`);
+}
+
+function summonWielder(target: UnitRole): FakeUnit {
+  const cwd = findCwdForRole(target, "claude");
+  return {
+    sessionId: `summon-${target}-${randomUUID()}`,
+    tool: "claude",
+    cwd,
+    events: [
+      { delayMs: 200, kind: "session_start", text: "awakening..." },
+      { delayMs: 1200, kind: "tool_use", toolName: "Read", input: { file_path: "README.md" } },
+      { delayMs: 900, kind: "tool_result", output: "(file contents)" },
+      { delayMs: 1100, kind: "assistant_text", text: "Surveying the world." },
+      { delayMs: 1400, kind: "tool_use", toolName: "Glob", input: { pattern: "**/*.ts" } },
+      { delayMs: 800, kind: "tool_result", output: "ok" },
+      { delayMs: 4000, kind: "session_end", text: "exit 0" },
+    ],
+  };
+}
+
+function summonAllWielders(): FakeUnit[] {
+  return [
+    summonWielder("keyblader1"),
+    summonWielder("keyblader2"),
+    summonWielder("keyblader3"),
+    summonWielder("keyblader4"),
+  ];
+}
+
 function stressBurst(cwd: string): FakeUnit {
   const events: ScriptedEvent[] = [
     { delayMs: 50, kind: "session_start", text: "stress test" },
@@ -224,7 +269,11 @@ function stressBurst(cwd: string): FakeUnit {
 }
 
 export type FixtureScenarioId =
-  | "claude-starter"
+  | "summon-vaelen"
+  | "summon-selene"
+  | "summon-ryder"
+  | "summon-lyris"
+  | "summon-all"
   | "cursor-turn"
   | "codex-shell"
   | "subagent"
@@ -234,9 +283,25 @@ export type FixtureScenarioId =
 
 export function playFixture(scenario: FixtureScenarioId, cwd: string) {
   const c = resolve(cwd);
+  console.log(`[fixture] play scenario=${scenario}`);
   switch (scenario) {
-    case "claude-starter":
-      schedule(claudeStarter(c));
+    case "summon-vaelen":
+      schedule(summonWielder("keyblader1"));
+      break;
+    case "summon-selene":
+      schedule(summonWielder("keyblader2"));
+      break;
+    case "summon-ryder":
+      schedule(summonWielder("keyblader3"));
+      break;
+    case "summon-lyris":
+      schedule(summonWielder("keyblader4"));
+      break;
+    case "summon-all":
+      // Fire all four with small staggers so the worlds appear in sequence.
+      summonAllWielders().forEach((u, i) =>
+        setTimeout(() => schedule(u), i * 600)
+      );
       break;
     case "cursor-turn":
       schedule(cursorTurn(c));
@@ -259,6 +324,10 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       setTimeout(() => schedule(cursorTurn(c)), 1500);
       setTimeout(() => schedule(codexShell(c)), 3000);
       break;
+    default: {
+      const exhaustive: never = scenario;
+      console.warn(`[fixture] unknown scenario: ${exhaustive as string}`);
+    }
   }
 }
 

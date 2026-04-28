@@ -1,8 +1,8 @@
 {
-  "name": "kh-rts",
+  "name": "keykeeper",
   "version": "0.0.1",
   "private": true,
-  "description": "Kingdom Hearts themed RTS visualizer for Claude Code agents",
+  "description": "Kingdom Hearts themed agent watch room — Sims-style spectator strategy for Claude / Cursor / Codex sessions",
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {

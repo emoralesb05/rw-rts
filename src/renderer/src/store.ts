@@ -7,10 +7,20 @@ import type {
   Heartless,
   WorldAlertLevel,
   DriveForm,
+  PersistedState,
+  Letter,
+  LetterAction,
 } from "@shared/events";
-import { ROLE_BY_TOOL, ROLE_FALLBACK } from "@shared/events";
+import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { play } from "./audio/sounds";
 
+
+// "throne" = home (React ThroneRoom). "gummi" = WorldSelectScene.
+// activeWorldId being set always means the WorldScene is in front,
+// regardless of view. Default is throne.
+export type KingdomView = "throne" | "gummi";
+
+export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
 
 type Store = {
   events: AgentEvent[];
@@ -19,12 +29,22 @@ type Store = {
   worlds: Record<string, WorldState>;
   selectedUnitId: string | null;
   activeWorldId: string | null;
+  view: KingdomView;
   mutedSessionIds: Record<string, true>;
+  persisted: PersistedState;
+  letters: Letter[];
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
+  setView(view: KingdomView): void;
   toggleMute(sessionId: string): void;
+  hydratePersisted(state: PersistedState): void;
+  sealKeyhole(worldId: string): void;
+  comfort(sessionId: string): ComfortReceipt;
+  dismissLetter(letterId: string): void;
+  applyLetterAction(letter: Letter, action: LetterAction): void;
+  resetKingdom(): Promise<void>;
 };
 
 const MUTED_KEY = "kh-rts:muted-sessions";
@@ -81,17 +101,66 @@ function newHeartlessId(worldId: string): string {
   return `h-${worldId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// Per-theme heartless mix — must match THEME_HEARTLESS_MIX in
+// scenes/World.ts. Duplicating to avoid main↔scene coupling at runtime.
+const HEARTLESS_MIX_BY_THEME: Record<
+  string,
+  { shadow: number; soldier: number; largebody: number }
+> = {
+  disney: { shadow: 0.7, soldier: 0.3, largebody: 0 },
+  hollow: { shadow: 0.3, soldier: 0.5, largebody: 0.2 },
+  traverse: { shadow: 0.6, soldier: 0.35, largebody: 0.05 },
+  destiny: { shadow: 0.95, soldier: 0.05, largebody: 0 },
+  twilight: { shadow: 0.5, soldier: 0.45, largebody: 0.05 },
+  halloween: { shadow: 0.7, soldier: 0.25, largebody: 0.05 },
+};
+
+function pickHeartlessType(
+  worldId: string,
+  recentErrorCount: number
+): "shadow" | "soldier" | "large_body" {
+  // Re-derive theme from worldId via the same hash gummi-worlds uses,
+  // without importing the renderer-only module here.
+  let h = 0;
+  for (let i = 0; i < worldId.length; i++) {
+    h = (Math.imul(31, h) + worldId.charCodeAt(i)) | 0;
+  }
+  const themes = ["disney", "hollow", "traverse", "destiny", "twilight", "halloween"];
+  const theme = themes[Math.abs(h) % themes.length];
+  const mix = HEARTLESS_MIX_BY_THEME[theme] ?? HEARTLESS_MIX_BY_THEME.disney;
+
+  // Trigger escalation: if errors are stacking up, bias toward bigger
+  // heartless even on lighter-themed worlds.
+  let shadowW = mix.shadow;
+  let soldierW = mix.soldier;
+  let largeW = mix.largebody;
+  if (recentErrorCount >= 3) {
+    largeW += 0.2;
+    soldierW += 0.2;
+    shadowW = Math.max(0, shadowW - 0.4);
+  } else if (recentErrorCount >= 2) {
+    soldierW += 0.2;
+    shadowW = Math.max(0, shadowW - 0.2);
+  }
+  const total = shadowW + soldierW + largeW;
+  const r = Math.random() * total;
+  if (r < shadowW) return "shadow";
+  if (r < shadowW + soldierW) return "soldier";
+  return "large_body";
+}
+
 function spawnHeartless(
   list: Heartless[],
   worldId: string,
   targetUnitId: string | undefined,
-  count: number
+  count: number,
+  recentErrorCount = 1
 ): Heartless[] {
   const next = [...list];
   for (let i = 0; i < count && next.length < HEARTLESS_LIMIT; i++) {
     next.push({
       id: newHeartlessId(worldId),
-      type: "shadow",
+      type: pickHeartlessType(worldId, recentErrorCount),
       worldId,
       targetUnitId,
       hp: 1,
@@ -145,6 +214,39 @@ function computeAlertLevel(
   return "idle";
 }
 
+// Letters cap — keeps the throne feed bounded.
+const MAX_LETTERS = 50;
+const HP_CRITICAL_THRESHOLD = 25;
+
+// Per-session comfort cooldown timestamps (ms when next allowed).
+const _comfortCooldown = new Map<string, number>();
+const COMFORT_COST = 50;
+const COMFORT_HP = 30;
+const COMFORT_COOLDOWN_MS = 30_000;
+
+// Per-session "we already dropped a critical-HP letter" marker so we don't
+// flood when a low-HP unit takes more errors.
+const _hpLowFor = new Set<string>();
+
+function makeLetter(
+  severity: Letter["severity"],
+  title: string,
+  opts: Partial<Letter> = {}
+): Letter {
+  return {
+    id: `L${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: Date.now(),
+    severity,
+    title,
+    actions: [],
+    ...opts,
+  };
+}
+
+function pushLetter(state: Store, letter: Letter): Letter[] {
+  return [letter, ...state.letters].slice(0, MAX_LETTERS);
+}
+
 // Read-only / observation tools don't "fight back" — they don't clear
 // heartless. Only concrete progress (edits, shells, web fetches, summons,
 // long results) does. Tool names span all three rosters.
@@ -175,17 +277,15 @@ const COMBAT_TOOL_RESULT_NAMES = new Set([
   "exec",
 ]);
 
+// Four-keyblader system: archetype is locked per (tool, repoRoot)
+// wielder identity, not per tool-call. The same wielder always renders
+// the same archetype + name across sessions.
 function roleFor(
   tool: AgentEvent["tool"],
-  lastToolName?: string,
+  repoRoot: string,
   current?: UnitRole
 ): UnitRole {
-  if (lastToolName) {
-    const map = ROLE_BY_TOOL[tool];
-    const matched = map?.[lastToolName];
-    if (matched) return matched;
-  }
-  return current ?? ROLE_FALLBACK[tool];
+  return current ?? archetypeFor(tool, repoRoot);
 }
 
 // Batch incoming events into one store update per animation frame so
@@ -235,10 +335,10 @@ function getStreak(id: string): StreakState {
 function chooseDriveForm(
   event: AgentEvent,
   streak: StreakState,
-  currentRole: UnitRole
+  _currentRole: UnitRole
 ): { form: DriveForm; until: number } | null {
-  // Final Form is reserved for subagent spawns — Mickey + Sora pair-up.
-  if (event.kind === "subagent_spawn" || currentRole === "mickey") {
+  // Final Form is reserved for subagent spawns.
+  if (event.kind === "subagent_spawn") {
     return { form: "final", until: event.timestamp + DRIVE_DURATION_MS };
   }
   // Wisdom Form: a burst of shells/bash within WISDOM_BASH_WINDOW_MS.
@@ -270,7 +370,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   const existing = state.units[id];
   const lastToolName =
     event.kind === "tool_use" ? (event.payload.name as string | undefined) : existing?.lastTool;
-  const role = roleFor(event.tool, lastToolName, existing?.role);
+  // Wielder identity = (tool, repoRoot) — drives both archetype + name.
+  const repoRootStable = event.repoRoot ?? event.cwd;
+  const role = roleFor(event.tool, repoRootStable, existing?.role);
+  const displayName = existing?.displayName ?? nameFor(role, event.tool, repoRootStable);
   const unit: UnitState = existing
     ? { ...existing }
     : {
@@ -278,6 +381,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         sessionId: id,
         tool: event.tool,
         role,
+        displayName,
         cwd: event.cwd,
         worldId,
         hp: 100,
@@ -335,9 +439,9 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       _streaks.delete(id);
       break;
     case "subagent_spawn":
-      // Hook bridge maps Claude's SubagentStop here. Promote the parent
-      // (this unit) to Mickey — the king summoning his court back.
-      if (unit.tool === "claude") unit.role = "mickey";
+      // No archetype change — drive form (Final) is the visual cue
+      // that a subagent was summoned. Two-keyblader system doesn't
+      // have a third archetype to promote into.
       break;
     case "tool_use":
       unit.status = event.payload.name === "Bash" ? "casting" : "working";
@@ -391,19 +495,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     unit.driveForm = undefined;
     unit.driveFormUntil = undefined;
   }
-  // If a subagent (this unit has a parent) just ended, promote the parent
-  // to Mickey to mark "court returned to the king".
+  // No parent-promotion in two-keyblader system — archetype is locked
+  // per (tool, repoRoot). Subagent visualization is the Final drive
+  // form on the parent + tether between sprites.
   const extraUnits: Record<string, UnitState> = {};
-  if (
-    event.kind === "session_end" &&
-    unit.parentSessionId &&
-    unit.tool === "claude"
-  ) {
-    const parent = state.units[unit.parentSessionId];
-    if (parent && parent.role !== "mickey") {
-      extraUnits[unit.parentSessionId] = { ...parent, role: "mickey" };
-    }
-  }
 
   const worlds = { ...state.worlds };
   const existingWorld = worlds[worldId];
@@ -416,8 +511,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   let munny = existingWorld?.munny ?? 0;
 
   if (event.kind === "error") {
-    // Errors are heartless invasions. Spawn one shadow targeting this unit.
-    heartless = spawnHeartless(heartless, worldId, id, 1);
+    // Errors are heartless invasions. Type biased by world theme + how
+    // many heartless are already present (≈ how stressed this world is).
+    const recentErrorCount = heartless.length + 1;
+    heartless = spawnHeartless(heartless, worldId, id, 1, recentErrorCount);
   } else if (
     event.kind === "tool_result" &&
     lastToolName &&
@@ -446,13 +543,115 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   nextWorld.alertLevel = computeAlertLevel(nextWorld, nextUnits);
   worlds[worldId] = nextWorld;
 
+  // ── Letter generation (decision-moment signals) ────────────────
+  let nextLetters = state.letters;
+  // Letters use the wielder's auto-generated name, not the raw role
+  // identifier ("keyblader1" → "Vaelen"/"Aren"/etc.).
+  const palette = unit.displayName;
+
+  // HP critical — once per session crossing the threshold.
+  if (
+    event.kind === "error" &&
+    unit.hp > 0 &&
+    unit.hp < HP_CRITICAL_THRESHOLD &&
+    !_hpLowFor.has(id)
+  ) {
+    _hpLowFor.add(id);
+    nextLetters = pushLetter(
+      { ...state, letters: nextLetters },
+      makeLetter("critical", `${palette} is in danger`, {
+        body: `${palette} in ${nextWorld.label} dropped to ${unit.hp}HP. Comfort to restore.`,
+        sessionId: id,
+        worldId,
+        actions: [
+          { label: "♥ comfort (50µ)", action: { kind: "comfort", sessionId: id } },
+          { label: "dive", action: { kind: "dive", worldId } },
+          { label: "dismiss", action: { kind: "dismiss" } },
+        ],
+      })
+    );
+  }
+  // Reset the marker if this unit recovers above threshold (so a future
+  // crash refires the letter cleanly).
+  if (event.kind !== "error" && unit.hp >= HP_CRITICAL_THRESHOLD) {
+    _hpLowFor.delete(id);
+  }
+
+  // session_end → seal / iterate (clean exit) or fallen (KO).
+  if (event.kind === "session_end") {
+    if (unit.hp > 0) {
+      play("letter");
+      nextLetters = pushLetter(
+        { ...state, letters: nextLetters },
+        makeLetter("important", `${palette} finished in ${nextWorld.label}`, {
+          body: "Plan complete? Seal the keyhole or iterate.",
+          sessionId: id,
+          worldId,
+          actions: [
+            { label: "✦ seal keyhole", action: { kind: "seal", worldId } },
+            { label: "↻ iterate", action: { kind: "iterate", sessionId: id } },
+            { label: "dismiss", action: { kind: "dismiss" } },
+          ],
+        })
+      );
+    } else {
+      play("ko");
+      nextLetters = pushLetter(
+        { ...state, letters: nextLetters },
+        makeLetter("critical", `${palette} fell in ${nextWorld.label}`, {
+          body: "World needs help. Dispatch a new wielder.",
+          sessionId: id,
+          worldId,
+          actions: [
+            { label: "+ dispatch", action: { kind: "dispatch", worldId } },
+            { label: "dismiss", action: { kind: "dismiss" } },
+          ],
+        })
+      );
+    }
+  }
+
+  // World transition into danger (one-shot per transition).
+  const prevAlert = existingWorld?.alertLevel ?? "idle";
+  if (prevAlert !== "danger" && nextWorld.alertLevel === "danger") {
+    nextLetters = pushLetter(
+      { ...state, letters: nextLetters },
+      makeLetter("important", `${nextWorld.label} fell into danger`, {
+        body: "Heartless are overwhelming the world.",
+        worldId,
+        actions: [
+          { label: "dive", action: { kind: "dive", worldId } },
+          { label: "dismiss", action: { kind: "dismiss" } },
+        ],
+      })
+    );
+  }
+
+  // Drive activation — notable, info only.
+  if (drive && unit.driveForm) {
+    play("drive");
+    nextLetters = pushLetter(
+      { ...state, letters: nextLetters },
+      makeLetter("notable", `${palette} entered ${unit.driveForm.toUpperCase()} FORM`, {
+        sessionId: id,
+        worldId,
+        actions: [
+          { label: "dive", action: { kind: "dive", worldId } },
+          { label: "dismiss", action: { kind: "dismiss" } },
+        ],
+      })
+    );
+  }
+
   return {
     events,
     eventCount,
     units: nextUnits,
     worlds,
+    letters: nextLetters,
   };
 }
+
 
 export const useStore = create<Store>((set) => ({
   events: [],
@@ -461,7 +660,10 @@ export const useStore = create<Store>((set) => ({
   worlds: {},
   selectedUnitId: null,
   activeWorldId: null,
+  view: "throne",
   mutedSessionIds: loadMuted(),
+  persisted: EMPTY_PERSISTED,
+  letters: [],
 
   ingest(event) {
     _queue.push(event);
@@ -486,7 +688,13 @@ export const useStore = create<Store>((set) => ({
     set({ selectedUnitId: id });
   },
   selectWorld(id) {
+    // When the user dives into a world, leave the throne view — they're
+    // not at home anymore. setView keeps the previous view if they're
+    // returning to the gummi map.
     set({ activeWorldId: id });
+  },
+  setView(view) {
+    set({ view });
   },
   toggleMute(sessionId) {
     set((state) => {
@@ -497,4 +705,134 @@ export const useStore = create<Store>((set) => ({
       return { mutedSessionIds: next };
     });
   },
+  hydratePersisted(persisted) {
+    set({ persisted });
+  },
+  comfort(sessionId) {
+    const state = useStore.getState();
+    const unit = state.units[sessionId];
+    if (!unit) return "no-munny";
+    if (unit.status === "fallen") return "fallen";
+    if (unit.hp >= 100) return "full-hp";
+    const now = Date.now();
+    const cd = _comfortCooldown.get(sessionId) ?? 0;
+    if (now < cd) return "cooldown";
+    const world = state.worlds[unit.worldId];
+    if (!world || world.munny < COMFORT_COST) return "no-munny";
+    _comfortCooldown.set(sessionId, now + COMFORT_COOLDOWN_MS);
+    play("comfort");
+    set((s) => {
+      const u = s.units[sessionId];
+      const w = s.worlds[unit.worldId];
+      if (!u || !w) return s;
+      return {
+        units: {
+          ...s.units,
+          [sessionId]: { ...u, hp: Math.min(100, u.hp + COMFORT_HP) },
+        },
+        worlds: {
+          ...s.worlds,
+          [unit.worldId]: { ...w, munny: w.munny - COMFORT_COST },
+        },
+      };
+    });
+    return "ok";
+  },
+  dismissLetter(letterId) {
+    set((s) => ({ letters: s.letters.filter((l) => l.id !== letterId) }));
+  },
+  applyLetterAction(letter, action) {
+    const s = useStore.getState();
+    switch (action.kind) {
+      case "dive":
+        s.selectWorld(action.worldId);
+        break;
+      case "comfort":
+        s.comfort(action.sessionId);
+        break;
+      case "seal":
+        s.sealKeyhole(action.worldId);
+        break;
+      case "iterate":
+        // For v1: just dismiss; the user manually issues a follow-up via
+        // CommandInput. Wired more deeply in polish phase (modal pre-fill).
+        break;
+      case "dispatch":
+        // Send the user to the gummi map / world to dispatch. Cinematic
+        // dispatch flow comes in P9.
+        s.selectWorld(action.worldId);
+        break;
+      case "send-word":
+        // Stub; CommandInput is the main path for now.
+        break;
+      case "recall":
+        void window.kh.killAgent(action.sessionId).catch(() => {});
+        break;
+      case "dismiss":
+        break;
+    }
+    s.dismissLetter(letter.id);
+  },
+  sealKeyhole(worldId) {
+    play("seal");
+    // Pull the camera to the gummi map so the player witnesses the
+    // fanfare on the planet itself.
+    set({ view: "gummi", activeWorldId: null });
+    set((state) => {
+      const world = state.worlds[worldId];
+      if (!world) return state;
+      const repoRoot = world.path;
+      const existingWorld = state.persisted.worlds[repoRoot];
+      const nextPersisted: PersistedState = {
+        ...state.persisted,
+        worlds: {
+          ...state.persisted.worlds,
+          [repoRoot]: {
+            repoRoot,
+            lastVisit: existingWorld?.lastVisit ?? Date.now(),
+            totalSeals: (existingWorld?.totalSeals ?? 0) + 1,
+            totalClears: (existingWorld?.totalClears ?? 0) + 1,
+            totalFalls: existingWorld?.totalFalls ?? 0,
+            sealedAt: Date.now(),
+          },
+        },
+      };
+      // Persist out — main writes JSON debounced.
+      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      // Mark the live world as cleared too.
+      const nextWorlds = { ...state.worlds };
+      nextWorlds[worldId] = { ...world, alertLevel: "cleared", heartless: [] };
+      return { persisted: nextPersisted, worlds: nextWorlds };
+    });
+  },
+  async resetKingdom() {
+    const fresh = await window.kh.resetPersisted();
+    set({ persisted: fresh });
+  },
 }));
+
+// Listen for unit lifecycle events to maintain the persisted wielder /
+// world stats. Subscribed once; lives until the page unloads.
+let _lastEventCount = -1;
+let _persistDebounce: ReturnType<typeof setTimeout> | null = null;
+useStore.subscribe((state) => {
+  const ec = state.eventCount;
+  if (ec === _lastEventCount) return;
+  _lastEventCount = ec;
+  if (_persistDebounce) clearTimeout(_persistDebounce);
+  _persistDebounce = setTimeout(() => {
+    const s = useStore.getState();
+    // Compute lifetime munny = sum of current world.munny + previously-sealed
+    // worlds' baked totals. Cheap approximation: take current per-world munny.
+    let live = 0;
+    for (const w of Object.values(s.worlds)) live += w.munny;
+    const next: PersistedState = {
+      ...s.persisted,
+      totalMunnyEver: Math.max(s.persisted.totalMunnyEver, live),
+    };
+    if (next !== s.persisted) {
+      void window.kh.savePersisted(next).catch(() => {});
+      useStore.setState({ persisted: next });
+    }
+  }, 1000);
+});

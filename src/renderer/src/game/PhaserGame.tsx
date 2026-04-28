@@ -15,6 +15,11 @@ export function PhaserGame() {
       type: Phaser.AUTO,
       parent: host,
       backgroundColor: "#04060d",
+      // Pixel art mode: disables texture filtering / antialiasing so 32×32
+      // sprites stay crisp when scaled. roundPixels keeps tween positions
+      // on integer pixels so they don't shimmer between frames.
+      pixelArt: true,
+      roundPixels: true,
       scale: {
         mode: Phaser.Scale.RESIZE,
         width: "100%",

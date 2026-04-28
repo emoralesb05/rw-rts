@@ -22,6 +22,7 @@ export function UnitInspector() {
       )}
       {list.map((u) => {
         const palette = ROLE_PALETTE[u.role];
+        void palette;
         const isSel = u.id === selectedUnitId;
         return (
           <div
@@ -42,7 +43,7 @@ export function UnitInspector() {
             <span className="swatch" style={{ background: ROLE_HEX[u.role] }} />
             <div style={{ flex: 1 }}>
               <div className="name">
-                {palette.label}{" "}
+                {u.displayName}{" "}
                 <span className="meta">· {u.tool} · {u.status}</span>
               </div>
               <div className="meta">{u.cwd.split("/").slice(-2).join("/")}</div>

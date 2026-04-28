@@ -8,6 +8,13 @@ import "./styles.css";
 void preloadSounds();
 attachEventStream();
 
+// Hydrate persisted kingdom state on launch. Renderer reads via IPC; the
+// main process is the source of truth for the JSON file on disk.
+void window.kh
+  .loadPersisted()
+  .then((s) => useStore.getState().hydratePersisted(s))
+  .catch(() => {});
+
 let lastWorldId = useStore.getState().activeWorldId;
 useStore.subscribe((state) => {
   if (state.activeWorldId !== lastWorldId) {

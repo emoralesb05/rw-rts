@@ -15,7 +15,12 @@ export type SoundName =
   | "session_end"
   | "world_warp"
   | "error"
-  | "select";
+  | "select"
+  | "seal"
+  | "ko"
+  | "drive"
+  | "comfort"
+  | "letter";
 
 const FORMATS = ["wav", "mp3", "ogg"];
 const cache = new Map<SoundName, HTMLAudioElement | null>();
@@ -51,6 +56,11 @@ export async function preloadSounds() {
     "world_warp",
     "error",
     "select",
+    "seal",
+    "ko",
+    "drive",
+    "comfort",
+    "letter",
   ];
   await Promise.all(
     names.map(async (n) => {

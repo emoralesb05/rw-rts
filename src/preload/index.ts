@@ -6,7 +6,7 @@ import {
   type HooksStatus,
   type PlayFixtureRequest,
 } from "../shared/ipc";
-import type { AgentEvent } from "../shared/events";
+import type { AgentEvent, PersistedState } from "../shared/events";
 
 const api = {
   onEvent(listener: (event: AgentEvent) => void) {
@@ -39,6 +39,15 @@ const api = {
   },
   playFixture(req: PlayFixtureRequest) {
     return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
+  },
+  loadPersisted() {
+    return ipcRenderer.invoke(IPC.LoadPersisted) as Promise<PersistedState>;
+  },
+  savePersisted(state: PersistedState) {
+    return ipcRenderer.invoke(IPC.SavePersisted, state) as Promise<void>;
+  },
+  resetPersisted() {
+    return ipcRenderer.invoke(IPC.ResetPersisted) as Promise<PersistedState>;
   },
 };
 

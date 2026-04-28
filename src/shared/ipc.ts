@@ -8,10 +8,17 @@ export const IPC = {
   UninstallHooks: "kh:uninstall-hooks",
   HooksStatus: "kh:hooks-status",
   PlayFixture: "kh:play-fixture",
+  LoadPersisted: "kh:load-persisted",
+  SavePersisted: "kh:save-persisted",
+  ResetPersisted: "kh:reset-persisted",
 } as const;
 
 export type FixtureScenario =
-  | "claude-starter"
+  | "summon-vaelen"
+  | "summon-selene"
+  | "summon-ryder"
+  | "summon-lyris"
+  | "summon-all"
   | "cursor-turn"
   | "codex-shell"
   | "subagent"

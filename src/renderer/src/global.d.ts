@@ -4,7 +4,7 @@ import type {
   HooksStatus,
   PlayFixtureRequest,
 } from "@shared/ipc";
-import type { AgentEvent } from "@shared/events";
+import type { AgentEvent, PersistedState } from "@shared/events";
 
 declare global {
   interface Window {
@@ -18,6 +18,9 @@ declare global {
       uninstallHooks(): Promise<HooksStatus>;
       hooksStatus(): Promise<HooksStatus>;
       playFixture(req: PlayFixtureRequest): Promise<void>;
+      loadPersisted(): Promise<PersistedState>;
+      savePersisted(state: PersistedState): Promise<void>;
+      resetPersisted(): Promise<PersistedState>;
     };
   }
 }

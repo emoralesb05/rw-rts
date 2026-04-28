@@ -1,28 +1,18 @@
 export type AgentTool = "claude" | "cursor" | "codex";
 
+// Four keyblader archetypes:
+//   keyblader1 — Vaelen (masculine, twilight-purple)
+//   keyblader2 — Selene (feminine, dream-petal pink)
+//   keyblader3 — Ryder  (masculine, forge orange / iron)
+//   keyblader4 — Lyris  (feminine, tide cyan / sea)
+// Each session is assigned one deterministically from its (tool,
+// repoRoot) wielder identity, plus an auto-generated display name
+// from a per-archetype name pool.
 export type UnitRole =
-  // Claude — Keyblade Wielders + Royal Court
-  | "sora"
-  | "riku"
-  | "kairi"
-  | "donald"
-  | "goofy"
-  | "mickey"
-  // Cursor — BBS / Days / Re:CoM
-  | "ventus"
-  | "aqua"
-  | "terra"
-  | "roxas"
-  | "namine"
-  // Codex — FF guests in KH
-  | "cloud"
-  | "leon"
-  | "tifa"
-  | "aerith"
-  | "yuffie"
-  // Generic faction fallbacks (kept for compatibility)
-  | "organization"
-  | "unversed";
+  | "keyblader1"
+  | "keyblader2"
+  | "keyblader3"
+  | "keyblader4";
 
 export type AgentEventKind =
   | "session_start"
@@ -62,6 +52,10 @@ export type UnitState = {
   sessionId: string;
   tool: AgentTool;
   role: UnitRole;
+  // Auto-generated wielder name (e.g., "Vaelen", "Selene", "Aren").
+  // Stable per (tool, repoRoot) — same wielder identity always gets
+  // the same name across sessions.
+  displayName: string;
   cwd: string;
   worldId: string;
   hp: number;
@@ -86,12 +80,78 @@ export type Heartless = {
   spawnedAt: number;
 };
 
+// Letter feed item shown in the Throne Room. Severity drives color.
+// Action is what the verb buttons do when clicked.
+export type LetterSeverity = "critical" | "important" | "notable";
+export type LetterAction =
+  | { kind: "dive"; worldId: string }
+  | { kind: "comfort"; sessionId: string }
+  | { kind: "seal"; worldId: string }
+  | { kind: "iterate"; sessionId: string }
+  | { kind: "dispatch"; worldId: string }
+  | { kind: "send-word"; sessionId: string }
+  | { kind: "recall"; sessionId: string }
+  | { kind: "dismiss" };
+
+export type Letter = {
+  id: string;
+  createdAt: number;
+  severity: LetterSeverity;
+  title: string;
+  body?: string;
+  worldId?: string;
+  sessionId?: string;
+  // Available verb buttons on the letter.
+  actions: { label: string; action: LetterAction }[];
+  // Internal: counts collapsed-identical-letters within the rate limit
+  // window. Set by the store, displayed as a small badge.
+  count?: number;
+};
+
 export type WorldAlertLevel =
   | "idle"
   | "active"
   | "warning"
   | "danger"
   | "cleared";
+
+// Per-wielder persistent stats (Sims-style memory across sessions).
+// Identity = `${tool}::${repoRoot}`.
+export type WielderStats = {
+  tool: AgentTool;
+  repoRoot: string;
+  visits: number;
+  seals: number;
+  falls: number;
+  totalMunny: number;
+  lastSeen: number;
+};
+
+// Per-world (repo root) persistent stats.
+export type WorldStats = {
+  repoRoot: string;
+  lastVisit: number;
+  totalSeals: number;
+  totalClears: number;
+  totalFalls: number;
+  sealedAt?: number;
+};
+
+export type PersistedState = {
+  schemaVersion: 1;
+  kingdomFoundedAt: number;
+  totalMunnyEver: number;
+  wielders: Record<string, WielderStats>;
+  worlds: Record<string, WorldStats>;
+};
+
+export const EMPTY_PERSISTED: PersistedState = {
+  schemaVersion: 1,
+  kingdomFoundedAt: 0,
+  totalMunnyEver: 0,
+  wielders: {},
+  worlds: {},
+};
 
 export type WorldState = {
   id: string;
@@ -103,76 +163,64 @@ export type WorldState = {
   munny: number;
 };
 
-type ToolNameRoleMap = Record<string, UnitRole>;
+// Auto-generated name pools — original names, no IP. The game picks
+// one deterministically from a wielder's (tool, repoRoot) identity hash
+// so the same wielder gets the same name every session. One pool per
+// archetype, themed loosely to the character's element.
+export const KEYBLADER1_NAMES: readonly string[] = [
+  "Vaelen", "Aren", "Kael", "Ryn", "Tarek", "Loric", "Brael", "Cyran",
+  "Daeron", "Faolan", "Theron", "Orion", "Rhys", "Niko", "Sable", "Soren",
+];
 
-const CLAUDE_ROSTER: ToolNameRoleMap = {
-  Edit: "sora",
-  Write: "sora",
-  MultiEdit: "sora",
-  NotebookEdit: "sora",
-  Bash: "riku",
-  Read: "goofy",
-  Grep: "goofy",
-  Glob: "goofy",
-  WebFetch: "donald",
-  WebSearch: "donald",
-  Task: "kairi",
-  Agent: "kairi",
-  TaskCreate: "kairi",
-  // Mickey is promoted via the subagent-end path in store.ts, not via
-  // tool-name mapping (hook event names never reach lastToolName).
+export const KEYBLADER2_NAMES: readonly string[] = [
+  "Selene", "Nyra", "Aria", "Ember", "Lyra", "Maela", "Sera", "Vela",
+  "Kira", "Aurelia", "Nova", "Thalia", "Niva", "Aelis", "Aerin", "Mira",
+];
+
+export const KEYBLADER3_NAMES: readonly string[] = [
+  "Ryder", "Krell", "Bran", "Dorin", "Garron", "Hadrik", "Joren", "Marek",
+  "Talon", "Volk", "Roan", "Zane", "Cael", "Thane", "Erran", "Magnus",
+];
+
+export const KEYBLADER4_NAMES: readonly string[] = [
+  "Lyris", "Marin", "Cara", "Brynn", "Cove", "Maris", "Naia", "Nerys",
+  "Oceane", "Pelin", "Reva", "Saela", "Talia", "Vesper", "Yara", "Asha",
+];
+
+const NAME_POOLS: Record<UnitRole, readonly string[]> = {
+  keyblader1: KEYBLADER1_NAMES,
+  keyblader2: KEYBLADER2_NAMES,
+  keyblader3: KEYBLADER3_NAMES,
+  keyblader4: KEYBLADER4_NAMES,
 };
 
-// Cursor's tools (read_file_v2, glob_file_search, run_terminal_command_v2,
-// task_v2, etc.) map to BBS / Days / Re:CoM cast.
-const CURSOR_ROSTER: ToolNameRoleMap = {
-  edit_file: "aqua",
-  search_replace: "aqua",
-  multi_apply: "aqua",
-  read_file_v2: "ventus",
-  read_file: "ventus",
-  glob_file_search: "ventus",
-  ripgrep_raw_search: "ventus",
-  semantic_search: "ventus",
-  run_terminal_command_v2: "terra",
-  run_terminal_command: "terra",
-  fetch_pull_request: "roxas",
-  web_search: "roxas",
-  task_v2: "namine",
-  update_current_step: "namine",
-};
+const ARCHETYPES: readonly UnitRole[] = [
+  "keyblader1",
+  "keyblader2",
+  "keyblader3",
+  "keyblader4",
+];
 
-// Codex's tools (function_call.name + custom tools) → FF guests.
-const CODEX_ROSTER: ToolNameRoleMap = {
-  apply_patch: "cloud",
-  edit: "cloud",
-  write: "cloud",
-  shell: "leon",
-  Bash: "leon",
-  exec: "leon",
-  read: "aerith",
-  view: "aerith",
-  find: "yuffie",
-  search: "yuffie",
-  grep: "yuffie",
-  task: "tifa",
-};
+// Hash a string to a non-negative integer. Used for deterministic name
+// + role assignment per wielder identity.
+function djb2(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
-export const ROLE_BY_TOOL: Record<AgentTool, ToolNameRoleMap> = {
-  claude: CLAUDE_ROSTER,
-  cursor: CURSOR_ROSTER,
-  codex: CODEX_ROSTER,
-};
+// Pick the archetype for a given identity. Roughly 25/25/25/25 split
+// across the four wielders via the hash.
+export function archetypeFor(tool: AgentTool, repoRoot: string): UnitRole {
+  const h = djb2(`${tool}::${repoRoot}`);
+  return ARCHETYPES[h % ARCHETYPES.length];
+}
 
-export const ROLE_FALLBACK: Record<AgentTool, UnitRole> = {
-  claude: "sora",
-  cursor: "ventus",
-  codex: "cloud",
-};
-
-// Backwards compat alias for any callers still using the flat map.
-export const ROLE_BY_TOOL_NAME: ToolNameRoleMap = {
-  ...CLAUDE_ROSTER,
-  ...CURSOR_ROSTER,
-  ...CODEX_ROSTER,
-};
+// Pick the display name for a wielder identity.
+export function nameFor(role: UnitRole, tool: AgentTool, repoRoot: string): string {
+  const pool = NAME_POOLS[role];
+  const h = djb2(`name::${tool}::${repoRoot}`);
+  return pool[h % pool.length];
+}

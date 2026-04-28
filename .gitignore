@@ -11,3 +11,4 @@ assets/sprites/kh/*
 !assets/sprites/kh/.gitkeep
 assets/sounds/kh/*
 !assets/sounds/kh/.gitkeep
+local-assets/

@@ -78,7 +78,12 @@ export type SynthCue =
   | "session_end"
   | "world_warp"
   | "error"
-  | "select";
+  | "select"
+  | "seal"
+  | "ko"
+  | "drive"
+  | "comfort"
+  | "letter";
 
 export function playCue(cue: SynthCue) {
   switch (cue) {
@@ -175,6 +180,53 @@ export function playCue(cue: SynthCue) {
       return;
     case "select":
       playTone({ freq: 1100, durationMs: 35, type: "triangle", attackMs: 1, releaseMs: 20 });
+      return;
+    case "seal":
+      // Triumphant rising 5th + sustained tone — KH "Dearly Beloved" flavor.
+      playSequence(
+        [
+          { freq: 523, durationMs: 130, type: "triangle" }, // C5
+          { freq: 659, durationMs: 130, type: "triangle" }, // E5
+          { freq: 784, durationMs: 130, type: "triangle" }, // G5
+          { freq: 1047, durationMs: 380, type: "triangle", releaseMs: 220 }, // C6 sustain
+        ],
+        120
+      );
+      return;
+    case "ko":
+      // Falling minor 3rd — defeat sting.
+      playSequence(
+        [
+          { freq: 392, durationMs: 90, type: "sawtooth" }, // G4
+          { freq: 311, durationMs: 90, type: "sawtooth" }, // Eb4
+          { freq: 196, durationMs: 250, type: "sawtooth", releaseMs: 180 }, // G3
+        ],
+        90
+      );
+      return;
+    case "drive":
+      // Sharp ascending arpeggio — drive form transformation.
+      playSequence(
+        [
+          { freq: 587, durationMs: 50, type: "square" },
+          { freq: 740, durationMs: 50, type: "square" },
+          { freq: 880, durationMs: 50, type: "square" },
+          { freq: 1175, durationMs: 110, type: "square", releaseMs: 80 },
+        ],
+        45
+      );
+      return;
+    case "comfort":
+      // Soft healing chime — KH Cure flavor.
+      playChord([
+        { freq: 880, durationMs: 220, type: "sine", releaseMs: 160 },
+        { freq: 1109, durationMs: 220, type: "sine", releaseMs: 160 },
+        { freq: 1318, durationMs: 220, type: "sine", releaseMs: 160 },
+      ]);
+      return;
+    case "letter":
+      // Gentle paper-rustle ping when a letter arrives.
+      playTone({ freq: 988, durationMs: 35, type: "triangle", attackMs: 1, releaseMs: 25 });
       return;
   }
 }

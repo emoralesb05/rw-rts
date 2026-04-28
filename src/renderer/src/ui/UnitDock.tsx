@@ -100,7 +100,7 @@ export function UnitDock() {
                 e.preventDefault();
                 toggleMute(u.sessionId);
               }}
-              title={`${palette.label} · ${TOOL_LABEL[u.tool]} · ${u.status}\nright-click to ${
+              title={`${u.displayName} · ${palette.faction} · ${TOOL_LABEL[u.tool]} · ${u.status}\nright-click to ${
                 isMuted ? "unmute" : "mute"
               }`}
             >
@@ -110,7 +110,7 @@ export function UnitDock() {
               >
                 <span className="unit-tile-tool">{u.tool[0].toUpperCase()}</span>
               </span>
-              <span className="unit-tile-name">{palette.label}</span>
+              <span className="unit-tile-name">{u.displayName}</span>
               <span className={`unit-tile-tool-pill tool-${u.tool}`}>
                 {TOOL_LABEL[u.tool]}
               </span>
