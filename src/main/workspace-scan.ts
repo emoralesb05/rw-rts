@@ -5,11 +5,13 @@
  * keep big trees bounded. Workspace root and exclusion list come
  * from ~/.keykeeper.json (settings.ts).
  *
- * Returns repos as `{ path, label }`. Label is the repo basename
- * (last path segment) — e.g. `~/Github/dreambase/dreamapp` → "dreamapp".
+ * Returns repos as `{ path, label }`. Label is `parent/repo` when
+ * the repo lives in a subdir of the workspace root (which is the
+ * common GitHub-style `~/Github/<org>/<repo>` shape), and just
+ * `repo` when it sits directly under the root.
  */
 import { readdir, stat, access } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join, basename, dirname } from "node:path";
 import { loadSettings } from "./settings";
 
 const MAX_DEPTH = 4;
@@ -41,7 +43,8 @@ async function walk(
   dir: string,
   depth: number,
   out: WorkspaceRepo[],
-  excludeSet: Set<string>
+  excludeSet: Set<string>,
+  workspaceRoot: string
 ): Promise<void> {
   if (depth > MAX_DEPTH) return;
   let entries: string[];
@@ -58,12 +61,23 @@ async function walk(
     if (await hasGit(full)) {
       // Drop if either the basename or the full path is excluded.
       if (!excludeSet.has(name) && !excludeSet.has(full)) {
-        out.push({ path: full, label: name });
+        out.push({ path: full, label: labelFor(full, workspaceRoot) });
       }
       continue; // don't descend into a repo
     }
-    await walk(full, depth + 1, out, excludeSet);
+    await walk(full, depth + 1, out, excludeSet, workspaceRoot);
   }
+}
+
+/** "<parent>/<repo>" if the repo's parent isn't the workspace root,
+ * otherwise just "<repo>". Keeps the dropdown compact for the common
+ * `~/Github/<org>/<repo>` shape and degrades gracefully for repos
+ * that live deeper or at the root. */
+function labelFor(repoPath: string, workspaceRoot: string): string {
+  const repo = basename(repoPath);
+  const parent = dirname(repoPath);
+  if (parent === workspaceRoot) return repo;
+  return `${basename(parent)}/${repo}`;
 }
 
 export async function listWorkspaceRepos(): Promise<WorkspaceRepo[]> {
@@ -72,7 +86,7 @@ export async function listWorkspaceRepos(): Promise<WorkspaceRepo[]> {
   const out: WorkspaceRepo[] = [];
   if (!(await isDir(root))) return out;
   const excludeSet = new Set(settings.excludeRepos);
-  await walk(root, 0, out, excludeSet);
+  await walk(root, 0, out, excludeSet, root);
   out.sort((a, b) => a.label.localeCompare(b.label));
   return out;
 }
