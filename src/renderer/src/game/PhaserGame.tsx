@@ -32,6 +32,9 @@ export function PhaserGame() {
       scene: [KingdomScene],
     });
     gameRef.current = game;
+    if (import.meta.env.DEV) {
+      (window as unknown as { __phaser: Phaser.Game }).__phaser = game;
+    }
 
     // Phaser RESIZE mode only watches window.resize. Our stage size shifts
     // when CSS grid (side panel) reflows without a window resize. Without

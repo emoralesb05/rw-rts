@@ -19,8 +19,23 @@
 
 import * as Phaser from "phaser";
 import { useStore } from "../../store";
-import type { WorldState, WorldAlertLevel } from "@shared/events";
+import type { UnitState, WorldState, WorldAlertLevel } from "@shared/events";
 import { themeFor, themeLabel, type WorldTheme } from "../gummi-worlds";
+import { ROLE_PALETTE } from "../units";
+import {
+  UNIT_ROLES,
+  SPRITE_URL,
+  TEXTURE_KEY,
+  SPRITE_DEFAULT_URL,
+  TEXTURE_DEFAULT_KEY,
+} from "../draw";
+import {
+  registerSpritesheetPreload,
+  getSpritesheetConfig,
+  getIdleAnimKey,
+  createRoleAnimations,
+  hasOverride,
+} from "../sprite-assets";
 
 const SCANLINE_TEX = "kh-kingdom-scanlines";
 
@@ -60,14 +75,27 @@ const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
   cleared: 0xffd86b,
 };
 
+type WielderRef = {
+  unitId: string;
+  container: Phaser.GameObjects.Container;
+  body: Phaser.GameObjects.Container;
+  sprite?: Phaser.GameObjects.Sprite;
+  glow: Phaser.GameObjects.Arc;
+  label: Phaser.GameObjects.Text;
+  homeTx: number;
+  homeTy: number;
+};
+
 type WorldRef = {
   worldId: string;
   container: Phaser.GameObjects.Container;
+  isoPlane: Phaser.GameObjects.Container;
   alertRing: Phaser.GameObjects.Arc;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
   theme: WorldTheme;
   alertLevel: WorldAlertLevel;
+  wielders: Map<string, WielderRef>;
 };
 
 type ClusterRef = {
@@ -112,6 +140,17 @@ export class KingdomScene extends Phaser.Scene {
     }
     this.load.image("tile-iso-a", "/sprites/kh-default/tile-iso-a.png");
     this.load.image("tile-iso-b", "/sprites/kh-default/tile-iso-b.png");
+
+    // Wielder stills + animated spritesheets. Always load shipped
+    // defaults; only attempt user override when the probe confirmed it
+    // exists (avoids 404 noise).
+    for (const role of UNIT_ROLES) {
+      this.load.image(TEXTURE_DEFAULT_KEY(role), SPRITE_DEFAULT_URL(role));
+      if (hasOverride(role)) {
+        this.load.image(TEXTURE_KEY(role), SPRITE_URL(role));
+      }
+    }
+    registerSpritesheetPreload(this);
   }
 
   create() {
@@ -135,6 +174,10 @@ export class KingdomScene extends Phaser.Scene {
       .setDepth(1000)
       .setScrollFactor(0)
       .setAlpha(0.4);
+
+    // Wielder animations — must run after spritesheet preload completes,
+    // before any spawnWielder call.
+    createRoleAnimations(this.anims, this.textures);
 
     // Camera control
     this.installCameraControls();
@@ -163,7 +206,8 @@ export class KingdomScene extends Phaser.Scene {
       this.lastWorldsKey = key;
     }
 
-    // Update per-world live state (count, alert ring color)
+    // Update per-world live state (count, alert ring color, wielders)
+    const units = useStore.getState().units;
     for (const [id, ref] of this.worlds) {
       const w = worlds[id];
       if (!w) continue;
@@ -174,13 +218,15 @@ export class KingdomScene extends Phaser.Scene {
         ref.alertRing.setStrokeStyle(2.5, ALERT_RING_COLOR[w.alertLevel], 1);
         ref.alertLevel = w.alertLevel;
       }
-      // Pulse the ring on warning/danger
       if (w.alertLevel === "warning" || w.alertLevel === "danger") {
         const pulse = 0.5 + 0.5 * Math.sin(this.t * 4);
         ref.alertRing.setAlpha(0.6 + 0.4 * pulse);
       } else {
         ref.alertRing.setAlpha(1);
       }
+
+      // Sync wielders for this world.
+      this.syncWieldersFor(ref, w, units);
     }
 
     // Twinkle stars
@@ -416,12 +462,147 @@ export class KingdomScene extends Phaser.Scene {
     return {
       worldId,
       container,
+      isoPlane,
       alertRing,
       countText,
       countBg,
       theme,
       alertLevel: world.alertLevel,
+      wielders: new Map(),
     };
+  }
+
+  /**
+   * Add/remove wielder sprites for a world based on its current unitIds.
+   * Wielders live inside the world's isoPlane container so they share its
+   * scaling.
+   */
+  private syncWieldersFor(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ) {
+    const seen = new Set(world.unitIds);
+    // Remove gone
+    for (const [id, w] of worldRef.wielders) {
+      if (!seen.has(id)) {
+        w.container.destroy(true);
+        worldRef.wielders.delete(id);
+      }
+    }
+    // Add new
+    let index = worldRef.wielders.size;
+    for (const id of world.unitIds) {
+      if (worldRef.wielders.has(id)) continue;
+      const unit = units[id];
+      if (!unit) continue;
+      worldRef.wielders.set(id, this.spawnWielder(worldRef, unit, index));
+      index++;
+    }
+  }
+
+  /**
+   * Build a wielder sprite container at the world's home tile for this
+   * unit's index. Uses the per-world iso coordinates so positions are
+   * relative to the iso plane container's origin (which is itself
+   * scaled by ISO_CONTAINER_SCALE inside the world container).
+   */
+  private spawnWielder(
+    worldRef: WorldRef,
+    unit: UnitState,
+    index: number
+  ): WielderRef {
+    const palette = ROLE_PALETTE[unit.role];
+
+    // Home tile: spread wielders around the inner perimeter of the iso
+    // grid so they don't all stand on the central landmark. Ring layout
+    // mirrors the original WorldScene logic but at the smaller grid.
+    const ringSlots = 6;
+    const slot = index % ringSlots;
+    const homeTx = 1 + (slot % 3);
+    const homeTy = ISO_GRID - 1 - Math.floor(slot / 3);
+    const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
+    const x = (homeTx - homeTy) * (ISO_TILE_W / 2);
+    const y = offsetY + (homeTx + homeTy) * (ISO_TILE_H / 2);
+
+    const glow = this.add.circle(0, 6, 16, palette.color, 0.28);
+
+    const body = this.add.container(0, 0);
+    const sprite = this.populateWielderBody(body, unit.role);
+
+    const label = this.add
+      .text(0, -32, unit.displayName, {
+        fontSize: "9px",
+        color: "#e6ecff",
+        backgroundColor: "rgba(0,0,0,0.55)",
+        padding: { x: 3, y: 1 },
+      })
+      .setOrigin(0.5);
+
+    const container = this.add.container(x, y, [glow, body, label]);
+    container.setData("unitId", unit.id);
+
+    // Ambient breathing glow pulse
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.18, to: 0.42 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1200 + Math.random() * 400,
+    });
+
+    worldRef.isoPlane.add(container);
+
+    return {
+      unitId: unit.id,
+      container,
+      body,
+      sprite,
+      glow,
+      label,
+      homeTx,
+      homeTy,
+    };
+  }
+
+  /**
+   * Add the wielder's visual into the body container. Order:
+   * sheet (animated) → still image → drawn fallback.
+   * Sized for the per-world iso scale; bottom-center anchored so the
+   * sprite's feet land on the container origin.
+   */
+  private populateWielderBody(
+    body: Phaser.GameObjects.Container,
+    role: keyof typeof ROLE_PALETTE
+  ): Phaser.GameObjects.Sprite | undefined {
+    const sheet = getSpritesheetConfig(role, this.textures);
+    if (sheet) {
+      const spr = this.add.sprite(0, 0, sheet.textureKey, 0);
+      // ~290×200 source; scale 0.55 brings it to ~160×110, which inside
+      // the 0.55-scaled isoPlane shows ~88×60 on canvas at 1× zoom —
+      // legible at zoom 1.4 (the click-target zoom).
+      spr.setScale(0.55);
+      spr.setOrigin(0.5, 1);
+      spr.y = 8;
+      const idle = getIdleAnimKey(role);
+      if (this.anims.exists(idle)) spr.play(idle);
+      body.add(spr);
+      return spr;
+    }
+    const stillKey = this.textures.exists(TEXTURE_KEY(role))
+      ? TEXTURE_KEY(role)
+      : this.textures.exists(TEXTURE_DEFAULT_KEY(role))
+        ? TEXTURE_DEFAULT_KEY(role)
+        : null;
+    if (stillKey) {
+      const img = this.add.image(0, 0, stillKey);
+      img.setScale(0.55);
+      img.setOrigin(0.5, 1);
+      img.y = 8;
+      body.add(img);
+    }
+    // No drawn-primitive fallback in Kingdom for now (deprecated path).
+    return undefined;
   }
 
   /**
