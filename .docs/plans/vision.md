@@ -88,14 +88,20 @@ PermissionRequest hook, which fires only when Claude would prompt
 designing around assumed behavior.
 
 **Open / next-session items:**
-- **Wielder polish (deferred during iso-port):** patrol behavior,
-  event-driven animation switching, drive auras, subagent tether,
-  HP/MP rings, death/victory poses
-- **Phase 2A (11 items, locked but not started):** Tier 2/3 shaders,
-  chiptune music, per-world signature decorations beyond MVP
-  one-each, composite-form banners, real-token MP per adapter,
-  Renown star-rank UI, Cura/Curaga verbs, replay mode, outbound MCP
-  server, **Quest system (moved from Phase 2B 2026-04-28)**
+- **Wielder polish (shipped 2026-04-28):** patrol ✅ event-driven
+  animation switching ✅ drive auras ✅ subagent tether ✅ HP/MP
+  rings ✅ death/victory poses ✅
+- **Phase 2A — shipped subset (2026-04-28):** Tier 2 shaders ✅
+  (per-world water/fire/magic atmospherics) · Tier 3 shaders ✅
+  (KO impact pulse + seal flare) · Chiptune music ✅ (Aeolian
+  ambient loop) · Per-world signature decorations ✅ (4-5 accents
+  per theme) · Composite-form banners ✅ (Pair / Royal Guard /
+  Wayfinder Trio) · Real-token MP per adapter ✅ (weighted by
+  tool + output size) · Renown star-rank UI ✅
+- **Phase 2A — still locked, not started:** Cura/Curaga tier verbs
+  (heal multiple wielders) · Replay mode (scrub event log) ·
+  Outbound MCP server (expose kingdom as MCP tool surface) ·
+  **Quest system (moved from Phase 2B 2026-04-28)**
 - **Polish odds and ends:** Phaser ambient ThroneScene (currently
   CSS-only), richer Halloween/Twilight landmark assets, observed-
   session permission UX decision
