@@ -58,9 +58,16 @@ particle dust, edge vignette), kh→kh-default sprite move (canonical
 art now ships with repo), override-probe with content-type check (Vite
 SPA-fallback gotcha).
 
-**In flight:** Phase 2B planning (this document). Items #11–#20 ranked
-by alignment with the Phase 2B north star: *attention-direction +
-in-context observability*.
+**Phase 2B planning ✅ complete (2026-04-28):** all 12 open
+questions answered (Q28–Q39 locked). 8 active build items totaling
+~5.5 focused days; mobile/relay/shared-kingdoms deferred. See
+[Recommended next decisions](#recommended-next-decisions-phase-2b)
+for the locked sprint order. North star: *desktop attention-direction +
+in-context observability* (mobile killed per Q29 — real pain is
+desktop, not AFK).
+
+**In flight:** Ready to start Phase 2B implementation. Suggested
+first item: voice input (~2h, no dependencies).
 
 **Phase 2A polish (decisions locked, not yet started):** Tier 2/3
 shaders, chiptune music, Renown UI, replay mode, outbound MCP. See
@@ -89,6 +96,10 @@ Explicitly **not** building, even if adjacent products do:
 - **Multi-tenant SaaS / hosted product** — personal-tidy is the locked
   audience trajectory (Q3 + Q28). If that flips, this section flips
   with it.
+- **Mobile companion / PWA** — killed per Q29 (2026-04-28). Real pain
+  is desktop attention-direction with multiple parallel agents, not
+  AFK monitoring. Notifications stay (as desktop OS notifications,
+  not Web Push). Revive only if an actual AFK use case emerges.
 - **Tick-by-tick RTS commanding** — the agents have their own minds; the
   player nudges and decrees, never micromanages.
 - **AgentCraft's "Alliance Hall" multi-King co-op rooms** — solo
@@ -462,49 +473,38 @@ Everything else is downstream of these two.
     disproportionate value on mobile (#16). King speaks the decree
     aloud rather than typing. See Q38 (transcription-only locked for
     v1; voice commands deferred).
-16. **Mobile companion (PWA)** *(~3–5d — ½d PWA shell, 1d tunnel +
-    auth, 1d touch-tuned UI, ½d push wiring, ½d test on phone)* —
-    Throne Room on the phone. The attention-direction layer (#11) +
-    Quest log (#12) make this immediately useful: AFK pull when
-    something needs you, with enough context to act. Three primary
-    tabs (modeled on AgentCraft's Agents / Chat / Quests):
-    - **Wielders** — wielder cards with HP/MP/active quest, verbs
-      (Send word / Decree / Comfort / Recall)
-    - **Letters** — the priority queue (#11)
-    - **Quests** — Quest Log (#12)
-    Reachable via secure tunnel from the Mac with **TTL presets**
-    (15m / 1h / 4h / 8h — modeled on AgentCraft) — explicit time-
-    bounded sessions vs always-on exposure. Tunneling via Tailscale,
-    cloudflared, or a tiny self-hosted relay. See Q29.
-17. **Push notifications** *(~½d — VAPID setup + 3 trigger handlers)* —
-    three triggers:
+16. ❌ **Mobile companion (PWA)** — **Killed (2026-04-28)** per Q29.
+    Real pain is desktop attention-direction with 3–5 parallel
+    agents, not AFK monitoring. Item preserved for if/when scope
+    flips. See Q29 for the cascading consequences (notifications
+    reframed, voice survives, etc.).
+17. **Desktop OS notifications** *(~2h — Electron `Notification` API +
+    4 trigger handlers + per-trigger settings toggle)* — was Web Push.
+    Reframed per Q29. Four triggers (per Q30=d):
     - **Critical letters** from the attention queue (HP < 25%,
       world fallen, error)
     - **Permission requests** (#18 — Claude blocks on a tool ask)
-    - **Plan approvals** (when Claude proposes a plan, push for
-      sign-off rather than passive wait)
-    Tap to take the suggested verb action. Quiet-hours respected.
-    Web Push with own VAPID keys; no third-party push provider.
-    See Q30 (severity scope, quiet hours).
-18. **Permission-from-chat** *(~1d — Claude hook integration + reply
-    plumbing)* — when Claude Code blocks on a permission ask, surface
-    as a Critical letter / push / Discord button with the
-    permission-context observability (#13). King grants permission as
-    a verb. Replaces the modal pull that yanks you back to the
-    desktop. Default-deny on timeout. See Q32 (depth: yes/no/once vs
-    edit-with-context).
-19. **Discord (or Telegram) relay** *(~1d for one platform; ~½d for
-    second)* — letters mirror to a personal channel; verbs work as
-    bot button presses. Single-tenant bot (you run your own).
-    Demoted from earlier rank: solo workflow → primary value is
-    "second screen for accountability/memory" not "share with
-    friends". Build only if PWA + push aren't enough. See Q31
-    (Discord vs Telegram first).
-20. **Shared kingdoms** *(~1–3 weeks depending on depth tier — see
-    Q33)* — demoted further. User confirmed solo workflow (no
-    teammate sharing today). Keep on the radar in case the use case
-    emerges, but don't build until it's a real ask. See Q33 (depth)
-    and Q34 (identity & sync).
+    - **Important letters** (session_end, world cleared, world →
+      danger)
+    - **Plan approvals** (when Claude proposes a plan)
+    Click → focus keykeeper window + take the suggested verb action.
+    Quiet hours 22:00–08:00 by default, configurable. Per-trigger
+    toggle in settings (mute any class).
+18. **Permission approval surface** *(~1d — Claude hook integration +
+    reply plumbing + risk-level classifier)* — was "Permission-from-chat".
+    Reframed per Q29 (chat relay is deferred). When Claude Code
+    blocks on a permission ask, surface as a Critical letter +
+    desktop notification with permission-context observability (#13).
+    Buttons: yes / no / once. King grants permission as a verb.
+    Default-deny on timeout. See Q32.
+19. **Discord / Slack relay** *(~1d, when revived)* — **deferred per
+    Q31.** Letters mirror to a personal channel; verbs work as bot
+    button presses. Single-tenant bot. Build only if desktop
+    notifications + in-app priority queue prove insufficient. Choices
+    narrowed to Discord or Slack (not Telegram).
+20. **Shared kingdoms** — **deferred indefinitely per Q28=a.**
+    User confirmed solo workflow; no teammate sharing today. Stays
+    on the radar in case scope flips. See Q33–Q35.
 
 ---
 
@@ -770,115 +770,112 @@ None are locked yet — this section is the working list for the next
 direction conversation. See [Recommended next decisions](#recommended-next-decisions-phase-2b)
 for the suggested answer order.
 
-28. **Audience trajectory revisit?** — Q3 originally locked
-    "personal-tidy". Adding companion + shared expansions pushes the
-    project toward share-able / commercial-adjacent (cf. AgentCraft).
-    Three honest options:
-    - **a. Stay strictly personal-tidy** — build for own use only;
-      shared/companion features only if useful to me; never publicize.
-    - **b. Tidy public release** — write good docs, post to HN/Show, no
-      monetization, no customer support obligation. Closer to current
-      "private but tidy" with the door cracked open.
-    - **c. Trajectory toward product** — could become a paid/free-tier
-      tool. Implies real auth, hosted relay, a website, support burden.
-    Decides scope of every Phase 2 item below.
-29. **Mobile companion (PWA)?** — Read-only spectator first, or jump
-    straight to full verbs from phone? Hosted as: (a) tunneled local
-    only (Tailscale/cloudflared, no public-internet exposure), or (b)
-    hosted relay with auth. Read-only + tunneled is ~weekend; full
-    verbs + hosted is ~1–2 weeks.
-30. **Push notifications?** — only Critical letters, or include
-    Important? Web Push with own VAPID keys (free, self-hosted) is the
-    obvious choice. Quiet hours by default? Per-letter-type opt-out?
-31. **Relay platform — Discord vs Telegram first?** — Phase 2B item
-    #19 hedges as "Discord (or Telegram) relay"; this question
-    decides which to build first. Discord fits dev culture, has rich
-    button UI, single bot self-hostable. Telegram is lower friction
-    for non-developer spectators. Pick one for v1; second can follow
-    (~½d second platform once the relay abstraction exists). Bot
-    ownership: single-tenant (you run your own bot) vs multi-tenant
-    (deploy a shared bot users add) — multi-tenant requires
-    Q28 = (b) or (c).
-32. **Permission-from-chat — how far?** — minimum: yes/no/once buttons
-    on a Critical letter when Claude blocks. Stretch: edit-with-context
-    (re-prompt with extra guidance). Non-trivial: needs hook-level
-    integration with Claude Code's permission flow. Default-deny on
-    timeout to avoid security holes.
-33. **Shared kingdoms — depth?** — three tiers:
-    - **a. Presence-only** — see *that* a teammate's wielder is in your
-      world; no chat sharing; no shared verbs. Tests social loop
-      cheaply.
-    - **b. Spectator-shared** — also see what their wielder is doing
-      (chat content, tool calls). Chat content is sensitive — needs
-      explicit opt-in per session.
-    - **c. Co-op verbs** — either King can Comfort/Seal across all
-      shared wielders. Real coordination layer; conflict resolution
-      story needed (two Kings simultaneously seal — whose fanfare
-      plays?).
-34. **Shared kingdoms — identity & sync?** — repo identity: hash of
-    `git remote get-url origin` (deterministic across machines but
-    leaks repo names; or hash + salt to obscure). User identity: GitHub
-    OAuth (familiar to devs), anon device key (zero friction but no
-    cross-device persistence), or email magic link. Sync transport:
-    server-mediated (you run a tiny relay) vs P2P (libp2p / WebRTC —
-    no infra cost but firewall hell).
-35. **Composite forms across teams?** — when a teammate's wielder is in
-    your world AND yours is too, do they form a Pair / Royal Guard /
-    Wayfinder Trio (composite name banner, mutual buff)? Narrative-
-    coherent but adds visual + state complexity. Ship after 33a is
-    proven fun.
-36. **Quest system — naming model?** — who generates the heroic quest
-    name + recap? Three options:
-    - **a. Anthropic API call** (own API key) — fast, costs ~½¢ per
-      quest, requires the user to provide an API key in keykeeper
-      settings.
-    - **b. Piggyback on the wielder's own session** — append a
-      side-prompt asking the wielder to name their own quest. No
-      extra cost, but pollutes the wielder's chat and may not work
-      for Cursor/Codex.
-    - **c. Local model (Ollama, etc.)** — no cost, no extra deps if
-      user has it; fallback for users without API keys.
-    Recommendation: (a) with (c) as fallback. Skip if no key/local —
-    use the raw prompt as the quest name and the last assistant text
-    as the recap.
-37. **Standing Order — guardrails?** — recurring decrees can run away
-    fast (cost, noise, accidental infinite loops). Defaults to lock:
-    - **Max iterations**: 24 by default (overridable per Standing
-      Order)? Or just "until manually halted"?
-    - **Stop-on-failures**: pause loop after N consecutive errors?
-      What counts as "error" — agent KO, tool failure, both?
-    - **Cost cap**: optional per-loop token budget?
-    - **Visibility**: show a recurring-clock badge on the wielder
-      card; require a confirm dialog before starting (vs single
-      Decree which is one-click)?
-38. **Voice input — transcription only or voice commands?**
-    Transcription-only is simple and locked (mic → text in composer
-    → manual review → send). Voice commands ("Hey King, recall Sora"
-    or "Comfort all wielders") add a wake-word + intent-parsing layer.
-    Recommendation: transcription-only for v1; voice commands deferred
-    until proven useful and the security model (mishearing causes
-    real actions) is sound.
-39. **Decree composer UX?** — Phase 2B #14 sketches "file picker /
-    function picker / shell command runner" but doesn't specify the
-    composer's actual layout. Three open sub-questions:
-    - **a. Single composer with mode switcher** — one input box,
-      tabs/chips for [Free text | File | Function | Command]. Quick
-      to build; one cognitive surface.
-    - **b. Layered composer** — free-text primary, with @-mentions
-      that pop up file/function pickers inline (e.g., type `@` to
-      open file palette, `/` to open command palette). Power-user;
-      higher implementation cost.
-    - **c. Stamp templates** — predefined Decree templates ("debug
-      this file", "run these tests", "explain this function") that
-      pre-fill the composer with a structured prompt. Discoverable;
-      may feel canned.
-    Recommendation: (b) for power, (c) layered on top as muscle-memory
-    accelerators. (a) is the fast-ship fallback if (b) feels heavy.
+28. ✅ **Audience trajectory revisit?** — **(a) strictly personal-tidy
+    locked** (2026-04-28). Build for own use only; companion features
+    only if useful to me; never publicize. Reaffirms Q3 with full
+    Phase 2B scope in mind.
 
-    Sub-question: **how does Decree pre-fill into Send word's text
-    box, or does it own its own composer?** Probably its own — Send
-    word stays gentle/free-text; Decree's structured prompt rendering
-    is distinct.
+    **Cascading consequences:**
+    - Q31 narrows: relay is single-tenant only (you run your own bot).
+    - Q33–Q35 (shared kingdoms / cross-team composite forms): **deferred
+      indefinitely.** Phase 2B item #20 stays on the radar but is not
+      in scope until/unless Q28 flips. Treat as locked-deferred.
+    - Q29 (PWA): tunnel-only (Tailscale / cloudflared) — no hosted
+      public-internet exposure.
+    - Anything implying shared infra, multi-user auth, support load,
+      or public branding: out of scope by default.
+29. ✅ **Mobile companion (PWA)?** — **Killed (2026-04-28).** User
+    confirmed the actual pain is desktop attention-direction (focusing
+    where you're needed *while at your desk*, with 3–5 parallel
+    agents), not AFK monitoring. Mobile would solve a different
+    problem they don't have. Phase 2B item #16 removed from the active
+    plan; can be revived if/when an actual AFK-monitoring use case
+    emerges.
+
+    **Cascading consequences:**
+    - **#17 Push notifications** reframed as **desktop OS
+      notifications** (Electron's `Notification` API + system
+      notification center), not Web Push + VAPID. Effort drops from
+      ~½d to ~2h.
+    - **TTL-preset tunnel architecture** (was for the PWA) — not
+      needed.
+    - **Voice (#15)** survives — desktop dictation still useful for
+      hands-free Decree composition while reading code in another
+      window.
+    - **Permission-from-chat (#18)** name becomes slightly
+      misleading; primary surface is desktop notification + in-app
+      letter. Discord/Slack remains a future optional surface (#19).
+30. ✅ **Notifications scope?** — **(d) all four triggers locked**:
+    Critical letters + permission requests + Important letters
+    (session_end, world cleared) + plan approvals. Per-trigger toggle
+    in settings (mute any class). Quiet hours: 22:00–08:00 silent by
+    default, configurable. **Transport reframed per Q29**: desktop OS
+    notifications via Electron's `Notification` API, not Web Push.
+31. ✅ **Relay platform?** — **Deferred (skip for now).** Build only
+    if desktop notifications + in-app priority queue prove
+    insufficient. When/if revived, choices narrow to **Discord** or
+    **Slack** (both fit dev culture; Telegram dropped — wrong audience
+    for solo-dev workflow). Single-tenant locked per Q28=a.
+
+    **Phase 2B item #19** stays on the radar but moves below the
+    sprint line.
+32. ✅ **Permission approval depth?** — **(b) locked.** yes / no /
+    once buttons on the letter, **plus** the command + Claude's
+    reasoning + risk-level chip (Phase 2B #13's permission-context).
+    "Approve y/n KNOWING this" — not blind buttons. Default-deny on
+    timeout to avoid security holes. Edit-with-context (option c)
+    deferred to a later iteration; ship (b) first.
+
+    *(Renamed from "permission-from-chat" since #19 relay is deferred —
+    primary surface is desktop notification + in-app letter; chat
+    relay is future optional.)*
+33. ✅ **Shared kingdoms — depth?** — **Deferred indefinitely** per
+    Q28=a (strictly personal-tidy). Original options preserved below
+    for if/when scope flips:
+    - a. Presence-only · b. Spectator-shared · c. Co-op verbs.
+34. ✅ **Shared kingdoms — identity & sync?** — **Deferred per Q28=a.**
+    Original options: repo identity (`git remote` hash), user identity
+    (GitHub OAuth / anon device key / email magic link), sync
+    transport (server-mediated relay vs P2P).
+35. ✅ **Composite forms across teams?** — **Deferred per Q28=a.**
+    Cross-team composite forms (Pair / Royal Guard / Wayfinder Trio)
+    require shared kingdoms first. Note: same-King composite forms
+    (parent-subagent) ship as part of Phase 2A polish item #5.
+36. ✅ **Quest system — naming model?** — **(a) Anthropic API locked**,
+    architected via the **Vercel AI SDK** as a provider-agnostic
+    abstraction so the model can be swapped later (local Ollama, other
+    providers) without rewriting the call site. Quest naming lives in
+    a small standalone module (e.g., `src/main/quest-namer.ts`) with
+    one function: `nameQuest(prompt, eventLog) → { name, recap }`.
+    User provides Anthropic API key in keykeeper settings; if missing,
+    fall back to raw-prompt-as-name + last-assistant-text-as-recap (no
+    LLM call). ~½¢/quest at current Anthropic pricing.
+37. ✅ **Standing Order — guardrails?** — **Locked.**
+    - **Max iterations**: hard cap, default 24, overridable per Order.
+    - **Stop-on-failures**: pause after **3 consecutive failures**.
+      "Failure" = agent KO **or** tool-call error.
+    - **Cost cap**: skip for v1 — max-iterations is a good-enough
+      proxy and one less knob. Revisit if loops feel risky in
+      practice.
+    - **Visibility**: recurring-clock badge on the wielder card;
+      confirm dialog required before starting (single Decree stays
+      one-click).
+38. ✅ **Voice input scope?** — **(a) transcription-only locked.**
+    Mic → text in Send word / Decree composer → manual review → send.
+    Voice commands ("Hey King, recall Sora") deferred — mishearing
+    causes destructive actions (Recall = kills agent), security model
+    not worth the lift for v1. Useful on desktop too (hands-free
+    Decree while reading code in another window — survives the
+    mobile-killed reframe).
+39. ✅ **Decree composer UX?** — **(b) layered composer locked.**
+    Free-text primary; `@` opens file palette (recent files +
+    typeahead), `/` opens command palette (shell command runner +
+    common commands). Power-user UX. Decree owns its own composer
+    distinct from Send word (which stays gentle / free-text only).
+
+    **Stamp templates (option c) deferred** to a polish iteration —
+    add as muscle-memory accelerators after the layered composer is
+    proven in actual use.
 
 ---
 
@@ -914,20 +911,49 @@ Pre-MVP work that was redesigned:
 
 ## Recommended next decisions (Phase 2B)
 
-Phase 2B is open. The ranked Phase 2B list (#11–#20 in
-[Build phases](#build-phases)) and the open questions (Q28–Q39) are
-the live work surface. Suggested decision sequence to unblock the
-first sprint:
+**All open questions answered as of 2026-04-28.** Phase 2B is fully
+unblocked for implementation.
 
-1. **Q28** (audience trajectory) — decides scope of every other
-   Phase 2B item. Can it stay personal-tidy, or does companion +
-   shared push it toward tidy-public / commercial?
-2. **Q36** (Quest naming model) — unblocks #12 implementation.
-3. **Q37** (Standing Order guardrails) — unblocks #14 sub-mode.
-4. **Q39** (Decree composer UX) — unblocks #14 core build.
-5. **Q29** (PWA depth — read-only first vs full verbs) — unblocks #16.
+**Locked decisions:**
+- Q28 audience = strictly personal-tidy
+- Q29 mobile/PWA = killed (desktop-only project)
+- Q30 notifications = all 4 triggers, desktop OS (not Web Push)
+- Q31 relay = deferred (Discord/Slack later if needed)
+- Q32 permission = yes/no/once + context (Phase 2B #13)
+- Q33–Q35 shared kingdoms = deferred indefinitely
+- Q36 Quest naming = Anthropic via AI SDK abstraction
+- Q37 Standing Order = max 24 / stop on 3 failures / no cost cap
+- Q38 voice = transcription-only
+- Q39 Decree composer = layered (`@` files, `/` commands)
 
-Items #11 (attention-direction) and #15 (voice input) have no open
-questions — could start either immediately. Voice is the cheapest
-win (~2h); attention-direction is the highest-leverage (#11 feeds
-#16 and #17).
+**Active Phase 2B build items** (with effort estimates, totaling
+~5.5 focused days):
+
+| # | Item | Effort | Notes |
+|---|---|---|---|
+| 11 | Attention-direction layer (priority queue) | ~½d | Foundation for #17/#18 |
+| 12 | Quest system | ~1.5d | Biggest observability lift; needs Anthropic API key |
+| 13 | In-context observability (permission-context, why-trace, stuck-with-explanation) | ~1d | Pairs with #18 |
+| 14 | Decree verb + Standing Order sub-mode | ~1.5d (1d core + ½d loop runner) | Your stated workflow needs this |
+| 15 | Voice input (transcription-only) | ~2h | Cheapest win, no deps |
+| 17 | Desktop OS notifications | ~2h | Was Web Push; Electron `Notification` API |
+| 18 | Permission approval surface | ~1d | Was "permission-from-chat"; pairs with #13 |
+
+**Deferred (not in active sprint):**
+- #16 Mobile PWA — killed per Q29
+- #19 Discord/Slack relay — deferred per Q31
+- #20 Shared kingdoms — deferred per Q28=a
+
+**Suggested first sprint order** (cheapest → highest leverage):
+1. **Voice (#15)** — ~2h. No dependencies, instant ship.
+2. **Desktop OS notifications (#17)** — ~2h. Foundation for surfacing
+   the priority queue events.
+3. **Attention-direction layer (#11)** — ~½d. The queue itself.
+4. **Decree core (#14)** — ~1d. Composer + file/command palette.
+5. **Quest system (#12)** — ~1.5d. Needs Anthropic API key in
+   keykeeper settings.
+6. **In-context observability (#13)** — ~1d. Permission context +
+   why-trace + stuck-with-explanation.
+7. **Permission approval surface (#18)** — ~1d. Builds on #13 + #17.
+8. **Standing Order (#14 sub-mode)** — ~½d. Loop runner on top of
+   Decree.
