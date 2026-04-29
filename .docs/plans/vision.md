@@ -98,17 +98,24 @@ designing around assumed behavior.
   per theme) · Composite-form banners ✅ (Pair / Royal Guard /
   Wayfinder Trio) · Real-token MP per adapter ✅ (weighted by
   tool + output size) · Renown star-rank UI ✅
-- **Phase 2A — still locked, not started:** Cura/Curaga tier verbs
-  (heal multiple wielders) · Replay mode (scrub event log) ·
-  Outbound MCP server (expose kingdom as MCP tool surface) ·
-  **Quest system (moved from Phase 2B 2026-04-28)**
+- **Post-MVP (deferred 2026-04-29, not blocking ship):** Cura/Curaga
+  tier verbs (heal-many UX shortcut, low value over single comfort) ·
+  Replay mode (event-log scrubber) · Outbound MCP server (expose
+  kingdom as MCP tool surface) · **Quest system (moved from Phase 2B
+  2026-04-28)**
 - **Polish odds and ends:** Phaser ambient ThroneScene (currently
   CSS-only), richer Halloween/Twilight landmark assets, observed-
   session permission UX decision
 
-**Phase 2B is functionally complete.** The north star
-(attention-direction + in-context observability) is shipped end-to-
-end. Remaining work is polish + the Phase 2A locked decisions.
+**MVP shipped end-to-end as of 2026-04-29.** Phase 2B (north star:
+attention-direction + in-context observability) is functionally
+complete. The locked Phase 2A subset that materially changed the
+experience (shaders, music, decorations, banners, MP weighting,
+Renown UI) has shipped. Remaining items are deferred post-MVP — they
+are nice-to-have UX shortcuts and gamification layers, not gating
+work. Permission flow ships with deny-with-reason, indefinite-wait
+(no client-side timeout), and heuristic auto-dismiss when resolved
+upstream.
 
 ---
 
