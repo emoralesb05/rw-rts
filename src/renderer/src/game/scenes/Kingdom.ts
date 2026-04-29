@@ -20,14 +20,37 @@
 import * as Phaser from "phaser";
 import { useStore } from "../../store";
 import type { WorldState, WorldAlertLevel } from "@shared/events";
-import {
-  drawGummiWorld,
-  themeFor,
-  themeLabel,
-  type WorldTheme,
-} from "../gummi-worlds";
+import { themeFor, themeLabel, type WorldTheme } from "../gummi-worlds";
 
 const SCANLINE_TEX = "kh-kingdom-scanlines";
+
+// Per-world iso plane geometry. Smaller than the legacy WorldScene grid
+// (was 12×12 with TILE_W=96/TILE_H=48); shrunk to fit cluster spacing.
+const ISO_TILE_W = 64;
+const ISO_TILE_H = 32;
+const ISO_GRID = 6;
+// Container scale to fit a per-world iso plane in roughly a 230×230 box,
+// matching the cluster inner-ring spacing. Worlds are positioned by the
+// cluster layout; this scale just makes their internal renderings fit.
+const ISO_CONTAINER_SCALE = 0.55;
+
+// Per-theme landmark: at the center of the iso plane. Texture key
+// matches the loader pattern landmark-${theme}.
+const LANDMARK_TEX = (theme: WorldTheme) => `landmark-${theme}`;
+
+// Themed accent positions per theme (offsets from the iso center, in
+// per-world iso coordinates).
+const THEME_ACCENTS: Record<
+  WorldTheme,
+  { tx: number; ty: number; scale: number; alpha: number }[]
+> = {
+  disney:    [{ tx: 1, ty: 4, scale: 0.7, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 }],
+  hollow:    [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },  { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
+  traverse:  [{ tx: 1, ty: 4, scale: 0.7, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 }],
+  destiny:   [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
+  twilight:  [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.6, alpha: 0.85 }],
+  halloween: [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },  { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
+};
 
 const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
   idle: 0x2a3556,
@@ -76,6 +99,19 @@ export class KingdomScene extends Phaser.Scene {
 
   constructor() {
     super("kingdom");
+  }
+
+  preload() {
+    // Pixel-art landmarks (one per theme) + iso ground tiles. Same files
+    // the legacy WorldScene loaded; KingdomScene now owns them.
+    const themes: WorldTheme[] = [
+      "disney", "hollow", "traverse", "destiny", "twilight", "halloween",
+    ];
+    for (const t of themes) {
+      this.load.image(LANDMARK_TEX(t), `/sprites/kh-default/${LANDMARK_TEX(t)}.png`);
+    }
+    this.load.image("tile-iso-a", "/sprites/kh-default/tile-iso-a.png");
+    this.load.image("tile-iso-b", "/sprites/kh-default/tile-iso-b.png");
   }
 
   create() {
@@ -178,6 +214,13 @@ export class KingdomScene extends Phaser.Scene {
             400,
             "Sine.easeInOut"
           );
+          // Zoom in if currently far out, so the targeted world's iso
+          // plane and (later) wielders are actually legible. Don't
+          // override if user is already zoomed in close.
+          const cam = this.cameras.main;
+          if (cam.zoom < 1.2) {
+            cam.zoomTo(1.4, 400, "Sine.easeInOut");
+          }
         }
       }
     }
@@ -309,15 +352,22 @@ export class KingdomScene extends Phaser.Scene {
     const pos = this.layout.get(worldId) ?? { x: 0, y: 0 };
     const container = this.add.container(pos.x, pos.y);
 
+    // Iso plane container — scaled down to fit cluster spacing. Holds
+    // tiles + landmark + (later) wielder sprites + heartless. Anchored
+    // so the visual center sits at the world container's origin.
+    const isoPlane = this.add.container(0, 0);
+    isoPlane.setScale(ISO_CONTAINER_SCALE);
+    this.buildIsoPlane(isoPlane, theme);
+
+    // UI affordances at native scale (don't shrink with the iso plane).
+    const ringRadius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 8;
     const alertRing = this.add
-      .circle(0, 0, 56, 0x000000, 0)
+      .circle(0, 0, ringRadius, 0x000000, 0)
       .setStrokeStyle(2.5, ALERT_RING_COLOR[world.alertLevel], 1);
 
-    const planet = drawGummiWorld(this, theme);
-    planet.setScale(1.1);
-
+    const labelY = ringRadius + 6;
     const label = this.add
-      .text(0, 56, world.label, {
+      .text(0, labelY, world.label, {
         fontSize: "13px",
         color: "#cfd9f0",
         fontFamily: "system-ui, sans-serif",
@@ -326,7 +376,7 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
 
     const themeText = this.add
-      .text(0, 74, themeLabel(theme).toUpperCase(), {
+      .text(0, labelY + 18, themeLabel(theme).toUpperCase(), {
         fontSize: "9px",
         color: "#8aa0d0",
         fontFamily: "ui-monospace, monospace",
@@ -334,12 +384,14 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
+    const badgeX = ringRadius - 4;
+    const badgeY = -ringRadius + 4;
     const countBg = this.add
-      .rectangle(38, -38, 22, 16, 0x1a2244, 0.95)
+      .rectangle(badgeX, badgeY, 22, 16, 0x1a2244, 0.95)
       .setStrokeStyle(1, 0xffd86b, 0.6)
       .setVisible(world.unitIds.length > 0);
     const countText = this.add
-      .text(38, -38, String(world.unitIds.length), {
+      .text(badgeX, badgeY, String(world.unitIds.length), {
         fontSize: "11px",
         color: "#ffd86b",
         fontFamily: "ui-monospace, monospace",
@@ -348,14 +400,11 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(world.unitIds.length > 0);
 
-    container.add([alertRing, planet, label, themeText, countBg, countText]);
+    container.add([isoPlane, alertRing, label, themeText, countBg, countText]);
 
-    // Click → select world's first wielder + pan camera here
+    // Click → select world's first wielder + pan camera here.
+    // Hit area is the alert ring (covers the world's footprint).
     alertRing.setInteractive({ useHandCursor: true });
-    alertRing.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      if (p.button !== 0) return;
-      // Defer the action until pointerup so we can distinguish click vs drag
-    });
     alertRing.on("pointerup", (p: Phaser.Input.Pointer) => {
       if (p.button !== 0 || this.didDrag) return;
       const w = useStore.getState().worlds[worldId];
@@ -373,6 +422,71 @@ export class KingdomScene extends Phaser.Scene {
       theme,
       alertLevel: world.alertLevel,
     };
+  }
+
+  /**
+   * Build a small iso plane (ISO_GRID × ISO_GRID tiles) into the given
+   * container, centered on the container origin, with the theme's
+   * landmark sprite at center + small accent landmarks at fixed offsets.
+   * Falls back to drawn polygons if the tile texture didn't load.
+   */
+  private buildIsoPlane(plane: Phaser.GameObjects.Container, theme: WorldTheme) {
+    const haveTiles = this.textures.exists("tile-iso-a") && this.textures.exists("tile-iso-b");
+    const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
+    const isoToLocal = (tx: number, ty: number) => ({
+      x: (tx - ty) * (ISO_TILE_W / 2),
+      y: offsetY + (tx + ty) * (ISO_TILE_H / 2),
+    });
+
+    if (haveTiles) {
+      for (let x = 0; x < ISO_GRID; x++) {
+        for (let y = 0; y < ISO_GRID; y++) {
+          const c = isoToLocal(x + 0.5, y + 0.5);
+          const tex = (x + y) % 2 === 0 ? "tile-iso-a" : "tile-iso-b";
+          const tile = this.add.image(c.x, c.y, tex);
+          tile.setOrigin(0.5, 0.5);
+          plane.add(tile);
+        }
+      }
+    } else {
+      // Fallback: drawn iso diamonds (tile textures missing).
+      const g = this.add.graphics();
+      g.lineStyle(1, 0x1d2851, 0.6);
+      for (let x = 0; x < ISO_GRID; x++) {
+        for (let y = 0; y < ISO_GRID; y++) {
+          const a = isoToLocal(x, y);
+          const b = isoToLocal(x + 1, y);
+          const c = isoToLocal(x + 1, y + 1);
+          const d = isoToLocal(x, y + 1);
+          g.fillStyle((x + y) % 2 === 0 ? 0x0a1130 : 0x0d1638, 1);
+          g.fillPoints([a, b, c, d] as Phaser.Math.Vector2[], true);
+          g.strokePoints([a, b, c, d, a] as Phaser.Math.Vector2[]);
+        }
+      }
+      plane.add(g);
+    }
+
+    // Center landmark (themed). Anchored bottom-center so the building
+    // sits on the central tile; lifted slightly so it doesn't intersect
+    // the tile floor.
+    const center = isoToLocal(ISO_GRID / 2, ISO_GRID / 2);
+    const tex = LANDMARK_TEX(theme);
+    if (this.textures.exists(tex)) {
+      const lm = this.add.image(center.x, center.y - 4, tex);
+      lm.setOrigin(0.5, 1);
+      lm.setScale(1.4);
+      plane.add(lm);
+
+      // Small accent decorations scattered around.
+      for (const a of THEME_ACCENTS[theme]) {
+        const p = isoToLocal(a.tx + 0.5, a.ty + 0.5);
+        const acc = this.add.image(p.x, p.y - 2, tex);
+        acc.setOrigin(0.5, 1);
+        acc.setScale(a.scale);
+        acc.setAlpha(a.alpha);
+        plane.add(acc);
+      }
+    }
   }
 
   private installCameraControls() {
@@ -522,8 +636,10 @@ function computeClusterLayout(
       continue;
     }
 
-    // Inner ring: members spaced around the cluster centroid.
-    const innerRadius = 100 + members.length * 18;
+    // Inner ring: members spaced around the cluster centroid. Sized so
+    // a per-world iso plane (~230px) plus alert ring fits without
+    // overlapping its neighbor.
+    const innerRadius = 200 + members.length * 28;
     members.forEach((w, i) => {
       const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
       out.set(w.id, {
