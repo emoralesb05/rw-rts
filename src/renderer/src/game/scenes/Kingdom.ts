@@ -149,8 +149,16 @@ type WielderRef = {
   sprite?: Phaser.GameObjects.Sprite;
   glow: Phaser.GameObjects.Arc;
   driveAura: Phaser.GameObjects.Arc;
-  hpRing: Phaser.GameObjects.Arc;
-  mpRing: Phaser.GameObjects.Arc;
+  // FF14 nameplate-style HP/MP bars stacked below the wielder. Each
+  // bar is a dark track + a colored fill rectangle whose width we
+  // scale per frame based on the unit's hp/mp fraction.
+  hpBarBg: Phaser.GameObjects.Rectangle;
+  hpBarFill: Phaser.GameObjects.Rectangle;
+  mpBarBg: Phaser.GameObjects.Rectangle;
+  mpBarFill: Phaser.GameObjects.Rectangle;
+  // Bobbing "!" alert icon shown above the head when HP is critical
+  // (or the wielder has just fallen). Hidden otherwise.
+  criticalAlert: Phaser.GameObjects.Text;
   label: Phaser.GameObjects.Text;
   homeTx: number;
   homeTy: number;
@@ -886,18 +894,32 @@ export class KingdomScene extends Phaser.Scene {
   ) {
     const now = this.time.now;
 
-    // ── HP / MP rings ────────────────────────────────────────────────
-    // Arc end-angle = -90 + (270 * fraction). Setting endAngle redraws.
+    // ── HP / MP bars ────────────────────────────────────────────────
+    // FF14 nameplate look — scale the fill rectangle horizontally by
+    // hp/mp fraction. Origin (0, 0.5) on fills means scaling shrinks
+    // from the right edge, so the bar drains rightward as expected.
     const hpFrac = Math.max(0, Math.min(1, unit.hp / 100));
     const mpFrac = Math.max(0, Math.min(1, unit.mp / 100));
-    ref.hpRing.endAngle = -90 + 270 * hpFrac;
-    ref.mpRing.endAngle = -90 + 270 * mpFrac;
-    // Critical HP — pulse the HP ring red.
-    if (unit.hp > 0 && unit.hp < 25) {
+    ref.hpBarFill.scaleX = hpFrac;
+    ref.mpBarFill.scaleX = mpFrac;
+    // Critical HP — flash the HP fill red, pulse alpha, swap the bar
+    // track border to red, and surface the bobbing "!" alert above
+    // the wielder. Multi-modal so it's hard to miss.
+    const isCritical = unit.hp > 0 && unit.hp < 25;
+    if (isCritical) {
       const pulse = 0.5 + 0.5 * Math.sin(now * 0.012);
-      ref.hpRing.setStrokeStyle(2, 0xff5a3c, 0.6 + 0.4 * pulse);
+      ref.hpBarFill.setFillStyle(0xff5a3c);
+      ref.hpBarFill.setAlpha(0.7 + 0.3 * pulse);
+      ref.hpBarBg.setStrokeStyle(1, 0xff5a3c, 0.85);
+      ref.criticalAlert.setVisible(true);
+      ref.criticalAlert.setAlpha(0.7 + 0.3 * pulse);
+      // Gentle bob — 4px sine over ~1.4s.
+      ref.criticalAlert.y = -42 + Math.sin(now * 0.005) * 3;
     } else {
-      ref.hpRing.setStrokeStyle(2, 0xff6b8a, 0.85);
+      ref.hpBarFill.setFillStyle(0x3da85f);
+      ref.hpBarFill.setAlpha(1);
+      ref.hpBarBg.setStrokeStyle(1, 0x000000, 0.9);
+      ref.criticalAlert.setVisible(false);
     }
 
     // ── Drive aura ──────────────────────────────────────────────────
@@ -1113,15 +1135,28 @@ export class KingdomScene extends Phaser.Scene {
       .setStrokeStyle(2.5, 0xffffff, 0)
       .setVisible(false);
 
-    // HP / MP rings — arc shapes at the wielder's feet (so they don't
-    // occlude the painterly face). HP outer (red), MP inner (blue).
-    // Drawn as 270° arcs starting from -90° (top) for "fill clockwise".
-    const hpRing = this.add
-      .arc(0, 14, 22, -90, 270 * (unit.hp / 100) - 90, false, 0xff6b8a, 0)
-      .setStrokeStyle(2, 0xff6b8a, 0.85);
-    const mpRing = this.add
-      .arc(0, 14, 26, -90, 270 * (unit.mp / 100) - 90, false, 0x6cc6ff, 0)
-      .setStrokeStyle(2, 0x6cc6ff, 0.6);
+    // FF14 nameplate-style HP/MP bars — sit at the wielder's feet,
+    // stacked HP-over-MP. Each bar = dark track + scaled fill.
+    // Width 32, height 3. Fill origin (0, 0.5) so scaleX shrinks
+    // from the right edge.
+    const BAR_W = 32;
+    const BAR_H = 3;
+    const HP_Y = 14;
+    const MP_Y = 18;
+    const hpBarBg = this.add
+      .rectangle(0, HP_Y, BAR_W, BAR_H, 0x000000, 0.75)
+      .setStrokeStyle(1, 0x000000, 0.9);
+    const hpBarFill = this.add
+      .rectangle(-BAR_W / 2, HP_Y, BAR_W - 2, BAR_H - 1, 0x3da85f, 1)
+      .setOrigin(0, 0.5);
+    hpBarFill.scaleX = unit.hp / 100;
+    const mpBarBg = this.add
+      .rectangle(0, MP_Y, BAR_W, BAR_H, 0x000000, 0.75)
+      .setStrokeStyle(1, 0x000000, 0.9);
+    const mpBarFill = this.add
+      .rectangle(-BAR_W / 2, MP_Y, BAR_W - 2, BAR_H - 1, 0x3a7bd5, 1)
+      .setOrigin(0, 0.5);
+    mpBarFill.scaleX = unit.mp / 100;
 
     const body = this.add.container(0, 0);
     const sprite = this.populateWielderBody(body, unit.role);
@@ -1135,15 +1170,31 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Layer order matters: drive aura behind, body in middle, rings
-    // on top so they read against the painterly hi-res sprite.
+    // Critical-HP "!" — hidden by default; updateWielder toggles it.
+    const criticalAlert = this.add
+      .text(0, -42, "!", {
+        fontSize: "14px",
+        color: "#ff3a2c",
+        fontStyle: "bold",
+        backgroundColor: "rgba(0,0,0,0.7)",
+        padding: { x: 5, y: 0 },
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    // Layer order matters: drive aura behind, body in middle, bars
+    // on top so they read against the painterly hi-res sprite. The
+    // critical "!" alert sits above everything so it always reads.
     const container = this.add.container(x, y, [
       driveAura,
       glow,
       body,
-      hpRing,
-      mpRing,
+      hpBarBg,
+      hpBarFill,
+      mpBarBg,
+      mpBarFill,
       label,
+      criticalAlert,
     ]);
     container.setData("unitId", unit.id);
 
@@ -1166,9 +1217,12 @@ export class KingdomScene extends Phaser.Scene {
       sprite,
       glow,
       driveAura,
-      hpRing,
-      mpRing,
+      hpBarBg,
+      hpBarFill,
+      mpBarBg,
+      mpBarFill,
       label,
+      criticalAlert,
       homeTx,
       homeTy,
       patrolState: "scouting",

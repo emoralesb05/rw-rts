@@ -1153,10 +1153,27 @@ select.btn {
 .unit-card .name { font-weight: 600; }
 .unit-card .meta { font-size: 11px; color: var(--muted); }
 
-.bar { height: 6px; background: #0a1130; border-radius: 3px; overflow: hidden; margin-top: 4px; }
-.bar > div { height: 100%; }
-.hp > div { background: linear-gradient(90deg, #ff8aa1, #ff6b8a); }
-.mp > div { background: linear-gradient(90deg, #6cc6ff, #4d7eff); }
+.bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.bar > div {
+  height: 100%;
+  transition: width 0.25s ease-out;
+}
+.hp > div {
+  background: linear-gradient(180deg, #7af0a8 0%, #3da85f 50%, #2a8048 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.mp > div {
+  background: linear-gradient(180deg, #79c5ff 0%, #3a7bd5 50%, #1f4ea8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 
 /* ──────────────────── Pills + bars (shared) ───────────────────── */
 
@@ -1818,27 +1835,35 @@ select.btn {
   text-overflow: ellipsis;
   flex-shrink: 0;
 }
+/* FF14 nameplate-style — HP green on top, MP blue below, stacked
+ * vertically. Slightly thicker than the old side-by-side mini-bars
+ * and outlined so they read clearly even at low contrast. */
 .party-row-bars {
   display: flex;
-  gap: 4px;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
 }
 .bar-mini {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.55);
   border-radius: 2px;
   overflow: hidden;
-  flex: 1;
+  width: 100%;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
 }
 .bar-mini > div {
   height: 100%;
   transition: width 0.25s ease-out;
 }
 .bar-mini.hp > div {
-  background: linear-gradient(90deg, #6cc6ff, #4caf50);
+  background: linear-gradient(180deg, #7af0a8 0%, #3da85f 50%, #2a8048 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30);
 }
 .bar-mini.mp > div {
-  background: linear-gradient(90deg, #c9a4ff, #ff89a3);
+  background: linear-gradient(180deg, #79c5ff 0%, #3a7bd5 50%, #1f4ea8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 /* ─── Status icon strip ────────────────────────────────────────────── */
