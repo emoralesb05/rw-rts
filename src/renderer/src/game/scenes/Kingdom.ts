@@ -44,6 +44,7 @@ import {
   ANIM,
 } from "../sprite-assets";
 import { drawShadow, type HeartlessRef } from "../heartless";
+import { pickBarkLine, type BarkKind } from "../wielder-barks";
 import type { Heartless } from "@shared/events";
 
 // Drive form aura colors — match the KH visual language.
@@ -159,6 +160,10 @@ type WielderRef = {
   // Bobbing "!" alert icon shown above the head when HP is critical
   // (or the wielder has just fallen). Hidden otherwise.
   criticalAlert: Phaser.GameObjects.Text;
+  // Currently-displayed speech bubble (if any) + last-shown timestamp
+  // for cooldown gating. New barks replace the old one.
+  barkText?: Phaser.GameObjects.Text;
+  lastBarkAt: number;
   label: Phaser.GameObjects.Text;
   homeTx: number;
   homeTy: number;
@@ -332,7 +337,26 @@ export class KingdomScene extends Phaser.Scene {
           break;
         }
       }
-      if (!ref || !ref.sprite) return;
+      if (!ref) return;
+
+      // Voice bark — independent of sprite/anim timing. Bark on the
+      // less-frequent narrative events; tool_use / tool_result skip
+      // (would spam the canvas). KO vs success branch on unit hp at
+      // session_end time.
+      let barkKind: BarkKind | undefined;
+      if (ev.kind === "session_start") barkKind = "session_start";
+      else if (ev.kind === "subagent_spawn") barkKind = "subagent_spawn";
+      else if (ev.kind === "permission_request") barkKind = "permission_request";
+      else if (ev.kind === "error") barkKind = "error";
+      else if (ev.kind === "session_end") {
+        const u = useStore.getState().units[ev.sessionId];
+        barkKind = u && u.hp <= 0 ? "session_end_ko" : "session_end_success";
+      }
+      if (barkKind) {
+        this.showBark(ref, pickBarkLine(barkKind));
+      }
+
+      if (!ref.sprite) return;
       if (now - ref.lastEventAnimAt < MIN_GAP_MS) return;
       let animKey: string | undefined;
       if (ev.kind === "tool_use") {
@@ -493,6 +517,52 @@ export class KingdomScene extends Phaser.Scene {
       outerStrength: { from: 1.6, to: 0.45 },
       duration: 900,
       ease: "Sine.easeOut",
+    });
+  }
+
+  /** Speech-bubble bark above a wielder for ~2.5s. Cooldown gated so
+   * a burst of events doesn't spam multiple bubbles per wielder. */
+  private showBark(ref: WielderRef, line: string) {
+    const BARK_COOLDOWN_MS = 1500;
+    const BARK_LIFETIME_MS = 2500;
+    const now = performance.now();
+    if (now - ref.lastBarkAt < BARK_COOLDOWN_MS) return;
+    ref.lastBarkAt = now;
+    if (ref.barkText) {
+      ref.barkText.destroy();
+      ref.barkText = undefined;
+    }
+    const bubble = this.add
+      .text(0, -50, line, {
+        fontSize: "8px",
+        color: "#fff8e0",
+        backgroundColor: "rgba(10, 10, 26, 0.92)",
+        padding: { x: 6, y: 3 },
+        wordWrap: { width: 110 },
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setAlpha(0);
+    ref.container.add(bubble);
+    ref.barkText = bubble;
+    this.tweens.add({
+      targets: bubble,
+      alpha: { from: 0, to: 1 },
+      y: -56,
+      duration: 200,
+      ease: "Sine.easeOut",
+    });
+    this.time.delayedCall(BARK_LIFETIME_MS, () => {
+      if (!bubble.scene) return;
+      this.tweens.add({
+        targets: bubble,
+        alpha: 0,
+        duration: 350,
+        onComplete: () => {
+          if (bubble.scene) bubble.destroy();
+        },
+      });
+      if (ref.barkText === bubble) ref.barkText = undefined;
     });
   }
 
@@ -1223,6 +1293,7 @@ export class KingdomScene extends Phaser.Scene {
       mpBarFill,
       label,
       criticalAlert,
+      lastBarkAt: 0,
       homeTx,
       homeTy,
       patrolState: "scouting",
