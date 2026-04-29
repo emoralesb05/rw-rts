@@ -3,15 +3,20 @@
  * first launch with defaults. Hand-editable; reloaded on every read so
  * changes take effect immediately without restarting the app.
  *
- * Schema (kept minimal — extend as new settings appear):
+ * Schema:
  *   {
- *     "workspaceRoot": "~/Github",       // default
- *     "excludeRepos": ["fork-foo", "..." ]  // default: []
+ *     "workspaceRoot": "~/Github",
+ *     "exclude": [
+ *       "vercel-ai",                  // basename match
+ *       "forks/vercel-ai",            // parent/repo (matches the dropdown label)
+ *       "forks/*",                    // every repo whose immediate parent is "forks"
+ *       "~/Github/teradata/*",        // every repo under that absolute dir
+ *       "/abs/path/to/repo"           // exact absolute-path match
+ *     ]
  *   }
  *
- * excludeRepos entries match either the repo basename (e.g. "vercel-ai")
- * or the full absolute path. Substring isn't supported — keep it
- * predictable.
+ * Back-compat: the old key "excludeRepos" is still honored if "exclude"
+ * isn't set, so older config files keep working.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -21,13 +26,13 @@ const SETTINGS_PATH = join(homedir(), ".keykeeper.json");
 
 export type Settings = {
   workspaceRoot: string;
-  excludeRepos: string[];
+  exclude: string[];
 };
 
 function defaults(): Settings {
   return {
     workspaceRoot: join(homedir(), "Github"),
-    excludeRepos: [],
+    exclude: [],
   };
 }
 
@@ -37,6 +42,8 @@ function expandTilde(p: string): string {
   }
   return p;
 }
+
+type RawSettings = Partial<Settings> & { excludeRepos?: string[] };
 
 export function loadSettings(): Settings {
   if (!existsSync(SETTINGS_PATH)) {
@@ -50,13 +57,16 @@ export function loadSettings(): Settings {
   }
   try {
     const raw = readFileSync(SETTINGS_PATH, "utf8");
-    const parsed = JSON.parse(raw) as Partial<Settings>;
+    const parsed = JSON.parse(raw) as RawSettings;
     const def = defaults();
+    const excludeRaw = parsed.exclude ?? parsed.excludeRepos ?? def.exclude;
     return {
       workspaceRoot: expandTilde(parsed.workspaceRoot ?? def.workspaceRoot),
-      excludeRepos: Array.isArray(parsed.excludeRepos)
-        ? parsed.excludeRepos.filter((s): s is string => typeof s === "string")
-        : def.excludeRepos,
+      exclude: Array.isArray(excludeRaw)
+        ? excludeRaw
+            .filter((s): s is string => typeof s === "string")
+            .map(expandTilde)
+        : def.exclude,
     };
   } catch {
     // Malformed file — log once, fall through to defaults. Don't
@@ -69,4 +79,45 @@ export function loadSettings(): Settings {
 
 export function settingsPath(): string {
   return SETTINGS_PATH;
+}
+
+/**
+ * Decide whether a repo at `path` (with computed `label` and `name`)
+ * should be filtered out by the exclude list. Matches:
+ *
+ *   - basename: "vercel-ai" matches name === "vercel-ai"
+ *   - label:    "forks/vercel-ai" matches label === "forks/vercel-ai"
+ *   - dir-glob: "forks/*" matches any label whose first segment is forks,
+ *               or any path under any dir named forks
+ *   - abs-glob: "/abs/path/* " or "~/Github/foo/*" matches any path under
+ *               that prefix
+ *   - abs-path: "/abs/path/to/repo" matches path === pattern
+ */
+export function isExcluded(
+  repo: { path: string; label: string; name: string },
+  patterns: string[]
+): boolean {
+  for (const pattern of patterns) {
+    if (pattern.endsWith("/*")) {
+      const prefix = pattern.slice(0, -2);
+      if (prefix.startsWith("/")) {
+        // Absolute prefix — match against full path.
+        if (repo.path === prefix || repo.path.startsWith(prefix + "/")) return true;
+      } else {
+        // Relative prefix — match label first segment(s) OR any
+        // path segment chain (so "forks/*" hits both label "forks/x"
+        // and a deeper path that happens to traverse a "forks" dir).
+        if (repo.label === prefix || repo.label.startsWith(prefix + "/")) return true;
+        if (repo.path.includes(`/${prefix}/`)) return true;
+      }
+      continue;
+    }
+    if (pattern.startsWith("/")) {
+      if (repo.path === pattern) return true;
+      continue;
+    }
+    if (repo.name === pattern) return true;
+    if (repo.label === pattern) return true;
+  }
+  return false;
 }
