@@ -1,17 +1,17 @@
 /**
  * Discover candidate spawn targets — git repos under the user's
- * workspace root (default `~/Github`). Walks recursively, stops
- * descending once a `.git` is found (repos can't nest meaningfully),
- * caps at MAX_DEPTH to keep big trees bounded.
+ * workspace root. Walks recursively, stops descending once a `.git`
+ * is found (repos can't nest meaningfully), caps at MAX_DEPTH to
+ * keep big trees bounded. Workspace root and exclusion list come
+ * from ~/.keykeeper.json (settings.ts).
  *
  * Returns repos as `{ path, label }`. Label is the repo basename
  * (last path segment) — e.g. `~/Github/dreambase/dreamapp` → "dreamapp".
  */
 import { readdir, stat, access } from "node:fs/promises";
 import { join, basename } from "node:path";
-import { homedir } from "node:os";
+import { loadSettings } from "./settings";
 
-const DEFAULT_WORKSPACE = join(homedir(), "Github");
 const MAX_DEPTH = 4;
 
 export type WorkspaceRepo = {
@@ -40,7 +40,8 @@ async function hasGit(p: string): Promise<boolean> {
 async function walk(
   dir: string,
   depth: number,
-  out: WorkspaceRepo[]
+  out: WorkspaceRepo[],
+  excludeSet: Set<string>
 ): Promise<void> {
   if (depth > MAX_DEPTH) return;
   let entries: string[];
@@ -55,21 +56,23 @@ async function walk(
     const full = join(dir, name);
     if (!(await isDir(full))) continue;
     if (await hasGit(full)) {
-      out.push({ path: full, label: basename(full) });
+      // Drop if either the basename or the full path is excluded.
+      if (!excludeSet.has(name) && !excludeSet.has(full)) {
+        out.push({ path: full, label: name });
+      }
       continue; // don't descend into a repo
     }
-    await walk(full, depth + 1, out);
+    await walk(full, depth + 1, out, excludeSet);
   }
 }
 
-export async function listWorkspaceRepos(
-  root: string = DEFAULT_WORKSPACE
-): Promise<WorkspaceRepo[]> {
+export async function listWorkspaceRepos(): Promise<WorkspaceRepo[]> {
+  const settings = loadSettings();
+  const root = settings.workspaceRoot;
   const out: WorkspaceRepo[] = [];
   if (!(await isDir(root))) return out;
-  await walk(root, 0, out);
+  const excludeSet = new Set(settings.excludeRepos);
+  await walk(root, 0, out, excludeSet);
   out.sort((a, b) => a.label.localeCompare(b.label));
   return out;
 }
-
-export const WORKSPACE_ROOT = DEFAULT_WORKSPACE;
