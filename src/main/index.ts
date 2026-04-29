@@ -142,7 +142,7 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
-    return resolvePermissionRequest(req.requestId, req.decision);
+    return resolvePermissionRequest(req.requestId, req.decision, req.message);
   });
 
   ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());

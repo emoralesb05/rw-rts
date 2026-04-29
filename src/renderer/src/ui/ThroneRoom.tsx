@@ -261,6 +261,13 @@ function WielderCard({ unit }: { unit: UnitState }) {
 function LetterCard({ letter }: { letter: Letter }) {
   const applyLetterAction = useStore((s) => s.applyLetterAction);
   const [showReasoning, setShowReasoning] = useState(false);
+  const [denyReason, setDenyReason] = useState("");
+  // Permission letters carry a permission-deny action — when present we
+  // render an inline "deny reason (optional)" field. Allow ignores the
+  // text per upstream contract (decision.message is deny-only).
+  const isPermissionLetter = letter.actions.some(
+    (a) => a.action.kind === "permission-deny"
+  );
   return (
     <div className={`throne-letter sev-${letter.severity}`}>
       <div className="throne-letter-head">
@@ -295,6 +302,16 @@ function LetterCard({ letter }: { letter: Letter }) {
           )}
         </div>
       )}
+      {isPermissionLetter && (
+        <input
+          type="text"
+          className="letter-deny-reason"
+          placeholder="deny reason (optional, shown to Claude)"
+          value={denyReason}
+          onChange={(e) => setDenyReason(e.target.value)}
+          aria-label="Deny reason"
+        />
+      )}
       <div className="throne-letter-actions">
         {letter.actions.map((a, i) => (
           <button
@@ -308,7 +325,21 @@ function LetterCard({ letter }: { letter: Letter }) {
                 ? " ghost"
                 : "")
             }
-            onClick={() => applyLetterAction(letter, a.action)}
+            onClick={() => {
+              // Inject the typed reason into deny actions only; allow
+              // is fast-path with no message slot.
+              if (
+                a.action.kind === "permission-deny" &&
+                denyReason.trim()
+              ) {
+                applyLetterAction(letter, {
+                  ...a.action,
+                  message: denyReason.trim(),
+                });
+              } else {
+                applyLetterAction(letter, a.action);
+              }
+            }}
           >
             {a.label}
           </button>

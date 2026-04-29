@@ -23,7 +23,12 @@ export type AgentEventKind =
   | "tool_result"
   | "subagent_spawn"
   | "error"
-  | "permission_request";
+  | "permission_request"
+  // Synthetic — emitted by the hook bridge when a pending permission
+  // request times out, errors, or is resolved by something other than
+  // the GUI (e.g., the user answered Claude's terminal prompt). The
+  // renderer dismisses any matching letter so it doesn't go stale.
+  | "permission_resolved";
 
 export type AgentEvent = {
   sessionId: string;
@@ -46,6 +51,10 @@ export type AgentEvent = {
     // allow/deny decision back to the open hook socket. Resolved
     // (or timed out) on the main side.
     requestId?: string;
+    // Set on permission_resolved: how the request was concluded outside
+    // the GUI. "timeout" = our 65s pending timer fired; "error" = socket
+    // closed before the renderer answered.
+    resolution?: "timeout" | "error";
   };
   source: "spawned" | "hook";
 };
@@ -97,7 +106,9 @@ export type LetterAction =
   | { kind: "send-word"; sessionId: string }
   | { kind: "recall"; sessionId: string }
   | { kind: "permission-allow"; requestId: string }
-  | { kind: "permission-deny"; requestId: string }
+  // message is the deny reason shown to Claude (decision.message in
+  // upstream PermissionRequest hook). Optional — empty = quick deny.
+  | { kind: "permission-deny"; requestId: string; message?: string }
   | { kind: "dismiss" };
 
 export type LetterRisk = "low" | "elevated" | "high";

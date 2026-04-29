@@ -33,13 +33,18 @@ PERMISSION_TIMEOUT_S = 60.0
 QUICK_TIMEOUT_S = 2.0
 
 
-def emit_permission_decision(behavior):
+def emit_permission_decision(behavior, message=None):
     """Write Claude Code's PermissionRequest hookSpecificOutput.
-    behavior must be 'allow' or 'deny'."""
+    behavior must be 'allow' or 'deny'. message is the deny reason
+    shown to Claude (decision.message); ignored for allow per upstream
+    contract."""
+    decision = {"behavior": behavior}
+    if behavior == "deny" and message:
+        decision["message"] = str(message)
     out = {
         "hookSpecificOutput": {
             "hookEventName": "PermissionRequest",
-            "decision": {"behavior": behavior},
+            "decision": decision,
         }
     }
     sys.stdout.write(json.dumps(out))
@@ -88,11 +93,14 @@ def bidirectional_permission(payload):
 
     try:
         reply = json.loads(b"".join(chunks).decode("utf-8"))
-        # Bridge replies with {"permissionDecision": "allow"|"deny"} —
-        # we translate to PermissionRequest's expected shape.
+        # Bridge replies with {"permissionDecision": "allow"|"deny",
+        # "denyMessage": "..."?} — translate to PermissionRequest's
+        # expected hookSpecificOutput shape. denyMessage only flows
+        # through on deny (allow has no message field upstream).
         decision = reply.get("permissionDecision")
+        deny_message = reply.get("denyMessage")
         if decision in ("allow", "deny"):
-            emit_permission_decision(decision)
+            emit_permission_decision(decision, deny_message)
     except Exception:
         pass
 

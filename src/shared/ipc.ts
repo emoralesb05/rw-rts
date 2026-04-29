@@ -19,6 +19,10 @@ export type PermissionDecision = "allow" | "deny";
 export type ResolvePermissionRequest = {
   requestId: string;
   decision: PermissionDecision;
+  // Reason shown to Claude on deny (upstream PermissionRequest hook's
+  // decision.message). Allow ignores this — upstream contract has no
+  // message field for allow.
+  message?: string;
 };
 
 export type FixtureScenario =

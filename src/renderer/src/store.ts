@@ -973,6 +973,63 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     );
   }
 
+  // Permission resolved outside the GUI (timeout / socket error / user
+  // answered Claude's terminal prompt). Drop any letter whose deny/allow
+  // action carries the same requestId so we don't show stale buttons.
+  if (event.kind === "permission_resolved" && event.payload.requestId) {
+    const reqId = event.payload.requestId;
+    nextLetters = nextLetters.filter((l) => {
+      for (const a of l.actions) {
+        if (
+          (a.action.kind === "permission-allow" ||
+            a.action.kind === "permission-deny") &&
+          a.action.requestId === reqId
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  // Heuristic dismissal: if a tool_result, session_end, or fresh
+  // permission_request arrives for the same session as a pending
+  // permission letter that *predates* this event, the user resolved
+  // the original ask elsewhere (their terminal prompt) — Claude moved
+  // on to running the tool / ending / asking again. Drop the stale
+  // letter so the GUI doesn't lag the bridge's 65s safety timer.
+  if (
+    event.kind === "tool_result" ||
+    event.kind === "session_end" ||
+    event.kind === "permission_request"
+  ) {
+    const sessId = event.sessionId;
+    const ts = event.timestamp;
+    nextLetters = nextLetters.filter((l) => {
+      if (l.sessionId !== sessId) return true;
+      if (l.createdAt >= ts) return true; // not older than this event
+      const isPermLetter = l.actions.some(
+        (a) =>
+          a.action.kind === "permission-allow" ||
+          a.action.kind === "permission-deny"
+      );
+      if (!isPermLetter) return true;
+      // For permission_request: only drop if this is a *different*
+      // request, otherwise the just-created letter would be filtered.
+      if (event.kind === "permission_request" && event.payload.requestId) {
+        const newReqId = event.payload.requestId;
+        const matchesThisReq = l.actions.some(
+          (a) =>
+            (a.action.kind === "permission-allow" ||
+              a.action.kind === "permission-deny") &&
+            a.action.requestId === newReqId
+        );
+        if (matchesThisReq) return true;
+      }
+      return false;
+    });
+  }
+
   // Stuck loop — notable letter, rate-limited per session (Q10 + #13a).
   if (event.kind === "tool_use") {
     const stuck = detectStuckLoop(id);
@@ -1267,7 +1324,11 @@ export const useStore = create<Store>((set) => ({
         break;
       case "permission-deny":
         void window.kh
-          .resolvePermission({ requestId: action.requestId, decision: "deny" })
+          .resolvePermission({
+            requestId: action.requestId,
+            decision: "deny",
+            message: action.message,
+          })
           .catch(() => {});
         break;
       case "dismiss":

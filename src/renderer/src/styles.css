@@ -1576,3 +1576,24 @@ select.btn {
 .letter-verb.ghost:hover {
   color: var(--text);
 }
+.letter-deny-reason {
+  display: block;
+  width: 100%;
+  background: rgba(10, 17, 48, 0.6);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 5px 7px;
+  border-radius: 4px;
+  margin: 4px 0 6px;
+  box-sizing: border-box;
+}
+.letter-deny-reason:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.letter-deny-reason::placeholder {
+  color: var(--muted);
+  font-style: italic;
+}

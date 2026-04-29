@@ -24,9 +24,31 @@ let server: Server | null = null;
 type Pending = {
   socket: Socket;
   timer: NodeJS.Timeout;
+  // Identity captured at receive time, used to emit a synthetic
+  // permission_resolved event when the request concludes outside the
+  // GUI (timeout / socket error). The renderer needs sessionId to
+  // locate and dismiss the matching letter.
+  sessionId: string;
+  cwd: string;
 };
 const pending = new Map<string, Pending>();
 const PENDING_TIMEOUT_MS = 65_000;
+
+function emitPermissionResolved(
+  ctx: { sessionId: string; cwd: string },
+  requestId: string,
+  resolution: "timeout" | "error"
+) {
+  bus.emitAgentEvent({
+    sessionId: ctx.sessionId,
+    tool: "claude",
+    cwd: ctx.cwd,
+    source: "hook",
+    timestamp: Date.now(),
+    kind: "permission_resolved",
+    payload: { requestId, resolution },
+  });
+}
 
 export function startHookBridge() {
   if (server) return;
@@ -68,9 +90,11 @@ export function startHookBridge() {
       // resolves it. All other events are fire-and-forget.
       if (ev.kind === "permission_request" && ev.payload.requestId) {
         const id = ev.payload.requestId;
+        const ctx = { sessionId: ev.sessionId, cwd: ev.cwd };
         const timer = setTimeout(() => {
           // Hard timeout: close the socket without writing — Python
           // will read EOF and fall back to silent exit (no decision).
+          // Tell the renderer so it can dismiss the now-stale letter.
           const p = pending.get(id);
           if (!p) return;
           pending.delete(id);
@@ -79,19 +103,26 @@ export function startHookBridge() {
           } catch {
             /* ignore */
           }
+          emitPermissionResolved(ctx, id, "timeout");
         }, PENDING_TIMEOUT_MS);
-        pending.set(id, { socket, timer });
+        pending.set(id, { socket, timer, sessionId: ctx.sessionId, cwd: ctx.cwd });
       } else {
         socket.destroy();
       }
     };
     socket.on("end", finalize);
     socket.on("error", () => {
-      // If a pending socket errors, drop it.
+      // If a pending socket errors, drop it and tell the renderer so
+      // the orphaned letter gets dismissed.
       for (const [id, p] of pending) {
         if (p.socket === socket) {
           clearTimeout(p.timer);
           pending.delete(id);
+          emitPermissionResolved(
+            { sessionId: p.sessionId, cwd: p.cwd },
+            id,
+            "error"
+          );
         }
       }
       socket.destroy();
@@ -129,18 +160,27 @@ export function stopHookBridge() {
 /**
  * Resolve a pending permission request — write the JSON reply on the
  * still-open hook socket and close it. Called by main from the
- * IPC.ResolvePermission handler.
+ * IPC.ResolvePermission handler. Returns false if no pending entry
+ * exists, which the renderer treats as "already resolved elsewhere"
+ * and uses to dismiss the now-stale letter.
  */
 export function resolvePermissionRequest(
   requestId: string,
-  decision: PermissionDecision
+  decision: PermissionDecision,
+  message?: string
 ): boolean {
   const p = pending.get(requestId);
   if (!p) return false;
   pending.delete(requestId);
   clearTimeout(p.timer);
   try {
-    const reply = JSON.stringify({ permissionDecision: decision });
+    // denyMessage is read by bin/kh-rts-hook and only emitted to Claude
+    // when behavior=deny — upstream PermissionRequest contract has no
+    // message field for allow.
+    const reply = JSON.stringify({
+      permissionDecision: decision,
+      denyMessage: decision === "deny" ? (message ?? undefined) : undefined,
+    });
     p.socket.end(reply);
   } catch {
     /* ignore */
