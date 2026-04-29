@@ -3,6 +3,7 @@ import { ChatPanel } from "./ui/ChatPanel";
 import { CommandInput } from "./ui/CommandInput";
 import { ThroneRoom } from "./ui/ThroneRoom";
 import { DecreeModal } from "./ui/DecreeModal";
+import { PanelLayer } from "./ui/floating/PanelLayer";
 import { PhaserGame } from "./game/PhaserGame";
 
 /**
@@ -31,6 +32,7 @@ export function App() {
         <CommandInput />
       </aside>
       <DecreeModal />
+      <PanelLayer />
     </div>
   );
 }

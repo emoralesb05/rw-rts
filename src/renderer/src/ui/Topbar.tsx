@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { isMuted, toggleMuted } from "../audio/sounds";
-import { SettingsModal } from "./SettingsModal";
+import { usePanels } from "./floating/panel-store";
 import type { HooksStatus } from "@shared/ipc";
 
 export function Topbar() {
   const [status, setStatus] = useState<HooksStatus | null>(null);
   const [muted, setMuted] = useState(isMuted());
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const openPanel = usePanels((s) => s.openPanel);
+  const closeAll = usePanels((s) => s.closeAll);
+  const openPanelCount = usePanels((s) => s.panels.length);
+
+  // Cmd/Ctrl+Shift+W → close all floating panels at once. Mirrors macOS
+  // "close all" convention without taking the lone Cmd+W (which Electron
+  // reserves for closing the window).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.shiftKey && (e.key === "w" || e.key === "W")) {
+        e.preventDefault();
+        closeAll();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [closeAll]);
   const worldCount = useStore((s) => Object.keys(s.worlds).length);
   const unitCount = useStore((s) => Object.keys(s.units).length);
   const eventCount = useStore((s) => s.eventCount);
@@ -83,19 +100,27 @@ export function Topbar() {
       </button>
       <button
         className="btn"
-        onClick={() => setSettingsOpen(true)}
+        onClick={() =>
+          openPanel({
+            kind: "settings",
+            title: "Settings",
+            width: 480,
+          })
+        }
         title="settings — workspace root, exclude patterns"
         aria-label="Open settings"
       >
         ⚙
       </button>
-      {settingsOpen && (
-        <SettingsModal
-          onClose={() => setSettingsOpen(false)}
-          // After save, force any open dropdown to re-fetch by dispatching
-          // a custom event the CommandInput listens for.
-          onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))}
-        />
+      {openPanelCount > 0 && (
+        <button
+          className="btn close-all-btn"
+          onClick={closeAll}
+          title="close all panels — ⌘⇧W"
+          aria-label="Close all panels"
+        >
+          ✕ {openPanelCount}
+        </button>
       )}
     </div>
   );

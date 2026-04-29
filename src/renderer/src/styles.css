@@ -1760,58 +1760,96 @@ select.btn {
   font-style: italic;
 }
 
-/* Floating target dialog (FF14-style focus frame).
- * Backdrop is fully transparent — captures click-out only — so the
- * kingdom canvas, party list, letters all stay legible underneath.
- * The dialog reads as elevated via a strong drop shadow + accent ring. */
-.target-dialog-backdrop {
+/* ─── Floating panel system ────────────────────────────────────────
+ * Generic, draggable, non-modal. No backdrop — the rest of the UI stays
+ * fully interactive while panels are open. Multiple panels stack via
+ * z-index managed by panel-store. Bring-to-front on click, drag by header.
+ */
+.floating-panel {
   position: fixed;
-  inset: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 800;
-}
-.target-dialog {
-  position: relative;
-  width: 420px;
-  max-width: calc(100% - 40px);
   background: linear-gradient(180deg, #0f1635 0%, #0a1130 100%);
   border: 1px solid var(--accent);
   border-radius: 10px;
   box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.75),
-    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 30px 80px rgba(0, 0, 0, 0.65),
+    0 8px 24px rgba(0, 0, 0, 0.50),
     0 0 0 1px rgba(255, 216, 107, 0.18);
-  padding: 4px;
-  animation: target-dialog-rise 0.16s ease-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: floating-panel-rise 0.14s ease-out;
 }
-@keyframes target-dialog-rise {
-  from { transform: translateY(8px); opacity: 0; }
+@keyframes floating-panel-rise {
+  from { transform: translateY(6px); opacity: 0; }
   to   { transform: translateY(0);   opacity: 1; }
 }
-.target-dialog .target-panel {
-  border: none;
-  box-shadow: none;
-  background: transparent;
+.floating-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  background: rgba(255, 216, 107, 0.06);
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+  font-family: system-ui, -apple-system, sans-serif;
 }
-.target-dialog-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  z-index: 1;
+.floating-panel-header:active {
+  cursor: grabbing;
+}
+.floating-panel-grip {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: -1px;
+  opacity: 0.6;
+}
+.floating-panel-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.floating-panel-close {
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12px;
   padding: 2px 6px;
   border-radius: 4px;
   cursor: pointer;
 }
-.target-dialog-close:hover {
+.floating-panel-close:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.06);
+}
+.floating-panel-body {
+  padding: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 80px);
+}
+/* When the wielder TargetPanel renders inside a floating panel, drop
+ * its own border + shadow since the chrome already provides them. */
+.floating-panel-body > .target-panel {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+}
+/* Close-all button in the topbar — only renders when panels are open. */
+.close-all-btn {
+  border-color: rgba(255, 122, 60, 0.45) !important;
+  color: #ffb86c !important;
+  font-variant-numeric: tabular-nums;
+}
+.close-all-btn:hover {
+  background: rgba(255, 122, 60, 0.10) !important;
+  border-color: #ff7a3c !important;
+  color: #ff7a3c !important;
 }
 
 /* ─── Party list (compact rows) ────────────────────────────────────── */
