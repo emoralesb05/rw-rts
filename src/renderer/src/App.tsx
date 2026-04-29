@@ -1,24 +1,29 @@
 import { Topbar } from "./ui/Topbar";
 import { ChatPanel } from "./ui/ChatPanel";
-import { UnitDock } from "./ui/UnitDock";
 import { CommandInput } from "./ui/CommandInput";
-import { WorldNav } from "./ui/WorldNav";
 import { ThroneRoom } from "./ui/ThroneRoom";
 import { PhaserGame } from "./game/PhaserGame";
-import { useStore } from "./store";
 
+/**
+ * Unified-map layout (per Q40 in vision.md):
+ *   Topbar
+ *   ┌──────────┬─────────────────────────┬─────────────┐
+ *   │ Throne   │  Kingdom (Phaser)       │  Chat       │
+ *   │ side     │  pan/zoom Star Chart    │  + input    │
+ *   │ panel    │  fills the middle       │             │
+ *   └──────────┴─────────────────────────┴─────────────┘
+ *
+ * No more tab nav (Throne / Gummi / per-world). Throne is always visible
+ * as a left-side overlay; the unified Kingdom canvas takes the bulk of
+ * the stage; chat + command input on the right (unchanged).
+ */
 export function App() {
-  const view = useStore((s) => s.view);
-  const activeWorldId = useStore((s) => s.activeWorldId);
-  const showThrone = view === "throne" && activeWorldId === null;
   return (
     <div className="app">
       <Topbar />
       <div className="stage">
-        <WorldNav />
+        <ThroneRoom />
         <PhaserGame />
-        {showThrone && <ThroneRoom />}
-        {!showThrone && <UnitDock />}
       </div>
       <aside className="side">
         <ChatPanel />

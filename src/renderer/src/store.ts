@@ -33,11 +33,17 @@ type Store = {
   mutedSessionIds: Record<string, true>;
   persisted: PersistedState;
   letters: Letter[];
+  // KingdomScene reads this to pan its camera. Set by clicking a wielder
+  // card / letter in the side panel, or a planet on the map. Stamped with
+  // a monotonic version so the same target can be re-clicked to re-pan.
+  cameraTarget: string | null;
+  cameraTargetVersion: number;
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
   setView(view: KingdomView): void;
+  setCameraTarget(worldId: string | null): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
   sealKeyhole(worldId: string): void;
@@ -664,6 +670,8 @@ export const useStore = create<Store>((set) => ({
   mutedSessionIds: loadMuted(),
   persisted: EMPTY_PERSISTED,
   letters: [],
+  cameraTarget: null,
+  cameraTargetVersion: 0,
 
   ingest(event) {
     _queue.push(event);
@@ -688,13 +696,24 @@ export const useStore = create<Store>((set) => ({
     set({ selectedUnitId: id });
   },
   selectWorld(id) {
-    // When the user dives into a world, leave the throne view — they're
-    // not at home anymore. setView keeps the previous view if they're
-    // returning to the gummi map.
-    set({ activeWorldId: id });
+    // In the unified-map architecture, "selecting a world" means panning
+    // the camera to that world on the Star Chart. The activeWorldId field
+    // is preserved for legacy callers but Q40 made the camera target the
+    // primary signal.
+    set((s) => ({
+      activeWorldId: id,
+      cameraTarget: id,
+      cameraTargetVersion: id ? s.cameraTargetVersion + 1 : s.cameraTargetVersion,
+    }));
   },
   setView(view) {
     set({ view });
+  },
+  setCameraTarget(worldId) {
+    set((s) => ({
+      cameraTarget: worldId,
+      cameraTargetVersion: s.cameraTargetVersion + 1,
+    }));
   },
   toggleMute(sessionId) {
     set((state) => {

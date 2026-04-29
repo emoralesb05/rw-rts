@@ -207,15 +207,11 @@ function LetterCard({ letter }: { letter: Letter }) {
 }
 
 export function ThroneRoom() {
-  const view = useStore((s) => s.view);
-  const setView = useStore((s) => s.setView);
+  // Always rendered as the left-side overlay panel in the unified-map
+  // architecture. No view-gate; the panel is a permanent surface.
   const units = useStore((s) => s.units);
   const worlds = useStore((s) => s.worlds);
   const letters = useStore((s) => s.letters);
-
-  // Hide ourselves when the user has navigated elsewhere.
-  if (view !== "throne") return null;
-
   const persisted = useStore((s) => s.persisted);
   const list = Object.values(units).sort(
     (a, b) => b.lastActivity - a.lastActivity
@@ -258,8 +254,11 @@ export function ThroneRoom() {
         <button
           type="button"
           className="dispatch-btn"
-          onClick={() => setView("gummi")}
-          title="dispatch a wielder — opens the gummi map (wired in P8)"
+          onClick={() => {
+            // TODO: open a dispatch modal (world/tool/role picker).
+            // Was previously routed to the now-removed Gummi Map tab.
+          }}
+          title="dispatch a wielder — opens picker (TODO)"
         >
           + Dispatch a wielder
         </button>

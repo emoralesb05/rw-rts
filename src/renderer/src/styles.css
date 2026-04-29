@@ -56,7 +56,16 @@ body, html, #root {
 .topbar .title { font-weight: 600; letter-spacing: 0.5px; color: var(--accent-2); }
 .topbar .spacer { flex: 1; }
 
-.stage { position: relative; background: #04060d; }
+/* Stage layout (Q40): 3 columns — Throne side panel | Kingdom canvas | (chat is the right column of .app, not .stage). */
+.stage {
+  position: relative;
+  background: #04060d;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .stage canvas { display: block; }
 
 .world-nav {
@@ -631,11 +640,12 @@ select.btn {
 /* ──────────────────── Throne Room ─────────────────────────────── */
 
 .throne-room {
-  position: absolute;
-  inset: 0;
+  position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--line);
+  min-height: 0;
   background:
     radial-gradient(circle at 12% 28%, rgba(255, 216, 107, 0.10) 1px, transparent 2.5px),
     radial-gradient(circle at 78% 64%, rgba(108, 198, 255, 0.09) 1px, transparent 2.5px),
@@ -738,11 +748,13 @@ select.btn {
   filter: brightness(1.1);
 }
 
+/* Side-panel layout (Q40): stack wielder cards over letter feed
+   vertically since the panel is narrow (~380px). */
 .throne-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 18px;
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
   min-height: 0;
   position: relative;
   z-index: 1;
