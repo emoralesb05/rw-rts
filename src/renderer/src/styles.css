@@ -1096,7 +1096,8 @@ select.btn {
   pointer-events: auto;
 }
 .throne-room::before {
-  /* Twin throne-room banners: warm gold vertical streaks down the sides. */
+  /* Twin throne-room banners: warm gold vertical streaks down the sides.
+     Gentle 7s breathing — torchlight flutter through the silk. */
   content: "";
   position: absolute;
   inset: 0;
@@ -1113,9 +1114,11 @@ select.btn {
       rgba(255, 216, 107, 0.10) 12%,
       rgba(214, 64, 64, 0.14) 55%,
       rgba(214, 64, 64, 0) 95%) right top / 38px 100% no-repeat;
+  animation: throne-banner-flutter 7s ease-in-out infinite;
 }
 .throne-room::after {
-  /* Faint castle hall silhouette at the bottom — anchors the perspective. */
+  /* Faint castle hall silhouette at the bottom — anchors the perspective.
+     11s slow brightness pulse: hall light breathing. */
   content: "";
   position: absolute;
   bottom: 0;
@@ -1126,6 +1129,37 @@ select.btn {
   background: radial-gradient(ellipse at 50% 100%, rgba(108, 198, 255, 0.08) 0%, rgba(0,0,0,0) 70%);
   pointer-events: none;
   z-index: 0;
+  animation: throne-hall-glow 11s ease-in-out infinite;
+}
+@keyframes throne-banner-flutter {
+  0%, 100% { opacity: 0.92; }
+  50%      { opacity: 1; }
+}
+@keyframes throne-hall-glow {
+  0%, 100% { filter: brightness(0.78); }
+  50%      { filter: brightness(1.08); }
+}
+/* Drifting dust mote layer — pixel-y radial-gradient pattern panned slowly
+   diagonally so the chamber air feels alive. Pure CSS, GPU-accelerated. */
+.throne-room > .throne-dust {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(circle at 18% 31%, rgba(255, 226, 142, 0.40) 0.6px, transparent 1.5px),
+    radial-gradient(circle at 73% 18%, rgba(255, 226, 142, 0.30) 0.6px, transparent 1.5px),
+    radial-gradient(circle at 41% 67%, rgba(214, 184, 255, 0.25) 0.6px, transparent 1.5px),
+    radial-gradient(circle at 88% 79%, rgba(255, 226, 142, 0.30) 0.6px, transparent 1.5px),
+    radial-gradient(circle at 12% 88%, rgba(255, 226, 142, 0.20) 0.6px, transparent 1.5px),
+    radial-gradient(circle at 56% 23%, rgba(255, 226, 142, 0.20) 0.6px, transparent 1.5px);
+  background-size: 240px 240px;
+  animation: throne-dust-drift 38s linear infinite;
+}
+@keyframes throne-dust-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: -240px -120px; }
 }
 .throne-header {
   display: grid;

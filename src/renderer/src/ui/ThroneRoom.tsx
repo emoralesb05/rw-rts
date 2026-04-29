@@ -439,6 +439,7 @@ export function ThroneRoom() {
 
   return (
     <div className="throne-room">
+      <div className="throne-dust" aria-hidden="true" />
       <header className="throne-header">
         <div className="throne-banner">
           <span className="throne-banner-title">⌬ DISNEY CASTLE</span>
