@@ -10,6 +10,7 @@ const HOOK_MARKER = "kh-rts-managed";
 const HOOK_EVENTS = [
   "PreToolUse",
   "PostToolUse",
+  "PermissionRequest",
   "UserPromptSubmit",
   "SessionStart",
   "SessionEnd",

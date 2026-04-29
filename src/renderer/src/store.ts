@@ -19,7 +19,8 @@ export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "falle
 
 export type StandingOrder = {
   id: string;
-  unitId: string;
+  unitId: string;        // current session's id; "" while waiting to bind to a session
+  unitIdentity: string;  // stable `${tool}::${repoRoot}` — survives session-id changes
   prompt: string;
   intervalMs: number;
   maxIterations: number;
@@ -29,6 +30,28 @@ export type StandingOrder = {
   startedAt: number;
   lastFiredAt: number;
 };
+
+/** Stable wielder identity — same across session restarts. */
+export function unitIdentityFor(tool: string, cwdOrRepo: string): string {
+  return `${tool}::${cwdOrRepo}`;
+}
+
+/** Convert in-memory standingOrders to the persisted shape. */
+function ordersToPersisted(
+  orders: Record<string, StandingOrder>
+): import("@shared/events").PersistedStandingOrder[] {
+  return Object.values(orders)
+    .filter((o) => o.status === "active") // only active worth persisting
+    .map((o) => ({
+      id: o.id,
+      unitIdentity: o.unitIdentity,
+      prompt: o.prompt,
+      intervalMs: o.intervalMs,
+      maxIterations: o.maxIterations,
+      iterationsRun: o.iterationsRun,
+      startedAt: o.startedAt,
+    }));
+}
 
 type Store = {
   events: AgentEvent[];
@@ -825,12 +848,24 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     );
   }
 
+  // Bind any unbound persisted Standing Orders to this wielder if its
+  // identity matches. Lets a Standing Order survive an app restart and
+  // resume the moment its target session reappears.
+  const identity = unitIdentityFor(event.tool, repoRootStable);
+  let nextOrders = state.standingOrders;
+  for (const o of Object.values(state.standingOrders)) {
+    if (!o.unitId && o.unitIdentity === identity && o.status === "active") {
+      nextOrders = { ...nextOrders, [o.id]: { ...o, unitId: id } };
+    }
+  }
+
   return {
     events,
     eventCount,
     units: nextUnits,
     worlds,
     letters: nextLetters,
+    standingOrders: nextOrders,
   };
 }
 
@@ -897,9 +932,14 @@ export const useStore = create<Store>((set) => ({
   },
   startStandingOrder(unitId, prompt, intervalMs, maxIterations = 24) {
     const id = `so-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const unit = useStore.getState().units[unitId];
+    const identity = unit
+      ? unitIdentityFor(unit.tool, unit.cwd)
+      : `unknown::${unitId}`;
     const order: StandingOrder = {
       id,
       unitId,
+      unitIdentity: identity,
       prompt,
       intervalMs,
       maxIterations,
@@ -909,9 +949,15 @@ export const useStore = create<Store>((set) => ({
       startedAt: Date.now(),
       lastFiredAt: 0,
     };
-    set((s) => ({
-      standingOrders: { ...s.standingOrders, [id]: order },
-    }));
+    set((s) => {
+      const standingOrders = { ...s.standingOrders, [id]: order };
+      const nextPersisted = {
+        ...s.persisted,
+        standingOrders: ordersToPersisted(standingOrders),
+      };
+      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      return { standingOrders, persisted: nextPersisted };
+    });
     return id;
   },
   recordOrderTick(orderId, ok) {
@@ -930,19 +976,29 @@ export const useStore = create<Store>((set) => ({
         status,
         lastFiredAt: Date.now(),
       };
-      return { standingOrders: { ...s.standingOrders, [orderId]: next } };
+      const standingOrders = { ...s.standingOrders, [orderId]: next };
+      const nextPersisted = {
+        ...s.persisted,
+        standingOrders: ordersToPersisted(standingOrders),
+      };
+      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      return { standingOrders, persisted: nextPersisted };
     });
   },
   haltStandingOrder(orderId) {
     set((s) => {
       const cur = s.standingOrders[orderId];
       if (!cur) return s;
-      return {
-        standingOrders: {
-          ...s.standingOrders,
-          [orderId]: { ...cur, status: "halted" },
-        },
+      const standingOrders = {
+        ...s.standingOrders,
+        [orderId]: { ...cur, status: "halted" as const },
       };
+      const nextPersisted = {
+        ...s.persisted,
+        standingOrders: ordersToPersisted(standingOrders),
+      };
+      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      return { standingOrders, persisted: nextPersisted };
     });
   },
   toggleMute(sessionId) {
@@ -955,7 +1011,31 @@ export const useStore = create<Store>((set) => ({
     });
   },
   hydratePersisted(persisted) {
-    set({ persisted });
+    // Restore Standing Orders from disk. They come in with stale unitIds
+    // (the prior session's), so we re-create them with empty unitId and
+    // let applyOneEvent bind them when a wielder with matching identity
+    // appears. Only "active" orders survive (halted/exhausted/failed
+    // were terminal states).
+    const standingOrders: Record<string, StandingOrder> = {};
+    const persistedOrders = persisted.standingOrders ?? [];
+    for (const p of persistedOrders) {
+      // Skip orders that hit their max — they're done.
+      if (p.iterationsRun >= p.maxIterations) continue;
+      standingOrders[p.id] = {
+        id: p.id,
+        unitId: "",
+        unitIdentity: p.unitIdentity,
+        prompt: p.prompt,
+        intervalMs: p.intervalMs,
+        maxIterations: p.maxIterations,
+        iterationsRun: p.iterationsRun,
+        failuresInRow: 0,
+        status: "active",
+        startedAt: p.startedAt,
+        lastFiredAt: 0,
+      };
+    }
+    set({ persisted, standingOrders });
   },
   comfort(sessionId) {
     const state = useStore.getState();

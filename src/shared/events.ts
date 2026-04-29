@@ -144,18 +144,33 @@ export type WorldStats = {
   sealedAt?: number;
 };
 
+// Standing Order — Phase 2B #14b. Persisted shape mirrors the in-store
+// type but trimmed to just what survives a restart (status + counters
+// will be re-validated by the runner on hydrate).
+export type PersistedStandingOrder = {
+  id: string;
+  unitIdentity: string; // `${tool}::${repoRoot}` — survives session-id changes
+  prompt: string;
+  intervalMs: number;
+  maxIterations: number;
+  iterationsRun: number;
+  startedAt: number;
+};
+
 export type PersistedState = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   kingdomFoundedAt: number;
   totalMunnyEver: number;
   wielders: Record<string, WielderStats>;
   worlds: Record<string, WorldStats>;
+  standingOrders: PersistedStandingOrder[];
 };
 
 export const EMPTY_PERSISTED: PersistedState = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   kingdomFoundedAt: 0,
   totalMunnyEver: 0,
+  standingOrders: [],
   wielders: {},
   worlds: {},
 };

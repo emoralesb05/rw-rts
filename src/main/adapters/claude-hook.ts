@@ -167,13 +167,15 @@ function normalizeHookPayload(p: any): AgentEvent | null {
   const eventName = p.hook_event_name as string | undefined;
   const requestId = p.__kh_permission_request_id as string | undefined;
 
-  // PreToolUse with a request_id means the Python script wants a
+  // PermissionRequest with a request_id means the Python script wants a
   // permission decision back. Emit as permission_request, not tool_use.
   // Permission requests bypass the spawned-session filter — keykeeper
-  // wants to gate spawned sessions too (in fact, that's where the
-  // permission flow is most useful, since spawned sessions don't have
-  // a terminal for Claude's normal prompt).
-  if (eventName === "PreToolUse" && requestId) {
+  // wants to gate spawned sessions too. (PreToolUse + request_id is
+  // also accepted for back-compat with any in-flight scripts.)
+  if (
+    (eventName === "PermissionRequest" || eventName === "PreToolUse") &&
+    requestId
+  ) {
     return {
       ...base,
       timestamp: ts,

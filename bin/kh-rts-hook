@@ -4,140 +4,42 @@
 Most events are fire-and-forget — payload goes to ~/.claude/kh-rts.sock,
 script half-closes, exits. Silent if the GUI isn't listening.
 
-Phase 2B #18 (permission approval) opt-in: when a PreToolUse looks RISKY
-(rm -rf, sudo, writes to system paths, etc.), the script tags the payload
-with a request_id and waits up to PERMISSION_TIMEOUT_S for the GUI to
-respond with allow/deny. The GUI's reply is written to stdout as Claude
-Code's hookSpecificOutput format, which Claude honors.
+Phase 2B #18 (permission approval) uses Claude Code's `PermissionRequest`
+hook event, which fires only when Claude is about to show its permission
+dialog. That's exactly when keykeeper should also ask. The script:
 
-The narrow risky-pattern opt-in (token-level shlex parse, not substring)
-keeps non-risky tool calls fast. The user's own terminal Claude session
-still pops a permission prompt for things like Bash — but for the
-risky subset, both UIs run; the keykeeper letter is the richer surface.
-For keykeeper-spawned sessions (no terminal), the keykeeper letter is
-the ONLY permission UI.
+  1. Tags the payload with a request_id so the GUI can route a reply back.
+  2. Sends payload, half-closes, waits for the GUI's allow/deny.
+  3. Writes Claude Code's expected hookSpecificOutput format to stdout
+     (decision.behavior — distinct from PreToolUse's permissionDecision).
+  4. Returning "allow" SKIPS Claude's terminal prompt entirely. Returning
+     "deny" blocks the tool call.
+  5. Silent exit on timeout / no GUI / socket error → Claude falls back
+     to its own permission prompt. Default-safe.
 
-If the GUI isn't running OR the request times out → silent exit, which
-makes Claude fall back to its normal permission UX. Default-safe.
+Earlier iterations tried PreToolUse + risky-pattern detection. That ran
+too eagerly (every PreToolUse) and double-confirmed (Claude's prompt
+and keykeeper letter both showed). PermissionRequest fires only when
+needed, so no risky detection or false-positive suppression.
 """
-import json, os, re, shlex, socket, sys, uuid
+import json, os, socket, sys, uuid
 
 SOCK = os.path.join(os.path.expanduser("~"), ".claude", "kh-rts.sock")
 
-# How long to wait for the GUI to resolve a permission request. Bridge
-# side has a matching 65s safety timeout. If the user is AFK and doesn't
-# click within this window, the script silently exits and Claude falls
-# back to its own permission flow.
+# How long to wait for the GUI to resolve a permission request. If the
+# user is AFK and doesn't click, the script silently exits and Claude
+# falls back to its own permission prompt.
 PERMISSION_TIMEOUT_S = 60.0
 QUICK_TIMEOUT_S = 2.0
 
-# Risky executables — when they appear as a TOKEN in the parsed shell
-# command, gate. Shlex parsing means quoted/escaped occurrences (e.g.,
-# inside `grep "rm -rf"` or `agent-browser eval '...rm -rf...'`) won't
-# false-positive.
-RISKY_EXECUTABLES = {
-    "sudo",
-    "chmod",
-    "chown",
-    "dd",
-    "mkfs",
-    "mkfs.ext4",
-    "mkfs.hfs",
-    "shutdown",
-    "halt",
-    "reboot",
-    "killall",
-}
 
-# Risky path prefixes for Write / Edit / MultiEdit.
-RISKY_PATH_PREFIXES = (
-    "/etc/",
-    "/usr/",
-    "/System/",
-    "/Library/LaunchDaemons",
-    "/Library/LaunchAgents",
-    "/var/",
-    "/private/etc/",
-)
-RISKY_HOME_PATHS = re.compile(
-    r"\.(ssh|aws|gnupg|npmrc|netrc|bash_profile|zshrc|zprofile)(/|$)"
-)
-
-
-def _is_risky_command_tokens(tokens):
-    """Walk the tokens of one subcommand. Returns True if it looks risky."""
-    if not tokens:
-        return False
-    cmd = os.path.basename(tokens[0].lower())
-    if cmd in RISKY_EXECUTABLES:
-        return True
-    # rm with -rf / -fr is destructive. Plain `rm file.txt` is fine.
-    if cmd == "rm":
-        for t in tokens[1:]:
-            if not t.startswith("-"):
-                continue
-            opts = t.lstrip("-").lower()
-            if "r" in opts and "f" in opts:
-                return True
-    # git push --force on any branch is a foot-gun.
-    if cmd == "git" and len(tokens) >= 2:
-        if tokens[1] == "push" and any(t in ("--force", "-f") for t in tokens[2:]):
-            return True
-        if tokens[1] == "reset" and "--hard" in tokens[2:] and any(
-            t.startswith("origin/") or t == "origin" for t in tokens[2:]
-        ):
-            return True
-    return False
-
-
-def _split_subcommands(cmd):
-    """Lightweight split on ; && || | so we can check each subcommand
-    separately. Not a real shell parser — just enough to catch
-    "do safe thing; rm -rf /".
-    """
-    normalized = re.sub(r"\s*(;|&&|\|\||\||\n)\s*", "\n", cmd)
-    return [p.strip() for p in normalized.split("\n") if p.strip()]
-
-
-def is_risky(payload):
-    """Decide whether this PreToolUse should gate through keykeeper.
-
-    Token-level (shlex) parse so risky strings INSIDE quoted args
-    (e.g., `grep "rm -rf"`) don't false-positive. If shlex can't parse
-    (e.g., unbalanced quotes), default to NOT risky to avoid blocking
-    on benign input — safer to under-gate than to over-gate every
-    weird command.
-    """
-    if payload.get("hook_event_name") != "PreToolUse":
-        return False
-    tool = payload.get("tool_name") or ""
-    inp = payload.get("tool_input") or {}
-    if tool == "Bash":
-        cmd = inp.get("command") or ""
-        for sub in _split_subcommands(cmd):
-            try:
-                tokens = shlex.split(sub, posix=True)
-            except ValueError:
-                continue
-            if _is_risky_command_tokens(tokens):
-                return True
-        return False
-    if tool in ("Write", "Edit", "MultiEdit"):
-        path = inp.get("file_path") or inp.get("path") or ""
-        if any(path.startswith(prefix) for prefix in RISKY_PATH_PREFIXES):
-            return True
-        if RISKY_HOME_PATHS.search(path):
-            return True
-    return False
-
-
-def emit_decision(decision):
-    """Write Claude Code's hookSpecificOutput to stdout. allow|deny."""
+def emit_permission_decision(behavior):
+    """Write Claude Code's PermissionRequest hookSpecificOutput.
+    behavior must be 'allow' or 'deny'."""
     out = {
         "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": decision,
-            "permissionDecisionReason": "kh-rts King's decree",
+            "hookEventName": "PermissionRequest",
+            "decision": {"behavior": behavior},
         }
     }
     sys.stdout.write(json.dumps(out))
@@ -146,6 +48,53 @@ def emit_decision(decision):
 
 def silent_exit():
     sys.exit(0)
+
+
+def fire_and_forget(raw):
+    """Original behavior — send payload, half-close, exit."""
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(QUICK_TIMEOUT_S)
+    s.connect(SOCK)
+    s.sendall(raw)
+    s.shutdown(socket.SHUT_WR)
+    s.close()
+
+
+def bidirectional_permission(payload):
+    """Tag with request_id, send, wait for GUI reply, emit decision."""
+    request_id = str(uuid.uuid4())
+    payload["__kh_permission_request_id"] = request_id
+
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(PERMISSION_TIMEOUT_S)
+    s.connect(SOCK)
+    s.sendall(json.dumps(payload).encode("utf-8"))
+    s.shutdown(socket.SHUT_WR)
+
+    chunks = []
+    try:
+        while True:
+            buf = s.recv(4096)
+            if not buf:
+                break
+            chunks.append(buf)
+    except socket.timeout:
+        chunks = []
+    finally:
+        s.close()
+
+    if not chunks:
+        return  # silent exit caller-side
+
+    try:
+        reply = json.loads(b"".join(chunks).decode("utf-8"))
+        # Bridge replies with {"permissionDecision": "allow"|"deny"} —
+        # we translate to PermissionRequest's expected shape.
+        decision = reply.get("permissionDecision")
+        if decision in ("allow", "deny"):
+            emit_permission_decision(decision)
+    except Exception:
+        pass
 
 
 def main():
@@ -160,57 +109,21 @@ def main():
         try:
             payload = json.loads(raw.decode("utf-8"))
         except Exception:
-            # Malformed payload — forward raw and exit.
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.settimeout(QUICK_TIMEOUT_S)
-            s.connect(SOCK)
-            s.sendall(raw)
-            s.shutdown(socket.SHUT_WR)
-            s.close()
-            silent_exit()
-
-        if is_risky(payload):
-            # Bidirectional flow — tag with request_id, wait for GUI reply.
-            request_id = str(uuid.uuid4())
-            payload["__kh_permission_request_id"] = request_id
-
-            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.settimeout(PERMISSION_TIMEOUT_S)
-            s.connect(SOCK)
-            s.sendall(json.dumps(payload).encode("utf-8"))
-            s.shutdown(socket.SHUT_WR)
-
-            chunks = []
+            # Malformed payload — best-effort forward, exit.
             try:
-                while True:
-                    buf = s.recv(4096)
-                    if not buf:
-                        break
-                    chunks.append(buf)
-            except socket.timeout:
-                chunks = []
-            finally:
-                s.close()
-
-            if not chunks:
-                silent_exit()
-
-            try:
-                reply = json.loads(b"".join(chunks).decode("utf-8"))
-                decision = reply.get("permissionDecision")
-                if decision in ("allow", "deny"):
-                    emit_decision(decision)
+                fire_and_forget(raw)
             except Exception:
                 pass
             silent_exit()
 
-        # Non-risky / non-PreToolUse — fire-and-forget.
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.settimeout(QUICK_TIMEOUT_S)
-        s.connect(SOCK)
-        s.sendall(raw)
-        s.shutdown(socket.SHUT_WR)
-        s.close()
+        event_name = payload.get("hook_event_name")
+
+        if event_name == "PermissionRequest":
+            bidirectional_permission(payload)
+            silent_exit()
+
+        # All other events: fire-and-forget.
+        fire_and_forget(raw)
     except Exception:
         # Never fail a hook — we don't want to break claude.
         pass

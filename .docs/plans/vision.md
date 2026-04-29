@@ -73,7 +73,8 @@ cleanup).
   Two real bugs fixed during integration: bridge filter rejected
   spawned-session permission requests; substring detection false-
   positived on quoted args (replaced with shlex token-level parse).
-- ⏸ #12 Quest system — deferred per user (next-session pickup)
+- 🚚 #12 Quest system — **moved to Phase 2A polish list (post-v1)**
+  per user 2026-04-28. Phase 2B is now considered complete.
 - ⏸ #13c Permission context as standalone observability sub-feature
   — partly there in the #18 letter body; standalone chat surface
   for non-permission tool calls not built
@@ -424,6 +425,12 @@ in Status snapshot above.
 8. Cura / Curaga tier verbs
 9. Replay mode (record event JSONL → playback)
 10. Outbound MCP server
+11. **Quest system** *(moved from Phase 2B 2026-04-28; ~1.5d)* —
+    auto-thematic per-prompt quests with AI-generated names + recaps
+    via Vercel AI SDK abstraction, persisted indefinitely, surfaced as
+    Quest Log + per-card active/last-quest, feeds Renown stat. Full
+    spec lives in the Phase 2B item #12 entry below — kept there for
+    context, scheduled here for execution.
 
 ### Post-v1 directions — Phase 2B (re-ranked 2026-04-28)
 
@@ -449,7 +456,7 @@ Everything else is downstream of these two.
     Augments (does not replace) the existing 3-tier letter feed
     (Q6) — the queue is a *new top-pinned widget* fed from the same
     letter store.
-12. ⏸ **Quest system** *(deferred per user 2026-04-28; ~1.5d when picked up)* —
+12. 🚚 **Quest system** *(MOVED to Phase 2A post-v1 polish list, 2026-04-28; ~1.5d when picked up)* —
     every Dispatch / Send word / Decree
     auto-creates a **Quest** with a thematic heroic name (LLM-generated
     from the prompt — e.g., *"Sora's Trial: The Loader Bug"*). On

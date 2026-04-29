@@ -35,18 +35,37 @@ export function loadPersisted(): PersistedState {
   }
   try {
     const raw = readFileSync(path, "utf8");
-    const parsed = JSON.parse(raw) as PersistedState;
-    if (parsed && typeof parsed === "object" && parsed.schemaVersion === 1) {
-      cache = parsed;
+    const parsed = JSON.parse(raw) as Record<string, unknown> & {
+      schemaVersion?: number;
+    };
+    if (!parsed || typeof parsed !== "object") {
+      cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
       return cache;
     }
-    // unknown shape → start over but preserve nothing
-    cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
+    cache = migrate(parsed);
+    if (cache.schemaVersion !== EMPTY_PERSISTED.schemaVersion) {
+      // Migration didn't recognize the version — reset.
+      cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
+    }
     return cache;
   } catch {
     cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
     return cache;
   }
+}
+
+/**
+ * Forward-migrate older schemas to the current shape. Each step is
+ * additive — older fields are preserved; missing fields default. If
+ * we ever need to break a field, do it as a v→v+1 step that reshapes.
+ */
+function migrate(parsed: Record<string, unknown>): PersistedState {
+  let out = parsed as Record<string, unknown> & { schemaVersion?: number };
+  if (out.schemaVersion === 1) {
+    // v1 → v2: add standingOrders.
+    out = { ...out, schemaVersion: 2, standingOrders: [] };
+  }
+  return out as unknown as PersistedState;
 }
 
 export function setPersisted(next: PersistedState): void {

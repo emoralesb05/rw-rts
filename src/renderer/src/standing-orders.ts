@@ -20,6 +20,10 @@ export function attachStandingOrderRunner(): () => void {
   const tick = async (orderId: string) => {
     const order = useStore.getState().standingOrders[orderId];
     if (!order || order.status !== "active") return;
+    // Order persisted from a prior session and the wielder hasn't
+    // reappeared yet — wait silently. applyOneEvent will bind unitId
+    // when a matching session shows up.
+    if (!order.unitId) return;
     const unit = useStore.getState().units[order.unitId];
     if (!unit || !unit.spawnedHere || unit.status === "fallen" || unit.status === "complete") {
       // Wielder is gone or in a state where commands won't land — halt.
