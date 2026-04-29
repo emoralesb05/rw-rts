@@ -10,10 +10,12 @@ with a request_id and waits up to PERMISSION_TIMEOUT_S for the GUI to
 respond with allow/deny. The GUI's reply is written to stdout as Claude
 Code's hookSpecificOutput format, which Claude honors.
 
-This narrow opt-in avoids the deadlock that bit us when EVERY PreToolUse
-went bidirectional (your own terminal Claude session would block on
-every Read / Edit / safe Bash). Risky patterns are a small fraction of
-real tool use.
+The narrow risky-pattern opt-in (token-level shlex parse, not substring)
+keeps non-risky tool calls fast. The user's own terminal Claude session
+still pops a permission prompt for things like Bash — but for the
+risky subset, both UIs run; the keykeeper letter is the richer surface.
+For keykeeper-spawned sessions (no terminal), the keykeeper letter is
+the ONLY permission UI.
 
 If the GUI isn't running OR the request times out → silent exit, which
 makes Claude fall back to its normal permission UX. Default-safe.
@@ -66,15 +68,10 @@ def _is_risky_command_tokens(tokens):
     """Walk the tokens of one subcommand. Returns True if it looks risky."""
     if not tokens:
         return False
-    cmd = tokens[0].lower()
-    # Strip path: "/usr/bin/rm" → "rm"
-    cmd = os.path.basename(cmd)
+    cmd = os.path.basename(tokens[0].lower())
     if cmd in RISKY_EXECUTABLES:
         return True
-    # rm with -rf / -fr / -Rf forms (the destructive flag) is the
-    # classic risky pattern. Plain `rm file.txt` is fine — interactive
-    # rm with -i prompts already; rm -f without -r is one file. Only
-    # gate when both -r AND -f are present (or -rf together).
+    # rm with -rf / -fr is destructive. Plain `rm file.txt` is fine.
     if cmd == "rm":
         for t in tokens[1:]:
             if not t.startswith("-"):
@@ -94,13 +91,10 @@ def _is_risky_command_tokens(tokens):
 
 
 def _split_subcommands(cmd):
-    """Lightweight split on ; && || & | so we can check each subcommand
-    separately. Not a real shell parser — just enough to catch "do safe
-    thing; rm -rf /". Falls back to whole command if shlex can't handle.
+    """Lightweight split on ; && || | so we can check each subcommand
+    separately. Not a real shell parser — just enough to catch
+    "do safe thing; rm -rf /".
     """
-    # Replace separators with newlines, then split on lines. Keeps it
-    # simple; loses some accuracy for nested shells but good enough for
-    # the gating heuristic.
     normalized = re.sub(r"\s*(;|&&|\|\||\||\n)\s*", "\n", cmd)
     return [p.strip() for p in normalized.split("\n") if p.strip()]
 
@@ -108,11 +102,11 @@ def _split_subcommands(cmd):
 def is_risky(payload):
     """Decide whether this PreToolUse should gate through keykeeper.
 
-    Token-level (shlex) parse so that risky strings INSIDE quoted args
-    (e.g., `grep "rm -rf"`, `echo "sudo"`) don't false-positive. If
-    shlex can't parse (e.g., unbalanced quotes), default to NOT risky
-    to avoid blocking on benign input — safer to under-gate than to
-    over-gate every weird command.
+    Token-level (shlex) parse so risky strings INSIDE quoted args
+    (e.g., `grep "rm -rf"`) don't false-positive. If shlex can't parse
+    (e.g., unbalanced quotes), default to NOT risky to avoid blocking
+    on benign input — safer to under-gate than to over-gate every
+    weird command.
     """
     if payload.get("hook_event_name") != "PreToolUse":
         return False
@@ -155,32 +149,66 @@ def silent_exit():
 
 
 def main():
-    """Fire-and-forget forward to the keykeeper bridge.
-
-    The bidirectional permission flow (is_risky + request_id round-trip)
-    is intentionally DISABLED here. Claude Code's PreToolUse hook fires
-    AFTER Claude's own permission UI has already run — so a hook-side
-    gate just double-confirms what the user already approved in their
-    terminal, which is annoying not useful.
-
-    The bidirectional protocol is preserved on the bridge side
-    (claude-hook.ts can still resolve permission_request events with
-    allowHalfOpen sockets, store generates Critical letters, IPC wires
-    the response). It's reachable from any client that wants to use it
-    (a future `claude-permission-cli` flag, a different hook event, an
-    explicit Decree-with-confirm flow, etc.) — just not from this
-    PreToolUse hook script.
-    """
     if not os.path.exists(SOCK):
         silent_exit()
+
     try:
-        data = sys.stdin.buffer.read()
-        if not data:
+        raw = sys.stdin.buffer.read()
+        if not raw:
             silent_exit()
+
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except Exception:
+            # Malformed payload — forward raw and exit.
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(QUICK_TIMEOUT_S)
+            s.connect(SOCK)
+            s.sendall(raw)
+            s.shutdown(socket.SHUT_WR)
+            s.close()
+            silent_exit()
+
+        if is_risky(payload):
+            # Bidirectional flow — tag with request_id, wait for GUI reply.
+            request_id = str(uuid.uuid4())
+            payload["__kh_permission_request_id"] = request_id
+
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.settimeout(PERMISSION_TIMEOUT_S)
+            s.connect(SOCK)
+            s.sendall(json.dumps(payload).encode("utf-8"))
+            s.shutdown(socket.SHUT_WR)
+
+            chunks = []
+            try:
+                while True:
+                    buf = s.recv(4096)
+                    if not buf:
+                        break
+                    chunks.append(buf)
+            except socket.timeout:
+                chunks = []
+            finally:
+                s.close()
+
+            if not chunks:
+                silent_exit()
+
+            try:
+                reply = json.loads(b"".join(chunks).decode("utf-8"))
+                decision = reply.get("permissionDecision")
+                if decision in ("allow", "deny"):
+                    emit_decision(decision)
+            except Exception:
+                pass
+            silent_exit()
+
+        # Non-risky / non-PreToolUse — fire-and-forget.
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.settimeout(QUICK_TIMEOUT_S)
         s.connect(SOCK)
-        s.sendall(data)
+        s.sendall(raw)
         s.shutdown(socket.SHUT_WR)
         s.close()
     except Exception:

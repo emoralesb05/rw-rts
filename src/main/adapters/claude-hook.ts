@@ -157,7 +157,6 @@ export function pendingPermissionCount(): number {
 
 function normalizeHookPayload(p: any): AgentEvent | null {
   if (!p?.session_id) return null;
-  if (isSpawnedSession(p.session_id)) return null;
   const ts = Date.now();
   const base = {
     sessionId: p.session_id as string,
@@ -170,6 +169,10 @@ function normalizeHookPayload(p: any): AgentEvent | null {
 
   // PreToolUse with a request_id means the Python script wants a
   // permission decision back. Emit as permission_request, not tool_use.
+  // Permission requests bypass the spawned-session filter — keykeeper
+  // wants to gate spawned sessions too (in fact, that's where the
+  // permission flow is most useful, since spawned sessions don't have
+  // a terminal for Claude's normal prompt).
   if (eventName === "PreToolUse" && requestId) {
     return {
       ...base,
@@ -182,6 +185,11 @@ function normalizeHookPayload(p: any): AgentEvent | null {
       },
     };
   }
+
+  // For non-permission events, skip sessions we spawned ourselves —
+  // those events come through the spawn channel directly with richer
+  // payloads. Hook duplicates would double-emit.
+  if (isSpawnedSession(p.session_id)) return null;
 
   const map: Record<string, AgentEventKind> = {
     PreToolUse: "tool_use",
