@@ -32,11 +32,19 @@ export function CommandInput() {
   const [tool, setTool] = useState<Tool>("claude");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
+  // World picker for spawn target. Null = use keykeeper's home dir
+  // (e.g. for spinning up a new wielder in this repo). Otherwise it's
+  // the worldId whose stored repo path we'll pass as cwd.
+  const [spawnWorldId, setSpawnWorldId] = useState<string | null>(null);
   const recognitionRef = useRef<SR | null>(null);
   const baseTextRef = useRef("");
   const selectedUnitId = useStore((s) => s.selectedUnitId);
   const units = useStore((s) => s.units);
+  const worlds = useStore((s) => s.worlds);
   const selected = selectedUnitId ? units[selectedUnitId] : null;
+  const worldList = Object.values(worlds).sort((a, b) =>
+    a.label.localeCompare(b.label)
+  );
 
   const SRClass = getSpeechRecognition();
   const voiceSupported = SRClass !== null;
@@ -58,7 +66,11 @@ export function CommandInput() {
         if (!selected.spawnedHere) return;
         await window.kh.sendPrompt({ unitId: selected.id, prompt });
       } else {
-        await window.kh.spawnAgent({ prompt, cwd: ".", tool });
+        // Spawn target: chosen world's repo path, or keykeeper's home
+        // when nothing's picked. Main resolves "." against its own cwd.
+        const targetCwd =
+          spawnWorldId && worlds[spawnWorldId] ? worlds[spawnWorldId].path : ".";
+        await window.kh.spawnAgent({ prompt, cwd: targetCwd, tool });
       }
       setText("");
     } finally {
@@ -105,27 +117,48 @@ export function CommandInput() {
   } else if (selected) {
     placeholder = `Command ${selected.role}…`;
   } else {
-    placeholder = `Spawn ${tool} agent with a prompt…`;
+    const target =
+      spawnWorldId && worlds[spawnWorldId]
+        ? worlds[spawnWorldId].label
+        : "this repo";
+    placeholder = `Spawn ${tool} in ${target}…`;
   }
 
   return (
     <div className="command">
       {!selected && (
-        <div className="command-tool" role="tablist" aria-label="agent tool">
-          {TOOLS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tool === t}
-              className={"command-tool-btn" + (tool === t ? " active" : "")}
-              onClick={() => setTool(t)}
-              title={`Spawn a ${t} agent`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="command-tool" role="tablist" aria-label="agent tool">
+            {TOOLS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tool === t}
+                className={"command-tool-btn" + (tool === t ? " active" : "")}
+                onClick={() => setTool(t)}
+                title={`Spawn a ${t} agent`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <select
+            className="command-world"
+            value={spawnWorldId ?? ""}
+            onChange={(e) => setSpawnWorldId(e.target.value || null)}
+            title="Spawn target — which world (repo) to drop the wielder into"
+            aria-label="Spawn target world"
+            disabled={busy}
+          >
+            <option value="">this repo</option>
+            {worldList.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.label}
+              </option>
+            ))}
+          </select>
+        </>
       )}
       <input
         placeholder={placeholder}

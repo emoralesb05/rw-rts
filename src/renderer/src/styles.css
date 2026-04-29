@@ -670,6 +670,26 @@ select.btn {
   background: var(--accent);
   color: #04060d;
 }
+.command-world {
+  background: #0a1130;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+  max-width: 200px;
+  text-overflow: ellipsis;
+}
+.command-world:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.command-world:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .command input {
   flex: 1;
   min-width: 140px;
@@ -1332,6 +1352,26 @@ select.btn {
   color: #7af0c0;
   background: rgba(122, 240, 192, 0.12);
   border-color: rgba(122, 240, 192, 0.5);
+}
+.origin-pill {
+  align-self: flex-start;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid transparent;
+}
+.origin-pill.origin-spawned {
+  color: #6cc6ff;
+  background: rgba(108, 198, 255, 0.10);
+  border-color: rgba(108, 198, 255, 0.40);
+}
+.origin-pill.origin-observed {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 .throne-card-meta {
   display: flex;

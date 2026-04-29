@@ -130,6 +130,16 @@ function WielderCard({ unit }: { unit: UnitState }) {
           <span className={`tool-pill tool-${unit.tool}`}>
             {TOOL_LABEL[unit.tool]}
           </span>
+          <span
+            className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
+            title={
+              unit.spawnedHere
+                ? "spawned by keykeeper — you can send prompts here"
+                : "observed terminal session — read-only"
+            }
+          >
+            {unit.spawnedHere ? "spawned" : "observed"}
+          </span>
         </div>
       </div>
       {activeOrders.length > 0 && (
