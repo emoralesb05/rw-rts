@@ -87,7 +87,103 @@ function moodFor(unit: UnitState): string {
   return "eager";
 }
 
-function WielderCard({ unit }: { unit: UnitState }) {
+/** Status icons row — small chips that summarize "what is this wielder
+ * up to right now." Uses tight glyphs so 4-5 fit in a tiny strip on
+ * the party row.
+ */
+function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean }) {
+  const icons: { key: string; glyph: string; title: string; cls: string }[] = [];
+  if (unit.driveForm) {
+    icons.push({
+      key: "drive",
+      glyph: unit.driveForm === "valor" ? "⚡" : unit.driveForm === "wisdom" ? "✦" : "★",
+      title: `${unit.driveForm} form active`,
+      cls: `drive-${unit.driveForm}`,
+    });
+  }
+  if (unit.status === "casting" || unit.status === "working") {
+    icons.push({ key: "casting", glyph: "◐", title: `${unit.status}…`, cls: "casting" });
+  }
+  if (hasOrder) {
+    icons.push({ key: "order", glyph: "⟲", title: "standing order active", cls: "order" });
+  }
+  if (unit.hp < 25 && unit.status !== "fallen") {
+    icons.push({ key: "low", glyph: "!", title: "HP critical", cls: "danger" });
+  }
+  if (icons.length === 0) return null;
+  return (
+    <span className="status-icons">
+      {icons.map((i) => (
+        <span key={i.key} className={`status-icon status-${i.cls}`} title={i.title}>
+          {i.glyph}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Compact party-list row — tight three-tier layout: portrait, name+pills,
+ * dual HP/MP bars + status icons. Click selects (becomes the target). */
+function PartyRow({ unit }: { unit: UnitState }) {
+  const palette = ROLE_PALETTE[unit.role];
+  const selectUnit = useStore((s) => s.selectUnit);
+  const selectedUnitId = useStore((s) => s.selectedUnitId);
+  const standingOrders = useStore((s) => s.standingOrders);
+  const hasOrder = Object.values(standingOrders).some(
+    (o) => o.unitId === unit.id && o.status === "active"
+  );
+  const hpPct = Math.max(0, Math.min(100, unit.hp));
+  const mpPct = Math.max(0, Math.min(100, unit.mp));
+  const ghosted = unit.status === "complete" || unit.status === "fallen";
+  const isSelected = selectedUnitId === unit.id;
+  return (
+    <button
+      type="button"
+      className={
+        "party-row" +
+        (ghosted ? " ghosted" : "") +
+        (isSelected ? " selected" : "")
+      }
+      onClick={() => selectUnit(unit.id)}
+      title={`${unit.displayName} · ${palette.faction}`}
+    >
+      <div
+        className="party-row-portrait"
+        style={{ background: ROLE_HEX[unit.role] }}
+      >
+        <img
+          src={`/sprites/kh-default/${unit.role}.png`}
+          alt=""
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </div>
+      <div className="party-row-body">
+        <div className="party-row-line">
+          <span className="party-row-name">{unit.displayName}</span>
+          <span className={`tool-pill tool-${unit.tool}`}>{TOOL_LABEL[unit.tool]}</span>
+          <StatusIcons unit={unit} hasOrder={hasOrder} />
+        </div>
+        <div className="party-row-bars">
+          <div className="bar-mini hp" title={`HP ${Math.round(hpPct)}/100`}>
+            <div style={{ width: `${hpPct}%` }} />
+          </div>
+          <div className="bar-mini mp" title={`MP ${Math.round(mpPct)}/100`}>
+            <div style={{ width: `${mpPct}%` }} />
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/** Target frame — focused detail panel for the currently selected wielder.
+ * Bigger portrait, full HP/MP/Focus bars, mood + renown + world link, and
+ * the action card (Decree / Comfort / Send word / Recall). Replaces the
+ * per-card actions: clicking a party row makes that wielder the target,
+ * which is where everything actionable now lives. */
+function TargetPanel({ unit }: { unit: UnitState }) {
   const palette = ROLE_PALETTE[unit.role];
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
@@ -108,12 +204,11 @@ function WielderCard({ unit }: { unit: UnitState }) {
   const ghosted = unit.status === "complete" || unit.status === "fallen";
   const canComfort =
     !ghosted && unit.hp < 100 && (world?.munny ?? 0) >= 50;
-
   return (
-    <div className={"throne-card" + (ghosted ? " ghosted" : "")}>
-      <div className="throne-card-head">
+    <div className={"target-panel" + (ghosted ? " ghosted" : "")}>
+      <div className="target-panel-head">
         <div
-          className="throne-card-portrait"
+          className="target-panel-portrait"
           style={{ background: ROLE_HEX[unit.role] }}
           title={`${unit.displayName} — ${palette.faction}`}
         >
@@ -125,25 +220,45 @@ function WielderCard({ unit }: { unit: UnitState }) {
             }}
           />
         </div>
-        <div className="throne-card-name-row">
-          <span className="throne-card-name">{unit.displayName}</span>
-          <span className={`tool-pill tool-${unit.tool}`}>
-            {TOOL_LABEL[unit.tool]}
-          </span>
-          <span
-            className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
-            title={
-              unit.spawnedHere
-                ? "spawned by keykeeper — you can send prompts here"
-                : "observed terminal session — read-only"
-            }
-          >
-            {unit.spawnedHere ? "spawned" : "observed"}
-          </span>
+        <div className="target-panel-info">
+          <div className="target-panel-name-row">
+            <span className="target-panel-name">{unit.displayName}</span>
+            <span className={`tool-pill tool-${unit.tool}`}>{TOOL_LABEL[unit.tool]}</span>
+            <span
+              className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
+              title={
+                unit.spawnedHere
+                  ? "spawned by keykeeper — you can send prompts here"
+                  : "observed terminal session — read-only"
+              }
+            >
+              {unit.spawnedHere ? "spawned" : "observed"}
+            </span>
+          </div>
+          <div className="target-panel-meta">
+            <span className="target-panel-mood">{moodFor(unit)}</span>
+            <span
+              className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
+              title={`Renown: ${renown.score} (${renown.tier})`}
+            >
+              {renown.stars && (
+                <span className="throne-card-renown-stars">{renown.stars}</span>
+              )}
+              <span className="throne-card-renown-tier">{renown.tier}</span>
+            </span>
+            <button
+              type="button"
+              className="throne-card-world-link"
+              onClick={() => selectWorld(unit.worldId)}
+              title="dive into this world"
+            >
+              ▸ {worldLabel} · {themeName}
+            </button>
+          </div>
         </div>
       </div>
       {activeOrders.length > 0 && (
-        <div className="throne-card-orders">
+        <div className="target-panel-orders">
           {activeOrders.map((o) => (
             <button
               key={o.id}
@@ -157,28 +272,7 @@ function WielderCard({ unit }: { unit: UnitState }) {
           ))}
         </div>
       )}
-      <div className="throne-card-meta">
-        <span className="throne-card-mood">{moodFor(unit)}</span>
-        <span
-          className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
-          title={`Renown: ${renown.score} (${renown.tier})`}
-        >
-          {renown.stars && <span className="throne-card-renown-stars">{renown.stars}</span>}
-          <span className="throne-card-renown-tier">{renown.tier}</span>
-        </span>
-        <span className="throne-card-world">
-          ▸{" "}
-          <button
-            type="button"
-            className="throne-card-world-link"
-            onClick={() => selectWorld(unit.worldId)}
-            title="dive into this world"
-          >
-            {worldLabel} · {themeName}
-          </button>
-        </span>
-      </div>
-      <div className="throne-card-bars">
+      <div className="target-panel-bars">
         <div className="bar-row">
           <span className="bar-label">HP</span>
           <div className="bar hp">
@@ -201,68 +295,67 @@ function WielderCard({ unit }: { unit: UnitState }) {
           <span className="bar-num">{unit.driveForm ?? "—"}</span>
         </div>
       </div>
-      <div className="throne-card-foot">
+      <div className="target-panel-foot">
         <span className="throne-card-time">{timeAgo(unit.lastActivity)}</span>
-        <div className="throne-card-actions">
-          <button
-            type="button"
-            className="card-verb"
-            disabled={ghosted}
-            onClick={() => {
-              // For v1: dive into the world; CommandInput is the input
-              // surface for follow-ups. Inline modal lands in polish.
-              selectWorld(unit.worldId);
-            }}
-            title="follow up — opens the world to send a prompt"
-          >
-            send word
-          </button>
-          <button
-            type="button"
-            className="card-verb decree"
-            disabled={ghosted || !unit.spawnedHere}
-            onClick={() => useStore.getState().openDecreeFor(unit.id)}
-            title={
-              !unit.spawnedHere
-                ? "observed-only — keykeeper didn't spawn this wielder"
-                : "decree — directive command (file/function/shell)"
+        {unit.lastTool && (
+          <span className="target-panel-lasttool" title="last tool call">
+            ↳ {unit.lastTool}
+          </span>
+        )}
+      </div>
+      <div className="target-panel-actions">
+        <button
+          type="button"
+          className="card-verb"
+          disabled={ghosted}
+          onClick={() => selectWorld(unit.worldId)}
+          title="follow up — opens the world to send a prompt"
+        >
+          send word
+        </button>
+        <button
+          type="button"
+          className="card-verb decree"
+          disabled={ghosted || !unit.spawnedHere}
+          onClick={() => useStore.getState().openDecreeFor(unit.id)}
+          title={
+            !unit.spawnedHere
+              ? "observed-only — keykeeper didn't spawn this wielder"
+              : "decree — directive command (file/function/shell)"
+          }
+        >
+          ⚜ decree
+        </button>
+        <button
+          type="button"
+          className="card-verb"
+          disabled={!canComfort}
+          onClick={() => comfort(unit.id)}
+          title={
+            canComfort
+              ? "restore +30 HP for 50µ"
+              : ghosted
+              ? "this wielder is no longer active"
+              : unit.hp >= 100
+              ? "already at full HP"
+              : "not enough munny in this world (need 50µ)"
+          }
+        >
+          ♥ comfort
+        </button>
+        <button
+          type="button"
+          className="card-verb destructive"
+          disabled={ghosted}
+          onClick={() => {
+            if (confirm(`Recall ${unit.displayName}? This ends the session.`)) {
+              void window.kh.killAgent(unit.id).catch(() => {});
             }
-          >
-            ⚜ decree
-          </button>
-          <button
-            type="button"
-            className="card-verb"
-            disabled={!canComfort}
-            onClick={() => comfort(unit.id)}
-            title={
-              canComfort
-                ? "restore +30 HP for 50µ"
-                : ghosted
-                ? "this wielder is no longer active"
-                : unit.hp >= 100
-                ? "already at full HP"
-                : "not enough munny in this world (need 50µ)"
-            }
-          >
-            ♥ comfort
-          </button>
-          <button
-            type="button"
-            className="card-verb destructive"
-            disabled={ghosted}
-            onClick={() => {
-              if (
-                confirm(`Recall ${unit.displayName}? This ends the session.`)
-              ) {
-                void window.kh.killAgent(unit.id).catch(() => {});
-              }
-            }}
-            title="recall — end this session"
-          >
-            ×
-          </button>
-        </div>
+          }}
+          title="recall — end this session"
+        >
+          × recall
+        </button>
       </div>
     </div>
   );
@@ -409,6 +502,8 @@ export function ThroneRoom() {
   const worlds = useStore((s) => s.worlds);
   const letters = useStore((s) => s.letters);
   const persisted = useStore((s) => s.persisted);
+  const selectedUnitId = useStore((s) => s.selectedUnitId);
+  const selectedUnit = selectedUnitId ? units[selectedUnitId] : null;
 
   // Attention queue: pick the highest-scoring active letter as the
   // pinned "needs you" banner. Re-derived each render; cheap (50 letters
@@ -494,11 +589,20 @@ export function ThroneRoom() {
               to begin.
             </div>
           ) : (
-            <div className="throne-card-grid">
-              {list.map((u) => (
-                <WielderCard key={u.id} unit={u} />
-              ))}
-            </div>
+            <>
+              {selectedUnit ? (
+                <TargetPanel unit={selectedUnit} />
+              ) : (
+                <div className="target-panel-empty">
+                  Click a wielder below to focus them — actions appear here.
+                </div>
+              )}
+              <div className="party-list">
+                {list.map((u) => (
+                  <PartyRow key={u.id} unit={u} />
+                ))}
+              </div>
+            </>
           )}
         </section>
 
