@@ -4,6 +4,7 @@ import type {
   HooksStatus,
   PlayFixtureRequest,
   ResolvePermissionRequest,
+  WorkspaceRepoEntry,
 } from "@shared/ipc";
 import type { AgentEvent, PersistedState } from "@shared/events";
 
@@ -23,6 +24,7 @@ declare global {
       savePersisted(state: PersistedState): Promise<void>;
       resetPersisted(): Promise<PersistedState>;
       resolvePermission(req: ResolvePermissionRequest): Promise<boolean>;
+      listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
     };
   }
 }

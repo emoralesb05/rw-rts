@@ -12,7 +12,13 @@ export const IPC = {
   SavePersisted: "kh:save-persisted",
   ResetPersisted: "kh:reset-persisted",
   ResolvePermission: "kh:resolve-permission",
+  ListWorkspaceRepos: "kh:list-workspace-repos",
 } as const;
+
+export type WorkspaceRepoEntry = {
+  path: string;
+  label: string;
+};
 
 export type PermissionDecision = "allow" | "deny";
 

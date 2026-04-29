@@ -17,6 +17,7 @@ import {
   getStatus,
   isInstalled,
 } from "./hook-installer";
+import { listWorkspaceRepos } from "./workspace-scan";
 import {
   IPC,
   type SpawnAgentRequest,
@@ -144,6 +145,8 @@ app.whenReady().then(async () => {
   ipcMain.handle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
     return resolvePermissionRequest(req.requestId, req.decision, req.message);
   });
+
+  ipcMain.handle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
 
   ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());
   ipcMain.handle(IPC.SavePersisted, (_e, state: PersistedState) => {

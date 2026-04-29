@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
+import type { WorkspaceRepoEntry } from "@shared/ipc";
 
 type Tool = "claude" | "cursor" | "codex";
 
@@ -32,19 +33,40 @@ export function CommandInput() {
   const [tool, setTool] = useState<Tool>("claude");
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
-  // World picker for spawn target. Null = use keykeeper's home dir
-  // (e.g. for spinning up a new wielder in this repo). Otherwise it's
-  // the worldId whose stored repo path we'll pass as cwd.
-  const [spawnWorldId, setSpawnWorldId] = useState<string | null>(null);
+  // Spawn target = a repo path (absolute). We discover repos under the
+  // user's workspace root once on mount, then merge with any worlds
+  // keykeeper already knows about (so events from outside the workspace
+  // are still spawnable). Empty string = "this repo" (keykeeper home).
+  const [spawnPath, setSpawnPath] = useState<string>("");
+  const [discoveredRepos, setDiscoveredRepos] = useState<WorkspaceRepoEntry[]>([]);
   const recognitionRef = useRef<SR | null>(null);
   const baseTextRef = useRef("");
   const selectedUnitId = useStore((s) => s.selectedUnitId);
   const units = useStore((s) => s.units);
   const worlds = useStore((s) => s.worlds);
   const selected = selectedUnitId ? units[selectedUnitId] : null;
-  const worldList = Object.values(worlds).sort((a, b) =>
-    a.label.localeCompare(b.label)
-  );
+
+  useEffect(() => {
+    void window.kh
+      .listWorkspaceRepos()
+      .then(setDiscoveredRepos)
+      .catch(() => setDiscoveredRepos([]));
+  }, []);
+
+  // Spawn target list: discovered repos ∪ already-active worlds (the
+  // latter may live outside the workspace root). Dedup by path; sort
+  // by label.
+  type Target = { path: string; label: string };
+  const targetList: Target[] = (() => {
+    const byPath = new Map<string, Target>();
+    for (const r of discoveredRepos) byPath.set(r.path, r);
+    for (const w of Object.values(worlds)) {
+      if (!byPath.has(w.path)) byPath.set(w.path, { path: w.path, label: w.label });
+    }
+    return [...byPath.values()].sort((a, b) => a.label.localeCompare(b.label));
+  })();
+  const targetLabel =
+    spawnPath && targetList.find((t) => t.path === spawnPath)?.label;
 
   const SRClass = getSpeechRecognition();
   const voiceSupported = SRClass !== null;
@@ -66,11 +88,13 @@ export function CommandInput() {
         if (!selected.spawnedHere) return;
         await window.kh.sendPrompt({ unitId: selected.id, prompt });
       } else {
-        // Spawn target: chosen world's repo path, or keykeeper's home
-        // when nothing's picked. Main resolves "." against its own cwd.
-        const targetCwd =
-          spawnWorldId && worlds[spawnWorldId] ? worlds[spawnWorldId].path : ".";
-        await window.kh.spawnAgent({ prompt, cwd: targetCwd, tool });
+        // Spawn target: chosen repo path, or keykeeper's home when
+        // nothing's picked. Main resolves "." against its own cwd.
+        await window.kh.spawnAgent({
+          prompt,
+          cwd: spawnPath || ".",
+          tool,
+        });
       }
       setText("");
     } finally {
@@ -117,11 +141,7 @@ export function CommandInput() {
   } else if (selected) {
     placeholder = `Command ${selected.role}…`;
   } else {
-    const target =
-      spawnWorldId && worlds[spawnWorldId]
-        ? worlds[spawnWorldId].label
-        : "this repo";
-    placeholder = `Spawn ${tool} in ${target}…`;
+    placeholder = `Spawn ${tool} in ${targetLabel ?? "this repo"}…`;
   }
 
   return (
@@ -145,16 +165,16 @@ export function CommandInput() {
           </div>
           <select
             className="command-world"
-            value={spawnWorldId ?? ""}
-            onChange={(e) => setSpawnWorldId(e.target.value || null)}
-            title="Spawn target — which world (repo) to drop the wielder into"
-            aria-label="Spawn target world"
+            value={spawnPath}
+            onChange={(e) => setSpawnPath(e.target.value)}
+            title="Spawn target — which repo (any git repo under your workspace root) to drop the wielder into"
+            aria-label="Spawn target repo"
             disabled={busy}
           >
             <option value="">this repo</option>
-            {worldList.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.label}
+            {targetList.map((t) => (
+              <option key={t.path} value={t.path}>
+                {t.label}
               </option>
             ))}
           </select>

@@ -6,6 +6,7 @@ import {
   type HooksStatus,
   type PlayFixtureRequest,
   type ResolvePermissionRequest,
+  type WorkspaceRepoEntry,
 } from "../shared/ipc";
 import type { AgentEvent, PersistedState } from "../shared/events";
 
@@ -52,6 +53,9 @@ const api = {
   },
   resolvePermission(req: ResolvePermissionRequest) {
     return ipcRenderer.invoke(IPC.ResolvePermission, req) as Promise<boolean>;
+  },
+  listWorkspaceRepos() {
+    return ipcRenderer.invoke(IPC.ListWorkspaceRepos) as Promise<WorkspaceRepoEntry[]>;
   },
 };
 
