@@ -255,6 +255,79 @@ const COMFORT_COOLDOWN_MS = 30_000;
 // flood when a low-HP unit takes more errors.
 const _hpLowFor = new Set<string>();
 
+// Stuck-loop detection (Phase 2B #13a / Q10). Per-session rolling
+// window of recent tool_use events to spot oscillation: same tool +
+// same arg 3+ times in 60s, OR 3+ tool_use without an assistant_text
+// between. _stuckLetterAt rate-limits the resulting letter so a long
+// stuck loop only fires once until the wielder thinks again.
+type RecentToolEntry = { ts: number; toolName: string; argKey: string };
+const _recentTools = new Map<string, RecentToolEntry[]>();
+const _consecutiveTools = new Map<string, number>();
+const _stuckLetterAt = new Map<string, number>();
+const STUCK_WINDOW_MS = 60_000;
+const STUCK_THRESHOLD = 3;
+const STUCK_LETTER_COOLDOWN_MS = 90_000;
+
+/**
+ * Stable key for a tool_use input — folds payloads into a comparable
+ * string so the same Edit on the same file (regardless of edit details)
+ * counts as a repeat. Returns "*" for unknown shapes.
+ */
+function argKeyFor(input: unknown): string {
+  if (!input || typeof input !== "object") return "*";
+  const r = input as Record<string, unknown>;
+  if (typeof r.file_path === "string") return `file:${r.file_path}`;
+  if (typeof r.path === "string") return `file:${r.path}`;
+  if (typeof r.command === "string") return `cmd:${r.command.slice(0, 80)}`;
+  if (typeof r.pattern === "string") return `glob:${r.pattern}`;
+  if (typeof r.url === "string") return `url:${r.url.slice(0, 80)}`;
+  return "*";
+}
+
+/**
+ * Walk the recent tool window for a session; if a (tool, argKey) pair
+ * appeared ≥ STUCK_THRESHOLD times OR the consecutive-tools count
+ * crossed the threshold, return a description for the stuck-loop
+ * letter. Otherwise null.
+ */
+function detectStuckLoop(sessionId: string): { reason: string; toolName: string } | null {
+  const list = _recentTools.get(sessionId) ?? [];
+  // Same (tool, arg) repeat detection
+  const counts = new Map<string, { count: number; toolName: string; argKey: string }>();
+  for (const e of list) {
+    const k = `${e.toolName}|${e.argKey}`;
+    const cur = counts.get(k) ?? { count: 0, toolName: e.toolName, argKey: e.argKey };
+    cur.count += 1;
+    counts.set(k, cur);
+  }
+  let topPair: { count: number; toolName: string; argKey: string } | null = null;
+  for (const v of counts.values()) {
+    if (!topPair || v.count > topPair.count) topPair = v;
+  }
+  if (topPair && topPair.count >= STUCK_THRESHOLD) {
+    const argHuman =
+      topPair.argKey.startsWith("file:") ? "`" + topPair.argKey.slice(5) + "`" :
+      topPair.argKey.startsWith("cmd:") ? "command `" + topPair.argKey.slice(4) + "`" :
+      topPair.argKey.startsWith("glob:") ? "pattern `" + topPair.argKey.slice(5) + "`" :
+      topPair.argKey.startsWith("url:") ? "URL `" + topPair.argKey.slice(4) + "`" :
+      "the same input";
+    return {
+      reason: `tried \`${topPair.toolName}\` on ${argHuman} ${topPair.count}× in ~1m`,
+      toolName: topPair.toolName,
+    };
+  }
+  // Consecutive-without-thinking detection
+  const consec = _consecutiveTools.get(sessionId) ?? 0;
+  if (consec >= STUCK_THRESHOLD * 2) {
+    const lastTool = list[list.length - 1]?.toolName ?? "tools";
+    return {
+      reason: `${consec} tool calls in a row with no thinking between (last: \`${lastTool}\`)`,
+      toolName: lastTool,
+    };
+  }
+  return null;
+}
+
 function makeLetter(
   severity: Letter["severity"],
   title: string,
@@ -470,12 +543,30 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       // that a subagent was summoned. Two-keyblader system doesn't
       // have a third archetype to promote into.
       break;
-    case "tool_use":
+    case "tool_use": {
       unit.status = event.payload.name === "Bash" ? "casting" : "working";
       unit.mp = Math.max(0, unit.mp - 4);
+      // Track for stuck-loop detection (Q10 + #13a).
+      const now = event.timestamp;
+      const list = _recentTools.get(id) ?? [];
+      list.push({
+        ts: now,
+        toolName: String(event.payload.name ?? "?"),
+        argKey: argKeyFor(event.payload.input),
+      });
+      // Trim to window
+      const trimmed = list.filter((e) => now - e.ts <= STUCK_WINDOW_MS);
+      _recentTools.set(id, trimmed);
+      _consecutiveTools.set(id, (_consecutiveTools.get(id) ?? 0) + 1);
       break;
+    }
     case "tool_result":
       unit.status = "idle";
+      break;
+    case "assistant_text":
+      // Reset consecutive-tools counter — the wielder is thinking, not
+      // mashing the same button.
+      _consecutiveTools.set(id, 0);
       break;
     case "error":
       unit.hp = Math.max(0, unit.hp - 12);
@@ -652,6 +743,28 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         ],
       })
     );
+  }
+
+  // Stuck loop — notable letter, rate-limited per session (Q10 + #13a).
+  if (event.kind === "tool_use") {
+    const stuck = detectStuckLoop(id);
+    const lastSent = _stuckLetterAt.get(id) ?? 0;
+    if (stuck && event.timestamp - lastSent > STUCK_LETTER_COOLDOWN_MS) {
+      _stuckLetterAt.set(id, event.timestamp);
+      nextLetters = pushLetter(
+        { ...state, letters: nextLetters },
+        makeLetter("notable", `${palette} may be stuck`, {
+          body: `${palette} ${stuck.reason}. Send a hint or let them work?`,
+          sessionId: id,
+          worldId,
+          actions: [
+            { label: "send hint", action: { kind: "send-word", sessionId: id } },
+            { label: "dive", action: { kind: "dive", worldId } },
+            { label: "dismiss", action: { kind: "dismiss" } },
+          ],
+        })
+      );
+    }
   }
 
   // Drive activation — notable, info only.
