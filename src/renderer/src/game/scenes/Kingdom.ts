@@ -19,7 +19,13 @@
 
 import * as Phaser from "phaser";
 import { useStore } from "../../store";
-import type { UnitState, WorldState, WorldAlertLevel } from "@shared/events";
+import type {
+  AgentEvent,
+  UnitState,
+  WorldState,
+  WorldAlertLevel,
+  DriveForm,
+} from "@shared/events";
 import { themeFor, themeLabel, type WorldTheme } from "../gummi-worlds";
 import { ROLE_PALETTE } from "../units";
 import {
@@ -35,9 +41,17 @@ import {
   getIdleAnimKey,
   createRoleAnimations,
   hasOverride,
+  ANIM,
 } from "../sprite-assets";
 import { drawShadow, type HeartlessRef } from "../heartless";
 import type { Heartless } from "@shared/events";
+
+// Drive form aura colors — match the KH visual language.
+const DRIVE_COLORS: Record<DriveForm, number> = {
+  valor: 0xff5a3c,   // red
+  wisdom: 0x6cc6ff,  // blue
+  final: 0xffd86b,   // gold
+};
 
 const SCANLINE_TEX = "kh-kingdom-scanlines";
 
@@ -79,13 +93,31 @@ const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
 
 type WielderRef = {
   unitId: string;
+  role: UnitState["role"];
   container: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
   sprite?: Phaser.GameObjects.Sprite;
   glow: Phaser.GameObjects.Arc;
+  driveAura: Phaser.GameObjects.Arc;
+  hpRing: Phaser.GameObjects.Arc;
+  mpRing: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
   homeTx: number;
   homeTy: number;
+  // Patrol state machine.
+  patrolState: "scouting" | "walking" | "arrived";
+  patrolTarget?: { tx: number; ty: number };
+  patrolNextSwitchAt: number;
+  // Last-known status, for change detection (death/victory pose, etc).
+  lastStatus: UnitState["status"];
+  lastDriveForm?: DriveForm;
+  // Animation lockout — most recent event-driven anim trigger time.
+  // Per-wielder so we don't spam attack/cast frames during bursts.
+  lastEventAnimAt: number;
+  currentAnim?: string;
+  // Subagent tether to parent (rendered on the same isoPlane container).
+  tether?: Phaser.GameObjects.Graphics;
+  parentSessionId?: string;
 };
 
 type WorldRef = {
@@ -207,7 +239,54 @@ export class KingdomScene extends Phaser.Scene {
     // Resize handling
     this.scale.on("resize", () => this.handleResize());
 
+    // Event-driven animation switching. Burst protection: same wielder
+    // can't trigger an event-anim more than once per MIN_GAP_MS so
+    // Cursor's 30-events-per-turn doesn't spiral the tween queue.
+    const MIN_GAP_MS = 250;
+    const eventHandler = (e: Event) => {
+      const ev = (e as CustomEvent<AgentEvent>).detail;
+      const now = performance.now();
+      // Find the wielder by sessionId (across all worlds).
+      let ref: WielderRef | undefined;
+      for (const w of this.worlds.values()) {
+        const candidate = w.wielders.get(ev.sessionId);
+        if (candidate) {
+          ref = candidate;
+          break;
+        }
+      }
+      if (!ref || !ref.sprite) return;
+      if (now - ref.lastEventAnimAt < MIN_GAP_MS) return;
+      let animKey: string | undefined;
+      if (ev.kind === "tool_use") {
+        const toolName = String(ev.payload.name ?? "");
+        // Bash / Edit-class tools = "cast" (magic). Read-class = "attack".
+        animKey =
+          toolName === "Bash" || toolName === "BashOutput"
+            ? ANIM.cast(ref.role)
+            : ANIM.attack(ref.role);
+      } else if (ev.kind === "subagent_spawn") {
+        animKey = ANIM.cast(ref.role);
+      }
+      if (!animKey || !this.anims.exists(animKey)) return;
+      ref.lastEventAnimAt = now;
+      ref.sprite.play(animKey);
+      ref.currentAnim = animKey;
+      // Auto-revert to idle after animation likely completes (~600ms).
+      const r = ref;
+      this.time.delayedCall(700, () => {
+        if (!r.sprite || !r.sprite.scene) return;
+        const idle = ANIM.idleFront(r.role);
+        if (this.anims.exists(idle)) {
+          r.sprite.play(idle);
+          r.currentAnim = idle;
+        }
+      });
+    };
+    window.addEventListener("kh:event", eventHandler as EventListener);
+
     this.events.once("shutdown", () => {
+      window.removeEventListener("kh:event", eventHandler as EventListener);
       this.worlds.clear();
       this.stars = [];
       this.skyGfx = undefined;
@@ -521,6 +600,7 @@ export class KingdomScene extends Phaser.Scene {
     // Remove gone
     for (const [id, w] of worldRef.wielders) {
       if (!seen.has(id)) {
+        w.tether?.destroy();
         w.container.destroy(true);
         worldRef.wielders.delete(id);
       }
@@ -533,6 +613,186 @@ export class KingdomScene extends Phaser.Scene {
       if (!unit) continue;
       worldRef.wielders.set(id, this.spawnWielder(worldRef, unit, index));
       index++;
+    }
+    // Per-frame state update for everyone (HP/MP/aura/patrol/status/tether)
+    for (const [id, ref] of worldRef.wielders) {
+      const unit = units[id];
+      if (!unit) continue;
+      this.updateWielder(worldRef, ref, unit);
+    }
+  }
+
+  /**
+   * Per-frame visual update for a wielder. Handles:
+   * - HP/MP ring fill
+   * - Drive-form aura visibility + activation flash
+   * - Status pose (death tilt, victory pulse)
+   * - Patrol step (walk toward target tile, idle, pick new)
+   * - Subagent tether to parent
+   */
+  private updateWielder(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState
+  ) {
+    const now = this.time.now;
+
+    // ── HP / MP rings ────────────────────────────────────────────────
+    // Arc end-angle = -90 + (270 * fraction). Setting endAngle redraws.
+    const hpFrac = Math.max(0, Math.min(1, unit.hp / 100));
+    const mpFrac = Math.max(0, Math.min(1, unit.mp / 100));
+    ref.hpRing.endAngle = -90 + 270 * hpFrac;
+    ref.mpRing.endAngle = -90 + 270 * mpFrac;
+    // Critical HP — pulse the HP ring red.
+    if (unit.hp > 0 && unit.hp < 25) {
+      const pulse = 0.5 + 0.5 * Math.sin(now * 0.012);
+      ref.hpRing.setStrokeStyle(2, 0xff5a3c, 0.6 + 0.4 * pulse);
+    } else {
+      ref.hpRing.setStrokeStyle(2, 0xff6b8a, 0.85);
+    }
+
+    // ── Drive aura ──────────────────────────────────────────────────
+    if (unit.driveForm !== ref.lastDriveForm) {
+      if (unit.driveForm) {
+        const color = DRIVE_COLORS[unit.driveForm];
+        ref.driveAura
+          .setVisible(true)
+          .setStrokeStyle(3, color, 1)
+          .setScale(0.4);
+        // Activation flash: scale up + fade in.
+        this.tweens.add({
+          targets: ref.driveAura,
+          scale: 1,
+          duration: 280,
+          ease: "Back.easeOut",
+        });
+        // Persistent glow pulse while active.
+        this.tweens.add({
+          targets: ref.driveAura,
+          alpha: { from: 0.95, to: 0.45 },
+          yoyo: true,
+          repeat: -1,
+          duration: 800,
+        });
+      } else {
+        // Drive ended — fade aura out.
+        this.tweens.killTweensOf(ref.driveAura);
+        this.tweens.add({
+          targets: ref.driveAura,
+          alpha: 0,
+          duration: 220,
+          onComplete: () => ref.driveAura.setVisible(false),
+        });
+      }
+      ref.lastDriveForm = unit.driveForm;
+    }
+
+    // ── Status pose (death / victory) ───────────────────────────────
+    if (unit.status !== ref.lastStatus) {
+      if (unit.status === "fallen") {
+        // Tilt + fade slightly. Stop patrol.
+        this.tweens.killTweensOf(ref.container);
+        this.tweens.add({
+          targets: ref.container,
+          angle: 80,
+          alpha: 0.55,
+          duration: 420,
+          ease: "Sine.easeIn",
+        });
+        // Tint sprite dark.
+        ref.sprite?.setTint(0x553355);
+      } else if (unit.status === "complete") {
+        // Victory pulse — small scale up/down + label tints gold.
+        this.tweens.add({
+          targets: ref.container,
+          scale: { from: 1, to: 1.15 },
+          yoyo: true,
+          duration: 240,
+          ease: "Sine.easeInOut",
+        });
+        ref.label.setColor("#ffd86b");
+      } else if (
+        ref.lastStatus === "fallen" ||
+        ref.lastStatus === "complete"
+      ) {
+        // Recovered (rare — typically fixtures only).
+        this.tweens.killTweensOf(ref.container);
+        ref.container.setAngle(0);
+        ref.container.setAlpha(1);
+        ref.sprite?.clearTint();
+        ref.label.setColor("#e6ecff");
+      }
+      ref.lastStatus = unit.status;
+    }
+
+    // ── Patrol behavior ─────────────────────────────────────────────
+    // Stop patrolling if not in a "free" status. Idle wielders patrol;
+    // working/casting/fallen/complete don't.
+    const canPatrol = unit.status === "idle" || unit.status === "moving";
+    if (canPatrol && now >= ref.patrolNextSwitchAt) {
+      // Pick a new target tile within the iso grid.
+      const tx = 1 + Math.floor(Math.random() * (ISO_GRID - 1));
+      const ty = 1 + Math.floor(Math.random() * (ISO_GRID - 1));
+      const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
+      const targetX = (tx - ty) * (ISO_TILE_W / 2);
+      const targetY = offsetY + (tx + ty) * (ISO_TILE_H / 2);
+      ref.patrolTarget = { tx, ty };
+      ref.patrolState = "walking";
+      this.tweens.killTweensOf(ref.container);
+      // Ensure no stale rotation/alpha from a fallen→recovered transition
+      ref.container.setAngle(0);
+      ref.container.setAlpha(1);
+      const dist = Math.hypot(targetX - ref.container.x, targetY - ref.container.y);
+      const duration = Math.max(800, dist * 12);
+      // Switch to walk animation while moving.
+      const walkAnim = ANIM.walkDown(unit.role);
+      if (this.anims.exists(walkAnim) && ref.sprite && ref.currentAnim !== walkAnim) {
+        ref.sprite.play(walkAnim);
+        ref.currentAnim = walkAnim;
+      }
+      this.tweens.add({
+        targets: ref.container,
+        x: targetX,
+        y: targetY,
+        duration,
+        ease: "Sine.easeInOut",
+        onComplete: () => {
+          ref.patrolState = "arrived";
+          ref.patrolNextSwitchAt = now + 1200 + Math.random() * 2400;
+          // Return to idle anim.
+          const idle = getIdleAnimKey(unit.role);
+          if (this.anims.exists(idle) && ref.sprite) {
+            ref.sprite.play(idle);
+            ref.currentAnim = idle;
+          }
+        },
+      });
+    }
+
+    // ── Subagent tether ─────────────────────────────────────────────
+    if (unit.parentSessionId && unit.parentSessionId !== ref.parentSessionId) {
+      ref.parentSessionId = unit.parentSessionId;
+    }
+    if (ref.parentSessionId) {
+      const parent = worldRef.wielders.get(ref.parentSessionId);
+      if (parent) {
+        if (!ref.tether) {
+          ref.tether = this.add.graphics().setDepth(-5);
+          worldRef.isoPlane.add(ref.tether);
+        }
+        ref.tether.clear();
+        ref.tether.lineStyle(1.5, 0xffd86b, 0.65);
+        ref.tether.beginPath();
+        ref.tether.moveTo(parent.container.x, parent.container.y);
+        ref.tether.lineTo(ref.container.x, ref.container.y);
+        ref.tether.strokePath();
+      } else if (ref.tether) {
+        ref.tether.destroy();
+        ref.tether = undefined;
+      }
+    } else if (ref.tether) {
+      ref.tether.destroy();
+      ref.tether = undefined;
     }
   }
 
@@ -562,6 +822,23 @@ export class KingdomScene extends Phaser.Scene {
 
     const glow = this.add.circle(0, 6, 16, palette.color, 0.28);
 
+    // Drive aura — a colored ring that fades in when a drive form
+    // activates and pulses while active. Hidden by default.
+    const driveAura = this.add
+      .circle(0, 4, 30, 0xffffff, 0)
+      .setStrokeStyle(2.5, 0xffffff, 0)
+      .setVisible(false);
+
+    // HP / MP rings — arc shapes at the wielder's feet (so they don't
+    // occlude the painterly face). HP outer (red), MP inner (blue).
+    // Drawn as 270° arcs starting from -90° (top) for "fill clockwise".
+    const hpRing = this.add
+      .arc(0, 14, 22, -90, 270 * (unit.hp / 100) - 90, false, 0xff6b8a, 0)
+      .setStrokeStyle(2, 0xff6b8a, 0.85);
+    const mpRing = this.add
+      .arc(0, 14, 26, -90, 270 * (unit.mp / 100) - 90, false, 0x6cc6ff, 0)
+      .setStrokeStyle(2, 0x6cc6ff, 0.6);
+
     const body = this.add.container(0, 0);
     const sprite = this.populateWielderBody(body, unit.role);
 
@@ -574,7 +851,16 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const container = this.add.container(x, y, [glow, body, label]);
+    // Layer order matters: drive aura behind, body in middle, rings
+    // on top so they read against the painterly hi-res sprite.
+    const container = this.add.container(x, y, [
+      driveAura,
+      glow,
+      body,
+      hpRing,
+      mpRing,
+      label,
+    ]);
     container.setData("unitId", unit.id);
 
     // Ambient breathing glow pulse
@@ -590,13 +876,24 @@ export class KingdomScene extends Phaser.Scene {
 
     return {
       unitId: unit.id,
+      role: unit.role,
       container,
       body,
       sprite,
       glow,
+      driveAura,
+      hpRing,
+      mpRing,
       label,
       homeTx,
       homeTy,
+      patrolState: "scouting",
+      patrolNextSwitchAt: this.time.now + 600 + Math.random() * 1800,
+      lastStatus: unit.status,
+      lastDriveForm: unit.driveForm,
+      lastEventAnimAt: 0,
+      currentAnim: undefined,
+      parentSessionId: unit.parentSessionId,
     };
   }
 
