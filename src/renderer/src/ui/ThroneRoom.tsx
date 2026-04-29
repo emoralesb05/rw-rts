@@ -8,7 +8,7 @@
  * stats live in the header. The Phaser ambient castle backdrop is a
  * polish-phase add — for v1 we use a CSS gradient + subtle pattern.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore, unitIdentityFor } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
 import { themeFor, themeLabel } from "../game/gummi-worlds";
@@ -182,7 +182,39 @@ function PartyRow({ unit }: { unit: UnitState }) {
  * Bigger portrait, full HP/MP/Focus bars, mood + renown + world link, and
  * the action card (Decree / Comfort / Send word / Recall). Replaces the
  * per-card actions: clicking a party row makes that wielder the target,
- * which is where everything actionable now lives. */
+ * which is where everything actionable now lives. Rendered inside a
+ * floating dialog so the throne panel stays scannable for the party list. */
+function TargetDialog({ unit, onClose }: { unit: UnitState; onClose: () => void }) {
+  // Esc to dismiss.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="target-dialog-backdrop" onClick={onClose}>
+      <div
+        className="target-dialog"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`Wielder details — ${unit.displayName}`}
+      >
+        <button
+          type="button"
+          className="target-dialog-close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+        <TargetPanel unit={unit} />
+      </div>
+    </div>
+  );
+}
+
 function TargetPanel({ unit }: { unit: UnitState }) {
   const palette = ROLE_PALETTE[unit.role];
   const selectWorld = useStore((s) => s.selectWorld);
@@ -522,8 +554,11 @@ export function ThroneRoom() {
     }
     return best;
   }, [letters, units]);
+  // Stable spawn-order sort: oldest wielder first. spawnedAt was added
+  // 2026-04-29 — earlier units may lack it, so fall back to lastActivity
+  // (their initial value at creation, before further events drift it).
   const list = Object.values(units).sort(
-    (a, b) => b.lastActivity - a.lastActivity
+    (a, b) => (a.spawnedAt ?? a.lastActivity) - (b.spawnedAt ?? b.lastActivity)
   );
   const liveUnits = list.filter(
     (u) => u.status !== "complete" && u.status !== "fallen"
@@ -589,20 +624,11 @@ export function ThroneRoom() {
               to begin.
             </div>
           ) : (
-            <>
-              {selectedUnit ? (
-                <TargetPanel unit={selectedUnit} />
-              ) : (
-                <div className="target-panel-empty">
-                  Click a wielder below to focus them — actions appear here.
-                </div>
-              )}
-              <div className="party-list">
-                {list.map((u) => (
-                  <PartyRow key={u.id} unit={u} />
-                ))}
-              </div>
-            </>
+            <div className="party-list">
+              {list.map((u) => (
+                <PartyRow key={u.id} unit={u} />
+              ))}
+            </div>
           )}
         </section>
 
@@ -622,6 +648,12 @@ export function ThroneRoom() {
           )}
         </section>
       </div>
+      {selectedUnit && (
+        <TargetDialog
+          unit={selectedUnit}
+          onClose={() => useStore.getState().selectUnit(null)}
+        />
+      )}
     </div>
   );
 }

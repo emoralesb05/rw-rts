@@ -1760,6 +1760,60 @@ select.btn {
   font-style: italic;
 }
 
+/* Floating target dialog (FF14-style focus frame).
+ * Backdrop is fully transparent — captures click-out only — so the
+ * kingdom canvas, party list, letters all stay legible underneath.
+ * The dialog reads as elevated via a strong drop shadow + accent ring. */
+.target-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 800;
+}
+.target-dialog {
+  position: relative;
+  width: 420px;
+  max-width: calc(100% - 40px);
+  background: linear-gradient(180deg, #0f1635 0%, #0a1130 100%);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.75),
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 216, 107, 0.18);
+  padding: 4px;
+  animation: target-dialog-rise 0.16s ease-out;
+}
+@keyframes target-dialog-rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+.target-dialog .target-panel {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+.target-dialog-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.target-dialog-close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* ─── Party list (compact rows) ────────────────────────────────────── */
 .party-list {
   display: flex;

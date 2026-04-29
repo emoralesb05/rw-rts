@@ -629,6 +629,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         mp: 100,
         status: "idle",
         lastActivity: event.timestamp,
+        spawnedAt: event.timestamp,
         spawnedHere: false,
       };
   if (event.kind === "session_start" && event.source === "spawned") {

@@ -78,6 +78,11 @@ export type UnitState = {
   mp: number;
   status: "idle" | "working" | "casting" | "moving" | "complete" | "fallen";
   lastActivity: number;
+  // First-event timestamp — stable across the unit's lifetime. Used as
+  // the party-list sort key so wielders don't reorder every time a tool
+  // call fires. Optional for back-compat with already-instantiated units
+  // missing the field; reading code falls back to lastActivity.
+  spawnedAt?: number;
   lastTool?: string;
   spawnedHere: boolean;
   parentSessionId?: string;
