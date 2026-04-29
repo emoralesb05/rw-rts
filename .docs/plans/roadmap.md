@@ -1,3 +1,12 @@
+> **STATUS: superseded — see `vision.md`** (2026-04-28)
+>
+> This roadmap reflects the original RTS framing of the project before the
+> rename to **keykeeper** and the pivot to Sims-style spectator strategy.
+> Stack details (Phaser 3.90), guiding principles (RTS unit command), and
+> many "big rocks" listed below are out of date. Kept as historical
+> context for how the project's framing evolved. For current direction,
+> status, and open questions, see `vision.md`.
+
 # kh-rts roadmap
 
 A KH-themed RTS visualizer for Claude Code / Cursor / future-tool agents.

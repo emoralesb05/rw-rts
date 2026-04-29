@@ -67,16 +67,32 @@ counts.
 ## Drop-in art and sounds
 
 ```
-assets/sprites/kh/<role>.png            # 32×32 still — your override
-assets/sprites/kh/<role>_sheet.png      # 256×32 sheet, 8 frames horizontal
-assets/sprites/kh-default/...           # shipped pixel-art defaults
+assets/sprites/kh-default/              # shipped art (gitcommitted)
+  keyblader{1-4}.png                    # painterly still, ~290×200
+  keyblader{1-4}_sheet.png              # 32-frame sheet (idle×3 facings,
+                                        #   walk×3 facings, attack, cast)
+  heartless-{shadow,soldier,largebody}{,_sheet}.png   # 32×32, 8-frame sheets
+  landmark-{disney,hollow,traverse,destiny,twilight,halloween}.png  # 64×64
+  tile-iso-{a,b}.png                    # iso ground tiles
+
+assets/sprites/kh/                      # YOUR overrides (gitignored)
+  keyblader{1-4}.png                    # match shipped resolution
+  keyblader{1-4}_sheet.png              # match shipped resolution
+
 assets/sounds/kh/<name>.{wav,mp3,ogg}   # SFX overrides
 ```
 
 The runtime priority is: `kh/` override → `kh-default/` shipped →
-synthesized fallback.
+synthesized fallback. Override existence is probed on app boot
+(content-type checked since Vite dev returns 200/HTML for missing
+static files); only existing overrides get registered as Phaser
+textures, so missing overrides don't pollute the console.
 
-Generate fresh defaults with `bun scripts/generate-pixel-sprites.ts`.
+Generate fresh 32×32-style defaults with
+`bun scripts/generate-pixel-sprites.ts` (script targets `kh-default/`).
+Painterly hi-res keybladers were authored separately via AI generation
++ concept-art extraction (see `.docs/sprite-prompts.md` and the extract
+scripts in `scripts/`).
 
 ---
 
