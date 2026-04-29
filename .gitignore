@@ -12,3 +12,4 @@ assets/sprites/kh/*
 assets/sounds/kh/*
 !assets/sounds/kh/.gitkeep
 local-assets/
+.claude/scheduled_tasks.lock
