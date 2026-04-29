@@ -215,6 +215,10 @@ export class KingdomScene extends Phaser.Scene {
   private lastCameraTargetVersion = 0;
   private lastUserCamMs = 0;
   private t = 0;
+  // Tier 3 filter handles — held so KO + seal pulses can tween amplitudes.
+  private bloomFilter?: Phaser.Filters.Glow;
+  private barrelFilter?: Phaser.Filters.Barrel;
+  private pixelateFilter?: Phaser.Filters.Pixelate;
 
   constructor() {
     super("kingdom");
@@ -267,8 +271,14 @@ export class KingdomScene extends Phaser.Scene {
     // Tier 1 filter stack — shared across the whole map
     const cm = this.cameras.main.filters.internal.addColorMatrix();
     cm.colorMatrix.saturate(0.15, true).hue(-6, true).contrast(0.05, true);
-    this.cameras.main.filters.internal.addGlow(0xffd86b, 0.45, 0.25, 1, false, 4, 8);
+    this.bloomFilter = this.cameras.main.filters.internal.addGlow(0xffd86b, 0.45, 0.25, 1, false, 4, 8);
     this.cameras.main.filters.internal.addVignette(0.5, 0.5, 0.85, 0.5);
+
+    // Tier 3 — event-driven filters held at neutral until pulsed.
+    // Barrel.amount=1 is identity; pinch (<1) for KO impact distortion.
+    // Pixelate.amount=0 is identity; spike briefly for KO screen-thump.
+    this.barrelFilter = this.cameras.main.filters.internal.addBarrel(1);
+    this.pixelateFilter = this.cameras.main.filters.internal.addPixelate(0);
 
     // Sky + stars (viewport-locked so they don't pan with the world)
     this.drawSky();
@@ -371,6 +381,10 @@ export class KingdomScene extends Phaser.Scene {
       ref.countText.setVisible(w.unitIds.length > 0);
       if (w.alertLevel !== ref.alertLevel) {
         ref.alertRing.setStrokeStyle(2.5, ALERT_RING_COLOR[w.alertLevel], 1);
+        // Tier 3 — golden bloom flare on keyhole seal (any → cleared).
+        if (w.alertLevel === "cleared" && ref.alertLevel !== "cleared") {
+          this.pulseSeal();
+        }
         ref.alertLevel = w.alertLevel;
       }
       if (w.alertLevel === "warning" || w.alertLevel === "danger") {
@@ -430,6 +444,41 @@ export class KingdomScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  // ── Tier 3 event pulses ──────────────────────────────────────────
+  // Brief impact when a wielder is KO'd: pinch barrel + pixelate spike.
+  private pulseKO() {
+    const barrel = this.barrelFilter;
+    const px = this.pixelateFilter;
+    if (!barrel || !px) return;
+    this.tweens.killTweensOf(barrel);
+    this.tweens.killTweensOf(px);
+    this.tweens.add({
+      targets: barrel,
+      amount: { from: 0.85, to: 1 },
+      duration: 480,
+      ease: "Cubic.easeOut",
+    });
+    this.tweens.add({
+      targets: px,
+      amount: { from: 4, to: 0 },
+      duration: 380,
+      ease: "Cubic.easeOut",
+    });
+  }
+
+  // Golden bloom flare when a world's keyhole is sealed.
+  private pulseSeal() {
+    const bloom = this.bloomFilter;
+    if (!bloom) return;
+    this.tweens.killTweensOf(bloom);
+    this.tweens.add({
+      targets: bloom,
+      outerStrength: { from: 1.6, to: 0.45 },
+      duration: 900,
+      ease: "Sine.easeOut",
+    });
   }
 
   private syncWorlds(worlds: Record<string, WorldState>) {
@@ -814,6 +863,8 @@ export class KingdomScene extends Phaser.Scene {
         });
         // Tint sprite dark.
         ref.sprite?.setTint(0x553355);
+        // Tier 3 — screen impact.
+        this.pulseKO();
       } else if (unit.status === "complete") {
         // Victory pulse — small scale up/down + label tints gold.
         this.tweens.add({
