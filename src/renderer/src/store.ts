@@ -598,6 +598,55 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   if (event.kind === "session_start" && event.source === "spawned") {
     unit.spawnedHere = true;
   }
+  // Renown stats: count a "visit" the first time we see this wielder
+  // identity in this session. Tracked via existing-vs-new check above.
+  // Only on actual session_start to avoid double-counting on
+  // mid-session events.
+  if (event.kind === "session_start" && !existing) {
+    const identity = unitIdentityFor(event.tool, repoRootStable);
+    const prior = state.persisted.wielders[identity];
+    state = {
+      ...state,
+      persisted: {
+        ...state.persisted,
+        wielders: {
+          ...state.persisted.wielders,
+          [identity]: {
+            tool: event.tool,
+            repoRoot: repoRootStable,
+            visits: (prior?.visits ?? 0) + 1,
+            seals: prior?.seals ?? 0,
+            falls: prior?.falls ?? 0,
+            totalMunny: prior?.totalMunny ?? 0,
+            lastSeen: event.timestamp,
+          },
+        },
+      },
+    };
+    void window.kh.savePersisted(state.persisted).catch(() => {});
+  }
+  // session_end with hp=0 = a fall.
+  if (event.kind === "session_end" && existing && existing.hp <= 0) {
+    const identity = unitIdentityFor(event.tool, repoRootStable);
+    const prior = state.persisted.wielders[identity];
+    if (prior) {
+      state = {
+        ...state,
+        persisted: {
+          ...state.persisted,
+          wielders: {
+            ...state.persisted.wielders,
+            [identity]: {
+              ...prior,
+              falls: prior.falls + 1,
+              lastSeen: event.timestamp,
+            },
+          },
+        },
+      };
+      void window.kh.savePersisted(state.persisted).catch(() => {});
+    }
+  }
   // Subagent linkage: an explicit parentSessionId on the event wins;
   // otherwise on session_start, look for a recently-fired Task in this cwd.
   const explicitParent = event.payload.parentSessionId as string | undefined;
@@ -1196,8 +1245,26 @@ export const useStore = create<Store>((set) => ({
       if (!world) return state;
       const repoRoot = world.path;
       const existingWorld = state.persisted.worlds[repoRoot];
+
+      // Bump seals on every wielder currently in this world.
+      const nextWielders = { ...state.persisted.wielders };
+      for (const unitId of world.unitIds) {
+        const unit = state.units[unitId];
+        if (!unit) continue;
+        const identity = unitIdentityFor(unit.tool, unit.cwd);
+        const prior = nextWielders[identity];
+        if (prior) {
+          nextWielders[identity] = {
+            ...prior,
+            seals: prior.seals + 1,
+            lastSeen: Date.now(),
+          };
+        }
+      }
+
       const nextPersisted: PersistedState = {
         ...state.persisted,
+        wielders: nextWielders,
         worlds: {
           ...state.persisted.worlds,
           [repoRoot]: {

@@ -9,10 +9,24 @@
  * polish-phase add — for v1 we use a CSS gradient + subtle pattern.
  */
 import { useMemo, useState } from "react";
-import { useStore } from "../store";
+import { useStore, unitIdentityFor } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
 import { themeFor, themeLabel } from "../game/gummi-worlds";
-import type { UnitState, AgentTool, Letter } from "@shared/events";
+import type { UnitState, AgentTool, Letter, WielderStats } from "@shared/events";
+
+/**
+ * Renown — derived from persisted wielder stats per Q12.
+ * Formula: visit + seal*3 - fall*2.
+ * Tiers: New · Apprentice ★ · Veteran ★★ · Hero ★★★.
+ */
+function renownFor(stats: WielderStats | undefined): { tier: string; stars: string; score: number } {
+  if (!stats) return { tier: "New", stars: "", score: 0 };
+  const score = stats.visits + stats.seals * 3 - stats.falls * 2;
+  if (score >= 24) return { tier: "Hero", stars: "★★★", score };
+  if (score >= 12) return { tier: "Veteran", stars: "★★", score };
+  if (score >= 4) return { tier: "Apprentice", stars: "★", score };
+  return { tier: "New", stars: "", score };
+}
 
 /**
  * Attention scorer (Phase 2B #11). Ranks letters by recency × severity ×
@@ -80,9 +94,11 @@ function WielderCard({ unit }: { unit: UnitState }) {
   const worlds = useStore((s) => s.worlds);
   const standingOrders = useStore((s) => s.standingOrders);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
+  const persistedWielders = useStore((s) => s.persisted.wielders);
   const activeOrders = Object.values(standingOrders).filter(
     (o) => o.unitId === unit.id && o.status === "active"
   );
+  const renown = renownFor(persistedWielders[unitIdentityFor(unit.tool, unit.cwd)]);
   const world = worlds[unit.worldId];
   const worldLabel = world?.label ?? "—";
   const themeName = world ? themeLabel(themeFor(world.id)) : "—";
@@ -133,6 +149,13 @@ function WielderCard({ unit }: { unit: UnitState }) {
       )}
       <div className="throne-card-meta">
         <span className="throne-card-mood">{moodFor(unit)}</span>
+        <span
+          className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
+          title={`Renown: ${renown.score} (${renown.tier})`}
+        >
+          {renown.stars && <span className="throne-card-renown-stars">{renown.stars}</span>}
+          <span className="throne-card-renown-tier">{renown.tier}</span>
+        </span>
         <span className="throne-card-world">
           ▸{" "}
           <button

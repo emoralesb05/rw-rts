@@ -1306,6 +1306,46 @@ select.btn {
   font-size: 10.5px;
   color: var(--muted);
 }
+/* Renown — small inline rank pill in the wielder card meta row */
+.throne-card-renown {
+  font-size: 9px;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.6px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+.throne-card-renown.rank-new {
+  color: var(--muted);
+  border-color: rgba(138, 160, 208, 0.3);
+}
+.throne-card-renown.rank-apprentice {
+  color: #6cc6ff;
+  border-color: rgba(108, 198, 255, 0.45);
+  background: rgba(108, 198, 255, 0.06);
+}
+.throne-card-renown.rank-veteran {
+  color: #c9a4ff;
+  border-color: rgba(201, 164, 255, 0.5);
+  background: rgba(201, 164, 255, 0.06);
+}
+.throne-card-renown.rank-hero {
+  color: #ffd86b;
+  border-color: rgba(255, 216, 107, 0.65);
+  background: rgba(255, 216, 107, 0.08);
+}
+.throne-card-renown-stars {
+  font-size: 8.5px;
+  letter-spacing: 0;
+}
+.throne-card-renown-tier {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .throne-card-mood {
   font-style: italic;
 }
