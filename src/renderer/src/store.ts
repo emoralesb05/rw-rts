@@ -17,6 +17,19 @@ import { play } from "./audio/sounds";
 
 export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
 
+export type StandingOrder = {
+  id: string;
+  unitId: string;
+  prompt: string;
+  intervalMs: number;
+  maxIterations: number;
+  iterationsRun: number;
+  failuresInRow: number;
+  status: "active" | "halted" | "exhausted" | "failed";
+  startedAt: number;
+  lastFiredAt: number;
+};
+
 type Store = {
   events: AgentEvent[];
   eventCount: number;
@@ -38,6 +51,10 @@ type Store = {
   cameraTargetVersion: number;
   // DecreeModal is open for this unitId when non-null (Phase 2B #14).
   decreeUnitId: string | null;
+  // Active recurring Decrees (Phase 2B #14b). Keyed by orderId. NOT
+  // persisted in this iteration — orders end on app restart. Persistence
+  // is a follow-up commit per Q12 schema sketch.
+  standingOrders: Record<string, StandingOrder>;
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
@@ -45,6 +62,9 @@ type Store = {
   setCameraTarget(worldId: string | null): void;
   openDecreeFor(unitId: string): void;
   closeDecree(): void;
+  startStandingOrder(unitId: string, prompt: string, intervalMs: number, maxIterations?: number): string;
+  recordOrderTick(orderId: string, ok: boolean): void;
+  haltStandingOrder(orderId: string): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
   sealKeyhole(worldId: string): void;
@@ -673,6 +693,7 @@ export const useStore = create<Store>((set) => ({
   cameraTarget: null,
   cameraTargetVersion: 0,
   decreeUnitId: null,
+  standingOrders: {},
 
   ingest(event) {
     _queue.push(event);
@@ -718,6 +739,56 @@ export const useStore = create<Store>((set) => ({
   },
   closeDecree() {
     set({ decreeUnitId: null });
+  },
+  startStandingOrder(unitId, prompt, intervalMs, maxIterations = 24) {
+    const id = `so-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const order: StandingOrder = {
+      id,
+      unitId,
+      prompt,
+      intervalMs,
+      maxIterations,
+      iterationsRun: 0,
+      failuresInRow: 0,
+      status: "active",
+      startedAt: Date.now(),
+      lastFiredAt: 0,
+    };
+    set((s) => ({
+      standingOrders: { ...s.standingOrders, [id]: order },
+    }));
+    return id;
+  },
+  recordOrderTick(orderId, ok) {
+    set((s) => {
+      const cur = s.standingOrders[orderId];
+      if (!cur || cur.status !== "active") return s;
+      const iterationsRun = cur.iterationsRun + 1;
+      const failuresInRow = ok ? 0 : cur.failuresInRow + 1;
+      let status: StandingOrder["status"] = "active";
+      if (failuresInRow >= 3) status = "failed";
+      else if (iterationsRun >= cur.maxIterations) status = "exhausted";
+      const next: StandingOrder = {
+        ...cur,
+        iterationsRun,
+        failuresInRow,
+        status,
+        lastFiredAt: Date.now(),
+      };
+      return { standingOrders: { ...s.standingOrders, [orderId]: next } };
+    });
+  },
+  haltStandingOrder(orderId) {
+    set((s) => {
+      const cur = s.standingOrders[orderId];
+      if (!cur) return s;
+      return {
+        standingOrders: {
+          ...s.standingOrders,
+          [orderId]: { ...cur, status: "halted" },
+        },
+      };
+    });
   },
   toggleMute(sessionId) {
     set((state) => {

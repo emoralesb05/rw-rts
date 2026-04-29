@@ -4,11 +4,13 @@ import { attachEventStream } from "./ipc";
 import { useStore } from "./store";
 import { preloadSounds, play } from "./audio/sounds";
 import { attachLetterNotifications } from "./desktop-notifications";
+import { attachStandingOrderRunner } from "./standing-orders";
 import "./styles.css";
 
 void preloadSounds();
 attachEventStream();
 attachLetterNotifications();
+attachStandingOrderRunner();
 
 // Hydrate persisted kingdom state on launch. Renderer reads via IPC; the
 // main process is the source of truth for the JSON file on disk.

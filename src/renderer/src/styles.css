@@ -908,6 +908,68 @@ select.btn {
   cursor: not-allowed;
 }
 
+.decree-interval {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.decree-interval-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  margin-right: 4px;
+}
+.decree-interval-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 4px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+}
+.decree-interval-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(255, 216, 107, 0.5);
+}
+.decree-interval-btn.active {
+  color: #ffd86b;
+  border-color: #ffd86b;
+  background: rgba(255, 216, 107, 0.08);
+}
+.decree-interval-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Standing Order chip on wielder card */
+.throne-card-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.standing-order-chip {
+  background: rgba(255, 216, 107, 0.08);
+  border: 1px solid rgba(255, 216, 107, 0.45);
+  color: #ffd86b;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.standing-order-chip:hover {
+  background: rgba(255, 216, 107, 0.18);
+  border-color: rgba(255, 90, 60, 0.6);
+  color: #ff5a3c;
+}
+
 .unit-card {
   display: flex;
   align-items: center;

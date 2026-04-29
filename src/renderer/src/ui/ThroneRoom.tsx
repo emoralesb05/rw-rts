@@ -78,6 +78,11 @@ function WielderCard({ unit }: { unit: UnitState }) {
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
   const worlds = useStore((s) => s.worlds);
+  const standingOrders = useStore((s) => s.standingOrders);
+  const haltStandingOrder = useStore((s) => s.haltStandingOrder);
+  const activeOrders = Object.values(standingOrders).filter(
+    (o) => o.unitId === unit.id && o.status === "active"
+  );
   const world = worlds[unit.worldId];
   const worldLabel = world?.label ?? "—";
   const themeName = world ? themeLabel(themeFor(world.id)) : "—";
@@ -111,6 +116,21 @@ function WielderCard({ unit }: { unit: UnitState }) {
           </span>
         </div>
       </div>
+      {activeOrders.length > 0 && (
+        <div className="throne-card-orders">
+          {activeOrders.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className="standing-order-chip"
+              onClick={() => haltStandingOrder(o.id)}
+              title={`Standing Order — ${o.iterationsRun}/${o.maxIterations} iterations · click to halt`}
+            >
+              ⟲ {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
+            </button>
+          ))}
+        </div>
+      )}
       <div className="throne-card-meta">
         <span className="throne-card-mood">{moodFor(unit)}</span>
         <span className="throne-card-world">

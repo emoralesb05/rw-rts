@@ -30,6 +30,16 @@ const COMMON_COMMANDS = [
 
 type Mode = { kind: "idle" } | { kind: "files"; query: string } | { kind: "commands"; query: string };
 
+// Standing Order interval options per Q37.
+const INTERVALS: { label: string; ms: number | null }[] = [
+  { label: "once", ms: null },
+  { label: "every 1m", ms: 60_000 },
+  { label: "every 5m", ms: 5 * 60_000 },
+  { label: "every 15m", ms: 15 * 60_000 },
+  { label: "every 30m", ms: 30 * 60_000 },
+  { label: "every 1h", ms: 60 * 60_000 },
+];
+
 export function DecreeModal() {
   const decreeUnitId = useStore((s) => s.decreeUnitId);
   const closeDecree = useStore((s) => s.closeDecree);
@@ -40,6 +50,7 @@ export function DecreeModal() {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
+  const [intervalMs, setIntervalMs] = useState<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset state when modal opens for a different wielder.
@@ -47,6 +58,7 @@ export function DecreeModal() {
     if (decreeUnitId) {
       setText("");
       setMode({ kind: "idle" });
+      setIntervalMs(null);
       // Focus next tick so React mounts the textarea first.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -111,10 +123,22 @@ export function DecreeModal() {
     if (!unit.spawnedHere) return;
     setBusy(true);
     try {
-      // Wrap the user's free text in a structured Decree preamble so the
-      // agent reads it as an explicit instruction rather than a casual nudge.
-      const prompt = `[Decree from the King]\n\n${text.trim()}`;
-      await window.kh.sendPrompt({ unitId: unit.id, prompt });
+      const trimmed = text.trim();
+      if (intervalMs === null) {
+        // One-shot Decree.
+        const prompt = `[Decree from the King]\n\n${trimmed}`;
+        await window.kh.sendPrompt({ unitId: unit.id, prompt });
+      } else {
+        // Standing Order — confirm before starting (per Q37 visibility).
+        const intervalLabel = INTERVALS.find((i) => i.ms === intervalMs)?.label ?? "interval";
+        const confirmed = confirm(
+          `Issue Standing Order to ${unit.displayName}?\n\n` +
+            `Will run ${intervalLabel} (max 24 iterations, halts after 3 consecutive failures).\n\n` +
+            `"${trimmed.slice(0, 200)}${trimmed.length > 200 ? "…" : ""}"`
+        );
+        if (!confirmed) return;
+        useStore.getState().startStandingOrder(unit.id, trimmed, intervalMs);
+      }
       closeDecree();
     } finally {
       setBusy(false);
@@ -181,6 +205,22 @@ export function DecreeModal() {
             </div>
           )}
         </div>
+        <div className="decree-interval">
+          <span className="decree-interval-label">repeat</span>
+          {INTERVALS.map((i) => (
+            <button
+              key={i.label}
+              type="button"
+              className={
+                "decree-interval-btn" + (i.ms === intervalMs ? " active" : "")
+              }
+              onClick={() => setIntervalMs(i.ms)}
+              disabled={busy || !unit.spawnedHere}
+            >
+              {i.label}
+            </button>
+          ))}
+        </div>
         <footer className="decree-footer">
           <span className="decree-hint">⌘↩ to send · esc to cancel</span>
           <button
@@ -189,7 +229,7 @@ export function DecreeModal() {
             onClick={() => void send()}
             disabled={sendDisabled}
           >
-            ⚜ Issue Decree
+            {intervalMs === null ? "⚜ Issue Decree" : "⚜ Issue Standing Order"}
           </button>
         </footer>
       </div>
