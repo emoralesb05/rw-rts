@@ -297,6 +297,42 @@ const STUCK_LETTER_COOLDOWN_MS = 90_000;
  * counts as a repeat. Returns "*" for unknown shapes.
  */
 /**
+ * MP cost per tool_use (Phase 2A real-token MP, light version). Weighted
+ * by tool type — Read/Glob/Grep are cheap (observation); Bash/Edit/
+ * MultiEdit are heavier (mutation); Task is the costliest (spawns a
+ * subagent). Falls back to 4 for unknown tools (matches the pre-Phase-2A
+ * fixed cost).
+ */
+const TOOL_MP_BASE: Record<string, number> = {
+  Read: 2, Glob: 2, Grep: 2, TodoWrite: 1,
+  Bash: 6, BashOutput: 4,
+  Edit: 5, MultiEdit: 7, Write: 5, NotebookEdit: 5,
+  Task: 12, Agent: 12,
+  WebFetch: 6, WebSearch: 6,
+};
+function mpCostForToolUse(toolName: string): number {
+  return TOOL_MP_BASE[toolName] ?? 4;
+}
+
+/**
+ * Extra MP drain on tool_result, proportional to output size. Heavy
+ * file reads + verbose Bash output cost more than empty acks. Capped
+ * so a single 1MB log doesn't zero MP.
+ */
+function mpCostForToolResult(output: unknown): number {
+  let len = 0;
+  if (typeof output === "string") len = output.length;
+  else if (output && typeof output === "object") {
+    const r = output as Record<string, unknown>;
+    if (typeof r.stdout === "string") len = r.stdout.length;
+    else if (typeof r.text === "string") len = r.text.length;
+    else if (typeof r.content === "string") len = r.content.length;
+  }
+  if (len < 1000) return 0;
+  return Math.min(8, Math.floor(len / 5000));
+}
+
+/**
  * Short human description of a permission_request's tool input, for the
  * Critical letter body. Mirrors argKeyFor's coverage but renders for
  * humans rather than as a comparable string.
@@ -699,7 +735,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       break;
     case "tool_use": {
       unit.status = event.payload.name === "Bash" ? "casting" : "working";
-      unit.mp = Math.max(0, unit.mp - 4);
+      unit.mp = Math.max(0, unit.mp - mpCostForToolUse(String(event.payload.name ?? "")));
       // Track for stuck-loop detection (Q10 + #13a).
       const now = event.timestamp;
       const list = _recentTools.get(id) ?? [];
@@ -714,9 +750,16 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       _consecutiveTools.set(id, (_consecutiveTools.get(id) ?? 0) + 1);
       break;
     }
-    case "tool_result":
+    case "tool_result": {
       unit.status = "idle";
+      // Extra MP drain proportional to output size — heavy file reads
+      // and verbose Bash output cost more than empty acknowledgements.
+      const extra = mpCostForToolResult(event.payload.output);
+      if (extra > 0) {
+        unit.mp = Math.max(0, unit.mp - extra);
+      }
       break;
+    }
     case "assistant_text":
       // Reset consecutive-tools counter — the wielder is thinking, not
       // mashing the same button.

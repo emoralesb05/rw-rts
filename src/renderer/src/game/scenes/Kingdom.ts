@@ -70,17 +70,67 @@ const ISO_CONTAINER_SCALE = 0.55;
 const LANDMARK_TEX = (theme: WorldTheme) => `landmark-${theme}`;
 
 // Themed accent positions per theme (offsets from the iso center, in
-// per-world iso coordinates).
+// per-world iso coordinates). Bumped from 2 to 4-5 per theme so each
+// world reads as populated rather than sparse (Phase 2A — per-world
+// signature decorations beyond MVP one-each).
 const THEME_ACCENTS: Record<
   WorldTheme,
   { tx: number; ty: number; scale: number; alpha: number }[]
 > = {
-  disney:    [{ tx: 1, ty: 4, scale: 0.7, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 }],
-  hollow:    [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },  { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
-  traverse:  [{ tx: 1, ty: 4, scale: 0.7, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 }],
-  destiny:   [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
-  twilight:  [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.85 }, { tx: 4, ty: 4, scale: 0.6, alpha: 0.85 }],
-  halloween: [{ tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },  { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 }],
+  disney: [
+    { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
+    { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
+    { tx: 0.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
+    { tx: 4.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
+    { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
+  ],
+  hollow: [
+    { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
+    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
+    { tx: 1.2, ty: 1.2, scale: 0.5, alpha: 0.75 },
+    { tx: 3.8, ty: 1.2, scale: 0.5, alpha: 0.75 },
+  ],
+  traverse: [
+    { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
+    { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
+    { tx: 0.6, ty: 0.6, scale: 0.5, alpha: 0.7 },
+    { tx: 4.4, ty: 0.6, scale: 0.5, alpha: 0.7 },
+    { tx: 2.5, ty: 5.5, scale: 0.55, alpha: 0.75 },
+  ],
+  destiny: [
+    { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
+    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
+    { tx: 0.4, ty: 2.5, scale: 0.4, alpha: 0.65 },
+    { tx: 4.6, ty: 2.5, scale: 0.4, alpha: 0.65 },
+    { tx: 2.5, ty: 5.6, scale: 0.5, alpha: 0.7 },
+  ],
+  twilight: [
+    { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
+    { tx: 4, ty: 4, scale: 0.6, alpha: 0.85 },
+    { tx: 1.2, ty: 1.5, scale: 0.45, alpha: 0.65 },
+    { tx: 3.8, ty: 1.5, scale: 0.45, alpha: 0.65 },
+    { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
+  ],
+  halloween: [
+    { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
+    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
+    { tx: 0.5, ty: 1, scale: 0.5, alpha: 0.8 },
+    { tx: 4.5, ty: 1, scale: 0.5, alpha: 0.8 },
+    { tx: 2.5, ty: 5.5, scale: 0.55, alpha: 0.85 },
+  ],
+};
+
+// Per-theme particle palette: small drifting motes inside the world's
+// iso footprint. Color + count + speed varies per theme to give each
+// world a distinct atmospheric voice.
+type ThemeParticle = { color: number; count: number; speed: number; size: number };
+const THEME_PARTICLES: Record<WorldTheme, ThemeParticle> = {
+  disney:    { color: 0xffd86b, count: 8,  speed: 0.04, size: 1.2 }, // gold sparkle
+  hollow:    { color: 0xc9a4ff, count: 12, speed: 0.06, size: 1.0 }, // dark embers
+  traverse:  { color: 0xffd86b, count: 6,  speed: 0.05, size: 1.2 }, // lamp dust
+  destiny:   { color: 0xb3e0ff, count: 10, speed: 0.05, size: 1.0 }, // sea spray
+  twilight:  { color: 0xffb86c, count: 8,  speed: 0.05, size: 1.2 }, // dusk fireflies
+  halloween: { color: 0xff7a4a, count: 14, speed: 0.07, size: 1.2 }, // ash flecks
 };
 
 const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
@@ -118,6 +168,9 @@ type WielderRef = {
   // Subagent tether to parent (rendered on the same isoPlane container).
   tether?: Phaser.GameObjects.Graphics;
   parentSessionId?: string;
+  // Composite-form banner — shown on the parent when 1+ subagents are
+  // alive in the same world. "Pair" / "Royal Guard" / "Wayfinder Trio".
+  compositeBanner?: Phaser.GameObjects.Text;
 };
 
 type WorldRef = {
@@ -133,6 +186,7 @@ type WorldRef = {
   spawnedAt: number;
   wielders: Map<string, WielderRef>;
   heartless: Map<string, HeartlessRef>;
+  particles: { circle: Phaser.GameObjects.Arc; vx: number; vy: number; baseAlpha: number; phase: number }[];
 };
 
 type ClusterRef = {
@@ -331,6 +385,8 @@ export class KingdomScene extends Phaser.Scene {
       this.syncHeartlessFor(ref, w);
       // Time-of-day tint per-world based on session age.
       this.updateTimeOfDay(ref);
+      // Drift particles inside this world's iso footprint.
+      this.tickWorldParticles(ref, delta);
     }
 
     // Twinkle stars
@@ -583,7 +639,64 @@ export class KingdomScene extends Phaser.Scene {
       spawnedAt: this.time.now,
       wielders: new Map(),
       heartless: new Map(),
+      particles: this.spawnWorldParticles(isoPlane, theme),
     };
+  }
+
+  /**
+   * Tick per-world particles — drift + alpha twinkle + wrap inside
+   * iso footprint. delta is in ms.
+   */
+  private tickWorldParticles(worldRef: WorldRef, delta: number) {
+    const dt = delta / 1000;
+    const halfW = (ISO_GRID * ISO_TILE_W) / 2 + 40;
+    const topY = -(ISO_GRID * ISO_TILE_H) / 2 - 20;
+    const bottomY = (ISO_GRID * ISO_TILE_H) / 2 + 20;
+    for (const p of worldRef.particles) {
+      p.circle.x += p.vx * dt;
+      p.circle.y += p.vy * dt;
+      // Wrap horizontally
+      if (p.circle.x > halfW) p.circle.x = -halfW;
+      if (p.circle.x < -halfW) p.circle.x = halfW;
+      // Wrap vertically (most particles drift up; respawn at bottom)
+      if (p.circle.y < topY) p.circle.y = bottomY;
+      if (p.circle.y > bottomY) p.circle.y = topY;
+      // Subtle twinkle
+      p.phase += dt * 1.5;
+      p.circle.setAlpha(p.baseAlpha * (0.55 + 0.45 * Math.sin(p.phase)));
+    }
+  }
+
+  /**
+   * Per-theme drifting particles inside the world's iso footprint.
+   * Each particle is a small Phaser Arc with random velocity; ticked
+   * in update(). Wraps around the iso bounding box.
+   */
+  private spawnWorldParticles(
+    plane: Phaser.GameObjects.Container,
+    theme: WorldTheme
+  ): WorldRef["particles"] {
+    const cfg = THEME_PARTICLES[theme];
+    const halfW = (ISO_GRID * ISO_TILE_W) / 2;
+    const halfH = (ISO_GRID * ISO_TILE_H);
+    const out: WorldRef["particles"] = [];
+    for (let i = 0; i < cfg.count; i++) {
+      const x = (Math.random() - 0.5) * halfW * 2;
+      const y = (Math.random() - 0.5) * halfH;
+      const baseAlpha = 0.35 + Math.random() * 0.5;
+      const c = this.add
+        .circle(x, y, cfg.size + Math.random() * 0.6, cfg.color, baseAlpha)
+        .setDepth(-15);
+      plane.add(c);
+      out.push({
+        circle: c,
+        vx: (Math.random() - 0.5) * cfg.speed * 60,
+        vy: (Math.random() - 0.5) * cfg.speed * 60 - cfg.speed * 30, // bias upward
+        baseAlpha,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+    return out;
   }
 
   /**
@@ -793,6 +906,39 @@ export class KingdomScene extends Phaser.Scene {
     } else if (ref.tether) {
       ref.tether.destroy();
       ref.tether = undefined;
+    }
+
+    // ── Composite-form banner ───────────────────────────────────────
+    // If this wielder has subagents alive in the same world, show a
+    // gold composite-form banner above its head.
+    let childCount = 0;
+    for (const other of worldRef.wielders.values()) {
+      if (other === ref) continue;
+      if (other.parentSessionId === ref.unitId) childCount++;
+    }
+    if (childCount > 0) {
+      const formName =
+        childCount === 1 ? "✦ Pair"
+        : childCount === 2 ? "✦ Royal Guard"
+        : "✦ Wayfinder Trio";
+      if (!ref.compositeBanner) {
+        ref.compositeBanner = this.add
+          .text(0, -52, formName, {
+            fontSize: "9.5px",
+            color: "#ffd86b",
+            fontFamily: "ui-monospace, monospace",
+            fontStyle: "bold",
+            backgroundColor: "rgba(20, 16, 64, 0.85)",
+            padding: { x: 5, y: 2 },
+          })
+          .setOrigin(0.5);
+        ref.container.add(ref.compositeBanner);
+      } else if (ref.compositeBanner.text !== formName) {
+        ref.compositeBanner.setText(formName);
+      }
+    } else if (ref.compositeBanner) {
+      ref.compositeBanner.destroy();
+      ref.compositeBanner = undefined;
     }
   }
 
