@@ -8,7 +8,7 @@
  * stats live in the header. The Phaser ambient castle backdrop is a
  * polish-phase add — for v1 we use a CSS gradient + subtle pattern.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
 import { themeFor, themeLabel } from "../game/gummi-worlds";
@@ -237,17 +237,40 @@ function WielderCard({ unit }: { unit: UnitState }) {
 
 function LetterCard({ letter }: { letter: Letter }) {
   const applyLetterAction = useStore((s) => s.applyLetterAction);
+  const [showReasoning, setShowReasoning] = useState(false);
   return (
     <div className={`throne-letter sev-${letter.severity}`}>
       <div className="throne-letter-head">
         <span className={`throne-letter-tag sev-${letter.severity}`}>
           {letter.severity}
         </span>
+        {letter.risk && (
+          <span className={`letter-risk-chip risk-${letter.risk}`}>
+            {letter.risk === "high" ? "HIGH RISK" :
+             letter.risk === "elevated" ? "ELEVATED" :
+             "LOW RISK"}
+          </span>
+        )}
         <span className="throne-letter-time">{timeAgo(letter.createdAt)}</span>
       </div>
       <div className="throne-letter-title">{letter.title}</div>
       {letter.body && (
         <div className="throne-letter-body">{letter.body}</div>
+      )}
+      {letter.reasoning && (
+        <div className="throne-letter-reasoning">
+          <button
+            type="button"
+            className="letter-reasoning-toggle"
+            onClick={() => setShowReasoning((v) => !v)}
+            title="show what the wielder was thinking right before this ask"
+          >
+            {showReasoning ? "▲ thinking" : "▼ thinking"}
+          </button>
+          {showReasoning && (
+            <div className="letter-reasoning-body">{letter.reasoning}</div>
+          )}
+        </div>
       )}
       <div className="throne-letter-actions">
         {letter.actions.map((a, i) => (
@@ -284,6 +307,13 @@ function AttentionBanner({ letter }: { letter: Letter }) {
       <div className="attention-banner-head">
         <span className="attention-banner-eye">◉</span>
         <span className="attention-banner-tag">NEEDS YOU</span>
+        {letter.risk && (
+          <span className={`letter-risk-chip risk-${letter.risk}`}>
+            {letter.risk === "high" ? "HIGH RISK" :
+             letter.risk === "elevated" ? "ELEVATED" :
+             "LOW RISK"}
+          </span>
+        )}
         <span className="attention-banner-time">{timeAgo(letter.createdAt)}</span>
       </div>
       <div className="attention-banner-title">{letter.title}</div>

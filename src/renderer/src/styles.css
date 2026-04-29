@@ -1435,6 +1435,63 @@ select.btn {
   color: var(--muted);
   font-family: ui-monospace, monospace;
 }
+
+/* Risk chip on permission letters (Phase 2B #13c) */
+.letter-risk-chip {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+}
+.letter-risk-chip.risk-low {
+  color: #7af0c0;
+  background: rgba(122, 240, 192, 0.12);
+  border: 1px solid rgba(122, 240, 192, 0.4);
+}
+.letter-risk-chip.risk-elevated {
+  color: #ffb86c;
+  background: rgba(255, 184, 108, 0.14);
+  border: 1px solid rgba(255, 184, 108, 0.5);
+}
+.letter-risk-chip.risk-high {
+  color: #ff5a3c;
+  background: rgba(255, 90, 60, 0.18);
+  border: 1px solid rgba(255, 90, 60, 0.65);
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+/* Reasoning expandable on permission letters (Phase 2B #13c) */
+.throne-letter-reasoning {
+  margin-top: 2px;
+}
+.letter-reasoning-toggle {
+  background: transparent;
+  border: 1px solid rgba(108, 198, 255, 0.35);
+  color: #6cc6ff;
+  font-size: 9.5px;
+  font-family: ui-monospace, monospace;
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.letter-reasoning-toggle:hover {
+  background: rgba(108, 198, 255, 0.12);
+}
+.letter-reasoning-body {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(108, 198, 255, 0.06);
+  border-left: 2px solid rgba(108, 198, 255, 0.4);
+  border-radius: 0 4px 4px 0;
+  font-size: 10.5px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  font-style: italic;
+}
 .throne-letter-title {
   font-size: 12.5px;
   font-weight: 600;

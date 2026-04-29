@@ -100,6 +100,8 @@ export type LetterAction =
   | { kind: "permission-deny"; requestId: string }
   | { kind: "dismiss" };
 
+export type LetterRisk = "low" | "elevated" | "high";
+
 export type Letter = {
   id: string;
   createdAt: number;
@@ -113,6 +115,13 @@ export type Letter = {
   // Internal: counts collapsed-identical-letters within the rate limit
   // window. Set by the store, displayed as a small badge.
   count?: number;
+  // Phase 2B #13c — set on permission_request letters. Risk-level chip
+  // gives the King at-a-glance "how careful should I be" signal.
+  risk?: LetterRisk;
+  // Phase 2B #13c — wielder's last assistant_text (if any) when the
+  // permission was requested. The "thinking that led to this ask".
+  // Rendered as expandable "what they were thinking" in the letter.
+  reasoning?: string;
 };
 
 export type WorldAlertLevel =

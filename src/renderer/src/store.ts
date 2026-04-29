@@ -312,6 +312,72 @@ function summarizePermissionInput(input: unknown): string {
   return "";
 }
 
+/**
+ * Phase 2B #13c — risk-level classification for permission letters.
+ * Quick heuristic on tool + input shape. Three buckets (LOW / ELEVATED
+ * / HIGH) so the King has a glance-able cue beyond the Critical
+ * severity color.
+ *
+ * - HIGH: destructive shell, sudo/chmod/chown, writes to system paths
+ *   or ~/.ssh / ~/.aws / etc.
+ * - ELEVATED: any Bash command, Write/Edit anywhere outside the cwd
+ * - LOW: Read, Glob, Grep, WebFetch — observation rather than mutation
+ */
+function classifyRisk(toolName: string, input: unknown): import("@shared/events").LetterRisk {
+  const tool = toolName.toLowerCase();
+  const r = (input as Record<string, unknown>) || {};
+  if (tool === "read" || tool === "glob" || tool === "grep" || tool === "webfetch" || tool === "websearch") {
+    return "low";
+  }
+  if (tool === "bash") {
+    const cmd = String(r.command ?? "").toLowerCase();
+    if (
+      /\bsudo\b/.test(cmd) ||
+      /\bchmod\b.+(?:777|-r)/.test(cmd) ||
+      /\bchown\b/.test(cmd) ||
+      /\brm\b.+\b-(?:rf|fr|Rf)\b/.test(cmd) ||
+      /\bdd\b\s+if=/.test(cmd) ||
+      /\bmkfs\b/.test(cmd) ||
+      /\bgit\s+push\s+(?:--force|-f)\b/.test(cmd) ||
+      /\bgit\s+reset\s+--hard\b/.test(cmd)
+    ) {
+      return "high";
+    }
+    return "elevated";
+  }
+  if (tool === "write" || tool === "edit" || tool === "multiedit") {
+    const path = String(r.file_path ?? r.path ?? "");
+    if (
+      path.startsWith("/etc/") ||
+      path.startsWith("/usr/") ||
+      path.startsWith("/System/") ||
+      path.startsWith("/var/") ||
+      /\.(ssh|aws|gnupg)\//.test(path) ||
+      /\.(bash_profile|zshrc|zprofile|netrc)$/.test(path)
+    ) {
+      return "high";
+    }
+    return "elevated";
+  }
+  return "elevated";
+}
+
+/**
+ * Phase 2B #13c — extract the wielder's most recent assistant_text
+ * before this event, as the "reasoning" context for a permission
+ * letter. Walks the event log newest-first; bounded.
+ */
+function extractRecentReasoning(events: AgentEvent[], sessionId: string): string {
+  for (const ev of events) {
+    if (ev.sessionId !== sessionId) continue;
+    if (ev.kind !== "assistant_text") continue;
+    const text = String(ev.payload.text ?? "").trim();
+    if (!text) continue;
+    return text.length > 480 ? text.slice(0, 480) + "…" : text;
+  }
+  return "";
+}
+
 function argKeyFor(input: unknown): string {
   if (!input || typeof input !== "object") return "*";
   const r = input as Record<string, unknown>;
@@ -793,6 +859,9 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const reqId = event.payload.requestId;
     const toolName = String(event.payload.name ?? "tool");
     const inputSummary = summarizePermissionInput(event.payload.input);
+    const risk = classifyRisk(toolName, event.payload.input);
+    // Walk events excluding the just-arrived permission_request itself.
+    const reasoning = extractRecentReasoning(state.events, id);
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
       makeLetter("critical", `${palette} asks to use ${toolName}`, {
@@ -801,6 +870,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
           : `Wielder is requesting permission to use ${toolName}.`,
         sessionId: id,
         worldId,
+        risk,
+        reasoning: reasoning || undefined,
         actions: [
           { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
           { label: "✗ deny", action: { kind: "permission-deny", requestId: reqId } },
