@@ -1636,6 +1636,60 @@ select.btn {
 .activity-log-row.tone-warn .activity-log-text  { color: #ffb86c; }
 .activity-log-row.tone-danger .activity-log-text { color: #ff7a3c; }
 .activity-log-row.tone-ok .activity-log-text    { color: var(--text); }
+.activity-log-row.not-clickable {
+  cursor: default;
+  opacity: 0.6;
+}
+.activity-log-row.not-clickable:hover {
+  background: transparent;
+}
+
+/* Pulse highlight applied to a LetterCard when the ActivityLog clicks
+ * its matching permission row — "look up here, this is the one." */
+.throne-letter.letter-pulse {
+  animation: letter-pulse 1.6s ease-out;
+}
+@keyframes letter-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0.85),
+                0 0 0 0 rgba(255, 122, 60, 0.5);
+  }
+  40% {
+    box-shadow: 0 0 0 4px rgba(255, 122, 60, 0.45),
+                0 0 18px 6px rgba(255, 122, 60, 0.30);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0),
+                0 0 0 0 rgba(255, 122, 60, 0);
+  }
+}
+
+/* Pulse on the conversation-stream event we just scrolled to from
+ * the activity log — gold so it pops against any chat row type. */
+.chat-event {
+  position: relative;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+.chat-event.event-pulse {
+  background: rgba(255, 216, 107, 0.12);
+  animation: event-pulse 1.6s ease-out;
+}
+@keyframes event-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 216, 107, 0.85);
+    background: rgba(255, 216, 107, 0.30);
+  }
+  40% {
+    box-shadow: 0 0 0 3px rgba(255, 216, 107, 0.45),
+                0 0 14px 4px rgba(255, 216, 107, 0.25);
+    background: rgba(255, 216, 107, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 216, 107, 0);
+    background: rgba(255, 216, 107, 0);
+  }
+}
 
 /* Close-all button in the topbar — only renders when panels are open. */
 .close-all-btn {

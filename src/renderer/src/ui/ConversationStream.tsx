@@ -224,13 +224,24 @@ type Props = {
   sessionId?: string;
   /** Cap rendered messages to keep scroll perf reasonable. Default 80. */
   cap?: number;
+  /** Scroll-and-pulse the message whose event timestamp matches this.
+   * Used by the activity-log click → "drop me at this exact event."
+   * Caller bumps the tick to re-trigger even if ts is unchanged. */
+  scrollToTs?: number;
+  scrollToTick?: number;
 };
 
-export function ConversationStream({ sessionId, cap = 80 }: Props) {
+export function ConversationStream({
+  sessionId,
+  cap = 80,
+  scrollToTs,
+  scrollToTick,
+}: Props) {
   const events = useStore((s) => s.events);
   const units = useStore((s) => s.units);
   const muted = useStore((s) => s.mutedSessionIds);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { filtered, hiddenCount } = useMemo(() => {
     const f = sessionId
@@ -244,10 +255,32 @@ export function ConversationStream({ sessionId, cap = 80 }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [filtered.length]);
 
+  // When the caller asks us to drop at a specific event (activity-row
+  // click flow), find that row and scroll it into view + flash a pulse.
+  // Tick bump forces re-runs even when the same ts is requested twice.
+  useEffect(() => {
+    if (scrollToTs == null || !scrollToTick) return;
+    const root = containerRef.current;
+    if (!root) return;
+    const el = root.querySelector<HTMLElement>(
+      `[data-event-ts="${scrollToTs}"]`
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.remove("event-pulse");
+    void el.offsetWidth;
+    el.classList.add("event-pulse");
+    const handle = window.setTimeout(
+      () => el.classList.remove("event-pulse"),
+      1600
+    );
+    return () => window.clearTimeout(handle);
+  }, [scrollToTs, scrollToTick, filtered.length]);
+
   const showBadges = !sessionId;
 
   return (
-    <div className="chat-stream">
+    <div className="chat-stream" ref={containerRef}>
       {hiddenCount > 0 && (
         <div className="chat-marker">
           <span className="chat-marker-text">
@@ -289,7 +322,7 @@ export function ConversationStream({ sessionId, cap = 80 }: Props) {
             body = null;
         }
         return (
-          <div key={i}>
+          <div key={i} data-event-ts={e.timestamp} className="chat-event">
             {badge}
             {body}
           </div>

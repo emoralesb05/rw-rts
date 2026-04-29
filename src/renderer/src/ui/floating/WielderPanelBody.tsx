@@ -58,12 +58,18 @@ type Props = {
    * back to initialTab (e.g. clicking the chat icon while the panel
    * is already parked on the Status tab). */
   initialTabTick?: number;
+  /** Activity-log click drop-target: scroll the Messages tab to the
+   * event with this timestamp. Tick re-triggers on repeat clicks. */
+  scrollToTs?: number;
+  scrollToTick?: number;
 };
 
 export function WielderPanelBody({
   unitId,
   initialTab = "status",
   initialTabTick = 0,
+  scrollToTs,
+  scrollToTick,
 }: Props) {
   const unit = useStore((s) => s.units[unitId]);
   const worlds = useStore((s) => s.worlds);
@@ -127,7 +133,11 @@ export function WielderPanelBody({
       </div>
       {tab === "messages" ? (
         <div className="wielder-panel-log">
-          <ConversationStream sessionId={unit.id} />
+          <ConversationStream
+            sessionId={unit.id}
+            scrollToTs={scrollToTs}
+            scrollToTick={scrollToTick}
+          />
         </div>
       ) : (
         <>

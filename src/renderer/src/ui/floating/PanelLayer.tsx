@@ -25,6 +25,14 @@ export function PanelLayer() {
               initialTabTick={
                 typeof p.data?.tick === "number" ? p.data.tick : 0
               }
+              scrollToTs={
+                typeof p.data?.scrollToTs === "number"
+                  ? p.data.scrollToTs
+                  : undefined
+              }
+              scrollToTick={
+                typeof p.data?.tick === "number" ? p.data.tick : 0
+              }
             />
           ) : p.kind === "settings" ? (
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />

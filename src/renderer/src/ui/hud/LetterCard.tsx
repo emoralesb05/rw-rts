@@ -26,8 +26,19 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const isPermissionLetter = letter.actions.some(
     (a) => a.action.kind === "permission-deny"
   );
+  // Permission letters: surface the requestId as a data attribute so
+  // the ActivityLog can scroll-and-pulse the matching card on click.
+  const requestId = letter.actions.find(
+    (a) =>
+      a.action.kind === "permission-allow" || a.action.kind === "permission-deny"
+  )?.action;
+  const reqIdAttr =
+    requestId && "requestId" in requestId ? requestId.requestId : undefined;
   return (
-    <div className={`throne-letter sev-${letter.severity}`}>
+    <div
+      className={`throne-letter sev-${letter.severity}`}
+      data-letter-request-id={reqIdAttr}
+    >
       <div className="throne-letter-head">
         <span className={`throne-letter-tag sev-${letter.severity}`}>
           {letter.severity}
