@@ -49,26 +49,43 @@ pixel-art sprites (4 keybladers + 3 Heartless types + 6 themed
 landmarks + iso tiles), Throne Room (React overlay; Phaser ambient
 backdrop deferred — see Q4 footnote), persistent state JSON, letter
 feed + decision-moment generators, 5 v1 verbs wired (Dispatch / Send
-word / Comfort / Recall / Seal), session-end seal flow, README + first
-commit pending (working tree has the changes uncommitted at audit time).
+word / Comfort / Recall / Seal), session-end seal flow.
 
-**Recent polish (2026-04-28):** Throne portrait wiring, sprite scale
-bump (0.47 → 0.7), CSS atmosphere upgrade (gold-red banner streaks,
-particle dust, edge vignette), kh→kh-default sprite move (canonical
-art now ships with repo), override-probe with content-type check (Vite
-SPA-fallback gotcha).
+**Q40 unified Star Chart shipped (2026-04-28):** replaced the 3-scene
+Throne/Gummi/Arena drill-down with a single pan/zoom canvas + side
+overlay panel for cards/letters. KingdomScene renders worlds clustered
+by parent dir (constellation layout), per-world iso plane + landmark
++ wielder sprites + heartless mobs + time-of-day overlay; click-card
+pans + zooms; manual drag/scroll-wheel camera. Legacy WorldScene +
+WorldSelectScene deleted (~2200 lines net removed by the redesign +
+cleanup).
 
-**Phase 2B planning ✅ mostly complete (2026-04-28):** Q28–Q44
-locked. **Q40 (unified-map architecture) added late same day** —
-direction locked, sub-questions Q41–Q44 in flight. Replaces the
-3-scene Throne / Gummi / Arena drill-down with a single pan/zoom
-canvas.
+**Phase 2B shipped (2026-04-28, 8 of 10 items):**
+- ✅ #11 Attention-direction layer (priority queue banner)
+- ✅ #13a Stuck-loop detection with explanation
+- ✅ #13b Why-trace expandable on tool calls
+- ✅ #14 Decree composer (layered, @ files / commands)
+- ✅ #14b Standing Order sub-mode (recurring decree, in-memory only)
+- ✅ #15 Voice input (Web Speech API, transcription only)
+- ✅ #17 Desktop OS notifications (Electron Notification API)
+- ✅ #18 Permission approval — full bidirectional flow proven with
+  spawned Claude sessions (allow path runs the tool; deny blocks it).
+  Two real bugs fixed during integration: bridge filter rejected
+  spawned-session permission requests; substring detection false-
+  positived on quoted args (replaced with shlex token-level parse).
+- ⏸ #12 Quest system — deferred per user (next-session pickup)
+- ⏸ #13c Permission context as standalone observability sub-feature
+  — partly there in the #18 letter body; standalone chat surface
+  for non-permission tool calls not built
 
-**In flight:**
-- **Architecture redesign (Q40)** — unified pan/zoom map. ~1–2 day
-  refactor before items #11/#12 land on the new foundation.
-- Building scene-agnostic items (#15 voice, #17 desktop notifs, #14
-  Decree composer, #18 permission) can start in parallel.
+**Phase 2B finding (2026-04-28):** Claude Code's PreToolUse hook fires
+in parallel with Claude's own permission UI for **observed terminal
+sessions** (the user running `claude` in their own terminal). Both
+prompts appear; whichever the user answers first wins. For
+**keykeeper-spawned sessions** (no terminal prompt), the keykeeper
+letter is the sole UI and the flow is clean. The permission feature
+is most useful for spawned/automated sessions; for terminal sessions
+it's an additional surface, not a replacement.
 
 **Phase 2A polish (decisions locked, not yet started):** Tier 2/3
 shaders, chiptune music, Renown UI, replay mode, outbound MCP. See
