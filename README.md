@@ -154,21 +154,34 @@ timestamp resets to "now" on next launch.
 
 ## Status
 
-The MVP per `.docs/plans/vision.md` is shipped:
+**MVP (P1–P10):** ✅ all shipped.
 
-- ✅ P1 rename to keykeeper
-- ✅ P2 Phaser 4 filter pipeline validated
-- ✅ P3 Atmosphere pass on Gummi Map
-- ✅ P4 Pixel art sprite generator
-- ✅ P5 Atmosphere pass on World Arena
-- ✅ P6 Throne Room (hybrid React + Phaser layout)
-- ✅ P7 Persistent state JSON
-- ✅ P8 Decision-moment letters + verbs (Comfort + Seal flow)
-- ✅ P9 Seal fanfare on Gummi Map
-- ✅ P10 README
+**Q40 unified Star Chart:** ✅ shipped (single pan/zoom canvas
+replaces the 3-scene drill-down; worlds clustered by parent dir;
+side overlay panel for cards + letters).
 
-Polish items deferred (see vision doc): Tier 2/3 shaders (water, fire,
-magic energy, displacement, chromatic aberration), chiptune music,
-per-world signature decorations beyond the MVP one-each, composite-form
-banners, real-token MP per adapter, Renown star-rank UI, Cura/Curaga
+**Phase 2B (8 of 10 items):** ✅ attention-direction layer · ✅ Decree
+verb (with Standing Order recurring sub-mode) · ✅ voice input
+(transcription) · ✅ desktop OS notifications · ✅ permission approval
+(bidirectional Claude Code hook integration; works cleanly for
+keykeeper-spawned sessions) · ✅ stuck-loop detection with explanation
+· ✅ why-trace (expandable "what led to this" on tool calls).
+⏸ Quest system + ⏸ standalone permission-context observability
+sub-feature.
+
+**Phase 2A polish (locked, not yet started):** Tier 2/3 shaders
+(water, fire, magic energy, heat haze, chromatic aberration),
+chiptune music, per-world signature decorations beyond the MVP
+one-each, composite-form banners (Pair / Royal Guard / Wayfinder
+Trio), real-token MP per adapter, Renown star-rank UI, Cura/Curaga
 tier verbs, replay mode, outbound MCP server.
+
+**Wielder polish deferred during the unified-map iso port:** patrol
+behavior (wielders currently stand at home tile), event-driven
+animation switching (attack on tool_use, cast on certain events),
+drive-form auras + activation flash, subagent tether visualization,
+HP/MP rings overlaid on wielders, death/victory poses on
+session_end / HP=0.
+
+See `.docs/plans/vision.md` for the design rationale and the full
+question/decision history (Q1–Q44).

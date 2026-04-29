@@ -87,9 +87,23 @@ letter is the sole UI and the flow is clean. The permission feature
 is most useful for spawned/automated sessions; for terminal sessions
 it's an additional surface, not a replacement.
 
-**Phase 2A polish (decisions locked, not yet started):** Tier 2/3
-shaders, chiptune music, Renown UI, replay mode, outbound MCP. See
-[Build phases](#build-phases).
+**Open / next-session items (~22 surface items remain):**
+- **Phase 2B:** #12 Quest (~1.5d, biggest remaining), #13c standalone
+  permission context, Standing Order persistence
+- **Wielder polish (deferred during iso-port):** patrol behavior,
+  event-driven animation switching, drive auras, subagent tether,
+  HP/MP rings, death/victory poses
+- **Phase 2A (10 items):** Tier 2/3 shaders, chiptune music, per-
+  world signature decorations beyond MVP one-each, composite form
+  banners, real-token MP per adapter, Renown star-rank UI, Cura/
+  Curaga verbs, replay mode, outbound MCP server
+- **Polish odds and ends:** Phaser ambient ThroneScene (currently
+  CSS-only), richer Halloween/Twilight landmark assets, observed-
+  session permission UX decision
+
+The functional spine (Phase 2B north star — attention-direction +
+in-context observability) is essentially complete. Most remaining
+items are visual polish.
 
 ---
 
@@ -426,7 +440,7 @@ functions, commands).
 **North star (locked):** attention-direction + in-context observability.
 Everything else is downstream of these two.
 
-11. **Attention-direction layer** *(~½d)* — letter feed evolves from a
+11. ✅ **Attention-direction layer** *(shipped 2026-04-28)* — letter feed evolves from a
     chronological severity stream into a real **priority queue**:
     "next thing that needs you" pinned at the top, scored by recency ×
     severity × wielder-status × time-since-acknowledged. Replaces the
@@ -435,7 +449,7 @@ Everything else is downstream of these two.
     Augments (does not replace) the existing 3-tier letter feed
     (Q6) — the queue is a *new top-pinned widget* fed from the same
     letter store.
-12. **Quest system** *(~1.5d — ½d core, ½d UI, ½d persistence + Renown wiring)* —
+12. ⏸ **Quest system** *(deferred per user 2026-04-28; ~1.5d when picked up)* —
     every Dispatch / Send word / Decree
     auto-creates a **Quest** with a thematic heroic name (LLM-generated
     from the prompt — e.g., *"Sora's Trial: The Loader Bug"*). On
@@ -454,7 +468,7 @@ Everything else is downstream of these two.
     from AgentCraft Missions; KH-recoded as the King's bestowed quests.
     See Q36 for the naming-model question (Anthropic API vs piggyback
     vs local model).
-13. **In-context observability** *(~1d)* — when a letter pulls you to a
+13. ⚠️ **In-context observability** *(13a + 13b shipped 2026-04-28; 13c partial)* — when a letter pulls you to a
     wielder, the rest of the situation is immediately legible:
     - **Permission context**: when Claude blocks on a tool ask,
       surface the command + Claude's reasoning right before it +
@@ -466,7 +480,7 @@ Everything else is downstream of these two.
     - **Stuck-with-explanation**: extend existing "3+ same tool"
       detection to *describe* the loop. ("Sora has tried Edit on
       `World.ts` 4 times — diffs are oscillating between two states.")
-14. **Decree verb (directive interaction)** *(~1.5d — ½d composer, ½d
+14. ✅ **Decree verb (directive interaction)** *(shipped 2026-04-28; Standing Order sub-mode also shipped, persistence deferred)* — *(was ~1.5d — ½d composer, ½d
     pickers, ½d Standing Order loop runner)* — sixth verb. Per-card
     button alongside Send word. UI: file picker (with recent-files +
     @-mention typeahead), function picker (parsed from open files),
@@ -485,7 +499,7 @@ Everything else is downstream of these two.
     Borrowed from AgentCraft Loops; KH-recoded as a royal standing
     order. See Q37 for guardrails (max iterations, stop-on-failures,
     cost cap).
-15. **Voice input** *(~2h)* — mic button in Send word + Decree
+15. ✅ **Voice input** *(shipped 2026-04-28)* — mic button in Send word + Decree
     composers. Web Speech API (local STT — no audio leaves the
     device), auto-sends after brief silence. Tiny lift but
     disproportionate value on mobile (#16). King speaks the decree
@@ -496,7 +510,7 @@ Everything else is downstream of these two.
     agents, not AFK monitoring. Item preserved for if/when scope
     flips. See Q29 for the cascading consequences (notifications
     reframed, voice survives, etc.).
-17. **Desktop OS notifications** *(~2h — Electron `Notification` API +
+17. ✅ **Desktop OS notifications** *(shipped 2026-04-28)* — *(was ~2h — Electron `Notification` API +
     4 trigger handlers + per-trigger settings toggle)* — was Web Push.
     Reframed per Q29. Four triggers (per Q30=d):
     - **Critical letters** from the attention queue (HP < 25%,
@@ -508,7 +522,7 @@ Everything else is downstream of these two.
     Click → focus keykeeper window + take the suggested verb action.
     Quiet hours 22:00–08:00 by default, configurable. Per-trigger
     toggle in settings (mute any class).
-18. **Permission approval surface** *(~1d — Claude hook integration +
+18. ✅ **Permission approval surface** *(shipped 2026-04-28; works cleanly for keykeeper-spawned sessions; observed terminal sessions also see Claude's own prompt in parallel — see Status snapshot)* — *(was ~1d — Claude hook integration +
     reply plumbing + risk-level classifier)* — was "Permission-from-chat".
     Reframed per Q29 (chat relay is deferred). When Claude Code
     blocks on a permission ask, surface as a Critical letter +
