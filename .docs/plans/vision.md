@@ -18,7 +18,7 @@ and pre-multi-tool design). Keep `roadmap.md` for historical context only.
 - [Visual direction](#visual-direction)
 - [Build phases](#build-phases) — MVP ✅ shipped · Phase 2A polish · Phase 2B directions
 - [Locked decisions](#locked-decisions-q1q27) (Q1–Q27, frozen reference)
-- [Open questions](#open-questions-q28q39-live-work) (Q28–Q39, live work)
+- [Open questions](#open-questions-q28q44-live-work) (Q28–Q44, live work)
 - [Existing work that survives the redesign](#existing-work-that-survives-the-redesign)
 
 ---
@@ -58,16 +58,17 @@ particle dust, edge vignette), kh→kh-default sprite move (canonical
 art now ships with repo), override-probe with content-type check (Vite
 SPA-fallback gotcha).
 
-**Phase 2B planning ✅ complete (2026-04-28):** all 12 open
-questions answered (Q28–Q39 locked). 8 active build items totaling
-~5.5 focused days; mobile/relay/shared-kingdoms deferred. See
-[Recommended next decisions](#recommended-next-decisions-phase-2b)
-for the locked sprint order. North star: *desktop attention-direction +
-in-context observability* (mobile killed per Q29 — real pain is
-desktop, not AFK).
+**Phase 2B planning ✅ mostly complete (2026-04-28):** Q28–Q44
+locked. **Q40 (unified-map architecture) added late same day** —
+direction locked, sub-questions Q41–Q44 in flight. Replaces the
+3-scene Throne / Gummi / Arena drill-down with a single pan/zoom
+canvas.
 
-**In flight:** Ready to start Phase 2B implementation. Suggested
-first item: voice input (~2h, no dependencies).
+**In flight:**
+- **Architecture redesign (Q40)** — unified pan/zoom map. ~1–2 day
+  refactor before items #11/#12 land on the new foundation.
+- Building scene-agnostic items (#15 voice, #17 desktop notifs, #14
+  Decree composer, #18 permission) can start in parallel.
 
 **Phase 2A polish (decisions locked, not yet started):** Tier 2/3
 shaders, chiptune music, Renown UI, replay mode, outbound MCP. See
@@ -511,7 +512,7 @@ Everything else is downstream of these two.
 ## Locked decisions (Q1–Q27)
 
 Frozen reference. Grouped by topic. Decisions marked ✅ are locked.
-For active live questions, jump to [Open questions](#open-questions-q28q39-live-work).
+For active live questions, jump to [Open questions](#open-questions-q28q44-live-work).
 
 ### Direction & framing
 
@@ -541,24 +542,26 @@ For active live questions, jump to [Open questions](#open-questions-q28q39-live-
 
 ### Throne Room
 
-4. ✅ **Cinematic vs HUD-y?** — **Hybrid locked.** Phaser ambient
-   `ThroneScene` as background (animated castle hall, banners swaying,
-   light beams, particle dust — no game logic, ambient only). React HTML
-   overlay panels for the info-dense surface (wielder cards, letter feed,
-   verb buttons, munny vault, sealed-worlds tally). Both mount together
-   when the user is on the throne route; both read from the same Zustand
-   store. Effort: ~1 day.
-5. ✅ **Default scene on app open** — **Throne Room locked** as home,
-   Gummi Map demoted to navigator/transition role. Specifically (option D
-   from conversation): top tabs are `Throne | Gummi Map | <active world>`.
-   App opens to Throne. Diving into a world from a wielder card triggers
-   a cinematic gummi-ship flight (~1.5–2s) — camera zooms out of castle,
-   cuts to gummi map, streaks across to target planet, lands in arena.
-   Sealing a keyhole pulls camera up to gummi map for the keyhole-lock
-   fanfare, then permanent gold-keyhole decoration on the planet.
-   Returning to throne is a gentler fade. **Hold Shift / press Esc to
-   skip the cinematic** — instant warp for repeated dives. Direct clicks
-   on the Gummi Map tab are static (no flight).
+4. ⚠️ **Cinematic vs HUD-y?** — **Original v1 lock superseded by Q40.**
+   Original (Hybrid): Phaser ambient `ThroneScene` as background +
+   React HTML overlay panels on a dedicated Throne tab. **Updated
+   per Q40 (2026-04-28):** Throne becomes a **side overlay panel**
+   alongside the unified Star Chart map (Q40.1=a). Wielder cards +
+   letter feed live in the side panel; the main canvas is the map.
+   The Phaser ambient ThroneScene becomes obsolete (no separate
+   Throne canvas). React side panel + Phaser unified map share the
+   Zustand store as before.
+5. ⚠️ **Default scene on app open** — **RE-OPENED 2026-04-28** by Q40
+   (unified-map architecture). Original v1 design (3-scene
+   Throne / Gummi / Arena with cinematic dive) is being replaced with
+   a single pan/zoom unified-map. See [Q40](#open-questions-q28q40-live-work)
+   for the new architecture and its sub-questions (Q41–Q44).
+
+   **Original v1 lock (preserved as historical context):** Throne
+   Room as home, Gummi Map demoted to navigator. Top tabs
+   `Throne | Gummi Map | <active world>`. Cinematic gummi-ship flight
+   on dive (~1.5–2s). Hold Shift / press Esc to skip cinematic. Seal
+   fanfare pulls camera up to gummi map then back down.
 6. ✅ **Letter feed** — **Locked.** Three tiers:
    - **Critical** (red, pulses throne attention indicator): error, HP <
      25%, world fallen
@@ -762,7 +765,7 @@ For active live questions, jump to [Open questions](#open-questions-q28q39-live-
     MVP: HP-critical fixture, stuck-loop fixture, subagent timeout,
     long-session for time-of-day verification.
 
-## Open questions (Q28–Q39, live work)
+## Open questions (Q28–Q40, live work)
 
 Net-new directions added 2026-04-28 after looking at AgentCraft and
 confirming the multi-agent watch room is a real product category.
@@ -876,6 +879,64 @@ for the suggested answer order.
     **Stamp templates (option c) deferred** to a polish iteration —
     add as muscle-memory accelerators after the layered composer is
     proven in actual use.
+40. ✅ **Unified-map architecture (replaces 3-scene drill-down)** —
+    **Locked 2026-04-28.** Replace Throne / Gummi / Arena tabs with a
+    single pan/zoom canvas (the "Star Chart") where every world is
+    visible simultaneously. Camera pans with mouse-drag, zooms with
+    scroll-wheel. Re-opens Q5 (3-scene drill-down → unified map);
+    revises Q4 (Throne Room treatment); touches Q9 (seal fanfare).
+
+    **Why:** Aligns with the locked north star (attention-direction +
+    in-context observability). Matches the locked reference genre
+    (The Sims, Don't Starve, Cult of the Lamb, Football Manager,
+    Civilization, Crusader Kings, AgentCraft all use one continuous
+    map with pan/zoom). The 3-scene design predated the north star;
+    it accumulated rather than was deliberately chosen.
+
+    **Architectural sub-decisions (Q41–Q44):**
+    - **Q41 Throne Room fate = (a) side overlay panel.** Wielder
+      cards + letter feed pinned to a fixed side panel; map fills
+      the rest. Always visible. No tab switching.
+    - **Q42 Camera behavior = (a) strict manual + click-to-pan.**
+      User drives camera (mouse drag, scroll-wheel zoom). Camera
+      *only* moves on explicit user actions. Clicking a wielder card
+      or a letter pans the camera to that wielder/world. Attention
+      indicators (pulses, badges) signal but never auto-move the
+      camera.
+    - **Q43 Map layout = (c) constellation/clustering.** Worlds
+      cluster by shared git remote host (e.g., all `github.com/foo/*`
+      repos cluster together) or shared parent path on disk
+      (`~/work/*` vs `~/personal/*`). Hash-based fallback for
+      ungrouped repos. Cluster boundaries are visual but not
+      interactive.
+    - **Q44 Zoom-out world rendering = (b) single iso miniature.**
+      Same iso plane rendering at all zoom levels — camera scales
+      it. Wielders appear as dots at zoom-out, full painterly
+      sprites at zoom-in. Themed signature landmark per world
+      (castle / spire / palm grove) provides at-a-glance iconography
+      even at small scale. Pulse colors + alert badges signal
+      attention. Single rendering pipeline; no LoD pop.
+
+    **Cascading defaults** (assumed unless overridden):
+    - **Inter-world space**: keep current Gummi Map starfield
+      aesthetic (dark space with subtle stars).
+    - **Persistent vs ephemeral worlds**: show worlds with active
+      sessions OR sealed status OR recent activity (last 30d).
+      Older inactive worlds collapse into a "history" pane.
+    - **World size on map**: fixed (all worlds same on-canvas
+      footprint). Activity-proportional sizing creates visual chaos.
+    - **Sealed worlds**: gold-keyhole marker stays at all zoom
+      levels; the sealed world's iso plane fades slightly to signal
+      "story complete".
+    - **Cluster labels**: visible at zoom-out only (e.g., "WORK ·
+      6 worlds"). Fade out at full zoom-in.
+
+41. ✅ **Q40.1 Throne Room fate** — locked (a) side overlay. See Q40.
+42. ✅ **Q40.2 Camera behavior** — locked (a) strict manual + card-click
+    pan. See Q40.
+43. ✅ **Q40.3 Map layout** — locked (c) constellation/clustering. See Q40.
+44. ✅ **Q40.4 Zoom-out world rendering** — locked (b) single iso
+    miniature scaled by camera. See Q40.
 
 ---
 
@@ -944,14 +1005,28 @@ unblocked for implementation.
 - #19 Discord/Slack relay — deferred per Q31
 - #20 Shared kingdoms — deferred per Q28=a
 
-**Suggested first sprint order** (cheapest → highest leverage):
-1. **Voice (#15)** — ~2h. No dependencies, instant ship.
+**Suggested first sprint order** (architecture refactor first, then
+build on the new foundation):
+
+0. **Unified-map refactor (Q40)** — ~1–2d. Replace 3-scene
+   Throne/Gummi/Arena with single pan/zoom Star Chart canvas + side
+   overlay panel for cards/letters. Camera control (drag pan,
+   scroll-wheel zoom, click-card-to-pan). Constellation clustering by
+   git remote / parent path. Single iso rendering at all zoom levels.
+   Sealed worlds get persistent gold-keyhole markers. **Blocks #11
+   and #12** (which assume the new architecture). Other items below
+   are scene-agnostic and can interleave.
+1. **Voice (#15)** — ~2h. No dependencies, instant ship. Can run in
+   parallel with #0.
 2. **Desktop OS notifications (#17)** — ~2h. Foundation for surfacing
-   the priority queue events.
-3. **Attention-direction layer (#11)** — ~½d. The queue itself.
-4. **Decree core (#14)** — ~1d. Composer + file/command palette.
+   the priority queue events. Scene-agnostic.
+3. **Decree core (#14)** — ~1d. Composer + file/command palette.
+   Per-card button → modal; scene-agnostic.
+4. **Attention-direction layer (#11)** — ~½d. The queue itself,
+   surfaced in the side overlay panel + as pulsing world badges on
+   the map. Needs #0 done.
 5. **Quest system (#12)** — ~1.5d. Needs Anthropic API key in
-   keykeeper settings.
+   keykeeper settings. Quest Log lives in the side overlay panel.
 6. **In-context observability (#13)** — ~1d. Permission context +
    why-trace + stuck-with-explanation.
 7. **Permission approval surface (#18)** — ~1d. Builds on #13 + #17.
