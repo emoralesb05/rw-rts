@@ -3,6 +3,7 @@ import { App } from "./App";
 import { attachEventStream } from "./ipc";
 import { useStore } from "./store";
 import { preloadSounds, play } from "./audio/sounds";
+import { attachMusicLoop } from "./audio/music";
 import { attachLetterNotifications } from "./desktop-notifications";
 import { attachStandingOrderRunner } from "./standing-orders";
 import "./styles.css";
@@ -11,6 +12,7 @@ void preloadSounds();
 attachEventStream();
 attachLetterNotifications();
 attachStandingOrderRunner();
+attachMusicLoop();
 
 // Hydrate persisted kingdom state on launch. Renderer reads via IPC; the
 // main process is the source of truth for the JSON file on disk.
