@@ -36,6 +36,8 @@ import {
   createRoleAnimations,
   hasOverride,
 } from "../sprite-assets";
+import { drawShadow, type HeartlessRef } from "../heartless";
+import type { Heartless } from "@shared/events";
 
 const SCANLINE_TEX = "kh-kingdom-scanlines";
 
@@ -90,12 +92,15 @@ type WorldRef = {
   worldId: string;
   container: Phaser.GameObjects.Container;
   isoPlane: Phaser.GameObjects.Container;
+  todOverlay: Phaser.GameObjects.Rectangle;
   alertRing: Phaser.GameObjects.Arc;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
   theme: WorldTheme;
   alertLevel: WorldAlertLevel;
+  spawnedAt: number;
   wielders: Map<string, WielderRef>;
+  heartless: Map<string, HeartlessRef>;
 };
 
 type ClusterRef = {
@@ -151,6 +156,23 @@ export class KingdomScene extends Phaser.Scene {
       }
     }
     registerSpritesheetPreload(this);
+
+    // Heartless sheets — 32×32 frames, 8 per sheet.
+    this.load.spritesheet(
+      "heartless-shadow-sheet",
+      "/sprites/kh-default/heartless-shadow_sheet.png",
+      { frameWidth: 32, frameHeight: 32 }
+    );
+    this.load.spritesheet(
+      "heartless-soldier-sheet",
+      "/sprites/kh-default/heartless-soldier_sheet.png",
+      { frameWidth: 32, frameHeight: 32 }
+    );
+    this.load.spritesheet(
+      "heartless-largebody-sheet",
+      "/sprites/kh-default/heartless-largebody_sheet.png",
+      { frameWidth: 32, frameHeight: 32 }
+    );
   }
 
   create() {
@@ -225,8 +247,11 @@ export class KingdomScene extends Phaser.Scene {
         ref.alertRing.setAlpha(1);
       }
 
-      // Sync wielders for this world.
+      // Sync wielders + heartless for this world.
       this.syncWieldersFor(ref, w, units);
+      this.syncHeartlessFor(ref, w);
+      // Time-of-day tint per-world based on session age.
+      this.updateTimeOfDay(ref);
     }
 
     // Twinkle stars
@@ -446,7 +471,14 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(world.unitIds.length > 0);
 
-    container.add([isoPlane, alertRing, label, themeText, countBg, countText]);
+    // Time-of-day overlay — sized to cover the iso plane footprint.
+    // Tinted by session age in update(); starts transparent.
+    const todSize = ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE * 1.1;
+    const todOverlay = this.add
+      .rectangle(0, 0, todSize, todSize, 0x000000, 0)
+      .setOrigin(0.5);
+
+    container.add([isoPlane, todOverlay, alertRing, label, themeText, countBg, countText]);
 
     // Click → select world's first wielder + pan camera here.
     // Hit area is the alert ring (covers the world's footprint).
@@ -463,12 +495,15 @@ export class KingdomScene extends Phaser.Scene {
       worldId,
       container,
       isoPlane,
+      todOverlay,
       alertRing,
       countText,
       countBg,
       theme,
       alertLevel: world.alertLevel,
+      spawnedAt: this.time.now,
       wielders: new Map(),
+      heartless: new Map(),
     };
   }
 
@@ -563,6 +598,119 @@ export class KingdomScene extends Phaser.Scene {
       homeTx,
       homeTy,
     };
+  }
+
+  /**
+   * Add/remove heartless mob sprites for a world based on its current
+   * heartless array. Heartless live inside the world's isoPlane container
+   * so they share its scaling.
+   */
+  private syncHeartlessFor(worldRef: WorldRef, world: WorldState) {
+    const seen = new Set<string>();
+    for (const h of world.heartless) {
+      seen.add(h.id);
+      if (worldRef.heartless.has(h.id)) continue;
+      worldRef.heartless.set(h.id, this.spawnHeartlessIn(worldRef, h));
+    }
+    for (const [id, ref] of worldRef.heartless) {
+      if (!seen.has(id)) {
+        this.poofHeartless(ref);
+        worldRef.heartless.delete(id);
+      }
+    }
+  }
+
+  private spawnHeartlessIn(worldRef: WorldRef, h: Heartless): HeartlessRef {
+    // Spawn at a random edge tile (so they crawl in from the dark border).
+    const edge = Math.floor(Math.random() * 4);
+    let tx = 0, ty = 0;
+    switch (edge) {
+      case 0: tx = Math.random() * ISO_GRID; ty = -1; break;
+      case 1: tx = ISO_GRID; ty = Math.random() * ISO_GRID; break;
+      case 2: tx = Math.random() * ISO_GRID; ty = ISO_GRID; break;
+      case 3: tx = -1; ty = Math.random() * ISO_GRID; break;
+    }
+    const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
+    const x = (tx - ty) * (ISO_TILE_W / 2);
+    const y = offsetY + (tx + ty) * (ISO_TILE_H / 2);
+
+    const shadow = this.add.ellipse(0, 14, 16, 4, 0x000000, 0.55);
+    const body = this.add.container(0, 0);
+    const sheetKey = `heartless-${h.type.replace(/_/g, "")}-sheet`;
+    if (this.textures.exists(sheetKey)) {
+      const spr = this.add.sprite(0, 0, sheetKey, 0);
+      spr.setScale(1.4);
+      this.tweens.add({
+        targets: spr,
+        y: { from: -1, to: 1 },
+        yoyo: true,
+        repeat: -1,
+        duration: 600 + Math.random() * 400,
+        ease: "Sine.easeInOut",
+      });
+      body.add(spr);
+    } else {
+      body.add(drawShadow(this));
+    }
+    const container = this.add.container(x, y, [shadow, body]);
+    container.setScale(0.2);
+    container.setAlpha(0);
+    this.tweens.add({
+      targets: container,
+      scale: 1,
+      alpha: 1,
+      duration: 320,
+      ease: "Back.easeOut",
+    });
+    worldRef.isoPlane.add(container);
+    return {
+      id: h.id,
+      type: h.type,
+      targetUnitId: h.targetUnitId,
+      container,
+      body,
+      shadow,
+      bobOffset: Math.random() * Math.PI * 2,
+      lastLungeAt: 0,
+    };
+  }
+
+  private poofHeartless(ref: HeartlessRef) {
+    if (!ref.container.scene) return;
+    this.tweens.add({
+      targets: ref.container,
+      scale: 0.2,
+      alpha: 0,
+      duration: 240,
+      onComplete: () => ref.container.destroy(true),
+    });
+  }
+
+  /**
+   * Tint each world's overlay based on session age — bright daylight at
+   * start, sunset orange after 10min, dusk after 20min. Per Q14 in
+   * vision.md (locked v1 cycle), but applied per-world here so each
+   * world has its own clock.
+   */
+  private updateTimeOfDay(worldRef: WorldRef) {
+    const ageMs = this.time.now - worldRef.spawnedAt;
+    const m = ageMs / 60_000;
+    let color = 0x000000;
+    let alpha = 0;
+    if (m < 3) {
+      color = 0x6cc6ff;
+      alpha = 0.05;
+    } else if (m < 10) {
+      color = 0xffb86c;
+      alpha = 0.08;
+    } else if (m < 20) {
+      color = 0xff7a4a;
+      alpha = 0.16;
+    } else {
+      color = 0x1a1340;
+      alpha = 0.28;
+    }
+    worldRef.todOverlay.setFillStyle(color, alpha);
   }
 
   /**

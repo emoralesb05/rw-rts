@@ -3,7 +3,7 @@
  * yellow round eyes and two crooked antennae. The visuals are deliberately
  * iconic so the player can read "enemy" instantly even at small zoom.
  *
- * The combat lifecycle (spawn → walk → attack → die) lives in WorldScene;
+ * The combat lifecycle (spawn → walk → attack → die) lives in KingdomScene;
  * this module is just primitives.
  */
 

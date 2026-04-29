@@ -104,8 +104,8 @@ function newHeartlessId(worldId: string): string {
   return `h-${worldId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// Per-theme heartless mix — must match THEME_HEARTLESS_MIX in
-// scenes/World.ts. Duplicating to avoid main↔scene coupling at runtime.
+// Per-theme heartless mix — used by store to pick which heartless
+// type spawns when an error fires.
 const HEARTLESS_MIX_BY_THEME: Record<
   string,
   { shadow: number; soldier: number; largebody: number }
