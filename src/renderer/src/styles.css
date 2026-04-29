@@ -372,6 +372,21 @@ select.btn {
   color: #04060d;
   border-bottom-right-radius: 2px;
 }
+.chat-sender-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(0, 0, 0, 0.7);
+  vertical-align: middle;
+}
+.chat-bubble-text {
+  vertical-align: middle;
+}
 .chat-assistant .chat-bubble-body {
   background: linear-gradient(180deg, #1a2752, #14204a);
   color: var(--text);
@@ -1592,7 +1607,7 @@ select.btn {
 }
 .activity-log-row {
   display: grid;
-  grid-template-columns: 8px 70px 1fr 28px;
+  grid-template-columns: 8px 100px 1fr 28px;
   align-items: center;
   gap: 6px;
   width: 100%;
@@ -1620,6 +1635,14 @@ select.btn {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.activity-log-name-me {
+  color: #ffd86b;
+}
+.activity-log-arrow {
+  color: var(--muted);
+  margin: 0 4px;
+  font-weight: 400;
 }
 .activity-log-text {
   color: var(--muted);

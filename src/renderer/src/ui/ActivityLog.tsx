@@ -106,8 +106,17 @@ export function ActivityLog() {
             recent.map((ev, i) => {
               const unit = units[ev.sessionId];
               const summary = summarizeEvent(ev);
-              const dotColor = unit ? ROLE_HEX[unit.role] : "#444";
-              const name = unit?.displayName ?? "—";
+              // user_prompt = the King speaking *into* the wielder's
+              // session, not the wielder talking. Show direction so it
+              // reads "Me → Ryn" — clear who the message is going to.
+              const isMe = ev.kind === "user_prompt";
+              const dotColor = isMe
+                ? "#ffd86b"
+                : unit
+                ? ROLE_HEX[unit.role]
+                : "#444";
+              const recipientName = unit?.displayName ?? "—";
+              const recipientColor = unit ? ROLE_HEX[unit.role] : "#888";
               const key = `${ev.sessionId}-${ev.timestamp}-${i}`;
               // permission_request rows demote to non-clickable (and to
               // a neutral tone) once their letter is gone — clicking a
@@ -149,14 +158,25 @@ export function ActivityLog() {
                   : "system event"
                 : ev.kind === "permission_request"
                 ? "click to spotlight the alert"
-                : `${name} — click to open conversation`;
+                : isMe
+                ? `you sent a prompt to ${recipientName}`
+                : `${recipientName} — click to open conversation`;
               const summaryText = isPermResolved
                 ? `${summary.text} · resolved`
                 : summary.text;
+              const NameSlot = isMe ? (
+                <span className="activity-log-name activity-log-name-me">
+                  Me
+                  <span className="activity-log-arrow">→</span>
+                  <span style={{ color: recipientColor }}>{recipientName}</span>
+                </span>
+              ) : (
+                <span className="activity-log-name">{recipientName}</span>
+              );
               const Body = (
                 <>
                   <span className="activity-log-dot" style={{ background: dotColor }} />
-                  <span className="activity-log-name">{name}</span>
+                  {NameSlot}
                   <span className="activity-log-text">{summaryText}</span>
                   <span className="activity-log-time">{shortAgo(ev.timestamp)}</span>
                 </>

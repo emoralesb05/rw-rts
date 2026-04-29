@@ -185,7 +185,10 @@ function AssistantBubble({ text }: { text: string }) {
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="chat-bubble chat-user">
-      <div className="chat-bubble-body">{text}</div>
+      <div className="chat-bubble-body">
+        <span className="chat-sender-tag">Me</span>
+        <span className="chat-bubble-text">{text}</span>
+      </div>
     </div>
   );
 }
