@@ -15,11 +15,6 @@ import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { play } from "./audio/sounds";
 
 
-// "throne" = home (React ThroneRoom). "gummi" = WorldSelectScene.
-// activeWorldId being set always means the WorldScene is in front,
-// regardless of view. Default is throne.
-export type KingdomView = "throne" | "gummi";
-
 export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
 
 type Store = {
@@ -28,8 +23,11 @@ type Store = {
   units: Record<string, UnitState>;
   worlds: Record<string, WorldState>;
   selectedUnitId: string | null;
+  // The most recently focused world. Drives UnitInspector filtering and
+  // is stamped by selectWorld. In the unified-map architecture (Q40)
+  // there's no longer a single "active scene"; this field is just the
+  // last-clicked-world bookmark.
   activeWorldId: string | null;
-  view: KingdomView;
   mutedSessionIds: Record<string, true>;
   persisted: PersistedState;
   letters: Letter[];
@@ -42,7 +40,6 @@ type Store = {
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
-  setView(view: KingdomView): void;
   setCameraTarget(worldId: string | null): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
@@ -666,7 +663,6 @@ export const useStore = create<Store>((set) => ({
   worlds: {},
   selectedUnitId: null,
   activeWorldId: null,
-  view: "throne",
   mutedSessionIds: loadMuted(),
   persisted: EMPTY_PERSISTED,
   letters: [],
@@ -705,9 +701,6 @@ export const useStore = create<Store>((set) => ({
       cameraTarget: id,
       cameraTargetVersion: id ? s.cameraTargetVersion + 1 : s.cameraTargetVersion,
     }));
-  },
-  setView(view) {
-    set({ view });
   },
   setCameraTarget(worldId) {
     set((s) => ({
@@ -794,9 +787,12 @@ export const useStore = create<Store>((set) => ({
   },
   sealKeyhole(worldId) {
     play("seal");
-    // Pull the camera to the gummi map so the player witnesses the
-    // fanfare on the planet itself.
-    set({ view: "gummi", activeWorldId: null });
+    // Pan the unified-map camera to the sealed world so the fanfare
+    // (gold-keyhole materialization) plays in context.
+    set((s) => ({
+      cameraTarget: worldId,
+      cameraTargetVersion: s.cameraTargetVersion + 1,
+    }));
     set((state) => {
       const world = state.worlds[worldId];
       if (!world) return state;

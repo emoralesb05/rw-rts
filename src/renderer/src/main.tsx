@@ -15,10 +15,13 @@ void window.kh
   .then((s) => useStore.getState().hydratePersisted(s))
   .catch(() => {});
 
-let lastWorldId = useStore.getState().activeWorldId;
+// Play the warp SFX whenever the camera is asked to pan to a world
+// (clicking a wielder card, a letter, or a planet). cameraTargetVersion
+// is monotonic so re-clicking the same world also fires.
+let lastCamVersion = useStore.getState().cameraTargetVersion;
 useStore.subscribe((state) => {
-  if (state.activeWorldId !== lastWorldId) {
-    lastWorldId = state.activeWorldId;
+  if (state.cameraTargetVersion !== lastCamVersion) {
+    lastCamVersion = state.cameraTargetVersion;
     play("world_warp");
   }
 });

@@ -1,3 +1,19 @@
+/**
+ * DEPRECATED — kept as a porting reference only. Not registered with the
+ * Phaser game (see PhaserGame.tsx). The unified KingdomScene replaces
+ * the per-world Arena scene per Q40 in vision.md.
+ *
+ * Useful porting targets (still to merge into KingdomScene):
+ * - Iso plane rendering at zoom-in (drawIsoGrid / placeArenaLandmarks)
+ * - Wielder sprite spawn + animation (spawnSprite / updateSpriteState /
+ *   updateSpriteAnimation / animateEvent)
+ * - Heartless rendering + combat
+ * - Drive-form aura visuals
+ * - Time-of-day overlay
+ *
+ * Will be deleted once those features are ported. THEME_HEARTLESS_MIX
+ * (the only export besides WorldScene) should move to a shared module.
+ */
 import * as Phaser from "phaser";
 import { ROLE_PALETTE } from "../units";
 import {

@@ -9,7 +9,6 @@ export function Topbar() {
   const worldCount = useStore((s) => Object.keys(s.worlds).length);
   const unitCount = useStore((s) => Object.keys(s.units).length);
   const eventCount = useStore((s) => s.eventCount);
-  const setView = useStore((s) => s.setView);
   const selectWorld = useStore((s) => s.selectWorld);
 
   useEffect(() => {
@@ -37,12 +36,12 @@ export function Topbar() {
         onChange={(e) => {
           const v = e.target.value;
           if (v) {
-            // Summon demos land in fresh /tmp worlds — switch to the gummi
-            // map so the user actually sees them appear instead of staying
-            // hidden behind the throne overlay.
+            // Summon demos land in fresh /tmp worlds. In the unified-map
+            // architecture the canvas is always visible behind the side
+            // panel, so no view switch is needed — just clear any
+            // selection so the new worlds aren't pre-targeted.
             if (v.startsWith("summon-")) {
               selectWorld(null);
-              setView("gummi");
             }
             void window.kh.playFixture({ scenario: v as never });
             e.target.value = "";

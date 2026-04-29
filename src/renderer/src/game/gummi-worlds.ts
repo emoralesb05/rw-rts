@@ -3,7 +3,7 @@
  * KH world rather than a flat colored disc. Themes are assigned by hashing
  * the worldId so the same repo always lands on the same world.
  *
- * The Container is centered at (0,0); the WorldSelectScene wraps it with an
+ * The Container is centered at (0,0); KingdomScene wraps it with an
  * alert ring, count text, label, heartless badge, and cleared star around it.
  */
 
@@ -65,7 +65,7 @@ export function drawGummiWorld(
 ): Phaser.GameObjects.Container {
   const c = scene.add.container(0, 0);
   // Atmosphere disc — slightly larger than the silhouette, soft alpha so the
-  // alert ring on the WorldSelectScene reads cleanly on top.
+  // alert ring on KingdomScene reads cleanly on top.
   const atm = scene.add.circle(0, 4, 36, THEME_BG[theme], 0.85);
   atm.setStrokeStyle(2, 0xffffff, 0.55);
   c.add(atm);

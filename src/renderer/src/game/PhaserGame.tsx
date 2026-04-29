@@ -7,8 +7,9 @@ import { KingdomScene } from "./scenes/Kingdom";
  * .docs/plans/vision.md). Replaces the previous Throne/Gummi/Arena
  * 3-scene drill-down with one pan/zoom canvas.
  *
- * The old WorldSelectScene + WorldScene files are still in the tree
- * during migration (task #16 cleanup) but no longer instantiated.
+ * The legacy WorldScene file is retained as a porting reference for
+ * the iso-plane rendering work (still to merge into KingdomScene).
+ * WorldSelectScene was deleted in cleanup; KingdomScene replaces both.
  */
 export function PhaserGame() {
   const hostRef = useRef<HTMLDivElement>(null);
