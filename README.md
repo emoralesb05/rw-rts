@@ -160,21 +160,23 @@ timestamp resets to "now" on next launch.
 replaces the 3-scene drill-down; worlds clustered by parent dir;
 side overlay panel for cards + letters).
 
-**Phase 2B (8 of 10 items):** ✅ attention-direction layer · ✅ Decree
-verb (with Standing Order recurring sub-mode) · ✅ voice input
-(transcription) · ✅ desktop OS notifications · ✅ permission approval
-(bidirectional Claude Code hook integration; works cleanly for
-keykeeper-spawned sessions) · ✅ stuck-loop detection with explanation
-· ✅ why-trace (expandable "what led to this" on tool calls).
-⏸ Quest system + ⏸ standalone permission-context observability
-sub-feature.
+**Phase 2B (functionally complete, 9 of 9 items in scope):**
+✅ attention-direction layer · ✅ Decree verb · ✅ Standing Order
+recurring sub-mode (persisted across restart) · ✅ voice input
+(transcription) · ✅ desktop OS notifications · ✅ permission
+approval via Claude Code's PermissionRequest hook (allow skips
+the terminal prompt; deny blocks the tool — works for both
+keykeeper-spawned and observed terminal sessions) · ✅ stuck-loop
+detection with explanation · ✅ why-trace expandable on tool calls
+· ✅ permission risk chip (LOW/ELEVATED/HIGH) + reasoning context.
+🚚 Quest system moved to Phase 2A polish.
 
 **Phase 2A polish (locked, not yet started):** Tier 2/3 shaders
 (water, fire, magic energy, heat haze, chromatic aberration),
 chiptune music, per-world signature decorations beyond the MVP
 one-each, composite-form banners (Pair / Royal Guard / Wayfinder
 Trio), real-token MP per adapter, Renown star-rank UI, Cura/Curaga
-tier verbs, replay mode, outbound MCP server.
+tier verbs, replay mode, outbound MCP server, Quest system.
 
 **Wielder polish deferred during the unified-map iso port:** patrol
 behavior (wielders currently stand at home tile), event-driven

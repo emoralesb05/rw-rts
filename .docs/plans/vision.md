@@ -60,51 +60,49 @@ pans + zooms; manual drag/scroll-wheel camera. Legacy WorldScene +
 WorldSelectScene deleted (~2200 lines net removed by the redesign +
 cleanup).
 
-**Phase 2B shipped (2026-04-28, 8 of 10 items):**
+**Phase 2B shipped (2026-04-28 → 2026-04-29, 9 of 9 in scope):**
 - ✅ #11 Attention-direction layer (priority queue banner)
 - ✅ #13a Stuck-loop detection with explanation
 - ✅ #13b Why-trace expandable on tool calls
+- ✅ #13c Permission risk chip (LOW/ELEVATED/HIGH) + reasoning
+  expandable on permission letters
 - ✅ #14 Decree composer (layered, @ files / commands)
-- ✅ #14b Standing Order sub-mode (recurring decree, in-memory only)
+- ✅ #14b Standing Order sub-mode — recurring decrees, **persisted
+  across app restart** with identity-based rebinding
 - ✅ #15 Voice input (Web Speech API, transcription only)
 - ✅ #17 Desktop OS notifications (Electron Notification API)
-- ✅ #18 Permission approval — full bidirectional flow proven with
-  spawned Claude sessions (allow path runs the tool; deny blocks it).
-  Two real bugs fixed during integration: bridge filter rejected
-  spawned-session permission requests; substring detection false-
-  positived on quoted args (replaced with shlex token-level parse).
-- 🚚 #12 Quest system — **moved to Phase 2A polish list (post-v1)**
-  per user 2026-04-28. Phase 2B is now considered complete.
-- ⏸ #13c Permission context as standalone observability sub-feature
-  — partly there in the #18 letter body; standalone chat surface
-  for non-permission tool calls not built
+- ✅ #18 Permission approval — switched to Claude Code's
+  **PermissionRequest hook** (the right upstream signal: fires only
+  when Claude would show its permission prompt; returning
+  `decision.behavior` skips the prompt). End-to-end verified with
+  spawned Claude sessions (allow runs the tool; deny blocks it).
+- 🚚 #12 Quest system — moved to Phase 2A polish list (post-v1)
 
-**Phase 2B finding (2026-04-28):** Claude Code's PreToolUse hook fires
-in parallel with Claude's own permission UI for **observed terminal
-sessions** (the user running `claude` in their own terminal). Both
-prompts appear; whichever the user answers first wins. For
-**keykeeper-spawned sessions** (no terminal prompt), the keykeeper
-letter is the sole UI and the flow is clean. The permission feature
-is most useful for spawned/automated sessions; for terminal sessions
-it's an additional surface, not a replacement.
+**Phase 2B finding (2026-04-29):** First architectural attempt
+(PreToolUse + risky-pattern detection) fired too eagerly and
+double-confirmed Claude's terminal prompt. Switched to
+PermissionRequest hook, which fires only when Claude would prompt
+— no double-confirm, no risky-pattern guessing, returns the right
+`decision.behavior` shape (different from PreToolUse's
+`permissionDecision`). Lesson: read the upstream docs before
+designing around assumed behavior.
 
-**Open / next-session items (~22 surface items remain):**
-- **Phase 2B:** #12 Quest (~1.5d, biggest remaining), #13c standalone
-  permission context, Standing Order persistence
+**Open / next-session items:**
 - **Wielder polish (deferred during iso-port):** patrol behavior,
   event-driven animation switching, drive auras, subagent tether,
   HP/MP rings, death/victory poses
-- **Phase 2A (10 items):** Tier 2/3 shaders, chiptune music, per-
-  world signature decorations beyond MVP one-each, composite form
-  banners, real-token MP per adapter, Renown star-rank UI, Cura/
-  Curaga verbs, replay mode, outbound MCP server
+- **Phase 2A (11 items, locked but not started):** Tier 2/3 shaders,
+  chiptune music, per-world signature decorations beyond MVP
+  one-each, composite-form banners, real-token MP per adapter,
+  Renown star-rank UI, Cura/Curaga verbs, replay mode, outbound MCP
+  server, **Quest system (moved from Phase 2B 2026-04-28)**
 - **Polish odds and ends:** Phaser ambient ThroneScene (currently
   CSS-only), richer Halloween/Twilight landmark assets, observed-
   session permission UX decision
 
-The functional spine (Phase 2B north star — attention-direction +
-in-context observability) is essentially complete. Most remaining
-items are visual polish.
+**Phase 2B is functionally complete.** The north star
+(attention-direction + in-context observability) is shipped end-to-
+end. Remaining work is polish + the Phase 2A locked decisions.
 
 ---
 
@@ -475,7 +473,7 @@ Everything else is downstream of these two.
     from AgentCraft Missions; KH-recoded as the King's bestowed quests.
     See Q36 for the naming-model question (Anthropic API vs piggyback
     vs local model).
-13. ⚠️ **In-context observability** *(13a + 13b shipped 2026-04-28; 13c partial)* — when a letter pulls you to a
+13. ✅ **In-context observability** *(13a + 13b + 13c all shipped 2026-04-28→29)* — when a letter pulls you to a
     wielder, the rest of the situation is immediately legible:
     - **Permission context**: when Claude blocks on a tool ask,
       surface the command + Claude's reasoning right before it +
@@ -487,7 +485,7 @@ Everything else is downstream of these two.
     - **Stuck-with-explanation**: extend existing "3+ same tool"
       detection to *describe* the loop. ("Sora has tried Edit on
       `World.ts` 4 times — diffs are oscillating between two states.")
-14. ✅ **Decree verb (directive interaction)** *(shipped 2026-04-28; Standing Order sub-mode also shipped, persistence deferred)* — *(was ~1.5d — ½d composer, ½d
+14. ✅ **Decree verb (directive interaction)** *(shipped 2026-04-28; Standing Order sub-mode + persistence shipped 2026-04-29)* — *(was ~1.5d — ½d composer, ½d
     pickers, ½d Standing Order loop runner)* — sixth verb. Per-card
     button alongside Send word. UI: file picker (with recent-files +
     @-mention typeahead), function picker (parsed from open files),
