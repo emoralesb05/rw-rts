@@ -12,32 +12,31 @@ export const SOCKET_PATH = join(homedir(), ".claude", "kh-rts.sock");
 let server: Server | null = null;
 
 /**
- * Pending PreToolUse permission requests, keyed by the request_id the
- * Python hook tagged the payload with. We hold the open socket here
- * until the renderer comes back with allow/deny via IPC, then write
- * the reply and close.
- *
- * Auto-cleared on a 60s safety timer so a closed renderer doesn't leak
- * sockets — Python side has its own 60s timeout, so when our timer fires
- * the script will already have given up.
+ * Pending PermissionRequest entries, keyed by the request_id the Python
+ * hook tagged the payload with. We hold the open socket here until the
+ * renderer comes back with allow/deny via IPC, then write the reply
+ * and close. There is no safety timer — the user explicitly chose to
+ * wait indefinitely rather than risk a stale auto-dismiss before they
+ * decided. If the socket errors (e.g. Python died, connection reset),
+ * the error handler emits permission_resolved("error") so the renderer
+ * can drop the now-unanswerable letter.
  */
 type Pending = {
   socket: Socket;
-  timer: NodeJS.Timeout;
   // Identity captured at receive time, used to emit a synthetic
-  // permission_resolved event when the request concludes outside the
-  // GUI (timeout / socket error). The renderer needs sessionId to
-  // locate and dismiss the matching letter.
+  // permission_resolved event when the socket errors (which is now
+  // the only reason a pending entry concludes outside the GUI — the
+  // safety timer was removed because the user wanted permission
+  // letters to wait indefinitely until decided).
   sessionId: string;
   cwd: string;
 };
 const pending = new Map<string, Pending>();
-const PENDING_TIMEOUT_MS = 65_000;
 
 function emitPermissionResolved(
   ctx: { sessionId: string; cwd: string },
   requestId: string,
-  resolution: "timeout" | "error"
+  resolution: "error"
 ) {
   bus.emitAgentEvent({
     sessionId: ctx.sessionId,
@@ -90,22 +89,11 @@ export function startHookBridge() {
       // resolves it. All other events are fire-and-forget.
       if (ev.kind === "permission_request" && ev.payload.requestId) {
         const id = ev.payload.requestId;
-        const ctx = { sessionId: ev.sessionId, cwd: ev.cwd };
-        const timer = setTimeout(() => {
-          // Hard timeout: close the socket without writing — Python
-          // will read EOF and fall back to silent exit (no decision).
-          // Tell the renderer so it can dismiss the now-stale letter.
-          const p = pending.get(id);
-          if (!p) return;
-          pending.delete(id);
-          try {
-            p.socket.end();
-          } catch {
-            /* ignore */
-          }
-          emitPermissionResolved(ctx, id, "timeout");
-        }, PENDING_TIMEOUT_MS);
-        pending.set(id, { socket, timer, sessionId: ctx.sessionId, cwd: ctx.cwd });
+        // No timer — the entry stays open until the GUI resolves it,
+        // the socket errors, or the bridge shuts down (e.g. main exit).
+        // Python's recv() blocks the same way; if the GUI dies, socket
+        // tear-down will surface as recv EOF on its end.
+        pending.set(id, { socket, sessionId: ev.sessionId, cwd: ev.cwd });
       } else {
         socket.destroy();
       }
@@ -113,10 +101,9 @@ export function startHookBridge() {
     socket.on("end", finalize);
     socket.on("error", () => {
       // If a pending socket errors, drop it and tell the renderer so
-      // the orphaned letter gets dismissed.
+      // the orphaned letter gets dismissed (no way to reply now).
       for (const [id, p] of pending) {
         if (p.socket === socket) {
-          clearTimeout(p.timer);
           pending.delete(id);
           emitPermissionResolved(
             { sessionId: p.sessionId, cwd: p.cwd },
@@ -138,7 +125,6 @@ export function stopHookBridge() {
   // Resolve any pending requests with a silent close so Python isn't
   // stuck waiting for us across a restart.
   for (const [, p] of pending) {
-    clearTimeout(p.timer);
     try {
       p.socket.end();
     } catch {
@@ -172,7 +158,6 @@ export function resolvePermissionRequest(
   const p = pending.get(requestId);
   if (!p) return false;
   pending.delete(requestId);
-  clearTimeout(p.timer);
   try {
     // denyMessage is read by bin/kh-rts-hook and only emitted to Claude
     // when behavior=deny — upstream PermissionRequest contract has no

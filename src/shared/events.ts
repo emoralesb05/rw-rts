@@ -52,9 +52,11 @@ export type AgentEvent = {
     // (or timed out) on the main side.
     requestId?: string;
     // Set on permission_resolved: how the request was concluded outside
-    // the GUI. "timeout" = our 65s pending timer fired; "error" = socket
-    // closed before the renderer answered.
-    resolution?: "timeout" | "error";
+    // the GUI. "error" = socket closed/errored before the renderer
+    // answered, so the letter is unanswerable. (We previously had a
+    // "timeout" case but removed the safety timer per user request —
+    // permission letters now wait indefinitely until decided.)
+    resolution?: "error";
   };
   source: "spawned" | "hook";
 };

@@ -26,10 +26,12 @@ import json, os, socket, sys, uuid
 
 SOCK = os.path.join(os.path.expanduser("~"), ".claude", "kh-rts.sock")
 
-# How long to wait for the GUI to resolve a permission request. If the
-# user is AFK and doesn't click, the script silently exits and Claude
-# falls back to its own permission prompt.
-PERMISSION_TIMEOUT_S = 60.0
+# Permission requests block until the user decides — no client-side
+# timeout. If the GUI dies, the socket drops and recv() returns EOF
+# immediately, so Claude falls back to its own prompt cleanly. We
+# previously had a 60s ceiling, but the user explicitly preferred to
+# wait indefinitely rather than risk an auto-dismiss before they could
+# read and decide.
 QUICK_TIMEOUT_S = 2.0
 
 
@@ -71,7 +73,9 @@ def bidirectional_permission(payload):
     payload["__kh_permission_request_id"] = request_id
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    s.settimeout(PERMISSION_TIMEOUT_S)
+    # No timeout: blocks until the bridge writes a reply or closes the
+    # socket. Socket close (EOF) returns us empty chunks → fall through
+    # to silent exit, so Claude falls back to its terminal prompt.
     s.connect(SOCK)
     s.sendall(json.dumps(payload).encode("utf-8"))
     s.shutdown(socket.SHUT_WR)
@@ -83,8 +87,6 @@ def bidirectional_permission(payload):
             if not buf:
                 break
             chunks.append(buf)
-    except socket.timeout:
-        chunks = []
     finally:
         s.close()
 
