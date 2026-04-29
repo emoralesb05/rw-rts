@@ -157,12 +157,18 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  AgentManager.killAll();
-  stopHookBridge();
-  stopCursorAdapter();
-  stopCodexWatch();
-  stopAllFixtures();
-  if (process.platform !== "darwin") app.quit();
+  // On macOS the app stays alive after the window closes (Cmd-Q is the
+  // explicit quit). Don't tear down adapters here — the user may reopen
+  // the window and expect everything to still be running. Cleanup is
+  // handled in "will-quit", which is the only true shutdown signal.
+  if (process.platform !== "darwin") {
+    AgentManager.killAll();
+    stopHookBridge();
+    stopCursorAdapter();
+    stopCodexWatch();
+    stopAllFixtures();
+    app.quit();
+  }
 });
 
 app.on("will-quit", () => {
