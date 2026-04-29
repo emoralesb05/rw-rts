@@ -447,30 +447,87 @@ function drawDestinyIslands(ctx: SKRSContext2D) {
 }
 
 function drawTwilightTown(ctx: SKRSContext2D) {
-  fillEllipse(ctx, 32, 16, 14, 8, "rgba(255, 137, 163, 0.45)");
-  fillRect(ctx, 22, 34, 20, 26, "#6b4423");
-  fillRect(ctx, 26, 14, 12, 22, "#c8a884");
-  fillEllipse(ctx, 32, 22, 4, 4, "#eef7ff");
-  fillRect(ctx, 27, 10, 10, 4, "#8a5530");
-  fillRect(ctx, 29, 6, 6, 4, "#8a5530");
-  fillRect(ctx, 31, 3, 2, 3, "#5a3520");
-  fillRect(ctx, 29, 30, 2, 2, "#ffd86b");
-  fillRect(ctx, 33, 30, 2, 2, "#ffd86b");
+  // Sunset bloom backdrop.
+  fillEllipse(ctx, 32, 16, 22, 12, "rgba(255, 137, 163, 0.35)");
+  fillEllipse(ctx, 32, 18, 16, 8, "rgba(255, 184, 108, 0.30)");
+  // Stone plinth at the base.
+  fillRect(ctx, 18, 54, 28, 8, "#3a2820");
+  fillRect(ctx, 18, 53, 28, 1, "#5a3a2c");
+  // Tall clock-tower body (Big-Ben-style — narrow, tall).
+  fillRect(ctx, 26, 18, 12, 36, "#a87a4a");
+  fillRect(ctx, 26, 17, 12, 1, "#7a5530");      // top ledge shadow
+  fillRect(ctx, 25, 18, 1, 36, "#7a5530");      // left depth
+  fillRect(ctx, 38, 18, 1, 36, "#5a3a20");      // right depth
+  // Decorative brick rows.
+  fillRect(ctx, 26, 26, 12, 1, "#7a5530");
+  fillRect(ctx, 26, 38, 12, 1, "#7a5530");
+  fillRect(ctx, 26, 50, 12, 1, "#7a5530");
+  // Big clock face (8x8 circle near the top).
+  fillEllipse(ctx, 32, 24, 5, 5, "#0a0a14");
+  fillEllipse(ctx, 32, 24, 4, 4, "#f7e8c8");
+  fillRect(ctx, 32, 22, 1, 3, "#1a1426");       // minute hand (up)
+  fillRect(ctx, 32, 24, 3, 1, "#1a1426");       // hour hand (right)
+  fillRect(ctx, 31, 23, 1, 1, "#ff5a3c");       // pin
+  // Belfry crown — narrow tier above the clock.
+  fillRect(ctx, 28, 13, 8, 4, "#8a5530");
+  fillRect(ctx, 28, 12, 8, 1, "#5a3a20");
+  fillRect(ctx, 30, 14, 1, 2, "#ffd86b");       // belfry windows (lit)
+  fillRect(ctx, 33, 14, 1, 2, "#ffd86b");
+  // Spire + cross.
+  fillRect(ctx, 30, 6, 4, 7, "#5a3a20");
+  fillRect(ctx, 31, 3, 2, 3, "#7a5530");
+  fillRect(ctx, 31, 1, 2, 2, "#ffd86b");        // gilded peak
+  fillRect(ctx, 30, 2, 4, 1, "#ffd86b");        // crossbar
+  // Stained glass on the body — small.
+  fillRect(ctx, 30, 32, 4, 4, "#6cc6ff");
+  fillRect(ctx, 31, 33, 2, 2, "#a4d8ff");
+  fillRect(ctx, 30, 44, 4, 4, "#6cc6ff");
+  fillRect(ctx, 31, 45, 2, 2, "#a4d8ff");
+  // Ground shadow.
+  fillEllipse(ctx, 32, 62, 24, 2, "rgba(0,0,0,0.45)");
 }
 
 function drawHalloweenTown(ctx: SKRSContext2D) {
-  fillRect(ctx, 18, 56, 4, 4, "#2a1f3a");
-  fillRect(ctx, 22, 50, 4, 10, "#2a1f3a");
-  fillRect(ctx, 26, 42, 4, 18, "#2a1f3a");
-  fillRect(ctx, 30, 32, 4, 28, "#2a1f3a");
-  fillRect(ctx, 34, 26, 4, 34, "#2a1f3a");
-  fillRect(ctx, 38, 30, 4, 30, "#2a1f3a");
-  fillRect(ctx, 42, 38, 4, 22, "#2a1f3a");
-  fillRect(ctx, 46, 50, 4, 10, "#2a1f3a");
-  fillEllipse(ctx, 50, 54, 6, 4, "#ff7a3c");
-  fillRect(ctx, 47, 53, 2, 1, "#ffd86b");
-  fillRect(ctx, 51, 53, 2, 1, "#ffd86b");
-  fillRect(ctx, 48, 55, 4, 1, "#ffd86b");
+  // Crescent moon in the sky.
+  fillEllipse(ctx, 12, 10, 5, 5, "#ffd86b");
+  fillEllipse(ctx, 14, 9, 4, 4, "#1a0f24");      // crescent bite
+  // Curly Hill — the iconic spiral silhouette. Hand-drawn pixel curl.
+  fillRect(ctx, 12, 50, 40, 12, "#1a0f24");      // base mound
+  fillRect(ctx, 14, 48, 36, 2, "#1a0f24");
+  fillRect(ctx, 18, 44, 28, 4, "#1a0f24");
+  fillRect(ctx, 22, 40, 18, 4, "#1a0f24");
+  fillRect(ctx, 26, 36, 12, 4, "#1a0f24");
+  fillRect(ctx, 30, 32, 8, 4, "#1a0f24");
+  fillRect(ctx, 34, 28, 6, 4, "#1a0f24");
+  fillRect(ctx, 36, 24, 5, 4, "#1a0f24");
+  // The curl — hook to the right at the top of the hill.
+  fillRect(ctx, 38, 20, 4, 4, "#1a0f24");
+  fillRect(ctx, 40, 18, 4, 2, "#1a0f24");
+  fillRect(ctx, 42, 16, 3, 2, "#1a0f24");
+  fillRect(ctx, 43, 18, 2, 2, "#1a0f24");
+  fillRect(ctx, 41, 20, 2, 2, "#1a0f24");        // inner curl shadow
+  // Bare twisted tree on the left foreground.
+  fillRect(ctx, 8, 36, 2, 22, "#0a0510");        // trunk
+  fillRect(ctx, 6, 32, 2, 6, "#0a0510");         // branch left-up
+  fillRect(ctx, 4, 30, 2, 2, "#0a0510");
+  fillRect(ctx, 10, 28, 2, 8, "#0a0510");        // branch up
+  fillRect(ctx, 12, 30, 2, 4, "#0a0510");        // branch right
+  fillRect(ctx, 14, 32, 2, 2, "#0a0510");
+  // Pumpkins at the foot — two of them, one bigger.
+  fillEllipse(ctx, 18, 56, 4, 3, "#ff7a3c");
+  fillRect(ctx, 17, 54, 2, 1, "#3d2010");        // stem
+  fillEllipse(ctx, 50, 56, 5, 4, "#ff7a3c");
+  fillEllipse(ctx, 50, 56, 4, 3, "#ff9a4c");     // highlight
+  fillRect(ctx, 49, 53, 2, 1, "#3d2010");        // stem
+  fillRect(ctx, 47, 55, 1, 1, "#ffd86b");        // jack-o-lantern eye
+  fillRect(ctx, 51, 55, 1, 1, "#ffd86b");        // jack-o-lantern eye
+  fillRect(ctx, 49, 57, 3, 1, "#1a0f24");        // grin
+  // Distant gravestones — silhouette dots at the right of the hill.
+  fillRect(ctx, 54, 52, 3, 6, "#3a2840");
+  fillRect(ctx, 53, 53, 1, 1, "#3a2840");
+  fillRect(ctx, 57, 53, 1, 1, "#3a2840");
+  // Ground shadow.
+  fillEllipse(ctx, 32, 62, 28, 2, "rgba(0,0,0,0.55)");
 }
 
 function makeLandmarks() {
@@ -541,10 +598,27 @@ function makeGroundTiles() {
 }
 
 // ─── run ───────────────────────────────────────────────────────────
+//
+// Pass group names to limit output. Useful since the keyblader stills +
+// sheets in this script are placeholder programmatic art that has been
+// superseded by hand-authored / AI-generated keybladers shipped in
+// kh-default/. Running the script with no args overwrites them too —
+// always pass a filter unless you really want the procedural ones.
+//
+// Examples:
+//   bun scripts/generate-pixel-sprites.ts landmarks
+//   bun scripts/generate-pixel-sprites.ts heartless tiles
+//   bun scripts/generate-pixel-sprites.ts all          # full run
+const args = process.argv.slice(2);
+const groups = args.length === 0 || args.includes("all")
+  ? new Set(["keybladers", "heartless", "landmarks", "tiles"])
+  : new Set(args);
 
-makeSheet("keyblader1");
-makeSheet("keyblader2");
-makeHeartlessSheets();
-makeLandmarks();
-makeGroundTiles();
-console.log("\nAll sprites generated.");
+if (groups.has("keybladers")) {
+  makeSheet("keyblader1");
+  makeSheet("keyblader2");
+}
+if (groups.has("heartless")) makeHeartlessSheets();
+if (groups.has("landmarks")) makeLandmarks();
+if (groups.has("tiles")) makeGroundTiles();
+console.log(`\nDone — groups: ${[...groups].join(", ")}.`);
