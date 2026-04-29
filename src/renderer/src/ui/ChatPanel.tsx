@@ -113,17 +113,106 @@ function summarizeToolInput(name: string | undefined, input: unknown): string {
   }
 }
 
-function ToolUseRow({ ev }: { ev: AgentEvent }) {
+function ToolUseRow({
+  ev,
+  events,
+}: {
+  ev: AgentEvent;
+  events: AgentEvent[];
+}) {
+  const [showTrace, setShowTrace] = useState(false);
   const name = String(ev.payload.name ?? "");
   const icon = TOOL_ICON[name] ?? "•";
   const summary = summarizeToolInput(name, ev.payload.input);
+  const trace = useMemo(() => extractWhyTrace(events, ev), [events, ev]);
   return (
     <div className="chat-tool">
-      <span className="chat-tool-icon">{icon}</span>
-      <span className="chat-tool-name">{name}</span>
-      {summary && <span className="chat-tool-arg">{summary}</span>}
+      <div className="chat-tool-line">
+        <span className="chat-tool-icon">{icon}</span>
+        <span className="chat-tool-name">{name}</span>
+        {summary && <span className="chat-tool-arg">{summary}</span>}
+        {trace.length > 0 && (
+          <button
+            type="button"
+            className="chat-tool-why"
+            onClick={() => setShowTrace((v) => !v)}
+            title="show what led to this tool call"
+          >
+            {showTrace ? "▲ why" : "▼ why"}
+          </button>
+        )}
+      </div>
+      {showTrace && trace.length > 0 && (
+        <div className="chat-tool-trace">
+          <div className="chat-tool-trace-label">what led to this</div>
+          {trace.map((t, i) => (
+            <WhyTraceRow key={i} ev={t} />
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+function WhyTraceRow({ ev }: { ev: AgentEvent }) {
+  if (ev.kind === "user_prompt") {
+    const text = String(ev.payload.text ?? "");
+    const trimmed = text.length > 220 ? text.slice(0, 220) + "…" : text;
+    return (
+      <div className="chat-trace-item chat-trace-user">
+        <span className="chat-trace-tag">USER</span>
+        <span className="chat-trace-body">{trimmed}</span>
+      </div>
+    );
+  }
+  if (ev.kind === "assistant_text") {
+    const text = String(ev.payload.text ?? "");
+    const trimmed = text.length > 280 ? text.slice(0, 280) + "…" : text;
+    return (
+      <div className="chat-trace-item chat-trace-assistant">
+        <span className="chat-trace-tag">THINKING</span>
+        <span className="chat-trace-body">{trimmed}</span>
+      </div>
+    );
+  }
+  if (ev.kind === "tool_result") {
+    const text = renderText(ev.payload.output);
+    const trimmed = text.length > 180 ? text.slice(0, 180) + "…" : text;
+    return (
+      <div className="chat-trace-item chat-trace-result">
+        <span className="chat-trace-tag">RESULT</span>
+        <span className="chat-trace-body">{trimmed || "(empty)"}</span>
+      </div>
+    );
+  }
+  return null;
+}
+
+/**
+ * Walk backward through the event log (which is newest-first in store)
+ * from a tool_use event, collecting up to 3 pieces of context that led
+ * to it. Stops at session_start or the most recent user_prompt.
+ *
+ * Returns chronological order (oldest first) so the trace reads top-down
+ * like the user's mental model: prompt → thinking → result → THIS CALL.
+ */
+function extractWhyTrace(events: AgentEvent[], target: AgentEvent): AgentEvent[] {
+  const idx = events.indexOf(target);
+  if (idx < 0) return [];
+  const trace: AgentEvent[] = [];
+  for (let i = idx + 1; i < events.length && trace.length < 3; i++) {
+    const e = events[i];
+    if (e.sessionId !== target.sessionId) continue;
+    if (e.kind === "session_start") break;
+    if (e.kind === "user_prompt") {
+      trace.push(e);
+      break;
+    }
+    if (e.kind === "assistant_text" || e.kind === "tool_result") {
+      trace.push(e);
+    }
+  }
+  return trace.reverse();
 }
 
 function ToolResultRow({ ev }: { ev: AgentEvent }) {
@@ -260,7 +349,7 @@ export function ChatPanel() {
               body = <AssistantBubble text={String(e.payload.text ?? "")} />;
               break;
             case "tool_use":
-              body = <ToolUseRow ev={e} />;
+              body = <ToolUseRow ev={e} events={events} />;
               break;
             case "tool_result":
               body = <ToolResultRow ev={e} />;
