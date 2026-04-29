@@ -636,6 +636,93 @@ select.btn {
   50%      { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0); }
 }
 
+/* ──────────────────── Attention banner (#11) ─────────────────── */
+
+.attention-banner {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(255, 90, 60, 0.18), rgba(255, 90, 60, 0.06));
+  border: 1px solid rgba(255, 90, 60, 0.6);
+  cursor: pointer;
+  animation: attention-pulse 2.4s ease-in-out infinite;
+}
+.attention-banner.sev-important {
+  background: linear-gradient(180deg, rgba(255, 216, 107, 0.16), rgba(255, 216, 107, 0.05));
+  border-color: rgba(255, 216, 107, 0.55);
+  animation: none;
+}
+.attention-banner.sev-notable {
+  background: linear-gradient(180deg, rgba(108, 198, 255, 0.14), rgba(108, 198, 255, 0.04));
+  border-color: rgba(108, 198, 255, 0.5);
+  animation: none;
+}
+@keyframes attention-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 60, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0); }
+}
+.attention-banner:hover {
+  filter: brightness(1.08);
+}
+.attention-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.attention-banner-eye {
+  color: #ff5a3c;
+  font-size: 10px;
+}
+.attention-banner.sev-important .attention-banner-eye { color: #ffd86b; }
+.attention-banner.sev-notable .attention-banner-eye { color: #6cc6ff; }
+.attention-banner-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ff5a3c;
+  font-family: ui-monospace, monospace;
+  flex: 1;
+}
+.attention-banner.sev-important .attention-banner-tag { color: #ffd86b; }
+.attention-banner.sev-notable .attention-banner-tag { color: #6cc6ff; }
+.attention-banner-time {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.attention-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.attention-banner-body {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+.attention-banner-actions {
+  display: flex;
+  gap: 6px;
+}
+.attention-banner-act {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.attention-banner-act:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 /* ──────────────────── Decree composer (#14) ─────────────────── */
 
 .card-verb.decree {

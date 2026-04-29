@@ -8,10 +8,43 @@
  * stats live in the header. The Phaser ambient castle backdrop is a
  * polish-phase add — for v1 we use a CSS gradient + subtle pattern.
  */
+import { useMemo } from "react";
 import { useStore } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
 import { themeFor, themeLabel } from "../game/gummi-worlds";
 import type { UnitState, AgentTool, Letter } from "@shared/events";
+
+/**
+ * Attention scorer (Phase 2B #11). Ranks letters by recency × severity ×
+ * wielder-status. The top-scoring letter wins the pinned ATTENTION banner
+ * at the top of the side panel.
+ *
+ * Recency decays linearly over 10 minutes. Severity dominates (critical >>
+ * important > notable). HP critical / fallen on the related wielder boosts
+ * the score so an old "HP < 25%" letter can outrank a newer notable.
+ */
+function attentionScore(
+  letter: Letter,
+  units: Record<string, UnitState>,
+  now: number
+): number {
+  const ageMs = now - letter.createdAt;
+  const ageScore = Math.max(0, 1 - ageMs / (10 * 60_000));
+  if (ageScore === 0) return 0;
+  const sev =
+    letter.severity === "critical" ? 100 :
+    letter.severity === "important" ? 40 :
+    10;
+  let unitBoost = 0;
+  if (letter.sessionId) {
+    const unit = Object.values(units).find((u) => u.sessionId === letter.sessionId);
+    if (unit) {
+      if (unit.hp < 25) unitBoost += 30;
+      if (unit.status === "fallen") unitBoost += 20;
+    }
+  }
+  return ageScore * (sev + unitBoost);
+}
 
 const TOOL_LABEL: Record<AgentTool, string> = {
   claude: "Claude",
@@ -219,6 +252,42 @@ function LetterCard({ letter }: { letter: Letter }) {
   );
 }
 
+function AttentionBanner({ letter }: { letter: Letter }) {
+  const applyLetterAction = useStore((s) => s.applyLetterAction);
+  const setCameraTarget = useStore((s) => s.setCameraTarget);
+  const primary = letter.actions[0];
+  return (
+    <div
+      className={`attention-banner sev-${letter.severity}`}
+      onClick={() => letter.worldId && setCameraTarget(letter.worldId)}
+    >
+      <div className="attention-banner-head">
+        <span className="attention-banner-eye">◉</span>
+        <span className="attention-banner-tag">NEEDS YOU</span>
+        <span className="attention-banner-time">{timeAgo(letter.createdAt)}</span>
+      </div>
+      <div className="attention-banner-title">{letter.title}</div>
+      {letter.body && (
+        <div className="attention-banner-body">{letter.body}</div>
+      )}
+      {primary && (
+        <div className="attention-banner-actions">
+          <button
+            type="button"
+            className="attention-banner-act"
+            onClick={(e) => {
+              e.stopPropagation();
+              applyLetterAction(letter, primary.action);
+            }}
+          >
+            {primary.label}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ThroneRoom() {
   // Always rendered as the left-side overlay panel in the unified-map
   // architecture. No view-gate; the panel is a permanent surface.
@@ -226,6 +295,24 @@ export function ThroneRoom() {
   const worlds = useStore((s) => s.worlds);
   const letters = useStore((s) => s.letters);
   const persisted = useStore((s) => s.persisted);
+
+  // Attention queue: pick the highest-scoring active letter as the
+  // pinned "needs you" banner. Re-derived each render; cheap (50 letters
+  // max). Only show if the score crosses a threshold so we don't pin
+  // stale low-priority noise.
+  const attention = useMemo(() => {
+    const now = Date.now();
+    let best: Letter | null = null;
+    let bestScore = 25; // threshold — must beat this to pin
+    for (const l of letters) {
+      const s = attentionScore(l, units, now);
+      if (s > bestScore) {
+        bestScore = s;
+        best = l;
+      }
+    }
+    return best;
+  }, [letters, units]);
   const list = Object.values(units).sort(
     (a, b) => b.lastActivity - a.lastActivity
   );
@@ -276,6 +363,8 @@ export function ThroneRoom() {
           + Dispatch a wielder
         </button>
       </header>
+
+      {attention && <AttentionBanner letter={attention} />}
 
       <div className="throne-body">
         <section className="throne-section throne-wielders">
