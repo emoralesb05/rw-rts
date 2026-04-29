@@ -1826,6 +1826,62 @@ select.btn {
   flex-wrap: nowrap;
   overflow: hidden;
 }
+/* The pills inherit a top-aligned default from outside; force center
+ * inside the party row so name, tool pill, and archetype chip share
+ * the same baseline. */
+.party-row-line .tool-pill,
+.party-row-line .origin-pill,
+.party-row-line .archetype-chip {
+  align-self: center;
+}
+/* Behavior-class chip — small monochrome glyph in a subtle pill that
+ * matches the tool-pill weight so the row reads as one unit. */
+.archetype-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 16px;
+  font-size: 10px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.archetype-chip.archetype-tank {
+  color: #6cc6ff;
+  background: rgba(108, 198, 255, 0.10);
+  border-color: rgba(108, 198, 255, 0.40);
+}
+.archetype-chip.archetype-healer {
+  color: #7af0a8;
+  background: rgba(122, 240, 168, 0.10);
+  border-color: rgba(122, 240, 168, 0.40);
+}
+.archetype-chip.archetype-dps {
+  color: #ff7a3c;
+  background: rgba(255, 122, 60, 0.10);
+  border-color: rgba(255, 122, 60, 0.40);
+}
+.archetype-chip.archetype-roamer {
+  color: var(--muted);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+/* Inline label is hidden by default (chip stays glyph-only). When a
+ * chip carries `.archetype-chip-label` inside, it widens to fit and
+ * shows the role name — used by the larger target-panel meta line. */
+.archetype-chip-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
+.archetype-chip:has(.archetype-chip-label) {
+  width: auto;
+  padding: 1px 6px 1px 5px;
+}
 .party-row-name {
   font-size: 12px;
   font-weight: 600;

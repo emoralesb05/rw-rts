@@ -8,6 +8,11 @@
 import { useStore } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
+import {
+  classifyArchetype,
+  ARCHETYPE_GLYPH,
+  ARCHETYPE_TITLE,
+} from "../role-archetype";
 import type { AgentTool, UnitState } from "@shared/events";
 
 const TOOL_LABEL: Record<AgentTool, string> = {
@@ -73,6 +78,8 @@ export function PartyRow({ unit }: { unit: UnitState }) {
   const openPanel = usePanels((s) => s.openPanel);
   const panels = usePanels((s) => s.panels);
   const standingOrders = useStore((s) => s.standingOrders);
+  const events = useStore((s) => s.events);
+  const archetype = classifyArchetype(unit.id, events);
   const hasOrder = Object.values(standingOrders).some(
     (o) => o.unitId === unit.id && o.status === "active"
   );
@@ -127,6 +134,13 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           <span className="party-row-name">{unit.displayName}</span>
           <span className={`tool-pill tool-${unit.tool}`}>
             {TOOL_LABEL[unit.tool]}
+          </span>
+          <span
+            className={`archetype-chip archetype-${archetype}`}
+            title={ARCHETYPE_TITLE[archetype]}
+            aria-label={`Behavior class: ${archetype}`}
+          >
+            {ARCHETYPE_GLYPH[archetype]}
           </span>
           <StatusIcons unit={unit} hasOrder={hasOrder} />
         </div>

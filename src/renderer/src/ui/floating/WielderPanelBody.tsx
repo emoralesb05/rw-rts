@@ -11,6 +11,12 @@ import { useStore, unitIdentityFor } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { ConversationStream } from "../ConversationStream";
+import {
+  classifyArchetype,
+  ARCHETYPE_GLYPH,
+  ARCHETYPE_LABEL,
+  ARCHETYPE_TITLE,
+} from "../role-archetype";
 import type { AgentTool, UnitState, WielderStats } from "@shared/events";
 
 const TOOL_LABEL: Record<AgentTool, string> = {
@@ -73,12 +79,14 @@ export function WielderPanelBody({
 }: Props) {
   const unit = useStore((s) => s.units[unitId]);
   const worlds = useStore((s) => s.worlds);
+  const events = useStore((s) => s.events);
   const standingOrders = useStore((s) => s.standingOrders);
   const persistedWielders = useStore((s) => s.persisted.wielders);
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
   const [tab, setTab] = useState<TabKey>(initialTab);
+  const archetype = unit ? classifyArchetype(unit.id, events) : "roamer";
   // When the caller bumps the tick, jump back to whatever tab they
   // requested — covers re-opening an already-parked panel from the
   // chat icon.
@@ -174,6 +182,15 @@ export function WielderPanelBody({
           </div>
           <div className="target-panel-meta">
             <span className="target-panel-mood">{moodFor(unit)}</span>
+            <span
+              className={`archetype-chip archetype-${archetype}`}
+              title={ARCHETYPE_TITLE[archetype]}
+            >
+              {ARCHETYPE_GLYPH[archetype]}
+              <span className="archetype-chip-label">
+                {ARCHETYPE_LABEL[archetype]}
+              </span>
+            </span>
             <span
               className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
               title={`Renown: ${renown.score} (${renown.tier})`}
