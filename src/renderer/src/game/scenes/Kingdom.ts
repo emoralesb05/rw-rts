@@ -187,6 +187,11 @@ type WorldRef = {
   wielders: Map<string, WielderRef>;
   heartless: Map<string, HeartlessRef>;
   particles: { circle: Phaser.GameObjects.Arc; vx: number; vy: number; baseAlpha: number; phase: number }[];
+  // Tier 2 — per-theme animated atmospherics drawn on the iso plane.
+  // Only populated for themes that have a signature effect (water, fire,
+  // magic). Redrawn each frame from the theme's draw routine.
+  atmospherics?: Phaser.GameObjects.Graphics;
+  atmosPhase: number;
 };
 
 type ClusterRef = {
@@ -401,6 +406,8 @@ export class KingdomScene extends Phaser.Scene {
       this.updateTimeOfDay(ref);
       // Drift particles inside this world's iso footprint.
       this.tickWorldParticles(ref, delta);
+      // Tier 2 — per-theme animated atmosphere (water, fire, magic).
+      this.tickWorldAtmospherics(ref, delta);
     }
 
     // Twinkle stars
@@ -675,6 +682,16 @@ export class KingdomScene extends Phaser.Scene {
       useStore.getState().setCameraTarget(worldId);
     });
 
+    // Tier 2 — per-theme signature atmosphere on the iso plane.
+    // Drawn into a Graphics that's redrawn each frame from the theme's
+    // routine. Themes without a signature treatment leave this undefined.
+    let atmospherics: Phaser.GameObjects.Graphics | undefined;
+    if (theme === "destiny" || theme === "halloween" || theme === "hollow") {
+      atmospherics = this.add.graphics();
+      atmospherics.setDepth(-12);
+      isoPlane.add(atmospherics);
+    }
+
     return {
       worldId,
       container,
@@ -689,7 +706,77 @@ export class KingdomScene extends Phaser.Scene {
       wielders: new Map(),
       heartless: new Map(),
       particles: this.spawnWorldParticles(isoPlane, theme),
+      atmospherics,
+      atmosPhase: Math.random() * Math.PI * 2,
     };
+  }
+
+  /**
+   * Tier 2 — redraw the per-theme animated atmosphere for one world.
+   * Cheap (single Graphics, simple primitives, only runs for themes
+   * that have an atmospherics layer).
+   */
+  private tickWorldAtmospherics(worldRef: WorldRef, delta: number) {
+    const g = worldRef.atmospherics;
+    if (!g) return;
+    worldRef.atmosPhase += delta * 0.001;
+    g.clear();
+    const halfW = (ISO_GRID * ISO_TILE_W) / 2;
+    const halfH = (ISO_GRID * ISO_TILE_H) / 2;
+    const phase = worldRef.atmosPhase;
+    if (worldRef.theme === "destiny") {
+      // Water — three sine wave ribbons drifting along the bottom edge.
+      // Cyan, low alpha. Period staggered between ribbons so they don't
+      // pulse in lockstep.
+      g.lineStyle(1.5, 0x6cc6ff, 0.4);
+      for (let band = 0; band < 3; band++) {
+        const yBase = halfH * 0.55 + band * 6;
+        const amp = 3 + band * 1.5;
+        const freq = 0.045 + band * 0.005;
+        const drift = phase * (1 + band * 0.3);
+        g.beginPath();
+        for (let x = -halfW; x <= halfW; x += 6) {
+          const y = yBase + Math.sin(x * freq + drift) * amp;
+          if (x === -halfW) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.strokePath();
+      }
+    } else if (worldRef.theme === "halloween") {
+      // Fire — two flickering ember pools at the landmark base, plus a
+      // jittery glow ring.
+      const flick1 = 0.7 + 0.3 * Math.sin(phase * 6);
+      const flick2 = 0.6 + 0.4 * Math.sin(phase * 7.3 + 1.7);
+      g.fillStyle(0xff7a4a, 0.45 * flick1);
+      g.fillCircle(-18, halfH * 0.25, 5 + flick1 * 1.5);
+      g.fillStyle(0xffb86c, 0.55 * flick1);
+      g.fillCircle(-18, halfH * 0.25 - 1, 2.5);
+      g.fillStyle(0xff7a4a, 0.45 * flick2);
+      g.fillCircle(20, halfH * 0.25, 5 + flick2 * 1.5);
+      g.fillStyle(0xffb86c, 0.55 * flick2);
+      g.fillCircle(20, halfH * 0.25 - 1, 2.5);
+      // Heat shimmer outline around landmark.
+      g.lineStyle(1, 0xff5a3c, 0.18 + 0.12 * Math.sin(phase * 4));
+      g.strokeCircle(0, 0, 32 + 2 * Math.sin(phase * 5));
+    } else if (worldRef.theme === "hollow") {
+      // Magic energy — two counter-rotating arcs above the landmark.
+      const radius = 30;
+      const cy = -8;
+      g.lineStyle(2, 0xc9a4ff, 0.55);
+      const start1 = phase * 1.4;
+      g.beginPath();
+      g.arc(0, cy, radius, start1, start1 + Math.PI * 0.7);
+      g.strokePath();
+      g.lineStyle(2, 0xb88cff, 0.4);
+      const start2 = -phase * 1.1 + Math.PI;
+      g.beginPath();
+      g.arc(0, cy, radius * 0.75, start2, start2 + Math.PI * 0.6);
+      g.strokePath();
+      // Center spark — pulses in/out.
+      const spark = 0.6 + 0.4 * Math.sin(phase * 3);
+      g.fillStyle(0xe6d8ff, 0.6 * spark);
+      g.fillCircle(0, cy, 2 + spark * 1.5);
+    }
   }
 
   /**
