@@ -1,36 +1,45 @@
 import { Topbar } from "./ui/Topbar";
-import { ChatPanel } from "./ui/ChatPanel";
 import { CommandInput } from "./ui/CommandInput";
-import { ThroneRoom } from "./ui/ThroneRoom";
 import { DecreeModal } from "./ui/DecreeModal";
+import { ActivityLog } from "./ui/ActivityLog";
 import { PanelLayer } from "./ui/floating/PanelLayer";
 import { PhaserGame } from "./game/PhaserGame";
+import { WielderHUD } from "./ui/hud/WielderHUD";
+import { AlertsHUD } from "./ui/hud/AlertsHUD";
+import { LettersHUD } from "./ui/hud/LettersHUD";
+import { KingdomHeader } from "./ui/hud/KingdomHeader";
 
 /**
- * Unified-map layout (per Q40 in vision.md):
- *   Topbar
- *   ┌──────────┬─────────────────────────┬─────────────┐
- *   │ Throne   │  Kingdom (Phaser)       │  Chat       │
- *   │ side     │  pan/zoom Star Chart    │  + input    │
- *   │ panel    │  fills the middle       │             │
- *   └──────────┴─────────────────────────┴─────────────┘
+ * HUD-overlay layout (FFXIV-style):
  *
- * No more tab nav (Throne / Gummi / per-world). Throne is always visible
- * as a left-side overlay; the unified Kingdom canvas takes the bulk of
- * the stage; chat + command input on the right (unchanged).
+ *   ┌─ Topbar (app controls) ─────────────────────────────────────┐
+ *   │           ┌── KingdomHeader ──┐                              │
+ *   │ ┌─Wielder─┤                   ├─Alerts─┐                     │
+ *   │ │  HUD   │  Kingdom (Phaser,  │  HUD   │                     │
+ *   │ │        │  full-viewport     │        │                     │
+ *   │ │        │  canvas)           │        │                     │
+ *   │ ├─Activity┤                   ├─Letters┤                     │
+ *   │ └────────┘                   └────────┘                     │
+ *   │                                                              │
+ *   │ ─ CommandInput (bottom strip) ─────────────────────────────  │
+ *   └──────────────────────────────────────────────────────────────┘
+ *
+ * Each HUD widget is a glass-pane overlay anchored to its corner.
+ * Per Q40: throne side panel is gone; kingdom canvas IS the throne.
  */
 export function App() {
   return (
     <div className="app">
       <Topbar />
       <div className="stage">
-        <ThroneRoom />
         <PhaserGame />
+        <KingdomHeader />
+        <WielderHUD />
+        <AlertsHUD />
+        <ActivityLog />
+        <LettersHUD />
       </div>
-      <aside className="side">
-        <ChatPanel />
-        <CommandInput />
-      </aside>
+      <CommandInput />
       <DecreeModal />
       <PanelLayer />
     </div>

@@ -17,7 +17,15 @@ export function PanelLayer() {
       {panels.map((p) => (
         <FloatingPanel key={p.id} panel={p}>
           {p.kind === "wielder" && p.key ? (
-            <WielderPanelBody unitId={p.key} />
+            <WielderPanelBody
+              unitId={p.key}
+              initialTab={
+                p.data?.initialTab === "messages" ? "messages" : "status"
+              }
+              initialTabTick={
+                typeof p.data?.tick === "number" ? p.data.tick : 0
+              }
+            />
           ) : p.kind === "settings" ? (
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
           ) : null}

@@ -45,7 +45,7 @@ export function Topbar() {
   return (
     <div className="topbar">
       <span className="title">⌬ keykeeper</span>
-      <span style={{ color: "var(--muted)", fontSize: 12 }}>
+      <span className="topbar-meta">
         {worldCount} worlds · {unitCount} units · {eventCount} events
       </span>
       <span className="spacer" />

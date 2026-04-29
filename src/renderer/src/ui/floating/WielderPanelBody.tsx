@@ -6,9 +6,11 @@
  * If the unit no longer exists (session ended and was cleaned up), the
  * body shows a stub instead of crashing — the user can close the panel.
  */
+import { useEffect, useState } from "react";
 import { useStore, unitIdentityFor } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { ConversationStream } from "../ConversationStream";
 import type { AgentTool, UnitState, WielderStats } from "@shared/events";
 
 const TOOL_LABEL: Record<AgentTool, string> = {
@@ -47,7 +49,22 @@ function timeAgo(ts: number): string {
   return `${h}h ago`;
 }
 
-export function WielderPanelBody({ unitId }: { unitId: string }) {
+type TabKey = "status" | "messages";
+
+type Props = {
+  unitId: string;
+  initialTab?: TabKey;
+  /** Bumped by the caller when it wants a *re-open* to force the tab
+   * back to initialTab (e.g. clicking the chat icon while the panel
+   * is already parked on the Status tab). */
+  initialTabTick?: number;
+};
+
+export function WielderPanelBody({
+  unitId,
+  initialTab = "status",
+  initialTabTick = 0,
+}: Props) {
   const unit = useStore((s) => s.units[unitId]);
   const worlds = useStore((s) => s.worlds);
   const standingOrders = useStore((s) => s.standingOrders);
@@ -55,6 +72,13 @@ export function WielderPanelBody({ unitId }: { unitId: string }) {
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
+  const [tab, setTab] = useState<TabKey>(initialTab);
+  // When the caller bumps the tick, jump back to whatever tab they
+  // requested — covers re-opening an already-parked panel from the
+  // chat icon.
+  useEffect(() => {
+    if (initialTabTick > 0) setTab(initialTab);
+  }, [initialTab, initialTabTick]);
 
   if (!unit) {
     return (
@@ -81,6 +105,32 @@ export function WielderPanelBody({ unitId }: { unitId: string }) {
 
   return (
     <div className={"target-panel" + (ghosted ? " ghosted" : "")}>
+      <div className="wielder-panel-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "status"}
+          className={"wielder-panel-tab" + (tab === "status" ? " active" : "")}
+          onClick={() => setTab("status")}
+        >
+          Status
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "messages"}
+          className={"wielder-panel-tab" + (tab === "messages" ? " active" : "")}
+          onClick={() => setTab("messages")}
+        >
+          Messages
+        </button>
+      </div>
+      {tab === "messages" ? (
+        <div className="wielder-panel-log">
+          <ConversationStream sessionId={unit.id} />
+        </div>
+      ) : (
+        <>
       <div className="target-panel-head">
         <div
           className="target-panel-portrait"
@@ -234,6 +284,8 @@ export function WielderPanelBody({ unitId }: { unitId: string }) {
           × recall
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }

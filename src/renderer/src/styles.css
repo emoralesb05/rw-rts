@@ -35,13 +35,12 @@ body, html, #root {
 
 .app {
   display: grid;
-  grid-template-columns: 1fr 570px;
-  grid-template-rows: 44px 1fr;
+  grid-template-columns: 1fr;
+  grid-template-rows: 44px 1fr auto;
   height: 100vh;
 }
 
 .topbar {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -54,14 +53,20 @@ body, html, #root {
 
 .topbar > * { -webkit-app-region: no-drag; }
 .topbar .title { font-weight: 600; letter-spacing: 0.5px; color: var(--accent-2); }
+.topbar .topbar-meta {
+  color: var(--muted);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
 .topbar .spacer { flex: 1; }
 
-/* Stage layout (Q40): 3 columns — Throne side panel | Kingdom canvas | (chat is the right column of .app, not .stage). */
+/* Stage: canvas fills the full viewport; HUD widgets are absolute
+ * overlays anchored to corners. */
 .stage {
   position: relative;
   background: #04060d;
-  display: grid;
-  grid-template-columns: 380px 1fr;
+  display: block;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -261,16 +266,6 @@ select.btn {
   background-position: right 8px center;
   cursor: pointer;
 }
-
-.side {
-  background: var(--panel);
-  border-left: 1px solid var(--line);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 0;
-  overflow: hidden;
-}
-.side > * { min-height: 0; }
 
 .section {
   border-bottom: 1px solid var(--line);
@@ -646,6 +641,7 @@ select.btn {
   gap: 6px;
   align-items: center;
   border-top: 1px solid var(--line);
+  background: var(--panel);
   flex-wrap: wrap;
 }
 .command-tool {
@@ -871,93 +867,6 @@ select.btn {
 @keyframes voice-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 60, 0.6); }
   50%      { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0); }
-}
-
-/* ──────────────────── Attention banner (#11) ─────────────────── */
-
-.attention-banner {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgba(255, 90, 60, 0.18), rgba(255, 90, 60, 0.06));
-  border: 1px solid rgba(255, 90, 60, 0.6);
-  cursor: pointer;
-  animation: attention-pulse 2.4s ease-in-out infinite;
-}
-.attention-banner.sev-important {
-  background: linear-gradient(180deg, rgba(255, 216, 107, 0.16), rgba(255, 216, 107, 0.05));
-  border-color: rgba(255, 216, 107, 0.55);
-  animation: none;
-}
-.attention-banner.sev-notable {
-  background: linear-gradient(180deg, rgba(108, 198, 255, 0.14), rgba(108, 198, 255, 0.04));
-  border-color: rgba(108, 198, 255, 0.5);
-  animation: none;
-}
-@keyframes attention-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 60, 0.5); }
-  50%      { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0); }
-}
-.attention-banner:hover {
-  filter: brightness(1.08);
-}
-.attention-banner-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.attention-banner-eye {
-  color: #ff5a3c;
-  font-size: 10px;
-}
-.attention-banner.sev-important .attention-banner-eye { color: #ffd86b; }
-.attention-banner.sev-notable .attention-banner-eye { color: #6cc6ff; }
-.attention-banner-tag {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: #ff5a3c;
-  font-family: ui-monospace, monospace;
-  flex: 1;
-}
-.attention-banner.sev-important .attention-banner-tag { color: #ffd86b; }
-.attention-banner.sev-notable .attention-banner-tag { color: #6cc6ff; }
-.attention-banner-time {
-  font-size: 10px;
-  color: var(--muted);
-  font-family: ui-monospace, monospace;
-}
-.attention-banner-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-.attention-banner-body {
-  font-size: 11px;
-  color: var(--muted);
-  margin-bottom: 6px;
-  line-height: 1.4;
-}
-.attention-banner-actions {
-  display: flex;
-  gap: 6px;
-}
-.attention-banner-act {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: var(--text);
-  padding: 5px 10px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.attention-banner-act:hover {
-  background: rgba(255, 255, 255, 0.16);
 }
 
 /* ──────────────────── Decree composer (#14) ─────────────────── */
@@ -1234,244 +1143,8 @@ select.btn {
 .hp > div { background: linear-gradient(90deg, #ff8aa1, #ff6b8a); }
 .mp > div { background: linear-gradient(90deg, #6cc6ff, #4d7eff); }
 
-/* ──────────────────── Throne Room ─────────────────────────────── */
+/* ──────────────────── Pills + bars (shared) ───────────────────── */
 
-.throne-room {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--line);
-  min-height: 0;
-  background:
-    radial-gradient(circle at 12% 28%, rgba(255, 216, 107, 0.10) 1px, transparent 2.5px),
-    radial-gradient(circle at 78% 64%, rgba(108, 198, 255, 0.09) 1px, transparent 2.5px),
-    radial-gradient(circle at 45% 82%, rgba(255, 255, 255, 0.06) 1px, transparent 2.5px),
-    radial-gradient(circle at 88% 12%, rgba(255, 216, 107, 0.08) 1px, transparent 2.5px),
-    radial-gradient(circle at 22% 70%, rgba(255, 216, 107, 0.06) 1px, transparent 2.5px),
-    radial-gradient(ellipse 60% 70% at 50% 0%, rgba(255, 216, 107, 0.16) 0%, rgba(0,0,0,0) 60%),
-    linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 9%, rgba(0,0,0,0) 91%, rgba(0,0,0,0.55) 100%),
-    radial-gradient(ellipse 80% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%),
-    linear-gradient(to bottom, #0a0518 0%, #1a0a30 48%, #0a0518 100%);
-  overflow: hidden;
-  padding: 18px 24px 18px 24px;
-  font-family: system-ui, -apple-system, sans-serif;
-  color: var(--text);
-  pointer-events: auto;
-}
-.throne-room::before {
-  /* Twin throne-room banners: warm gold vertical streaks down the sides.
-     Gentle 7s breathing — torchlight flutter through the silk. */
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    linear-gradient(180deg,
-      rgba(255, 216, 107, 0) 0%,
-      rgba(255, 216, 107, 0.10) 12%,
-      rgba(214, 64, 64, 0.14) 55%,
-      rgba(214, 64, 64, 0) 95%) left top / 38px 100% no-repeat,
-    linear-gradient(180deg,
-      rgba(255, 216, 107, 0) 0%,
-      rgba(255, 216, 107, 0.10) 12%,
-      rgba(214, 64, 64, 0.14) 55%,
-      rgba(214, 64, 64, 0) 95%) right top / 38px 100% no-repeat;
-  animation: throne-banner-flutter 7s ease-in-out infinite;
-}
-.throne-room::after {
-  /* Faint castle hall silhouette at the bottom — anchors the perspective.
-     11s slow brightness pulse: hall light breathing. */
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 700px;
-  height: 200px;
-  background: radial-gradient(ellipse at 50% 100%, rgba(108, 198, 255, 0.08) 0%, rgba(0,0,0,0) 70%);
-  pointer-events: none;
-  z-index: 0;
-  animation: throne-hall-glow 11s ease-in-out infinite;
-}
-@keyframes throne-banner-flutter {
-  0%, 100% { opacity: 0.92; }
-  50%      { opacity: 1; }
-}
-@keyframes throne-hall-glow {
-  0%, 100% { filter: brightness(0.78); }
-  50%      { filter: brightness(1.08); }
-}
-/* Drifting dust mote layer — pixel-y radial-gradient pattern panned slowly
-   diagonally so the chamber air feels alive. Pure CSS, GPU-accelerated. */
-.throne-room > .throne-dust {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.55;
-  background-image:
-    radial-gradient(circle at 18% 31%, rgba(255, 226, 142, 0.40) 0.6px, transparent 1.5px),
-    radial-gradient(circle at 73% 18%, rgba(255, 226, 142, 0.30) 0.6px, transparent 1.5px),
-    radial-gradient(circle at 41% 67%, rgba(214, 184, 255, 0.25) 0.6px, transparent 1.5px),
-    radial-gradient(circle at 88% 79%, rgba(255, 226, 142, 0.30) 0.6px, transparent 1.5px),
-    radial-gradient(circle at 12% 88%, rgba(255, 226, 142, 0.20) 0.6px, transparent 1.5px),
-    radial-gradient(circle at 56% 23%, rgba(255, 226, 142, 0.20) 0.6px, transparent 1.5px);
-  background-size: 240px 240px;
-  animation: throne-dust-drift 38s linear infinite;
-}
-@keyframes throne-dust-drift {
-  0%   { background-position: 0 0; }
-  100% { background-position: -240px -120px; }
-}
-.throne-header {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
-  position: relative;
-  z-index: 1;
-}
-.throne-banner {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.throne-banner-title {
-  color: var(--accent);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 1.4px;
-}
-.throne-banner-sub {
-  color: var(--muted);
-  font-size: 11px;
-  font-family: ui-monospace, monospace;
-  letter-spacing: 0.4px;
-}
-.kingdom-stats {
-  display: flex;
-  gap: 14px;
-  font-size: 13px;
-  color: var(--muted);
-  font-family: ui-monospace, monospace;
-}
-.kingdom-stats strong {
-  color: var(--accent);
-  font-weight: 700;
-}
-.dispatch-btn {
-  padding: 7px 14px;
-  background: var(--accent);
-  color: #0a0518;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-}
-.dispatch-btn:hover {
-  filter: brightness(1.1);
-}
-
-/* Side-panel layout (Q40): stack wielder cards over letter feed
-   vertically since the panel is narrow (~380px). */
-.throne-body {
-  flex: 1;
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 14px;
-  min-height: 0;
-  position: relative;
-  z-index: 1;
-}
-.throne-section {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.throne-section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 10px;
-}
-.throne-section-count {
-  color: var(--accent);
-  font-weight: 600;
-}
-.throne-empty {
-  color: var(--muted);
-  font-size: 12px;
-  font-family: ui-monospace, monospace;
-  padding: 18px;
-  background: rgba(10, 17, 48, 0.45);
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  text-align: center;
-  line-height: 1.6;
-}
-
-.throne-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.throne-card {
-  background: rgba(20, 32, 74, 0.65);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 9px 10px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.throne-card.ghosted {
-  opacity: 0.5;
-}
-.throne-card-head {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 10px;
-  align-items: center;
-}
-.throne-card-portrait {
-  width: 56px;
-  height: 56px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.throne-card-portrait img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 25%;
-  image-rendering: pixelated;
-}
-.throne-card-name-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.throne-card-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
 .tool-pill {
   align-self: flex-start;
   font-size: 8.5px;
@@ -1517,13 +1190,6 @@ select.btn {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.10);
 }
-.throne-card-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10.5px;
-  color: var(--muted);
-}
 /* Renown — small inline rank pill in the wielder card meta row */
 .throne-card-renown {
   font-size: 9px;
@@ -1564,9 +1230,6 @@ select.btn {
   text-transform: uppercase;
 }
 
-.throne-card-mood {
-  font-style: italic;
-}
 .throne-card-world-link {
   background: transparent;
   color: var(--accent);
@@ -1578,14 +1241,6 @@ select.btn {
 }
 .throne-card-world-link:hover {
   text-decoration: underline;
-}
-.throne-card-bars {
-  display: grid;
-  grid-template-columns: 18px 1fr 24px;
-  gap: 4px 6px;
-  font-size: 9.5px;
-  color: var(--muted);
-  font-family: ui-monospace, monospace;
 }
 .bar-row {
   display: contents;
@@ -1599,28 +1254,13 @@ select.btn {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.throne-card-bars .bar {
-  margin-top: 2px;
-  height: 4px;
-}
 .bar.focus > div {
   background: linear-gradient(90deg, #ffd86b, #ff89a3);
-}
-.throne-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 .throne-card-time {
   font-size: 10px;
   color: var(--muted);
   font-family: ui-monospace, monospace;
-}
-.throne-card-actions {
-  display: flex;
-  gap: 4px;
 }
 .card-verb {
   background: rgba(10, 17, 48, 0.85);
@@ -1840,6 +1480,163 @@ select.btn {
   background: transparent;
   border-radius: 0;
 }
+/* ─── Wielder panel tabs (status / log) ────────────────────────── */
+.wielder-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+.wielder-panel-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.wielder-panel-tab:hover {
+  color: var(--text);
+}
+.wielder-panel-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.wielder-panel-log {
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.wielder-panel-log .chat-stream {
+  padding: 8px 12px;
+}
+.chat-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* ─── Activity log (bottom-left HUD) ────────────────────────── */
+.activity-log {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  width: 360px;
+  max-height: 280px;
+  background: rgba(10, 17, 48, 0.78);
+  border: 1px solid rgba(255, 216, 107, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(255, 216, 107, 0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  font-family: ui-monospace, monospace;
+}
+.activity-log.collapsed {
+  max-height: 32px;
+}
+.activity-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 216, 107, 0.05);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+}
+.activity-log.collapsed .activity-log-header {
+  border-bottom: none;
+}
+.activity-log-title {
+  flex: 1;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+}
+.activity-log-count {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.activity-log-toggle {
+  color: var(--muted);
+  font-size: 9px;
+}
+.activity-log-body {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.activity-log-empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  font-family: system-ui, sans-serif;
+}
+.activity-log-row {
+  display: grid;
+  grid-template-columns: 8px 70px 1fr 28px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.activity-log-row:hover {
+  background: rgba(255, 216, 107, 0.06);
+}
+.activity-log-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.activity-log-name {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-log-text {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-log-time {
+  color: var(--muted);
+  font-size: 9.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.activity-log-row.tone-warn .activity-log-text  { color: #ffb86c; }
+.activity-log-row.tone-danger .activity-log-text { color: #ff7a3c; }
+.activity-log-row.tone-ok .activity-log-text    { color: var(--text); }
+
 /* Close-all button in the topbar — only renders when panels are open. */
 .close-all-btn {
   border-color: rgba(255, 122, 60, 0.45) !important;
@@ -1885,6 +1682,24 @@ select.btn {
 }
 .party-row.ghosted {
   opacity: 0.4;
+}
+.party-row-chat {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 16px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.party-row-chat:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 216, 107, 0.08);
 }
 .party-row-portrait {
   width: 32px;
@@ -2178,5 +1993,181 @@ select.btn {
 }
 .letter-deny-reason::placeholder {
   color: var(--muted);
+  font-style: italic;
+}
+
+/* ─── HUD widget shell ─────────────────────────────────────────────
+ * Translucent corner overlay anchored to one of the four corners (or
+ * top-center). Kingdom canvas shows through. Each widget has a
+ * collapsible header. The HudWidget component owns the markup; this
+ * CSS owns the visual treatment.
+ */
+.hud {
+  position: absolute;
+  width: 340px;
+  background: rgba(10, 17, 48, 0.62);
+  border: 1px solid rgba(255, 216, 107, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45),
+              0 0 0 1px rgba(255, 216, 107, 0.04);
+  backdrop-filter: blur(6px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  max-height: calc(50vh - 24px);
+}
+.hud.hud-collapsed {
+  max-height: none;
+  width: auto;
+  min-width: 140px;
+}
+.hud.hud-collapsed .hud-header {
+  padding: 4px 10px;
+}
+.hud-tone-alert {
+  border-color: rgba(255, 122, 60, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45),
+              0 0 0 1px rgba(255, 122, 60, 0.10);
+}
+.hud-tone-info {
+  border-color: rgba(108, 198, 255, 0.30);
+}
+/* corner anchors */
+.hud-top-left     { top: 12px;    left: 12px; }
+.hud-top-right    { top: 12px;    right: 12px; }
+.hud-bottom-left  { bottom: 12px; left: 12px; }
+.hud-bottom-right { bottom: 12px; right: 12px; }
+.hud-top-center {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: calc(100% - 720px);
+}
+
+.hud-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 216, 107, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.hud-tone-alert .hud-header {
+  background: rgba(255, 122, 60, 0.06);
+}
+.hud.hud-collapsed .hud-header {
+  border-bottom-color: transparent;
+}
+.hud-collapse-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.hud-collapse-arrow {
+  color: var(--muted);
+  font-size: 9px;
+  width: 10px;
+}
+.hud-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hud-tone-alert .hud-title {
+  color: #ffb86c;
+}
+.hud-count {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  margin-left: auto;
+}
+.hud-header-extra {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hud-action-btn {
+  background: rgba(255, 216, 107, 0.08);
+  border: 1px solid rgba(255, 216, 107, 0.30);
+  color: var(--accent);
+  font-size: 10px;
+  font-family: inherit;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.hud-action-btn:hover {
+  background: rgba(255, 216, 107, 0.18);
+  border-color: var(--accent);
+}
+.hud-body {
+  overflow-y: auto;
+  padding: 8px;
+}
+.hud-empty {
+  padding: 14px 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ─── KingdomHeader (top-center floating strip) ────────────────── */
+.kingdom-header {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: rgba(10, 17, 48, 0.55);
+  border: 1px solid rgba(255, 216, 107, 0.20);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  z-index: 51;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45),
+              0 0 0 1px rgba(255, 216, 107, 0.06);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.kingdom-header-title {
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.kingdom-header-sep {
+  color: var(--muted);
+  opacity: 0.5;
+}
+.kingdom-header-stat {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.kingdom-header-meta {
+  color: var(--muted);
+  font-size: 11px;
   font-style: italic;
 }

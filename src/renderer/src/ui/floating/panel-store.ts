@@ -22,6 +22,11 @@ export type Panel = {
   y: number;
   width: number;
   z: number;
+  /** Kind-specific payload — e.g. `{ initialTab: "messages" }` for
+   * wielder panels. The body component reads what it needs. Re-opening
+   * an existing panel with new data does NOT replace the prior payload
+   * (the panel keeps whatever state the user has been working in). */
+  data?: Record<string, unknown>;
 };
 
 type State = {
@@ -32,6 +37,7 @@ type State = {
     key?: string;
     title: string;
     width?: number;
+    data?: Record<string, unknown>;
   }): string;
   closePanel(id: string): void;
   closeKind(kind: PanelKind): void;
@@ -62,19 +68,29 @@ function nextPosition(existingCount: number, width: number): { x: number; y: num
 export const usePanels = create<State>((set, get) => ({
   panels: [],
   zCounter: 100,
-  openPanel({ kind, key, title, width = 420 }) {
+  openPanel({ kind, key, title, width = 420, data }) {
     const id = makeId(kind, key);
     const existing = get().panels.find((p) => p.id === id);
     if (existing) {
-      // Already open — bump it to the top of the stack.
-      get().focusPanel(id);
+      // Already open — bump to top of stack and merge any new data the
+      // caller passed (e.g. updated initialTab so the chat icon can
+      // switch a parked panel back to the Messages tab).
+      const z = get().zCounter + 1;
+      set((s) => ({
+        zCounter: z,
+        panels: s.panels.map((p) =>
+          p.id === id
+            ? { ...p, z, data: data ? { ...(p.data ?? {}), ...data } : p.data }
+            : p
+        ),
+      }));
       return id;
     }
     const z = get().zCounter + 1;
     const pos = nextPosition(get().panels.length, width);
     set((s) => ({
       zCounter: z,
-      panels: [...s.panels, { id, kind, key, title, x: pos.x, y: pos.y, width, z }],
+      panels: [...s.panels, { id, kind, key, title, x: pos.x, y: pos.y, width, z, data }],
     }));
     return id;
   },
