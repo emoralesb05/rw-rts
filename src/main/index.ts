@@ -18,6 +18,7 @@ import {
   isInstalled,
 } from "./hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
+import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import {
   IPC,
   type SpawnAgentRequest,
@@ -147,6 +148,11 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
+  ipcMain.handle(IPC.GetSettings, () => loadSettings());
+  ipcMain.handle(IPC.SaveSettings, (_e, next) => saveSettings(next));
+  ipcMain.handle(IPC.ValidateWorkspaceRoot, (_e, p: string) =>
+    validateWorkspaceRoot(p)
+  );
 
   ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());
   ipcMain.handle(IPC.SavePersisted, (_e, state: PersistedState) => {

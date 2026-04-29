@@ -18,7 +18,7 @@
  * Back-compat: the old key "excludeRepos" is still honored if "exclude"
  * isn't set, so older config files keep working.
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -79,6 +79,47 @@ export function loadSettings(): Settings {
 
 export function settingsPath(): string {
   return SETTINGS_PATH;
+}
+
+/** Persist a settings object to disk. Tilde-expansion runs on
+ * workspaceRoot before write so the file always stores absolute paths
+ * — exclude patterns keep their original form (the user wrote them). */
+export function saveSettings(next: Settings): Settings {
+  const cleaned: Settings = {
+    workspaceRoot: expandTilde(next.workspaceRoot ?? defaults().workspaceRoot),
+    exclude: Array.isArray(next.exclude)
+      ? next.exclude
+          .map((s) => (typeof s === "string" ? s.trim() : ""))
+          .filter((s) => s.length > 0)
+      : [],
+  };
+  writeFileSync(SETTINGS_PATH, JSON.stringify(cleaned, null, 2) + "\n", "utf8");
+  return cleaned;
+}
+
+/** Validate a path as a workspace-root candidate. Used for the
+ * Settings UI's live "is this dir okay?" indicator. */
+export function validateWorkspaceRoot(p: string): {
+  valid: boolean;
+  expanded: string;
+  reason?: string;
+} {
+  const expanded = expandTilde((p ?? "").trim());
+  if (!expanded) {
+    return { valid: false, expanded, reason: "empty" };
+  }
+  if (!existsSync(expanded)) {
+    return { valid: false, expanded, reason: "not-found" };
+  }
+  try {
+    const s = statSync(expanded);
+    if (!s.isDirectory()) {
+      return { valid: false, expanded, reason: "not-a-directory" };
+    }
+  } catch {
+    return { valid: false, expanded, reason: "stat-failed" };
+  }
+  return { valid: true, expanded };
 }
 
 /**

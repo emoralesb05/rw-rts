@@ -13,11 +13,25 @@ export const IPC = {
   ResetPersisted: "kh:reset-persisted",
   ResolvePermission: "kh:resolve-permission",
   ListWorkspaceRepos: "kh:list-workspace-repos",
+  GetSettings: "kh:get-settings",
+  SaveSettings: "kh:save-settings",
+  ValidateWorkspaceRoot: "kh:validate-workspace-root",
 } as const;
 
 export type WorkspaceRepoEntry = {
   path: string;
   label: string;
+};
+
+export type AppSettings = {
+  workspaceRoot: string;
+  exclude: string[];
+};
+
+export type WorkspaceRootValidation = {
+  valid: boolean;
+  expanded: string;
+  reason?: "empty" | "not-found" | "not-a-directory" | "stat-failed";
 };
 
 export type PermissionDecision = "allow" | "deny";

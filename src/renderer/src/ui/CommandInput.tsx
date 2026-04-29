@@ -47,10 +47,17 @@ export function CommandInput() {
   const selected = selectedUnitId ? units[selectedUnitId] : null;
 
   useEffect(() => {
-    void window.kh
-      .listWorkspaceRepos()
-      .then(setDiscoveredRepos)
-      .catch(() => setDiscoveredRepos([]));
+    const refresh = () => {
+      void window.kh
+        .listWorkspaceRepos()
+        .then(setDiscoveredRepos)
+        .catch(() => setDiscoveredRepos([]));
+    };
+    refresh();
+    // Re-fetch when settings change so a freshly excluded repo
+    // disappears from the dropdown without an app restart.
+    window.addEventListener("kh:settings-changed", refresh);
+    return () => window.removeEventListener("kh:settings-changed", refresh);
   }, []);
 
   // Spawn target list: discovered repos ∪ already-active worlds (the

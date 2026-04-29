@@ -5,6 +5,8 @@ import type {
   PlayFixtureRequest,
   ResolvePermissionRequest,
   WorkspaceRepoEntry,
+  AppSettings,
+  WorkspaceRootValidation,
 } from "@shared/ipc";
 import type { AgentEvent, PersistedState } from "@shared/events";
 
@@ -25,6 +27,9 @@ declare global {
       resetPersisted(): Promise<PersistedState>;
       resolvePermission(req: ResolvePermissionRequest): Promise<boolean>;
       listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
+      getSettings(): Promise<AppSettings>;
+      saveSettings(next: AppSettings): Promise<AppSettings>;
+      validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;
     };
   }
 }

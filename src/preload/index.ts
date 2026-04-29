@@ -7,6 +7,8 @@ import {
   type PlayFixtureRequest,
   type ResolvePermissionRequest,
   type WorkspaceRepoEntry,
+  type AppSettings,
+  type WorkspaceRootValidation,
 } from "../shared/ipc";
 import type { AgentEvent, PersistedState } from "../shared/events";
 
@@ -56,6 +58,15 @@ const api = {
   },
   listWorkspaceRepos() {
     return ipcRenderer.invoke(IPC.ListWorkspaceRepos) as Promise<WorkspaceRepoEntry[]>;
+  },
+  getSettings() {
+    return ipcRenderer.invoke(IPC.GetSettings) as Promise<AppSettings>;
+  },
+  saveSettings(next: AppSettings) {
+    return ipcRenderer.invoke(IPC.SaveSettings, next) as Promise<AppSettings>;
+  },
+  validateWorkspaceRoot(p: string) {
+    return ipcRenderer.invoke(IPC.ValidateWorkspaceRoot, p) as Promise<WorkspaceRootValidation>;
   },
 };
 

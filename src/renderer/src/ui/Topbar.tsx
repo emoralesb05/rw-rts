@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { isMuted, toggleMuted } from "../audio/sounds";
+import { SettingsModal } from "./SettingsModal";
 import type { HooksStatus } from "@shared/ipc";
 
 export function Topbar() {
   const [status, setStatus] = useState<HooksStatus | null>(null);
   const [muted, setMuted] = useState(isMuted());
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const worldCount = useStore((s) => Object.keys(s.worlds).length);
   const unitCount = useStore((s) => Object.keys(s.units).length);
   const eventCount = useStore((s) => s.eventCount);
@@ -79,6 +81,22 @@ export function Topbar() {
       <button className="btn" onClick={toggleHooks} title={status?.socketPath}>
         hooks: {status?.installed ? "on" : "off"}
       </button>
+      <button
+        className="btn"
+        onClick={() => setSettingsOpen(true)}
+        title="settings — workspace root, exclude patterns"
+        aria-label="Open settings"
+      >
+        ⚙
+      </button>
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          // After save, force any open dropdown to re-fetch by dispatching
+          // a custom event the CommandInput listens for.
+          onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))}
+        />
+      )}
     </div>
   );
 }
