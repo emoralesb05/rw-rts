@@ -47,6 +47,12 @@ type WorldRef = {
   alertLevel: WorldAlertLevel;
 };
 
+type ClusterRef = {
+  key: string;
+  centroid: { x: number; y: number };
+  label: Phaser.GameObjects.Text;
+};
+
 type StarRef = {
   circle: Phaser.GameObjects.Arc;
   twinklePhase: number;
@@ -55,6 +61,8 @@ type StarRef = {
 
 export class KingdomScene extends Phaser.Scene {
   private worlds = new Map<string, WorldRef>();
+  private clusters = new Map<string, ClusterRef>();
+  private layout = new Map<string, { x: number; y: number; clusterKey: string }>();
   private skyGfx?: Phaser.GameObjects.Graphics;
   private scanline?: Phaser.GameObjects.TileSprite;
   private stars: StarRef[] = [];
@@ -145,6 +153,16 @@ export class KingdomScene extends Phaser.Scene {
       s.circle.setAlpha(s.baseAlpha * (0.6 + 0.4 * Math.sin(s.twinklePhase)));
     }
 
+    // Cluster labels fade in at zoom-out (zoom < 0.7), out at zoom-in.
+    // Per Q40 cascading defaults: cluster labels visible at zoom-out only.
+    const z = this.cameras.main.zoom;
+    const targetAlpha = z < 0.45 ? 0.95 : z < 0.7 ? (0.7 - z) / 0.25 * 0.95 : 0;
+    for (const c of this.clusters.values()) {
+      const cur = c.label.alpha;
+      // Smooth fade rather than snap
+      c.label.setAlpha(cur + (targetAlpha - cur) * 0.15);
+    }
+
     // Camera-target subscription — tween camera when store sets it.
     // Track the monotonic version so re-clicking the same world re-pans.
     const state = useStore.getState();
@@ -168,10 +186,29 @@ export class KingdomScene extends Phaser.Scene {
   private syncWorlds(worlds: Record<string, WorldState>) {
     const seen = new Set(Object.keys(worlds));
     const prevCount = this.worlds.size;
+
+    // Recompute the cluster layout from the full world set. Cheap (O(N))
+    // and only fires when the world set actually changed.
+    this.layout = computeClusterLayout(worlds);
+    this.syncClusterLabels();
+
     for (const [id, ref] of this.worlds) {
       if (!seen.has(id)) {
         ref.container.destroy(true);
         this.worlds.delete(id);
+      } else {
+        // Existing world might have moved when the cluster set changed
+        // (e.g., a sibling repo was added). Reposition smoothly.
+        const pos = this.layout.get(id);
+        if (pos && (ref.container.x !== pos.x || ref.container.y !== pos.y)) {
+          this.tweens.add({
+            targets: ref.container,
+            x: pos.x,
+            y: pos.y,
+            duration: 600,
+            ease: "Sine.easeInOut",
+          });
+        }
       }
     }
     for (const id of seen) {
@@ -185,6 +222,59 @@ export class KingdomScene extends Phaser.Scene {
       this.worlds.size > 0 &&
       performance.now() - this.lastUserCamMs > 4000;
     if (shouldAutoFit) this.fitCameraToWorlds();
+  }
+
+  /**
+   * Maintain a label sprite per cluster, positioned at the cluster's
+   * centroid. Labels visible only at zoom-out (zoom < 0.7) per Q40
+   * cascading defaults.
+   */
+  private syncClusterLabels() {
+    const clusterKeys = new Set<string>();
+    for (const layout of this.layout.values()) clusterKeys.add(layout.clusterKey);
+
+    // Drop labels for clusters that are gone.
+    for (const [key, ref] of this.clusters) {
+      if (!clusterKeys.has(key)) {
+        ref.label.destroy();
+        this.clusters.delete(key);
+      }
+    }
+
+    // Compute centroid per cluster + create / move labels.
+    for (const key of clusterKeys) {
+      const members = [...this.layout.entries()].filter(
+        ([, l]) => l.clusterKey === key
+      );
+      let cx = 0, cy = 0;
+      for (const [, l] of members) {
+        cx += l.x;
+        cy += l.y;
+      }
+      cx /= members.length;
+      cy /= members.length;
+      const display = clusterDisplayName(key);
+      let ref = this.clusters.get(key);
+      if (!ref) {
+        const label = this.add
+          .text(cx, cy - 140, display.toUpperCase(), {
+            fontSize: "16px",
+            color: "#ffd86b",
+            fontFamily: "ui-monospace, monospace",
+            fontStyle: "bold",
+            letterSpacing: 2,
+          })
+          .setOrigin(0.5)
+          .setAlpha(0)
+          .setDepth(-10);
+        ref = { key, centroid: { x: cx, y: cy }, label };
+        this.clusters.set(key, ref);
+      } else {
+        ref.centroid = { x: cx, y: cy };
+        ref.label.setPosition(cx, cy - 140);
+        ref.label.setText(display.toUpperCase());
+      }
+    }
   }
 
   /**
@@ -216,7 +306,7 @@ export class KingdomScene extends Phaser.Scene {
 
   private spawnWorld(worldId: string, world: WorldState): WorldRef {
     const theme = themeFor(worldId);
-    const pos = positionForWorld(worldId);
+    const pos = this.layout.get(worldId) ?? { x: 0, y: 0 };
     const container = this.add.container(pos.x, pos.y);
 
     const alertRing = this.add
@@ -383,21 +473,97 @@ export class KingdomScene extends Phaser.Scene {
 }
 
 /**
- * Hash-based world position. Spreads worlds across a large coordinate space
- * so the camera actually has somewhere to pan.
+ * Constellation clustering layout (Q40.3).
  *
- * TODO (task #15): replace with constellation clustering by git remote /
- * shared parent path.
+ * Group worlds by their repo's parent directory on disk (e.g.,
+ * `~/work/foo` and `~/work/bar` cluster together). Each cluster's centroid
+ * is positioned by hash on a large outer ring; member worlds sit on a
+ * smaller inner ring around that centroid.
+ *
+ * Hash-only fallback for ungrouped repos (cluster size 1) — they live on
+ * the outer ring at their hash position, no inner ring offset.
  */
-function positionForWorld(worldId: string): { x: number; y: number } {
-  let h = 0;
-  for (let i = 0; i < worldId.length; i++) {
-    h = (Math.imul(31, h) + worldId.charCodeAt(i)) | 0;
+function computeClusterLayout(
+  worldsRecord: Record<string, WorldState>
+): Map<string, { x: number; y: number; clusterKey: string }> {
+  const out = new Map<string, { x: number; y: number; clusterKey: string }>();
+  const worlds = Object.values(worldsRecord);
+  if (worlds.length === 0) return out;
+
+  // Group by parent dir of world.path
+  const clusters = new Map<string, WorldState[]>();
+  for (const w of worlds) {
+    const key = clusterKeyFor(w.path);
+    let list = clusters.get(key);
+    if (!list) {
+      list = [];
+      clusters.set(key, list);
+    }
+    list.push(w);
   }
-  const radius = 250 + (Math.abs(h) % 1500);
-  const angle = ((Math.abs(h >> 8) % 360) * Math.PI) / 180;
-  return {
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius,
-  };
+
+  // Walk clusters in deterministic order (sorted key) so positions stay
+  // stable across rebuilds.
+  const sortedKeys = [...clusters.keys()].sort();
+
+  for (const key of sortedKeys) {
+    const members = clusters.get(key)!.slice().sort((a, b) =>
+      a.id.localeCompare(b.id)
+    );
+    const ch = hashString(key);
+    // Outer ring: cluster centroids at radius 600–1400 from origin.
+    const outerRadius = 600 + (Math.abs(ch) % 800);
+    const outerAngle = ((Math.abs(ch >> 8) % 360) * Math.PI) / 180;
+    const cx = Math.cos(outerAngle) * outerRadius;
+    const cy = Math.sin(outerAngle) * outerRadius;
+
+    if (members.length === 1) {
+      out.set(members[0].id, { x: cx, y: cy, clusterKey: key });
+      continue;
+    }
+
+    // Inner ring: members spaced around the cluster centroid.
+    const innerRadius = 100 + members.length * 18;
+    members.forEach((w, i) => {
+      const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
+      out.set(w.id, {
+        x: cx + Math.cos(angle) * innerRadius,
+        y: cy + Math.sin(angle) * innerRadius,
+        clusterKey: key,
+      });
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Cluster key = parent directory of the repo path. Any repo with at least
+ * 2 path segments clusters with its siblings (so `/tmp/foo` and
+ * `/tmp/bar` both cluster under `/tmp`). Single-segment paths like `/repo`
+ * are their own cluster.
+ */
+function clusterKeyFor(repoPath: string): string {
+  const parts = repoPath.split("/").filter(Boolean);
+  if (parts.length < 2) return repoPath;
+  return "/" + parts.slice(0, -1).join("/");
+}
+
+/**
+ * Friendly cluster label. Trims the path to the last 2 segments so e.g.
+ * `/Users/ed/Github/emoralesb05` shows as "Github / emoralesb05".
+ */
+function clusterDisplayName(clusterKey: string): string {
+  const parts = clusterKey.split("/").filter(Boolean);
+  if (parts.length === 0) return "/";
+  if (parts.length === 1) return parts[0];
+  return parts.slice(-2).join(" / ");
+}
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return h;
 }
