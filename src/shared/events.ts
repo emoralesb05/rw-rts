@@ -22,7 +22,8 @@ export type AgentEventKind =
   | "tool_use"
   | "tool_result"
   | "subagent_spawn"
-  | "error";
+  | "error"
+  | "permission_request";
 
 export type AgentEvent = {
   sessionId: string;
@@ -41,6 +42,10 @@ export type AgentEvent = {
     text?: string;
     error?: string;
     parentSessionId?: string;
+    // Set on permission_request: opaque id used to route the user's
+    // allow/deny decision back to the open hook socket. Resolved
+    // (or timed out) on the main side.
+    requestId?: string;
   };
   source: "spawned" | "hook";
 };
@@ -91,6 +96,8 @@ export type LetterAction =
   | { kind: "dispatch"; worldId: string }
   | { kind: "send-word"; sessionId: string }
   | { kind: "recall"; sessionId: string }
+  | { kind: "permission-allow"; requestId: string }
+  | { kind: "permission-deny"; requestId: string }
   | { kind: "dismiss" };
 
 export type Letter = {

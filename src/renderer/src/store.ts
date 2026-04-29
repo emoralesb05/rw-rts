@@ -273,6 +273,22 @@ const STUCK_LETTER_COOLDOWN_MS = 90_000;
  * string so the same Edit on the same file (regardless of edit details)
  * counts as a repeat. Returns "*" for unknown shapes.
  */
+/**
+ * Short human description of a permission_request's tool input, for the
+ * Critical letter body. Mirrors argKeyFor's coverage but renders for
+ * humans rather than as a comparable string.
+ */
+function summarizePermissionInput(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const r = input as Record<string, unknown>;
+  if (typeof r.command === "string") return r.command.slice(0, 200);
+  if (typeof r.file_path === "string") return r.file_path;
+  if (typeof r.path === "string") return r.path;
+  if (typeof r.url === "string") return r.url.slice(0, 200);
+  if (typeof r.pattern === "string") return r.pattern;
+  return "";
+}
+
 function argKeyFor(input: unknown): string {
   if (!input || typeof input !== "object") return "*";
   const r = input as Record<string, unknown>;
@@ -745,6 +761,32 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     );
   }
 
+  // Permission request (Phase 2B #18) — Critical letter, no rate-limit
+  // since each request is a distinct decision. Includes the tool name +
+  // a short description of the input as context (#13c permission-context
+  // sub-feature). User must respond within ~60s or Python silently
+  // exits (lets Claude's normal permission flow proceed).
+  if (event.kind === "permission_request" && event.payload.requestId) {
+    const reqId = event.payload.requestId;
+    const toolName = String(event.payload.name ?? "tool");
+    const inputSummary = summarizePermissionInput(event.payload.input);
+    nextLetters = pushLetter(
+      { ...state, letters: nextLetters },
+      makeLetter("critical", `${palette} asks to use ${toolName}`, {
+        body: inputSummary
+          ? `${toolName}: ${inputSummary}`
+          : `Wielder is requesting permission to use ${toolName}.`,
+        sessionId: id,
+        worldId,
+        actions: [
+          { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
+          { label: "✗ deny", action: { kind: "permission-deny", requestId: reqId } },
+          { label: "dismiss", action: { kind: "dismiss" } },
+        ],
+      })
+    );
+  }
+
   // Stuck loop — notable letter, rate-limited per session (Q10 + #13a).
   if (event.kind === "tool_use") {
     const stuck = detectStuckLoop(id);
@@ -974,6 +1016,16 @@ export const useStore = create<Store>((set) => ({
         break;
       case "recall":
         void window.kh.killAgent(action.sessionId).catch(() => {});
+        break;
+      case "permission-allow":
+        void window.kh
+          .resolvePermission({ requestId: action.requestId, decision: "allow" })
+          .catch(() => {});
+        break;
+      case "permission-deny":
+        void window.kh
+          .resolvePermission({ requestId: action.requestId, decision: "deny" })
+          .catch(() => {});
         break;
       case "dismiss":
         break;

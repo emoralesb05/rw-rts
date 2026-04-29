@@ -66,6 +66,7 @@ export function Topbar() {
           <option value="subagent">claude · subagent (Final drive)</option>
           <option value="combat">combat · heartless raid</option>
           <option value="stress">stress · 30 events</option>
+          <option value="permission">permission · approval letter</option>
         </optgroup>
       </select>
       <button

@@ -279,6 +279,7 @@ export type FixtureScenarioId =
   | "subagent"
   | "stress"
   | "combat"
+  | "permission"
   | "demo";
 
 export function playFixture(scenario: FixtureScenarioId, cwd: string) {
@@ -317,6 +318,40 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "combat":
       schedule(heartlessRaid(c));
+      break;
+    case "permission":
+      // UI-only test of the permission letter + IPC flow. No hook
+      // socket to reply to, so resolvePermissionRequest will return
+      // false in main — that's expected. Tests letter rendering +
+      // store action wiring.
+      {
+        const sessionId = randomUUID();
+        const requestId = randomUUID();
+        bus.emitAgentEvent({
+          sessionId,
+          tool: "claude",
+          cwd: c,
+          timestamp: Date.now(),
+          kind: "session_start",
+          payload: {},
+          source: "spawned",
+        });
+        setTimeout(() => {
+          bus.emitAgentEvent({
+            sessionId,
+            tool: "claude",
+            cwd: c,
+            timestamp: Date.now(),
+            kind: "permission_request",
+            payload: {
+              name: "Bash",
+              input: { command: "rm -rf /tmp/dangerous-test-junk" },
+              requestId,
+            },
+            source: "spawned",
+          });
+        }, 400);
+      }
       break;
     case "demo":
       // Fire all three tools in parallel for a "show me everything" demo.

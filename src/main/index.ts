@@ -3,7 +3,11 @@ import { join, resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { bus } from "./event-bus";
 import { AgentManager } from "./agent-manager";
-import { startHookBridge, stopHookBridge } from "./adapters/claude-hook";
+import {
+  startHookBridge,
+  stopHookBridge,
+  resolvePermissionRequest,
+} from "./adapters/claude-hook";
 import { startCursorAdapter, stopCursorAdapter } from "./adapters/cursor";
 import { startCodexWatch, stopCodexWatch } from "./adapters/codex-watch";
 import { playFixture, stopAllFixtures } from "./adapters/fixture";
@@ -18,6 +22,7 @@ import {
   type SpawnAgentRequest,
   type SendPromptRequest,
   type PlayFixtureRequest,
+  type ResolvePermissionRequest,
 } from "@shared/ipc";
 import type { PersistedState } from "@shared/events";
 import {
@@ -134,6 +139,10 @@ app.whenReady().then(async () => {
   ipcMain.handle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
+  });
+
+  ipcMain.handle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
+    return resolvePermissionRequest(req.requestId, req.decision);
   });
 
   ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());

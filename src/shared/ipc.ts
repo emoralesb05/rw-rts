@@ -11,7 +11,15 @@ export const IPC = {
   LoadPersisted: "kh:load-persisted",
   SavePersisted: "kh:save-persisted",
   ResetPersisted: "kh:reset-persisted",
+  ResolvePermission: "kh:resolve-permission",
 } as const;
+
+export type PermissionDecision = "allow" | "deny";
+
+export type ResolvePermissionRequest = {
+  requestId: string;
+  decision: PermissionDecision;
+};
 
 export type FixtureScenario =
   | "summon-vaelen"
@@ -24,6 +32,7 @@ export type FixtureScenario =
   | "subagent"
   | "stress"
   | "combat"
+  | "permission"
   | "demo";
 
 export type PlayFixtureRequest = {

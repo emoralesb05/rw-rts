@@ -5,6 +5,7 @@ import {
   type SendPromptRequest,
   type HooksStatus,
   type PlayFixtureRequest,
+  type ResolvePermissionRequest,
 } from "../shared/ipc";
 import type { AgentEvent, PersistedState } from "../shared/events";
 
@@ -48,6 +49,9 @@ const api = {
   },
   resetPersisted() {
     return ipcRenderer.invoke(IPC.ResetPersisted) as Promise<PersistedState>;
+  },
+  resolvePermission(req: ResolvePermissionRequest) {
+    return ipcRenderer.invoke(IPC.ResolvePermission, req) as Promise<boolean>;
   },
 };
 

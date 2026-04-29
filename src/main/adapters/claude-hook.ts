@@ -5,10 +5,28 @@ import { join } from "node:path";
 import { bus } from "../event-bus";
 import { isSpawnedSession } from "./claude-cli";
 import type { AgentEvent, AgentEventKind } from "@shared/events";
+import type { PermissionDecision } from "@shared/ipc";
 
 export const SOCKET_PATH = join(homedir(), ".claude", "kh-rts.sock");
 
 let server: Server | null = null;
+
+/**
+ * Pending PreToolUse permission requests, keyed by the request_id the
+ * Python hook tagged the payload with. We hold the open socket here
+ * until the renderer comes back with allow/deny via IPC, then write
+ * the reply and close.
+ *
+ * Auto-cleared on a 60s safety timer so a closed renderer doesn't leak
+ * sockets — Python side has its own 60s timeout, so when our timer fires
+ * the script will already have given up.
+ */
+type Pending = {
+  socket: Socket;
+  timer: NodeJS.Timeout;
+};
+const pending = new Map<string, Pending>();
+const PENDING_TIMEOUT_MS = 65_000;
 
 export function startHookBridge() {
   if (server) return;
@@ -19,25 +37,65 @@ export function startHookBridge() {
       // ignore
     }
   }
-  server = createServer((socket: Socket) => {
+  // allowHalfOpen lets us keep the write side of the socket open after
+  // the client sends FIN (Python's shutdown(SHUT_WR)). Required for the
+  // bidirectional permission flow — without this, Node auto-closes the
+  // socket on "end" and resolvePermissionRequest has nothing to write to.
+  server = createServer({ allowHalfOpen: true }, (socket: Socket) => {
     let buf = "";
     socket.on("data", (chunk) => {
       buf += chunk.toString("utf8");
     });
     const finalize = () => {
-      if (buf.trim()) {
-        try {
-          const payload = JSON.parse(buf);
-          const ev = normalizeHookPayload(payload);
-          if (ev) bus.emitAgentEvent(ev);
-        } catch {
-          // ignore malformed
+      if (!buf.trim()) {
+        socket.destroy();
+        return;
+      }
+      let payload: Record<string, unknown>;
+      try {
+        payload = JSON.parse(buf);
+      } catch {
+        socket.destroy();
+        return;
+      }
+      const ev = normalizeHookPayload(payload);
+      if (!ev) {
+        socket.destroy();
+        return;
+      }
+      bus.emitAgentEvent(ev);
+      // permission_request needs the socket kept open until the renderer
+      // resolves it. All other events are fire-and-forget.
+      if (ev.kind === "permission_request" && ev.payload.requestId) {
+        const id = ev.payload.requestId;
+        const timer = setTimeout(() => {
+          // Hard timeout: close the socket without writing — Python
+          // will read EOF and fall back to silent exit (no decision).
+          const p = pending.get(id);
+          if (!p) return;
+          pending.delete(id);
+          try {
+            p.socket.end();
+          } catch {
+            /* ignore */
+          }
+        }, PENDING_TIMEOUT_MS);
+        pending.set(id, { socket, timer });
+      } else {
+        socket.destroy();
+      }
+    };
+    socket.on("end", finalize);
+    socket.on("error", () => {
+      // If a pending socket errors, drop it.
+      for (const [id, p] of pending) {
+        if (p.socket === socket) {
+          clearTimeout(p.timer);
+          pending.delete(id);
         }
       }
       socket.destroy();
-    };
-    socket.on("end", finalize);
-    socket.on("error", () => socket.destroy());
+    });
   });
   server.listen(SOCKET_PATH, () => {
     // eslint-disable-next-line no-console
@@ -46,6 +104,17 @@ export function startHookBridge() {
 }
 
 export function stopHookBridge() {
+  // Resolve any pending requests with a silent close so Python isn't
+  // stuck waiting for us across a restart.
+  for (const [, p] of pending) {
+    clearTimeout(p.timer);
+    try {
+      p.socket.end();
+    } catch {
+      /* ignore */
+    }
+  }
+  pending.clear();
   server?.close();
   server = null;
   if (existsSync(SOCKET_PATH)) {
@@ -55,6 +124,35 @@ export function stopHookBridge() {
       // ignore
     }
   }
+}
+
+/**
+ * Resolve a pending permission request — write the JSON reply on the
+ * still-open hook socket and close it. Called by main from the
+ * IPC.ResolvePermission handler.
+ */
+export function resolvePermissionRequest(
+  requestId: string,
+  decision: PermissionDecision
+): boolean {
+  const p = pending.get(requestId);
+  if (!p) return false;
+  pending.delete(requestId);
+  clearTimeout(p.timer);
+  try {
+    const reply = JSON.stringify({ permissionDecision: decision });
+    p.socket.end(reply);
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/**
+ * Read-only inspector for diagnostics / tests.
+ */
+export function pendingPermissionCount(): number {
+  return pending.size;
 }
 
 function normalizeHookPayload(p: any): AgentEvent | null {
@@ -68,6 +166,22 @@ function normalizeHookPayload(p: any): AgentEvent | null {
     source: "hook" as const,
   };
   const eventName = p.hook_event_name as string | undefined;
+  const requestId = p.__kh_permission_request_id as string | undefined;
+
+  // PreToolUse with a request_id means the Python script wants a
+  // permission decision back. Emit as permission_request, not tool_use.
+  if (eventName === "PreToolUse" && requestId) {
+    return {
+      ...base,
+      timestamp: ts,
+      kind: "permission_request",
+      payload: {
+        name: p.tool_name,
+        input: p.tool_input,
+        requestId,
+      },
+    };
+  }
 
   const map: Record<string, AgentEventKind> = {
     PreToolUse: "tool_use",

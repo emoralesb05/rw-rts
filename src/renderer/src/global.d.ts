@@ -3,6 +3,7 @@ import type {
   SendPromptRequest,
   HooksStatus,
   PlayFixtureRequest,
+  ResolvePermissionRequest,
 } from "@shared/ipc";
 import type { AgentEvent, PersistedState } from "@shared/events";
 
@@ -21,6 +22,7 @@ declare global {
       loadPersisted(): Promise<PersistedState>;
       savePersisted(state: PersistedState): Promise<void>;
       resetPersisted(): Promise<PersistedState>;
+      resolvePermission(req: ResolvePermissionRequest): Promise<boolean>;
     };
   }
 }
