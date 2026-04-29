@@ -610,6 +610,32 @@ select.btn {
 .command input:focus { outline: none; border-color: var(--accent); }
 .command input:disabled { opacity: 0.5; }
 
+.voice-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  transition: color 120ms, border-color 120ms;
+}
+.voice-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.voice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.voice-btn.listening {
+  color: #ff5a3c;
+  border-color: #ff5a3c;
+  animation: voice-pulse 1.1s ease-in-out infinite;
+}
+@keyframes voice-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 60, 0.6); }
+  50%      { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0); }
+}
+
 .unit-card {
   display: flex;
   align-items: center;
