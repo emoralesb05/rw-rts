@@ -133,6 +133,19 @@ function WielderCard({ unit }: { unit: UnitState }) {
           </button>
           <button
             type="button"
+            className="card-verb decree"
+            disabled={ghosted || !unit.spawnedHere}
+            onClick={() => useStore.getState().openDecreeFor(unit.id)}
+            title={
+              !unit.spawnedHere
+                ? "observed-only — keykeeper didn't spawn this wielder"
+                : "decree — directive command (file/function/shell)"
+            }
+          >
+            ⚜ decree
+          </button>
+          <button
+            type="button"
             className="card-verb"
             disabled={!canComfort}
             onClick={() => comfort(unit.id)}

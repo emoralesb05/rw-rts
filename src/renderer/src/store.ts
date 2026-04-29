@@ -36,11 +36,15 @@ type Store = {
   // a monotonic version so the same target can be re-clicked to re-pan.
   cameraTarget: string | null;
   cameraTargetVersion: number;
+  // DecreeModal is open for this unitId when non-null (Phase 2B #14).
+  decreeUnitId: string | null;
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
   setCameraTarget(worldId: string | null): void;
+  openDecreeFor(unitId: string): void;
+  closeDecree(): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
   sealKeyhole(worldId: string): void;
@@ -668,6 +672,7 @@ export const useStore = create<Store>((set) => ({
   letters: [],
   cameraTarget: null,
   cameraTargetVersion: 0,
+  decreeUnitId: null,
 
   ingest(event) {
     _queue.push(event);
@@ -707,6 +712,12 @@ export const useStore = create<Store>((set) => ({
       cameraTarget: worldId,
       cameraTargetVersion: s.cameraTargetVersion + 1,
     }));
+  },
+  openDecreeFor(unitId) {
+    set({ decreeUnitId: unitId });
+  },
+  closeDecree() {
+    set({ decreeUnitId: null });
   },
   toggleMute(sessionId) {
     set((state) => {

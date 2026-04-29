@@ -2,6 +2,7 @@ import { Topbar } from "./ui/Topbar";
 import { ChatPanel } from "./ui/ChatPanel";
 import { CommandInput } from "./ui/CommandInput";
 import { ThroneRoom } from "./ui/ThroneRoom";
+import { DecreeModal } from "./ui/DecreeModal";
 import { PhaserGame } from "./game/PhaserGame";
 
 /**
@@ -29,6 +30,7 @@ export function App() {
         <ChatPanel />
         <CommandInput />
       </aside>
+      <DecreeModal />
     </div>
   );
 }
