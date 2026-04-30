@@ -11,6 +11,7 @@ import { useStore, unitIdentityFor } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { ConversationStream } from "../ConversationStream";
+import { WielderChatInput } from "../WielderChatInput";
 import {
   classifyArchetype,
   ARCHETYPE_GLYPH,
@@ -146,6 +147,7 @@ export function WielderPanelBody({
             scrollToTs={scrollToTs}
             scrollToTick={scrollToTick}
           />
+          <WielderChatInput unit={unit} />
         </div>
       ) : (
         <>

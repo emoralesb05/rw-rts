@@ -9,7 +9,7 @@
  */
 import { create } from "zustand";
 
-export type PanelKind = "wielder" | "settings" | "kingdom";
+export type PanelKind = "wielder" | "settings" | "kingdom" | "dispatch";
 
 export type Panel = {
   /** Stable handle: `${kind}:${key}` (or `${kind}` for singletons). */

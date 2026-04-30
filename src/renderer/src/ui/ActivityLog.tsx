@@ -30,19 +30,34 @@ const NON_CLICKABLE: ReadonlySet<AgentEvent["kind"]> = new Set([
 ]);
 
 /** Pulse + scroll the AlertsHUD letter card whose permission action
- * carries the given requestId. Silent fail if no match (the alert
- * has already been resolved or auto-dismissed). */
+ * carries the given requestId. If AlertsHUD is collapsed, fire an
+ * expand event first so the body re-renders, then locate the card on
+ * the next frame. Silent fail if no match (the alert has already been
+ * resolved or auto-dismissed). */
 function highlightAlert(requestId: string) {
+  // Force-expand AlertsHUD if it's currently collapsed.
+  window.dispatchEvent(
+    new CustomEvent("kh:expand-hud", { detail: { title: "Alerts" } })
+  );
+  const findAndPulse = () => {
+    const el = document.querySelector<HTMLElement>(
+      `.hud-top-right [data-letter-request-id="${requestId}"]`
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el.classList.remove("letter-pulse");
+    void el.offsetWidth;
+    el.classList.add("letter-pulse");
+    window.setTimeout(() => el.classList.remove("letter-pulse"), 1600);
+  };
+  // First try synchronously (already-expanded case), then fall back to
+  // next animation frame to give the React re-render after expand a
+  // chance to mount the body.
   const el = document.querySelector<HTMLElement>(
     `.hud-top-right [data-letter-request-id="${requestId}"]`
   );
-  if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  el.classList.remove("letter-pulse"); // restart anim if already running
-  // Force reflow so the next add re-triggers the keyframes.
-  void el.offsetWidth;
-  el.classList.add("letter-pulse");
-  window.setTimeout(() => el.classList.remove("letter-pulse"), 1600);
+  if (el) findAndPulse();
+  else requestAnimationFrame(() => requestAnimationFrame(findAndPulse));
 }
 
 export function ActivityLog() {
@@ -148,7 +163,7 @@ export function ActivityLog() {
                   kind: "wielder",
                   key: unit.id,
                   title: `${unit.displayName} · ${unit.tool}`,
-                  width: 460,
+                  width: 560,
                   data: {
                     initialTab: "messages",
                     tick: Date.now(),

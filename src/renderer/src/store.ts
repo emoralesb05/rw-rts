@@ -903,7 +903,6 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         worldId,
         actions: [
           { label: "♥ comfort (50µ)", action: { kind: "comfort", sessionId: id } },
-          { label: "dive", action: { kind: "dive", worldId } },
           { label: "dismiss", action: { kind: "dismiss" } },
         ],
       })
@@ -957,10 +956,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       makeLetter("important", `${nextWorld.label} fell into danger`, {
         body: "Heartless are overwhelming the world.",
         worldId,
-        actions: [
-          { label: "dive", action: { kind: "dive", worldId } },
-          { label: "dismiss", action: { kind: "dismiss" } },
-        ],
+        actions: [{ label: "dismiss", action: { kind: "dismiss" } }],
       })
     );
   }
@@ -1067,7 +1063,6 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
           worldId,
           actions: [
             { label: "send hint", action: { kind: "send-word", sessionId: id } },
-            { label: "dive", action: { kind: "dive", worldId } },
             { label: "dismiss", action: { kind: "dismiss" } },
           ],
         })
@@ -1083,10 +1078,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       makeLetter("notable", `${palette} entered ${unit.driveForm.toUpperCase()} FORM`, {
         sessionId: id,
         worldId,
-        actions: [
-          { label: "dive", action: { kind: "dive", worldId } },
-          { label: "dismiss", action: { kind: "dismiss" } },
-        ],
+        actions: [{ label: "dismiss", action: { kind: "dismiss" } }],
       })
     );
   }

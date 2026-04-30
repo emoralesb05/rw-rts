@@ -6,6 +6,8 @@
  */
 import { useState } from "react";
 import { useStore } from "../../store";
+import { ROLE_HEX } from "../../game/units";
+import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import type { Letter } from "@shared/events";
 
 function timeAgo(ts: number): string {
@@ -22,6 +24,7 @@ function timeAgo(ts: number): string {
 export function LetterCard({ letter }: { letter: Letter }) {
   const applyLetterAction = useStore((s) => s.applyLetterAction);
   const units = useStore((s) => s.units);
+  const worlds = useStore((s) => s.worlds);
   const selectWorld = useStore((s) => s.selectWorld);
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
@@ -72,6 +75,29 @@ export function LetterCard({ letter }: { letter: Letter }) {
         )}
         <span className="throne-letter-time">{timeAgo(letter.createdAt)}</span>
       </div>
+      {wielder && (
+        <div className="throne-letter-actor">
+          <span
+            className="throne-letter-avatar"
+            style={{ background: ROLE_HEX[wielder.role] }}
+            aria-hidden="true"
+          />
+          <span className="throne-letter-actor-name">
+            {wielder.displayName}
+          </span>
+          {targetWorldId && worlds[targetWorldId] && (
+            <>
+              <span className="throne-letter-actor-sep">·</span>
+              <span className="throne-letter-actor-world">
+                {worlds[targetWorldId].label}
+              </span>
+              <span className="throne-letter-actor-theme">
+                {themeLabel(themeFor(targetWorldId))}
+              </span>
+            </>
+          )}
+        </div>
+      )}
       <div className="throne-letter-title">{letter.title}</div>
       {letter.body && (
         <div className="throne-letter-body">{letter.body}</div>

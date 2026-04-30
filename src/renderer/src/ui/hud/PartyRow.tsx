@@ -5,6 +5,7 @@
  * Click body → open wielder panel on Status tab.
  * Click 💬     → open wielder panel on Messages tab.
  */
+import { useEffect, useState } from "react";
 import { useStore } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
@@ -20,6 +21,29 @@ const TOOL_LABEL: Record<AgentTool, string> = {
   cursor: "Cursor",
   codex: "Codex",
 };
+
+/** Slim live progress bar shown when a wielder is mid tool-call.
+ * Renders only while status is "casting" or "working". Re-renders
+ * once a second so the elapsed-time text stays current. */
+function CastBar({ unit }: { unit: UnitState }) {
+  const isCasting = unit.status === "casting" || unit.status === "working";
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isCasting) return;
+    const id = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(id);
+  }, [isCasting]);
+  if (!isCasting) return null;
+  const elapsedMs = Math.max(0, now - unit.lastActivity);
+  const elapsedSec = Math.floor(elapsedMs / 1000);
+  const label = `${unit.lastTool ?? unit.status} · ${elapsedSec}s`;
+  return (
+    <div className="party-row-cast" title={label}>
+      <div className="party-row-cast-fill" />
+      <span className="party-row-cast-label">{label}</span>
+    </div>
+  );
+}
 
 /** Status icons row — small chips for "what is this wielder doing right now." */
 function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean }) {
@@ -95,7 +119,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       kind: "wielder",
       key: unit.id,
       title: `${unit.displayName} · ${unit.tool}`,
-      width: 420,
+      width: 560,
       data: initialTab ? { initialTab, tick: Date.now() } : undefined,
     });
   };
@@ -152,6 +176,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
             <div style={{ width: `${mpPct}%` }} />
           </div>
         </div>
+        <CastBar unit={unit} />
       </div>
       <button
         type="button"

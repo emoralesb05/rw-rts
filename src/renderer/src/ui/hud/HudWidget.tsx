@@ -5,6 +5,7 @@
  * the widget locks to. Future "Edit HUD layout" mode will override
  * the anchor with user-chosen positions.
  */
+import { useEffect } from "react";
 import { usePersistedBool } from "./hud-prefs";
 
 export type HudAnchor =
@@ -44,6 +45,17 @@ export function HudWidget({
     `collapsed:${title}`,
     defaultCollapsed
   );
+  // Listen for `kh:expand-hud` events that target this widget by title
+  // (e.g. ActivityLog → AlertsHUD when a permission row is clicked).
+  // Force-expand so the highlighted letter card is actually in the DOM.
+  useEffect(() => {
+    const onExpand = (e: Event) => {
+      const detail = (e as CustomEvent<{ title?: string }>).detail;
+      if (detail?.title === title) setCollapsed(false);
+    };
+    window.addEventListener("kh:expand-hud", onExpand);
+    return () => window.removeEventListener("kh:expand-hud", onExpand);
+  }, [title, setCollapsed]);
   return (
     <section
       className={

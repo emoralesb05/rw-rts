@@ -36,7 +36,7 @@ body, html, #root {
 .app {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
   height: 100vh;
 }
 /* Invisible 12px strip at the very top of the window — the drag region
@@ -1531,11 +1531,14 @@ select.btn {
   border-bottom-color: var(--accent);
 }
 .wielder-panel-log {
-  max-height: 50vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 65vh;
   padding: 4px 0;
 }
 .wielder-panel-log .chat-stream {
+  flex: 1;
+  overflow-y: auto;
   padding: 8px 12px;
 }
 .chat-empty {
@@ -1914,6 +1917,53 @@ select.btn {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
+/* Cast bar — slim live progress strip shown while a wielder is mid
+ * tool-call. Striped sweep animation conveys "in flight" without
+ * pretending to know when it'll finish. */
+.party-row-cast {
+  position: relative;
+  height: 8px;
+  margin-top: 1px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  font-family: ui-monospace, monospace;
+  font-size: 7.5px;
+  color: var(--text);
+  line-height: 1;
+}
+.party-row-cast-fill {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(201, 164, 255, 0.45) 0,
+    rgba(201, 164, 255, 0.45) 6px,
+    rgba(157, 107, 255, 0.20) 6px,
+    rgba(157, 107, 255, 0.20) 12px
+  );
+  background-size: 24px 24px;
+  animation: cast-sweep 0.9s linear infinite;
+}
+@keyframes cast-sweep {
+  0%   { background-position: 0 0; }
+  100% { background-position: 24px 0; }
+}
+.party-row-cast-label {
+  position: relative;
+  z-index: 1;
+  padding: 0 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
 /* ─── Status icon strip ────────────────────────────────────────────── */
 .status-icons {
   display: flex;
@@ -2005,6 +2055,42 @@ select.btn {
 .throne-letter.clickable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* Letter actor row — small avatar dot + wielder name + world chip,
+ * rendered above the title so you can see who/where at a glance. */
+.throne-letter-actor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.throne-letter-avatar {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+.throne-letter-actor-name {
+  color: var(--text);
+  font-weight: 600;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.throne-letter-actor-sep {
+  color: var(--muted);
+  opacity: 0.5;
+}
+.throne-letter-actor-world {
+  color: var(--accent);
+}
+.throne-letter-actor-theme {
+  color: var(--muted);
+  opacity: 0.7;
+  font-size: 9.5px;
+  margin-left: 2px;
 }
 .throne-letter-head {
   display: flex;
@@ -2598,4 +2684,104 @@ select.btn {
   text-align: left;
   font-size: 11px;
   padding: 6px 10px;
+}
+
+/* ─── Dispatch panel ─────────────────────────────────────────── */
+.dispatch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.dispatch-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dispatch-prompt-row {
+  flex: 1;
+}
+.dispatch-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.dispatch-hint {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 400;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  opacity: 0.7;
+}
+.dispatch-target {
+  width: 100%;
+  max-width: none;
+}
+.dispatch-prompt {
+  background: rgba(10, 17, 48, 0.85);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 5px;
+  resize: vertical;
+  min-height: 140px;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.45;
+}
+.dispatch-prompt:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.dispatch-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+/* Per-wielder chat input — bottom of the Messages tab. */
+.wielder-chat-input {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.20);
+}
+.wielder-chat-textarea {
+  flex: 1;
+  background: rgba(10, 17, 48, 0.85);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 11.5px;
+  padding: 6px 9px;
+  border-radius: 5px;
+  resize: vertical;
+  min-height: 36px;
+  max-height: 140px;
+  line-height: 1.4;
+}
+.wielder-chat-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.wielder-chat-textarea:disabled {
+  opacity: 0.5;
+}
+.wielder-chat-send {
+  align-self: flex-end;
+  font-size: 11px;
+  padding: 6px 12px;
 }

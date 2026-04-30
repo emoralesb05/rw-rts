@@ -353,7 +353,7 @@ export class KingdomScene extends Phaser.Scene {
         barkKind = u && u.hp <= 0 ? "session_end_ko" : "session_end_success";
       }
       if (barkKind) {
-        this.showBark(ref, pickBarkLine(barkKind));
+        this.showBark(ref, pickBarkLine(barkKind, ref.role));
       }
 
       if (!ref.sprite) return;

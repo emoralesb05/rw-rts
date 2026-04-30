@@ -7,19 +7,11 @@ import { useStore } from "../../store";
 import { HudWidget } from "./HudWidget";
 import { PartyRow } from "./PartyRow";
 import { usePersistedBool } from "./hud-prefs";
-
-/** Focuses the bottom command input — used by the WielderHUD's
- * dispatch shortcut. The CommandInput.tsx renders a single visible
- * <input> we can scroll-into-view + focus. */
-function focusSpawnInput() {
-  const el = document.querySelector<HTMLInputElement>(".command input");
-  if (!el) return;
-  el.focus();
-  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
+import { usePanels } from "../floating/panel-store";
 
 export function WielderHUD() {
   const units = useStore((s) => s.units);
+  const openPanel = usePanels((s) => s.openPanel);
   // Hide completed/fallen wielders by default — they accumulate but
   // can't be acted on. Toggle persists so the user's preference sticks.
   const [showGhosted, setShowGhosted] = usePersistedBool("show-ghosted", false);
@@ -55,8 +47,10 @@ export function WielderHUD() {
       <button
         type="button"
         className="hud-action-btn"
-        onClick={focusSpawnInput}
-        title="dispatch a wielder — focuses the spawn input"
+        onClick={() =>
+          openPanel({ kind: "dispatch", title: "Dispatch", width: 480 })
+        }
+        title="dispatch a wielder — opens the spawn dialog"
         aria-label="Dispatch a wielder"
       >
         + dispatch

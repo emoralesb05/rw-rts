@@ -10,6 +10,7 @@ import { FloatingPanel } from "./FloatingPanel";
 import { WielderPanelBody } from "./WielderPanelBody";
 import { SettingsPanelBody } from "./SettingsPanelBody";
 import { KingdomPanelBody } from "./KingdomPanelBody";
+import { DispatchPanelBody } from "./DispatchPanelBody";
 
 export function PanelLayer() {
   const panels = usePanels((s) => s.panels);
@@ -39,6 +40,8 @@ export function PanelLayer() {
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
           ) : p.kind === "kingdom" ? (
             <KingdomPanelBody />
+          ) : p.kind === "dispatch" ? (
+            <DispatchPanelBody />
           ) : null}
         </FloatingPanel>
       ))}
