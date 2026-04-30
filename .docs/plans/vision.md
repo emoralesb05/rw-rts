@@ -90,7 +90,8 @@ designing around assumed behavior.
 **Open / next-session items:**
 - **Wielder polish (shipped 2026-04-28):** patrol ✅ event-driven
   animation switching ✅ drive auras ✅ subagent tether ✅ HP/MP
-  rings ✅ death/victory poses ✅
+  rings (later replaced with FF14 nameplate bars) ✅ death/victory
+  poses ✅
 - **Phase 2A — shipped subset (2026-04-28):** Tier 2 shaders ✅
   (per-world water/fire/magic atmospherics) · Tier 3 shaders ✅
   (KO impact pulse + seal flare) · Chiptune music ✅ (Aeolian
@@ -98,21 +99,72 @@ designing around assumed behavior.
   per theme) · Composite-form banners ✅ (Pair / Royal Guard /
   Wayfinder Trio) · Real-token MP per adapter ✅ (weighted by
   tool + output size) · Renown star-rank UI ✅
-- **Post-MVP (deferred 2026-04-29, not blocking ship):** Cura/Curaga
-  tier verbs (heal-many UX shortcut, low value over single comfort) ·
-  Replay mode (event-log scrubber) · Outbound MCP server (expose
-  kingdom as MCP tool surface) · **Quest system (moved from Phase 2B
-  2026-04-28)**
-- **Polish odds and ends:** Phaser ambient ThroneScene (currently
-  CSS-only), richer Halloween/Twilight landmark assets, observed-
-  session permission UX decision
+- **HUD redesign (shipped 2026-04-29):** four-corner glass-pane HUD
+  widgets (WielderHUD top-left, AlertsHUD top-right, ActivityLog
+  bottom-left, LettersHUD bottom-right) plus a top-center
+  KingdomHeader pill that doubles as the de-facto top chrome (mute
+  + ⚙ open Kingdom panel). Top toolbar deleted — KingdomHeader pill
+  + invisible 12px window-drag strip replace it. Letters collapse
+  one-per-wielder (most-recent wins); permission letters stay
+  distinct in AlertsHUD. Letter card body click → camera-pan to the
+  world. Activity rows route by event kind: textual events open the
+  wielder Messages tab + scroll-to-event with a gold pulse;
+  permission rows force-expand AlertsHUD and pulse the matching
+  alert card; system markers (session_start/end, subagent_spawn,
+  permission_resolved) are non-clickable.
+- **Floating panel system (shipped 2026-04-29):** generic FloatingPanel
+  shell with drag header, z-index stack focus, no backdrop, multiple
+  panels coexist. Panel kinds: `wielder` (Status/Messages tabs),
+  `kingdom` (Overview/Settings/Connection/Demos tabs), `dispatch`
+  (tool tabs + world picker + multi-line prompt), `settings` (legacy,
+  now also embedded in Kingdom). Cmd+Shift+W or `✕ close N` chip
+  closes all.
+- **Per-wielder Messages tab (shipped 2026-04-29):** rich
+  ConversationStream filtered to that wielder's session, plus a chat
+  input pinned at the bottom for sending prompts. Replaces the global
+  bottom command bar's send role; the bar itself was deleted.
+- **Dispatch dialog (shipped 2026-04-29):** the WielderHUD `+ DISPATCH`
+  button opens a roomy dialog (tool tabs / target world picker /
+  multi-line prompt textarea / Cancel / ▶ Spawn). Replaces the bottom
+  command bar's spawn role.
+- **Settings file (shipped 2026-04-29):** `~/.keykeeper.json` with
+  `workspaceRoot` + flexible `exclude` patterns (basename / label /
+  `dir/*` / `/abs/*` / exact path). Hand-editable; live-validated in
+  the Kingdom panel's Settings tab. WielderHUD ghosted toggle and HUD
+  collapse state persist via localStorage under `kh-rts:hud:*`.
+- **Per-archetype voice barks (shipped 2026-04-29):** four KH-flavored
+  line pools (Vaelen brooding, Selene gentle, Ryder bold, Lyris
+  wayfinder) per BarkKind. Triggered on session_start /
+  subagent_spawn / permission_request / session_end success / KO /
+  error. Per-wielder cooldown so bursts don't spam.
+- **FF14 HP/MP redesign (shipped 2026-04-29):** stacked vertical bars
+  (HP green on top, MP blue below) on party rows + on canvas sprites
+  (rectangle bars at the wielder's feet). Multi-modal critical-HP
+  feedback: red fill pulse + red bar border + bobbing "!" alert above
+  the wielder.
+- **Tank/Healer/DPS behavior class (shipped 2026-04-29):** chip on
+  party rows + target panel meta. Derived from recent-tool mix in the
+  store; refreshes per render.
+- **Live cast bar on party rows (shipped 2026-04-29):** slim purple
+  striped sweep with `<tool> · <Ns>` while wielder is mid tool-call.
+- **Post-MVP (deferred, not blocking ship):** Cura/Curaga heal-many
+  verbs · Replay mode (event-log scrubber) · Outbound MCP server
+  (expose kingdom as MCP tools) · Quest system (moved from Phase 2B)
+  · HUD layout edit-mode (FF14 drag-to-reposition) · Minimap of star
+  chart · Under-attack kingdom alert · Threat list · Floating-text
+  damage numbers on canvas
 
-**MVP shipped end-to-end as of 2026-04-29.** Phase 2B (north star:
-attention-direction + in-context observability) is functionally
-complete. The locked Phase 2A subset that materially changed the
-experience (shaders, music, decorations, banners, MP weighting,
-Renown UI) has shipped. Remaining items are deferred post-MVP — they
-are nice-to-have UX shortcuts and gamification layers, not gating
+**MVP shipped end-to-end as of 2026-04-29.** Subsequent passes on
+2026-04-29 ran a full HUD redesign on top of the MVP — the throne
+side panel and bottom command bar were dissolved into the four-corner
+HUD + per-wielder Messages tab + Dispatch dialog. The KingdomHeader
+pill is now the only persistent chrome. Phase 2B (attention-direction
++ in-context observability) is functionally complete. The locked
+Phase 2A subset that materially changed the experience (shaders,
+music, decorations, banners, MP weighting, Renown UI) has shipped,
+plus a wave of FFXIV/Diablo/RTS-inspired polish (HP/MP nameplates,
+behavior class chips, cast bars, voice barks). Remaining items are
+deferred post-MVP — UX shortcuts and gamification layers, not gating
 work. Permission flow ships with deny-with-reason, indefinite-wait
 (no client-side timeout), and heuristic auto-dismiss when resolved
 upstream.
@@ -187,59 +239,100 @@ work as a thing-in-the-corner-of-your-monitor, not a thing-you-stare-at.
 
 ## Scenes
 
-### 1. Throne Room (✅ shipped — home view)
+> **2026-04-28 (Q40):** the original three scenes (Throne / Gummi /
+> Arena) collapsed into a single unified Star Chart canvas. The
+> KingdomScene below is what runs today. Throne Room and Gummi Map
+> sections are kept further down for design-history context — the
+> verbs and concepts they introduced still apply, just on a different
+> rendering surface.
 
-The default home. Optimized for **glanceability**, not motion. Replaces
-"always-on Gummi Map" as the home screen.
+### Unified Star Chart (✅ shipped — KingdomScene)
 
-- **Wielder card grid**: each active session as a portrait card with HP /
-  MP / Focus bars, mood icon, current world, last activity stamp
-- **Letter feed**: ranked event stream — errors, session_end, decision
-  prompts. Severity-colored (Critical / Important / Notable per Q6)
-- **King's verb stamps**: 6 buttons (see verbs below — Decree is
-  Phase 2B; v1 ships with 5)
-- **Munny vault counter**: kingdom-wide total
-- **Sealed worlds tally**: roster of cleared keyholes
-- **Background**: hybrid React overlay + Phaser ambient backdrop (Q4
-  ✅ Hybrid). v1 ships with the React layer + a CSS-enriched backdrop
-  (gold-red banner streaks, particle dust, vignetted edges); the full
-  Phaser ambient `ThroneScene` (animated castle hall, light beams,
-  drifting dust) is deferred to Phase 2A.
+One Phaser scene renders the entire kingdom in a single pan/zoom
+canvas. Every repo is a world; every world contains a per-world iso
+plane with its themed landmark, ground tiles, ambient particles, and
+the wielders working there. Camera control is manual (drag-pan,
+scroll-wheel zoom); clicking a wielder card or letter pans + zooms
+to that world. Filter pipeline runs scene-wide:
 
-### 2. Gummi Map (✅ shipped — navigator)
+- **Tier 1 (always on):** scanline + bloom + per-scene color grade +
+  vignette
+- **Tier 2 (per-world atmospherics):** drifting cyan ribbons in
+  Destiny Islands, flickering ember pools in Halloween Town, counter-
+  rotating purple arcs in Hollow Bastion
+- **Tier 3 (event pulses):** barrel-pinch + pixelate spike on KO,
+  golden bloom flare on keyhole seal
 
-Demoted from "home" to "navigator". Still useful when you want spatial
-overview. Themed planets, alert states, dive-in.
-- 6 themed worlds (Disney Castle, Hollow Bastion, Traverse Town, Destiny
-  Islands, Twilight Town, Halloween Town), assigned by hash of repo root
-- Alert pulse colors per state
-- Heartless count badge, cleared-world gold star
-- Atmosphere pass: starfield, parallax, vignette
+Per-wielder rendering: hi-res painterly pixel-art sprite (~290×200,
+scaled to fit the iso plane), drive-form aura, FF14 nameplate-style
+HP/MP bars at the feet (multi-modal critical-HP feedback: red fill +
+red border + bobbing "!" alert), KH-flavored speech bubbles per
+archetype (Vaelen brooding / Selene gentle / Ryder bold / Lyris
+wayfinder) on session_start / subagent_spawn / permission_request /
+session_end success / KO / error. Drive forms (Valor / Wisdom /
+Final) trigger activation flashes; subagent tether visualizes parent-
+child relationships.
 
-### 3. World Arena (✅ shipped — cinematic dive)
+### HUD overlay (✅ shipped)
 
-The cinematic dive — slowest, most KH-flavored scene. Where ambient patrol
-+ Heartless combat + drives live. Intentionally **not** where the player
-spends most of their time.
+FFXIV-style four-corner HUD on top of the canvas. Each widget is an
+absolute-positioned glass pane (translucent dark panel + accent
+border) with a collapsible header. State persists per widget via
+localStorage (`kh-rts:hud:collapsed:<title>`).
 
-- Isometric grid + 6 themed landmarks (Disney / Hollow Bastion /
-  Traverse / Destiny Islands / Twilight / Halloween — pixel art at
-  64×64)
-- **4 keybladers** (Vaelen / Selene / Ryder / Lyris — see § State
-  model) at hi-res painterly pixel art. Note: Q15 originally locked
-  "true 32×32 pixel-art"; implementation diverged toward painterly
-  hi-res (~290×200/frame, 32-frame sheets). Q15 is effectively
-  superseded by the actual asset pipeline; see Q15 footnote.
-- 3 Heartless types (Shadow / Soldier / Large Body) at 32×32 pixel art
-- Pixel-art iso ground tiles
-- Heartless combat (errors spawn, edits clear)
-- Drive forms (Valor / Wisdom / Final) with auras + activation flash
-- Victory + KO poses on session_end / HP=0
-- Patrol-based idle behavior (units wander between landmarks)
-- Munny counter, tool pills (Claude / Cursor / Codex color-coded)
-- Per-world theming: sky color, ambient particles, color grade,
-  signature decoration
-- Time-of-day cycle (overlay tinted by session age)
+- **Top-center: KingdomHeader pill** — `⌬ Keykeeper · ✦ N sealed · ⚔ N
+  wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle + ⚙ opens the
+  Kingdom panel. Replaces the deleted top toolbar.
+- **Top-left: WielderHUD** — party list with role-colored portrait,
+  name, tool pill, behavior-class chip (Tank/Healer/DPS/Roamer), HP/
+  MP stacked bars, status icons (drive / casting / standing-order /
+  HP-critical), live cast bar, 💬 chat shortcut, `+ DISPATCH` button
+  that opens the Dispatch dialog. Hides ghosted wielders by default
+  with a `✦ N` toggle.
+- **Top-right: AlertsHUD** — orange-toned. Permission-request letters
+  as inline action cards (allow / deny / deny-with-reason). Activity-
+  row clicks on permission events force-expand this widget if it's
+  collapsed.
+- **Bottom-left: ActivityLog** — one-line summaries (`Me → Ryn`,
+  `Aerin · Bash done`, `Ryn · asked permission · Bash`). Tone-coded.
+  Click textual rows → wielder Messages tab + scroll-to-event with
+  gold pulse. Click permission rows → pulse the matching alert.
+  System markers (session_start/end, subagent_spawn) non-clickable.
+- **Bottom-right: LettersHUD** — informational letters, one per
+  wielder (most-recent wins). Each letter has an actor row (avatar
+  dot + name + world + theme), title, body, action verbs, and the
+  body itself click-pans the canvas to that wielder's world.
+  `✕ clear` button to drop all at once.
+
+### Floating panels (✅ shipped)
+
+Generic FloatingPanel shell (drag header, z-index stack focus, no
+backdrop, multiple coexist). Panel kinds:
+
+- **`wielder`** — Status / Messages tabs. Status = portrait + bars +
+  meta + action card (send word / decree / comfort / × recall).
+  Messages = ConversationStream filtered to that wielder's session
+  + chat input pinned at the bottom. Default width 560.
+- **`kingdom`** — Overview / Settings / Connection / Demos tabs.
+  Overview: stats grid, sealed worlds list, top wielders by Renown,
+  Reset Kingdom (danger zone). Settings: workspace root + exclude
+  patterns (live workspace-root validation). Connection: hooks
+  install/uninstall + socket / script paths. Demos: scripted-fixture
+  button grid grouped by Summon / Flows. Width 520.
+- **`dispatch`** — tool tabs / target world picker / multi-line
+  prompt textarea / Cancel / ▶ Spawn. Replaces the bottom command
+  bar's spawn role.
+- **`settings`** (legacy standalone, also embedded in Kingdom).
+
+Cmd+Shift+W or the `✕ close N` chip closes all open panels.
+
+### Worlds
+
+6 themed worlds assigned by hash of repo root: Disney Castle, Hollow
+Bastion, Traverse Town, Destiny Islands, Twilight Town, Halloween
+Town. Pixel-art landmarks at 64×64 (Twilight Town and Halloween Town
+re-drawn 2026-04-29 to match the detail level of Disney/Hollow). Per-
+theme atmospherics + signature decorations + color grade.
 
 ---
 

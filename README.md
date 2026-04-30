@@ -1,9 +1,8 @@
 # keykeeper
 
 A Kingdom-Hearts-themed *agent watch room* — a Sims-style spectator
-strategy app where the player is the King at Disney Castle and their
-keyblade wielders (Claude / Cursor / Codex sessions) are out clearing
-worlds (repos).
+strategy app where the player is the King and their keyblade wielders
+(Claude / Cursor / Codex sessions) are out clearing worlds (repos).
 
 You don't command tick-by-tick. You **dispatch**, **send word**,
 **comfort**, **recall**, and **seal the keyhole** when each world's
@@ -17,17 +16,37 @@ story is done.
 
 ## What you get
 
-- **Throne Room** — the home view. Wielder cards (HP / MP / Focus / mood
-  / current world), letter feed (severity-colored), kingdom stats.
-- **Gummi Map** — themed planets per repo (Disney Castle, Hollow Bastion,
-  Traverse Town, Destiny Islands, Twilight Town, Halloween Town).
-- **World Arena** — an isometric scene where you dive into a single
-  world. Pixel-art wielders patrol around landmarks. Heartless spawn
-  from errors. Drive forms (Valor / Wisdom / Final) trigger on streaks.
-  Time-of-day cycle reflects session age.
+A FFXIV-style HUD overlay on a single full-viewport kingdom canvas:
+
+- **KingdomHeader pill** (top-center) — `⌬ Keykeeper · ✦ N sealed · ⚔ N
+  wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
+  opens the **Kingdom panel** (Overview · Settings · Connection · Demos).
+- **WielderHUD** (top-left) — party list with role-colored portrait, name,
+  tool pill, behavior-class chip (Tank/Healer/DPS/Roamer), HP/MP bars
+  (FF14 stacked nameplate style), live cast bar when mid-tool, status
+  icons (drive form / casting / standing-order / HP-critical), 💬 chat
+  shortcut, and a `+ DISPATCH` button that opens the Dispatch dialog.
+- **AlertsHUD** (top-right, orange-toned) — permission requests as
+  inline action cards (allow / deny / deny-with-reason).
+- **LettersHUD** (bottom-right) — informational letters: one per
+  wielder, most-recent wins. Click a letter to pan the camera to that
+  world.
+- **ActivityLog** (bottom-left) — one-line summaries of recent events
+  across the kingdom, tone-coded. Click a row to jump: textual events
+  open the wielder's Messages tab and scroll to that event; permission
+  rows force-expand AlertsHUD and pulse the matching alert.
+- **Kingdom canvas** — pan/zoom Star Chart. Each repo is a world
+  (Disney Castle / Hollow Bastion / Traverse Town / Destiny Islands /
+  Twilight Town / Halloween Town). Wielders render inside their world's
+  iso plane as painterly pixel sprites with FF14 nameplate-style HP/MP
+  bars and KH-flavored speech bubbles on big events.
+- **Floating panels** — wielder details, Kingdom, Settings, Dispatch,
+  Decree composer. All draggable, stack via z-index, no backdrop, close
+  individually or with `⌘⇧W` / the `✕ close N` chip.
 - **Persistence** — sealed keyholes, lifetime munny, kingdom founded
-  date, per-wielder + per-world stats. Stored in
-  `~/Library/Application Support/keykeeper/state.json`.
+  date, per-wielder Renown (visit/seal/fall), HUD collapse + ghosted
+  toggle. Stored in `~/Library/Application Support/keykeeper/state.json`
+  and `~/.keykeeper.json` (workspace settings).
 
 ---
 
@@ -44,7 +63,31 @@ bun run typecheck
 
 The dev launch will offer to install Claude Code hooks the first time —
 this lets keykeeper watch any other Claude session running on your
-machine. You can install or skip; uninstall any time from the topbar.
+machine. You can install or skip; toggle any time from the Kingdom
+panel's **Connection** tab.
+
+---
+
+## Settings — `~/.keykeeper.json`
+
+Auto-created on first launch. Re-read on every workspace scan, so edits
+take effect on the next dropdown render.
+
+```json
+{
+  "workspaceRoot": "/Users/you/Github",
+  "exclude": [
+    "vercel-ai",                 // basename match
+    "forks/foo",                 // parent/repo (matches dropdown label)
+    "forks/*",                   // any repo under any "forks" dir
+    "~/Github/teradata/*",       // absolute prefix glob
+    "/abs/path/to/repo"          // exact absolute path
+  ]
+}
+```
+
+Hand-editable, or use the Kingdom panel's **Settings** tab (live
+workspace-root validation + exclude textarea).
 
 ---
 
@@ -88,8 +131,9 @@ synthesized fallback. Override existence is probed on app boot
 static files); only existing overrides get registered as Phaser
 textures, so missing overrides don't pollute the console.
 
-Generate fresh 32×32-style defaults with
-`bun scripts/generate-pixel-sprites.ts` (script targets `kh-default/`).
+Generate fresh defaults with `bun scripts/generate-pixel-sprites.ts
+landmarks` (or `heartless` / `tiles` / `all`). The script supports a
+group filter so it doesn't clobber hand-authored keybladers by default.
 Painterly hi-res keybladers were authored separately via AI generation
 + concept-art extraction (see `.docs/sprite-prompts.md` and the extract
 scripts in `scripts/`).
@@ -104,48 +148,52 @@ Each event is stamped with its `repoRoot` (nearest `.git/` ancestor)
 before crossing to the renderer. The renderer's Zustand store
 (`src/renderer/src/store.ts`) is the simulation state — units, worlds,
 heartless, drives, letters, alert levels — all derived from events. A
-single Phaser game runs three scenes (Throne / Gummi / World) with
-shared filter pipelines (CRT scanline + bloom + vignette + per-scene
-color grade). React panels overlay the canvas for the info-dense parts
-(throne cards, chat, unit dock).
+single Phaser scene (`KingdomScene`) renders the unified Star Chart
+with a shared filter pipeline (CRT scanline + bloom + vignette + per-
+event Tier 3 shader pulses + per-theme atmospherics). React HUD
+widgets and floating panels overlay the canvas — no top toolbar; the
+KingdomHeader pill is the de-facto chrome.
 
 Persistent state lives in JSON in the userData dir; main reads it on
 launch and writes it debounced as the renderer dispatches updates.
+HUD UI prefs (collapsed widgets, "show ghosted") live in localStorage
+under `kh-rts:hud:*`.
 
 ---
 
-## Demo / fixtures (no API tokens)
+## Demos / fixtures (no API tokens)
 
-The `▶ demo` dropdown in the topbar fires scripted event sequences for
-visual + chat + combat iteration:
+Open the **Kingdom panel** (⚙ on the pill) → **Demos** tab. Two groups:
 
-- `claude-starter` — single Claude turn
-- `cursor-turn` — multi-tool Cursor turn
-- `codex-shell` — Codex shell command
-- `subagent` — Claude with subagent (Mickey promotion + tether)
-- `combat` — heartless raid with errors and recoveries
-- `stress` — 30-event burst
-- `demo` — all three tools in parallel
+- **Summon** — drop a single archetype (Vaelen / Selene / Ryder / Lyris)
+  into a fresh `/tmp` world. Useful for iterating on visuals.
+- **Flows** — `cursor-turn`, `codex-shell`, `subagent` (Claude with
+  subagent + Final drive), `combat` (heartless raid), `stress` (30
+  events), `permission` (approval letter), `demo` (all 3 tools).
 
-Use these freely; they don't burn API tokens.
+Use freely; they emit synthetic events, no API tokens spent.
 
 ---
 
 ## Troubleshooting
 
-**"hooks: off" in the topbar.** The Claude hook bridge isn't installed.
-Click the "hooks: off" button to install — adds entries to
-`~/.claude/settings.json` that forward tool-call events to a local
-socket. Uninstall reverts cleanly.
+**Hooks off / no Claude events flowing.** Open Kingdom panel → **Connection**
+tab. Click `Install hooks`. Adds entries to `~/.claude/settings.json` that
+forward tool-call events to a local Unix socket
+(`~/.claude/kh-rts.sock`). Uninstall reverts cleanly.
 
 **Cursor monitor disabled.** No `state.vscdb` found — happens if Cursor
 hasn't been opened yet on this machine. Open Cursor once and restart
 keykeeper.
 
-**Lost local state / want to start over.** Delete
-`~/Library/Application Support/keykeeper/state.json` (or use the reset
-verb when wired in a future polish iteration). Kingdom founded
-timestamp resets to "now" on next launch.
+**Lost local state / want to start over.** Kingdom panel → Overview tab →
+`Reset kingdom` (danger zone). Or delete
+`~/Library/Application Support/keykeeper/state.json` directly. Active
+sessions stay running.
+
+**Stale settings or excludes.** Edit `~/.keykeeper.json` directly; the
+spawn dropdown re-reads on each open. The Settings tab's live workspace-
+root validation also surfaces typos.
 
 **Sprites look fuzzy.** Phaser scaling fell back to bilinear. Confirm
 `pixelArt: true` in `src/renderer/src/game/PhaserGame.tsx`.
@@ -154,36 +202,29 @@ timestamp resets to "now" on next launch.
 
 ## Status
 
-**MVP (P1–P10):** ✅ all shipped.
+**MVP shipped 2026-04-29.** Phase 2B north star (attention-direction +
+in-context observability) is functionally complete. Most of the locked
+Phase 2A subset shipped: Tier 2 + Tier 3 shaders, chiptune music, per-
+world signature decorations, composite-form banners, real-token MP
+weighting, Renown star-rank UI.
 
-**Q40 unified Star Chart:** ✅ shipped (single pan/zoom canvas
-replaces the 3-scene drill-down; worlds clustered by parent dir;
-side overlay panel for cards + letters).
+**Wielder polish (shipped):** patrol, event-driven animation switching,
+drive auras, subagent tether, HP/MP bars (FF14 nameplate style with
+multi-modal critical-HP feedback), death/victory poses, KH-flavored
+voice barks (per-archetype), Tank/Healer/DPS behavior class chip,
+live cast bars on party rows.
 
-**Phase 2B (functionally complete, 9 of 9 items in scope):**
-✅ attention-direction layer · ✅ Decree verb · ✅ Standing Order
-recurring sub-mode (persisted across restart) · ✅ voice input
-(transcription) · ✅ desktop OS notifications · ✅ permission
-approval via Claude Code's PermissionRequest hook (allow skips
-the terminal prompt; deny blocks the tool — works for both
-keykeeper-spawned and observed terminal sessions) · ✅ stuck-loop
-detection with explanation · ✅ why-trace expandable on tool calls
-· ✅ permission risk chip (LOW/ELEVATED/HIGH) + reasoning context.
-🚚 Quest system moved to Phase 2A polish.
+**Permission flow:** PermissionRequest hook with deny-with-reason,
+indefinite-wait (no client-side timeout), heuristic auto-dismiss when
+resolved upstream, force-expand AlertsHUD on activity-row click.
 
-**Phase 2A polish (locked, not yet started):** Tier 2/3 shaders
-(water, fire, magic energy, heat haze, chromatic aberration),
-chiptune music, per-world signature decorations beyond the MVP
-one-each, composite-form banners (Pair / Royal Guard / Wayfinder
-Trio), real-token MP per adapter, Renown star-rank UI, Cura/Curaga
-tier verbs, replay mode, outbound MCP server, Quest system.
+**HUD redesign (shipped):** four-corner glass-pane HUD widgets,
+floating panel system (drag, stack, no backdrop), per-wielder Messages
+tab with chat input, Dispatch dialog, Kingdom tabbed panel, KingdomHeader
+pill as the only top chrome.
 
-**Wielder polish deferred during the unified-map iso port:** patrol
-behavior (wielders currently stand at home tile), event-driven
-animation switching (attack on tool_use, cast on certain events),
-drive-form auras + activation flash, subagent tether visualization,
-HP/MP rings overlaid on wielders, death/victory poses on
-session_end / HP=0.
+**Post-MVP (deferred, not blocking ship):** Cura/Curaga heal-many verbs,
+replay mode (event-log scrubber), outbound MCP server, Quest system.
 
 See `.docs/plans/vision.md` for the design rationale and the full
 question/decision history (Q1–Q44).
