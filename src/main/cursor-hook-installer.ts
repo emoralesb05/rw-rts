@@ -29,7 +29,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
-import { SOCKET_PATH } from "./adapters/claude-hook";
+import { SOCKET_PATH } from "./adapters/hook-bridge";
 import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
 
 const CURSOR_HOOKS_PATH = join(homedir(), ".cursor", "hooks.json");

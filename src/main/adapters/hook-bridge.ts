@@ -294,12 +294,16 @@ function normalizeHookPayload(p: any): AgentEvent | null {
   const eventName = p?.hook_event_name as string | undefined;
   if (!eventName) return null;
   // Cursor uses camelCase event names (sessionStart, beforeShellExecution,
-  // preToolUse, ...); Claude uses PascalCase (SessionStart, PreToolUse,
-  // PermissionRequest, ...). The case is the dispatcher.
+  // preToolUse, ...); Claude/Codex use PascalCase (SessionStart, PreToolUse,
+  // PermissionRequest, ...). PascalCase + the optional __kh_tool marker
+  // dispatch onwards — Codex's payload shape is identical to Claude's
+  // (same field names, same PermissionRequest output schema), so the
+  // marker is the only way to attribute correctly.
   if (eventName[0] === eventName[0].toLowerCase()) {
     return normalizeCursorPayload(p, eventName);
   }
-  return normalizeClaudePayload(p, eventName);
+  const tool = (p?.__kh_tool as string | undefined) ?? "claude";
+  return normalizeClaudePayload(p, eventName, tool === "codex" ? "codex" : "claude");
 }
 
 // Wrappers Claude Code's runtime uses to inject system-generated text
@@ -337,13 +341,23 @@ function isSyntheticUserPrompt(text: string | undefined): boolean {
   return stripSyntheticWrappers(text).trim().length === 0;
 }
 
-function normalizeClaudePayload(p: any, eventName: string): AgentEvent | null {
+function normalizeClaudePayload(
+  p: any,
+  eventName: string,
+  tool: "claude" | "codex" = "claude"
+): AgentEvent | null {
   if (!p?.session_id) return null;
   const ts = Date.now();
   const requestId = p?.__kh_permission_request_id as string | undefined;
+  // Use the raw session_id for both Claude and Codex. Codex's CLI
+  // adapter (codex-cli.ts) registers spawned sessions under their raw
+  // thread_id; the bridge must match so a hooked Codex session and a
+  // spawned Codex session for the same thread land on the same wielder
+  // instead of splitting in two. (UUIDs ⇒ no realistic Claude/Codex
+  // session-id collision; the `tool` field disambiguates anyway.)
   const base = {
     sessionId: p.session_id as string,
-    tool: "claude" as const,
+    tool,
     cwd: (p.cwd as string) ?? process.cwd(),
     source: "hook" as const,
   };
@@ -371,7 +385,11 @@ function normalizeClaudePayload(p: any, eventName: string): AgentEvent | null {
 
   // For non-permission events, skip sessions we spawned ourselves —
   // those events come through the spawn channel directly with richer
-  // payloads. Hook duplicates would double-emit.
+  // payloads, so hook duplicates would double-emit. Currently the
+  // spawn-id tracker lives in the Claude CLI adapter; Codex spawns
+  // (codex-cli.ts) don't register with isSpawnedSession yet, so this
+  // gate is effectively a no-op for codex. If codex spawns start
+  // double-emitting, register them in the tracker too.
   if (isSpawnedSession(p.session_id)) return null;
 
   const map: Record<string, AgentEventKind> = {

@@ -276,10 +276,13 @@ async function safeIpc<T>(
 function ConnectionTab() {
   const [claudeStatus, setClaudeStatus] = useState<HooksStatus | null>(null);
   const [cursorStatus, setCursorStatus] = useState<HooksStatus | null>(null);
+  const [codexStatus, setCodexStatus] = useState<HooksStatus | null>(null);
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [cursorMissing, setCursorMissing] = useState(false);
+  const [codexMissing, setCodexMissing] = useState(false);
   const [claudeBusy, setClaudeBusy] = useState(false);
   const [cursorBusy, setCursorBusy] = useState(false);
+  const [codexBusy, setCodexBusy] = useState(false);
 
   useEffect(() => {
     void safeIpc(window.kh.hooksStatus?.bind(window.kh)).then((r) => {
@@ -289,6 +292,10 @@ function ConnectionTab() {
     void safeIpc(window.kh.cursorHooksStatus?.bind(window.kh)).then((r) => {
       if (r) setCursorStatus(r);
       else setCursorMissing(true);
+    });
+    void safeIpc(window.kh.codexHooksStatus?.bind(window.kh)).then((r) => {
+      if (r) setCodexStatus(r);
+      else setCodexMissing(true);
     });
   }, []);
 
@@ -315,6 +322,19 @@ function ConnectionTab() {
       setCursorStatus(next);
     } finally {
       setCursorBusy(false);
+    }
+  };
+
+  const toggleCodex = async () => {
+    if (!codexStatus || codexBusy) return;
+    setCodexBusy(true);
+    try {
+      const next = codexStatus.installed
+        ? await window.kh.uninstallCodexHooks()
+        : await window.kh.installCodexHooks();
+      setCodexStatus(next);
+    } finally {
+      setCodexBusy(false);
     }
   };
 
@@ -349,10 +369,30 @@ function ConnectionTab() {
           configPathLabel="~/.cursor/hooks.json"
           description={
             <>
-              Gates Cursor agent shell commands through keykeeper alerts (
-              <code>beforeShellExecution</code>). Added alongside any
-              existing entries in <code>~/.cursor/hooks.json</code> — yours
-              are preserved.
+              Forwards Cursor agent activity for any chat on this machine.
+              Permissions are observation-only — Cursor's allowlist
+              approvalMode requires the King to confirm in Cursor's inline
+              UI. Entries live in <code>~/.cursor/hooks.json</code>.
+            </>
+          }
+        />
+      )}
+      {codexMissing ? (
+        <PreloadRestartHint title="Codex hook bridge" />
+      ) : (
+        <HookBridgeSection
+          title="Codex hook bridge"
+          status={codexStatus}
+          busy={codexBusy}
+          onToggle={toggleCodex}
+          configPathLabel="~/.codex/config.toml"
+          description={
+            <>
+              Forwards Codex CLI events and gates permission requests for
+              any session on this machine — same architecture as Claude.
+              Managed in a marker block at the end of{" "}
+              <code>~/.codex/config.toml</code>; the rest of the file is
+              left untouched.
             </>
           }
         />

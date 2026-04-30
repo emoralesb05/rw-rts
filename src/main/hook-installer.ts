@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from "n
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { app } from "electron";
-import { SOCKET_PATH } from "./adapters/claude-hook";
+import { SOCKET_PATH } from "./adapters/hook-bridge";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const HOOK_MARKER = "kh-rts-managed";

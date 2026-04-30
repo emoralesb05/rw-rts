@@ -7,8 +7,7 @@ import {
   startHookBridge,
   stopHookBridge,
   resolvePermissionRequest,
-} from "./adapters/claude-hook";
-import { startCodexWatch, stopCodexWatch } from "./adapters/codex-watch";
+} from "./adapters/hook-bridge";
 import { playFixture, stopAllFixtures } from "./adapters/fixture";
 import {
   installHooks,
@@ -21,6 +20,11 @@ import {
   uninstallCursorHooks,
   getCursorHooksStatus,
 } from "./cursor-hook-installer";
+import {
+  installCodexHooks,
+  uninstallCodexHooks,
+  getCodexHooksStatus,
+} from "./codex-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import {
@@ -90,7 +94,6 @@ if (!app.isPackaged) {
 
 app.whenReady().then(async () => {
   startHookBridge();
-  startCodexWatch();
   createWindow();
 
   process.on("SIGUSR1", async () => {
@@ -151,6 +154,16 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle(IPC.CursorHooksStatus, () => getCursorHooksStatus());
 
+  ipcMain.handle(IPC.InstallCodexHooks, () => {
+    installCodexHooks();
+    return getCodexHooksStatus();
+  });
+  ipcMain.handle(IPC.UninstallCodexHooks, () => {
+    uninstallCodexHooks();
+    return getCodexHooksStatus();
+  });
+  ipcMain.handle(IPC.CodexHooksStatus, () => getCodexHooksStatus());
+
   ipcMain.handle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
@@ -186,7 +199,6 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     AgentManager.killAll();
     stopHookBridge();
-    stopCodexWatch();
     stopAllFixtures();
     app.quit();
   }
@@ -195,7 +207,6 @@ app.on("window-all-closed", () => {
 app.on("will-quit", () => {
   AgentManager.killAll();
   stopHookBridge();
-  stopCodexWatch();
   stopAllFixtures();
   flushPersisted();
 });
