@@ -21,9 +21,11 @@ function timeAgo(ts: number): string {
 
 export function LetterCard({ letter }: { letter: Letter }) {
   const applyLetterAction = useStore((s) => s.applyLetterAction);
+  const units = useStore((s) => s.units);
+  const selectWorld = useStore((s) => s.selectWorld);
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
-  const isPermissionLetter = letter.actions.some(
+  const isPermLetter = letter.actions.some(
     (a) => a.action.kind === "permission-deny"
   );
   // Permission letters: surface the requestId as a data attribute so
@@ -34,10 +36,26 @@ export function LetterCard({ letter }: { letter: Letter }) {
   )?.action;
   const reqIdAttr =
     requestId && "requestId" in requestId ? requestId.requestId : undefined;
+  // Click body → pan the canvas camera to the wielder's world (the
+  // wielder panel itself opens from the party row's chat icon, not
+  // from letters). Permission letters stay non-clickable since they
+  // own the activity → alert pulse pattern instead.
+  const wielder = letter.sessionId ? units[letter.sessionId] : undefined;
+  const targetWorldId = letter.worldId ?? wielder?.worldId;
+  const bodyClickable = !isPermLetter && !!targetWorldId;
+  const onBodyClick = bodyClickable
+    ? () => selectWorld(targetWorldId!)
+    : undefined;
   return (
     <div
-      className={`throne-letter sev-${letter.severity}`}
+      className={
+        `throne-letter sev-${letter.severity}` +
+        (bodyClickable ? " clickable" : "")
+      }
       data-letter-request-id={reqIdAttr}
+      onClick={onBodyClick}
+      role={bodyClickable ? "button" : undefined}
+      tabIndex={bodyClickable ? 0 : undefined}
     >
       <div className="throne-letter-head">
         <span className={`throne-letter-tag sev-${letter.severity}`}>
@@ -63,7 +81,10 @@ export function LetterCard({ letter }: { letter: Letter }) {
           <button
             type="button"
             className="letter-reasoning-toggle"
-            onClick={() => setShowReasoning((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowReasoning((v) => !v);
+            }}
             title="show what the wielder was thinking right before this ask"
           >
             {showReasoning ? "▲ thinking" : "▼ thinking"}
@@ -73,13 +94,14 @@ export function LetterCard({ letter }: { letter: Letter }) {
           )}
         </div>
       )}
-      {isPermissionLetter && (
+      {isPermLetter && (
         <input
           type="text"
           className="letter-deny-reason"
           placeholder="deny reason (optional, shown to Claude)"
           value={denyReason}
           onChange={(e) => setDenyReason(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
           aria-label="Deny reason"
         />
       )}
@@ -96,7 +118,8 @@ export function LetterCard({ letter }: { letter: Letter }) {
                 ? " ghost"
                 : "")
             }
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (a.action.kind === "permission-deny" && denyReason.trim()) {
                 applyLetterAction(letter, {
                   ...a.action,

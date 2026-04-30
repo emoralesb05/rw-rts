@@ -93,6 +93,7 @@ type Store = {
   sealKeyhole(worldId: string): void;
   comfort(sessionId: string): ComfortReceipt;
   dismissLetter(letterId: string): void;
+  dismissInformationalLetters(): void;
   applyLetterAction(letter: Letter, action: LetterAction): void;
   resetKingdom(): Promise<void>;
 };
@@ -484,8 +485,29 @@ function makeLetter(
   };
 }
 
+/** True if this letter carries a permission-allow / permission-deny
+ * action — i.e., it's an alert (AlertsHUD), not informational. */
+function isPermissionLetter(letter: Letter): boolean {
+  return letter.actions.some(
+    (a) =>
+      a.action.kind === "permission-allow" ||
+      a.action.kind === "permission-deny"
+  );
+}
+
+/** Add a letter to the feed. For informational letters, collapse the
+ * stream to one-per-wielder: remove any prior informational letter for
+ * the same sessionId so the new one replaces it. Permission letters
+ * stay distinct (each is its own decision). */
 function pushLetter(state: Store, letter: Letter): Letter[] {
-  return [letter, ...state.letters].slice(0, MAX_LETTERS);
+  let next = state.letters;
+  if (!isPermissionLetter(letter) && letter.sessionId) {
+    const sid = letter.sessionId;
+    next = next.filter(
+      (l) => l.sessionId !== sid || isPermissionLetter(l)
+    );
+  }
+  return [letter, ...next].slice(0, MAX_LETTERS);
 }
 
 // Read-only / observation tools don't "fight back" — they don't clear
@@ -1290,6 +1312,13 @@ export const useStore = create<Store>((set) => ({
   },
   dismissLetter(letterId) {
     set((s) => ({ letters: s.letters.filter((l) => l.id !== letterId) }));
+  },
+  /** Drop every informational letter at once. Permission letters
+   * (alerts) are preserved — those are decisions, not history. */
+  dismissInformationalLetters() {
+    set((s) => ({
+      letters: s.letters.filter((l) => isPermissionLetter(l)),
+    }));
   },
   applyLetterAction(letter, action) {
     const s = useStore.getState();

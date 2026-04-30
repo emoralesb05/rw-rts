@@ -6,6 +6,7 @@
 import { useStore } from "../../store";
 import { HudWidget } from "./HudWidget";
 import { PartyRow } from "./PartyRow";
+import { usePersistedBool } from "./hud-prefs";
 
 /** Focuses the bottom command input — used by the WielderHUD's
  * dispatch shortcut. The CommandInput.tsx renders a single visible
@@ -19,31 +20,61 @@ function focusSpawnInput() {
 
 export function WielderHUD() {
   const units = useStore((s) => s.units);
-  // Stable spawn-time sort — newer wielders append below existing ones.
-  const list = Object.values(units).sort(
+  // Hide completed/fallen wielders by default — they accumulate but
+  // can't be acted on. Toggle persists so the user's preference sticks.
+  const [showGhosted, setShowGhosted] = usePersistedBool("show-ghosted", false);
+  const all = Object.values(units).sort(
     (a, b) => (a.spawnedAt ?? a.lastActivity) - (b.spawnedAt ?? b.lastActivity)
   );
-  const dispatchBtn = (
-    <button
-      type="button"
-      className="hud-action-btn"
-      onClick={focusSpawnInput}
-      title="dispatch a wielder — focuses the spawn input"
-      aria-label="Dispatch a wielder"
-    >
-      + dispatch
-    </button>
+  const ghostedCount = all.filter(
+    (u) => u.status === "complete" || u.status === "fallen"
+  ).length;
+  const list = showGhosted
+    ? all
+    : all.filter((u) => u.status !== "complete" && u.status !== "fallen");
+  const headerExtra = (
+    <>
+      {ghostedCount > 0 && (
+        <button
+          type="button"
+          className={
+            "hud-action-btn hud-action-btn-toggle" +
+            (showGhosted ? " active" : "")
+          }
+          onClick={() => setShowGhosted((v) => !v)}
+          title={
+            showGhosted
+              ? `Hide ${ghostedCount} completed/fallen wielders`
+              : `Show ${ghostedCount} completed/fallen wielders`
+          }
+          aria-pressed={showGhosted}
+        >
+          ✦ {ghostedCount}
+        </button>
+      )}
+      <button
+        type="button"
+        className="hud-action-btn"
+        onClick={focusSpawnInput}
+        title="dispatch a wielder — focuses the spawn input"
+        aria-label="Dispatch a wielder"
+      >
+        + dispatch
+      </button>
+    </>
   );
   return (
     <HudWidget
       anchor="top-left"
       title="Wielders"
       count={list.length}
-      headerExtra={dispatchBtn}
+      headerExtra={headerExtra}
     >
       {list.length === 0 ? (
         <div className="hud-empty">
-          The kingdom is quiet. Spawn or run an agent to begin.
+          {all.length === 0
+            ? "The kingdom is quiet. Spawn or run an agent to begin."
+            : "All active wielders done. Toggle ✦ to see history."}
         </div>
       ) : (
         <div className="party-list">

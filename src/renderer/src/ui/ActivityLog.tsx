@@ -12,10 +12,11 @@
  *   - session_start / session_end / subagent_spawn / permission_resolved
  *       → not clickable (system markers, no useful drill-through)
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
 import { usePanels } from "./floating/panel-store";
+import { usePersistedBool } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
 import type { AgentEvent } from "@shared/events";
 
@@ -49,7 +50,10 @@ export function ActivityLog() {
   const units = useStore((s) => s.units);
   const letters = useStore((s) => s.letters);
   const openPanel = usePanels((s) => s.openPanel);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = usePersistedBool(
+    "collapsed:Activity",
+    false
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   // Take the newest VISIBLE events (store stores newest-first), then
   // reverse so the oldest of the visible window sits at the top of the

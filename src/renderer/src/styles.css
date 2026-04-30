@@ -2002,6 +2002,18 @@ select.btn {
 .throne-letter.sev-critical { border-left-color: #ff5a3c; }
 .throne-letter.sev-important { border-left-color: #ffd86b; }
 .throne-letter.sev-notable { border-left-color: #6cc6ff; }
+.throne-letter.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.throne-letter.clickable:hover {
+  background: rgba(20, 32, 74, 0.85);
+  border-color: rgba(255, 216, 107, 0.30);
+}
+.throne-letter.clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .throne-letter-head {
   display: flex;
   justify-content: space-between;
@@ -2274,6 +2286,28 @@ select.btn {
 .hud-action-btn:hover {
   background: rgba(255, 216, 107, 0.18);
   border-color: var(--accent);
+}
+/* Quieter variant — for "clear" / dismiss-style header buttons. */
+.hud-action-btn-ghost {
+  background: transparent;
+  border-color: rgba(255, 122, 60, 0.30);
+  color: #ff7a3c;
+}
+.hud-action-btn-ghost:hover {
+  background: rgba(255, 122, 60, 0.10);
+  border-color: #ff7a3c;
+}
+/* Toggle variant — when active, shows a filled-in look. Used by the
+ * WielderHUD "show ghosted" pill. */
+.hud-action-btn-toggle {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--muted);
+  background: transparent;
+}
+.hud-action-btn-toggle.active {
+  background: rgba(255, 216, 107, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .hud-body {
   overflow-y: auto;

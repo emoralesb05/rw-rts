@@ -9,12 +9,27 @@ import { LetterCard, isPermissionLetter } from "./LetterCard";
 
 export function LettersHUD() {
   const letters = useStore((s) => s.letters);
+  const dismissInformationalLetters = useStore(
+    (s) => s.dismissInformationalLetters
+  );
   const informational = letters.filter((l) => !isPermissionLetter(l));
+  const clearBtn =
+    informational.length > 0 ? (
+      <button
+        type="button"
+        className="hud-action-btn hud-action-btn-ghost"
+        onClick={dismissInformationalLetters}
+        title="Dismiss every letter — permission alerts are kept"
+      >
+        ✕ clear
+      </button>
+    ) : null;
   return (
     <HudWidget
       anchor="bottom-right"
       title="Letters"
       count={informational.length}
+      headerExtra={clearBtn}
     >
       {informational.length === 0 ? (
         <div className="hud-empty">no letters</div>

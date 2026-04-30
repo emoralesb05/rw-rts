@@ -5,7 +5,7 @@
  * the widget locks to. Future "Edit HUD layout" mode will override
  * the anchor with user-chosen positions.
  */
-import { useState } from "react";
+import { usePersistedBool } from "./hud-prefs";
 
 export type HudAnchor =
   | "top-left"
@@ -38,7 +38,12 @@ export function HudWidget({
   className,
   children,
 }: Props) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  // Persist collapsed state per widget — the title doubles as a stable
+  // key since each HUD has a unique one (Wielders, Alerts, Letters, …).
+  const [collapsed, setCollapsed] = usePersistedBool(
+    `collapsed:${title}`,
+    defaultCollapsed
+  );
   return (
     <section
       className={
