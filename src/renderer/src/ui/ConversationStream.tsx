@@ -43,18 +43,32 @@ function renderText(value: unknown): string {
   return String(value);
 }
 
+/** Pull a file path off a tool input regardless of which CLI sent it.
+ * Cursor uses `target_file`/`path`, Claude uses `file_path`. Also
+ * accepts an absolute `command` argument (some tool inputs carry the
+ * affected file as the command). */
+function inputFilePath(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const i = input as Record<string, unknown>;
+  for (const k of ["file_path", "target_file", "path", "filepath"]) {
+    const v = i[k];
+    if (typeof v === "string" && v) return v;
+  }
+  return "";
+}
+
 function summarizeToolInput(name: string | undefined, input: unknown): string {
   if (!input || typeof input !== "object") return "";
   const i = input as Record<string, unknown>;
   switch (name) {
     case "Read": case "Edit": case "Write": case "MultiEdit": case "NotebookEdit":
-      return String(i.file_path ?? "");
+      return inputFilePath(input);
     case "Bash":
       return String(i.command ?? "").slice(0, 240);
     case "Grep":
-      return `${i.pattern ?? ""}${i.path ? ` in ${i.path}` : ""}`;
+      return `${i.pattern ?? i.query ?? ""}${i.path ? ` in ${i.path}` : ""}`;
     case "Glob":
-      return String(i.pattern ?? "");
+      return String(i.pattern ?? i.target_directories ?? "");
     case "WebFetch": case "WebSearch":
       return String(i.url ?? i.query ?? "");
     case "Task": case "Agent":
@@ -62,6 +76,40 @@ function summarizeToolInput(name: string | undefined, input: unknown): string {
     default:
       return JSON.stringify(input).slice(0, 160);
   }
+}
+
+/** Clickable link that opens the file. Routes to the editor matching
+ * the wielder's tool (Cursor → cursor://file URL handler) when set;
+ * otherwise OS default app. */
+function FilePathLink({
+  path,
+  label,
+  tool,
+}: {
+  path: string;
+  label?: string;
+  tool?: "claude" | "cursor" | "codex";
+}) {
+  if (!path) return null;
+  const display = label ?? path;
+  const onClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    void window.kh.openPath(path, { tool }).catch(() => {});
+  };
+  return (
+    <button
+      type="button"
+      className="chat-path-link"
+      onClick={onClick}
+      title={
+        tool === "cursor"
+          ? `open ${path} in Cursor`
+          : `open ${path}`
+      }
+    >
+      {display}
+    </button>
+  );
 }
 
 function extractWhyTrace(events: AgentEvent[], target: AgentEvent): AgentEvent[] {
@@ -83,18 +131,35 @@ function extractWhyTrace(events: AgentEvent[], target: AgentEvent): AgentEvent[]
   return trace.reverse();
 }
 
+// Tools whose `summary` is a file path — render as a clickable
+// FilePathLink. Other tools (Bash, Grep, WebFetch, ...) keep the
+// plain-text summary, since their args aren't openable paths.
+const PATH_TOOLS = new Set([
+  "Read",
+  "Edit",
+  "Write",
+  "MultiEdit",
+  "NotebookEdit",
+]);
+
 function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
   const [showTrace, setShowTrace] = useState(false);
   const name = String(ev.payload.name ?? "");
   const icon = TOOL_ICON[name] ?? "•";
   const summary = summarizeToolInput(name, ev.payload.input);
+  const summaryIsPath = PATH_TOOLS.has(name) && summary.startsWith("/");
   const trace = useMemo(() => extractWhyTrace(events, ev), [events, ev]);
   return (
     <div className="chat-tool">
       <div className="chat-tool-line">
         <span className="chat-tool-icon">{icon}</span>
         <span className="chat-tool-name">{name}</span>
-        {summary && <span className="chat-tool-arg">{summary}</span>}
+        {summary &&
+          (summaryIsPath ? (
+            <FilePathLink path={summary} tool={ev.tool} />
+          ) : (
+            <span className="chat-tool-arg">{summary}</span>
+          ))}
         {trace.length > 0 && (
           <button
             type="button"

@@ -302,13 +302,21 @@ export function WielderPanelBody({
         <button
           type="button"
           className="card-verb destructive"
-          disabled={ghosted}
+          // Recall calls window.kh.killAgent, which only knows about
+          // processes keykeeper spawned. For hook-observed wielders it
+          // would silently no-op; gate the same way decree does so the
+          // button reflects what's actually possible.
+          disabled={ghosted || !unit.spawnedHere}
           onClick={() => {
             if (confirm(`Recall ${unit.displayName}? This ends the session.`)) {
               void window.kh.killAgent(unit.id).catch(() => {});
             }
           }}
-          title="recall — end this session"
+          title={
+            !unit.spawnedHere
+              ? "observed-only — keykeeper didn't spawn this wielder, no process to recall"
+              : "recall — end this session"
+          }
         >
           × recall
         </button>

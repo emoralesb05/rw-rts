@@ -411,6 +411,27 @@ select.btn {
   flex: 1 1 auto;
   min-width: 0;
 }
+.chat-path-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent-2);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 216, 107, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  word-break: break-word;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+.chat-path-link:hover {
+  text-decoration-color: var(--accent-2);
+  filter: brightness(1.1);
+}
 .chat-tool-why {
   background: transparent;
   border: 1px solid rgba(255, 216, 107, 0.25);

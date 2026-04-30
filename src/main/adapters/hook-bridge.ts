@@ -290,6 +290,39 @@ export function pendingPermissionCount(): number {
   return pending.size;
 }
 
+// Canonical tool-name registry — the renderer's icon table, summary
+// helpers, and per-tool special rendering (terminal blocks, diff
+// rendering, etc.) all key on Claude's Bash/Read/Edit/Grep/etc. taxonomy.
+// Cursor and Codex emit their own tool names through hooks; map them
+// here so a "shell command" looks the same in the chat regardless of
+// which CLI ran it. Add to this table when a new tool name appears in
+// the bridge log without an icon.
+const TOOL_NAME_CANONICAL: Record<string, string> = {
+  // Cursor (CamelCase from its hook payloads)
+  run_terminal_command: "Bash",
+  run_terminal_command_v2: "Bash",
+  read_file: "Read",
+  list_dir: "Glob",
+  edit_file: "Edit",
+  write_file: "Write",
+  create_file: "Write",
+  delete_file: "Bash",
+  grep_search: "Grep",
+  file_search: "Glob",
+  codebase_search: "Grep",
+  web_search: "WebSearch",
+  fetch_pull_request: "WebFetch",
+  // Codex (snake_case via Rust)
+  command_execution: "Bash",
+  apply_patch: "Edit",
+  shell: "Bash",
+};
+
+function canonicalToolName(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  return TOOL_NAME_CANONICAL[raw] ?? raw;
+}
+
 function normalizeHookPayload(p: any): AgentEvent | null {
   const eventName = p?.hook_event_name as string | undefined;
   if (!eventName) return null;
@@ -376,7 +409,7 @@ function normalizeClaudePayload(
       timestamp: ts,
       kind: "permission_request",
       payload: {
-        name: p.tool_name,
+        name: canonicalToolName(p.tool_name),
         input: p.tool_input,
         requestId,
       },
@@ -420,7 +453,7 @@ function normalizeClaudePayload(
     timestamp: ts,
     kind,
     payload: {
-      name: p.tool_name,
+      name: canonicalToolName(p.tool_name),
       input: p.tool_input,
       output: p.tool_response,
       text: p.prompt ?? p.user_prompt,
@@ -483,7 +516,10 @@ function normalizeCursorPayload(p: any, eventName: string): AgentEvent | null {
         ...base,
         timestamp: ts,
         kind: "tool_use",
-        payload: { name: p.tool_name, input: p.tool_input },
+        payload: {
+          name: canonicalToolName(p.tool_name),
+          input: p.tool_input,
+        },
       };
     case "postToolUse":
       return {
@@ -491,7 +527,7 @@ function normalizeCursorPayload(p: any, eventName: string): AgentEvent | null {
         timestamp: ts,
         kind: "tool_result",
         payload: {
-          name: p.tool_name,
+          name: canonicalToolName(p.tool_name),
           input: p.tool_input,
           output: p.tool_output,
         },

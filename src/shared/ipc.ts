@@ -13,6 +13,7 @@ export const IPC = {
   InstallCodexHooks: "kh:install-codex-hooks",
   UninstallCodexHooks: "kh:uninstall-codex-hooks",
   CodexHooksStatus: "kh:codex-hooks-status",
+  OpenPath: "kh:open-path",
   PlayFixture: "kh:play-fixture",
   LoadPersisted: "kh:load-persisted",
   SavePersisted: "kh:save-persisted",

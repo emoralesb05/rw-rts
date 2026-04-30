@@ -28,6 +28,10 @@ declare global {
       uninstallCodexHooks(): Promise<HooksStatus>;
       codexHooksStatus(): Promise<HooksStatus>;
       playFixture(req: PlayFixtureRequest): Promise<void>;
+      openPath(
+        path: string,
+        opts?: { tool?: "claude" | "cursor" | "codex" }
+      ): Promise<string>;
       loadPersisted(): Promise<PersistedState>;
       savePersisted(state: PersistedState): Promise<void>;
       resetPersisted(): Promise<PersistedState>;

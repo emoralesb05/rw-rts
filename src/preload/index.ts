@@ -62,6 +62,12 @@ const api = {
   playFixture(req: PlayFixtureRequest) {
     return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
   },
+  openPath(path: string, opts?: { tool?: "claude" | "cursor" | "codex" }) {
+    return ipcRenderer.invoke(IPC.OpenPath, {
+      path,
+      tool: opts?.tool,
+    }) as Promise<string>;
+  },
   loadPersisted() {
     return ipcRenderer.invoke(IPC.LoadPersisted) as Promise<PersistedState>;
   },
