@@ -217,22 +217,106 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
   return null;
 }
 
+/** Pull a sensible (text, exitCode, isError) tuple out of a tool_result
+ * payload. Different upstreams shape this differently:
+ *   - Cursor:    `{ output: "...", exitCode: 0 }`
+ *   - Claude:    plain string, or `{ stdout, stderr, interrupted, is_error }`
+ *   - Codex:     plain string (most), or `{ output, exit_code }` for shells
+ * Normalize all three into one shape so the renderer can decide
+ * styling and error chips uniformly. */
+function unpackToolResult(output: unknown): {
+  text: string;
+  exitCode?: number;
+  isError: boolean;
+} {
+  if (typeof output === "string") return { text: output, isError: false };
+  if (!output || typeof output !== "object") {
+    return { text: String(output ?? ""), isError: false };
+  }
+  const o = output as Record<string, unknown>;
+  const exitCode =
+    typeof o.exitCode === "number"
+      ? o.exitCode
+      : typeof o.exit_code === "number"
+      ? o.exit_code
+      : undefined;
+  // Cursor / Codex shell shape. Codex's hook payloads sometimes use
+  // `aggregated_output` instead of `output` (carried over from the
+  // CLI's JSONL stream naming); accept either.
+  const shellOutput =
+    typeof o.output === "string"
+      ? o.output
+      : typeof o.aggregated_output === "string"
+      ? o.aggregated_output
+      : undefined;
+  if (shellOutput !== undefined) {
+    return {
+      text: shellOutput,
+      exitCode,
+      isError: typeof exitCode === "number" && exitCode !== 0,
+    };
+  }
+  // Claude shape.
+  const stdout = typeof o.stdout === "string" ? o.stdout : "";
+  const stderr = typeof o.stderr === "string" ? o.stderr : "";
+  const text = stderr ? `${stdout}${stdout ? "\n" : ""}${stderr}` : stdout;
+  const isError =
+    o.is_error === true ||
+    o.isError === true ||
+    o.interrupted === true ||
+    (typeof exitCode === "number" && exitCode !== 0);
+  return {
+    text: text || JSON.stringify(o, null, 2),
+    exitCode,
+    isError,
+  };
+}
+
 function ToolResultRow({ ev }: { ev: AgentEvent }) {
   const [expanded, setExpanded] = useState(false);
-  const text = renderText(ev.payload.output);
+  const name = String(ev.payload.name ?? "");
+  const { text, exitCode, isError } = unpackToolResult(ev.payload.output);
+  const isShell = name === "Bash";
   if (!text.trim()) {
-    return <div className="chat-tool-result chat-tool-result-empty">↳ done</div>;
+    return (
+      <div
+        className={
+          "chat-tool-result chat-tool-result-empty" +
+          (isError ? " errored" : "")
+        }
+      >
+        {isError ? "↳ failed" : "↳ done"}
+        {typeof exitCode === "number" && exitCode !== 0 && (
+          <span className="chat-tool-exit"> exit {exitCode}</span>
+        )}
+      </div>
+    );
   }
   const trimmed = text.length > 220 ? text.slice(0, 220) + "…" : text;
   const showExpand = text.length > 220;
+  const cls =
+    "chat-tool-result" +
+    (isError ? " errored" : "") +
+    (isShell ? " shell" : "");
   return (
-    <div className="chat-tool-result">
+    <div className={cls}>
       <pre className="chat-tool-result-body">{expanded ? text : trimmed}</pre>
-      {showExpand && (
-        <button className="chat-expand" onClick={() => setExpanded(!expanded)}>
-          {expanded ? "show less" : `show all (${text.length} chars)`}
-        </button>
-      )}
+      <div className="chat-tool-result-foot">
+        {typeof exitCode === "number" && (
+          <span
+            className={
+              "chat-tool-exit" + (exitCode !== 0 ? " nonzero" : " ok")
+            }
+          >
+            exit {exitCode}
+          </span>
+        )}
+        {showExpand && (
+          <button className="chat-expand" onClick={() => setExpanded(!expanded)}>
+            {expanded ? "show less" : `show all (${text.length} chars)`}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
