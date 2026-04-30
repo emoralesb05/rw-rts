@@ -47,7 +47,10 @@ body, html, #root {
   top: 0;
   left: 0;
   right: 0;
-  height: 12px;
+  /* macOS hiddenInset traffic lights sit ~14px from top × ~70px wide.
+   * 32px gives them comfortable clearance and turns the whole top
+   * edge into a window-drag region (everything under is HUD content). */
+  height: 32px;
   z-index: 200;
   -webkit-app-region: drag;
   pointer-events: none;
@@ -1858,22 +1861,39 @@ select.btn {
 
 /* Pulse highlight applied to a LetterCard when the ActivityLog or a
  * chat permission marker clicks its matching letter — "look up here,
- * this is the one." */
+ * this is the one." Sharp pulse + small scale bump on impact, then a
+ * lingering selected ring so the King can keep eyes on the letter
+ * they just chased. */
 .throne-letter.letter-pulse {
-  animation: letter-pulse 2s ease-out;
+  animation: letter-pulse 3.5s ease-out;
+  position: relative;
+  z-index: 1;
 }
 @keyframes letter-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0.9),
-                0 0 0 0 rgba(255, 122, 60, 0.6);
+    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0.95),
+                0 0 0 0 rgba(255, 122, 60, 0.65);
+    transform: scale(1);
   }
-  35% {
-    box-shadow: 0 0 0 5px rgba(255, 122, 60, 0.5),
-                0 0 22px 8px rgba(255, 122, 60, 0.35);
+  6% {
+    box-shadow: 0 0 0 6px rgba(255, 122, 60, 0.55),
+                0 0 28px 10px rgba(255, 122, 60, 0.40);
+    transform: scale(1.015);
+  }
+  20% {
+    box-shadow: 0 0 0 3px rgba(255, 122, 60, 0.5),
+                0 0 18px 4px rgba(255, 122, 60, 0.25);
+    transform: scale(1);
+  }
+  85% {
+    box-shadow: 0 0 0 2px rgba(255, 122, 60, 0.5),
+                0 0 14px 2px rgba(255, 122, 60, 0.18);
+    transform: scale(1);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 122, 60, 0),
                 0 0 0 0 rgba(255, 122, 60, 0);
+    transform: scale(1);
   }
 }
 
@@ -2515,13 +2535,14 @@ select.btn {
 .hud-tone-info {
   border-color: rgba(108, 198, 255, 0.30);
 }
-/* corner anchors */
-.hud-top-left     { top: 12px;    left: 12px; }
-.hud-top-right    { top: 12px;    right: 12px; }
+/* corner anchors. Top edges sit below the 32px window-drag strip so
+ * macOS traffic lights don't overlap the WielderHUD/KingdomHeader. */
+.hud-top-left     { top: 38px;    left: 12px; }
+.hud-top-right    { top: 38px;    right: 12px; }
 .hud-bottom-left  { bottom: 12px; left: 12px; }
 .hud-bottom-right { bottom: 12px; right: 12px; }
 .hud-top-center {
-  top: 12px;
+  top: 38px;
   left: 50%;
   transform: translateX(-50%);
   width: auto;
@@ -2635,7 +2656,7 @@ select.btn {
 /* ─── KingdomHeader (top-center floating strip) ────────────────── */
 .kingdom-header {
   position: absolute;
-  top: 12px;
+  top: 38px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;

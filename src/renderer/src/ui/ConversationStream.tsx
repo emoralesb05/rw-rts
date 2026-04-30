@@ -682,7 +682,7 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
       el.classList.remove("letter-pulse");
       void el.offsetWidth;
       el.classList.add("letter-pulse");
-      window.setTimeout(() => el.classList.remove("letter-pulse"), 2000);
+      window.setTimeout(() => el.classList.remove("letter-pulse"), 3600);
     }));
   };
   const inner = (
