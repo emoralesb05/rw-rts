@@ -48,7 +48,7 @@ function highlightAlert(requestId: string) {
     el.classList.remove("letter-pulse");
     void el.offsetWidth;
     el.classList.add("letter-pulse");
-    window.setTimeout(() => el.classList.remove("letter-pulse"), 1600);
+    window.setTimeout(() => el.classList.remove("letter-pulse"), 2000);
   };
   // First try synchronously (already-expanded case), then fall back to
   // next animation frame to give the React re-render after expand a

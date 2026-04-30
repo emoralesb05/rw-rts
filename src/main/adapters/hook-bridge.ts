@@ -70,6 +70,13 @@ function emitPermissionResolved(
  *   - otherwise hash of meaningful payload fields
  */
 const DEDUPE_TTL_MS = 1500;
+// User-prompt events get a longer window because the upstream double-
+// fire pattern is different: when the King interrupts a Claude/Cursor
+// turn and resends the same text (Esc → re-submit), the second
+// UserPromptSubmit / beforeSubmitPrompt fires seconds later, not
+// milliseconds. 12s catches the typical interrupt-edit-resend gap
+// without false-positiving deliberate same-prompt repeats (rare).
+const PROMPT_DEDUPE_TTL_MS = 12_000;
 const recentEventKeys = new Map<string, number>();
 
 function dedupeHash(s: string): string {
@@ -110,7 +117,11 @@ function isDuplicateHookFire(payload: any, eventName: string): boolean {
   const key = dedupeKeyFor(payload, eventName);
   const existing = recentEventKeys.get(key);
   if (existing && existing > now) return true;
-  recentEventKeys.set(key, now + DEDUPE_TTL_MS);
+  const ttl =
+    eventName === "UserPromptSubmit" || eventName === "beforeSubmitPrompt"
+      ? PROMPT_DEDUPE_TTL_MS
+      : DEDUPE_TTL_MS;
+  recentEventKeys.set(key, now + ttl);
   return false;
 }
 
@@ -457,6 +468,11 @@ function normalizeClaudePayload(
       input: p.tool_input,
       output: p.tool_response,
       text: p.prompt ?? p.user_prompt,
+      // Claude's PostToolUse carries duration_ms (verified empirically);
+      // pass through so the renderer can chip slow tools without the
+      // computed-from-timestamp fallback.
+      durationMs:
+        typeof p.duration_ms === "number" ? p.duration_ms : undefined,
     },
   };
 }
@@ -530,6 +546,14 @@ function normalizeCursorPayload(p: any, eventName: string): AgentEvent | null {
           name: canonicalToolName(p.tool_name),
           input: p.tool_input,
           output: p.tool_output,
+          // Cursor uses `duration` (ms), Codex uses `duration_ms`. Pass
+          // through so the renderer can chip slow tools.
+          durationMs:
+            typeof p.duration === "number"
+              ? p.duration
+              : typeof p.duration_ms === "number"
+              ? p.duration_ms
+              : undefined,
         },
       };
     case "afterAgentResponse":

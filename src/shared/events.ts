@@ -57,6 +57,10 @@ export type AgentEvent = {
     // "timeout" case but removed the safety timer per user request —
     // permission letters now wait indefinitely until decided.)
     resolution?: "error";
+    // Set on tool_result when the upstream reports per-tool wall-clock
+    // duration (Cursor `duration`, Codex `duration_ms`). Lets the chat
+    // renderer surface a small chip on slow tool calls.
+    durationMs?: number;
   };
   source: "spawned" | "hook";
 };

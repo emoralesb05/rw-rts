@@ -359,25 +359,53 @@ select.btn {
 .chat-user {
   justify-content: flex-end;
 }
+/* Same dark structure as agent bubbles so markdown renders cleanly
+ * (code blocks, fences, etc.); right-aligned + gold left-edge accent
+ * + subtle gold-tinted shadow so it's unmistakably the King talking. */
 .chat-user .chat-bubble-body {
-  background: var(--accent);
-  color: #04060d;
+  background: linear-gradient(180deg, #1a2752, #14204a);
+  color: var(--text);
+  border: 1px solid rgba(255, 216, 107, 0.4);
+  border-right: 3px solid var(--accent);
   border-bottom-right-radius: 2px;
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.08);
+  white-space: normal;
 }
 .chat-sender-tag {
   display: inline-block;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.6px;
   padding: 1px 6px;
   margin-right: 6px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 216, 107, 0.18);
+  color: var(--accent);
   vertical-align: middle;
+  text-transform: uppercase;
 }
 .chat-bubble-text {
   vertical-align: middle;
+}
+.chat-user .chat-bubble-text > * {
+  margin: 0;
+}
+.chat-user .chat-bubble-text > * + * {
+  margin-top: 6px;
+}
+.chat-user .chat-bubble-text code {
+  background: rgba(255, 216, 107, 0.12);
+  color: var(--accent);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.chat-user .chat-bubble-text pre {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 216, 107, 0.18);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  margin: 0;
 }
 .chat-assistant .chat-bubble-body {
   background: linear-gradient(180deg, #1a2752, #14204a);
@@ -516,6 +544,24 @@ select.btn {
   padding-left: 18px;
 }
 .chat-tool-result-empty.errored { color: #ff8870; }
+.chat-tool-error-msg {
+  color: #ffb0a0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.chat-tool-error-banner {
+  margin: 0 0 4px 0;
+  padding: 4px 9px;
+  background: rgba(255, 90, 80, 0.12);
+  border-left: 3px solid #ff6650;
+  border-radius: 3px;
+  color: #ffb0a0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .chat-tool-result-body {
   background: #0a1130;
   border: 1px solid var(--line);
@@ -563,6 +609,16 @@ select.btn {
   background: rgba(255, 120, 80, 0.18);
   border: 1px solid rgba(255, 120, 80, 0.4);
   color: #ff8870;
+}
+.chat-tool-duration {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font: 600 9.5px ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0.5px;
+  background: rgba(180, 180, 220, 0.08);
+  border: 1px solid rgba(180, 180, 220, 0.18);
+  color: var(--muted);
 }
 .chat-expand {
   background: transparent;
@@ -1587,6 +1643,12 @@ select.btn {
   flex: 1 1 auto;
   max-height: none;
   min-height: 0;
+  /* Make the body its own flex column so direct children (e.g.
+   * .target-panel) can grow to fill the available height. Without
+   * this, children just sit at natural height and the input row
+   * floats wherever the messages end. */
+  display: flex;
+  flex-direction: column;
 }
 /* When the wielder TargetPanel renders inside a floating panel, drop
  * its own border + shadow since the chrome already provides them. */
@@ -1627,11 +1689,34 @@ select.btn {
   flex-direction: column;
   max-height: 65vh;
   padding: 4px 0;
+  min-height: 0;
+}
+/* Inside a fixed-height panel (messages-tab resize mode), the log
+ * fills the body and the chat input pins to the bottom. */
+.floating-panel-fixed-height .wielder-panel-log {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+}
+/* The wielder-panel body wraps everything in .target-panel which is
+ * column-flex; in fixed-height mode it has to grow to fill the
+ * floating-panel-body so the chat-input can pin to the bottom and the
+ * stream takes the remaining space. Drop padding + gap so children
+ * own their spacing — frees ~36px vertical otherwise lost to the
+ * default Status-mode chrome that messages-mode doesn't need. */
+.floating-panel-fixed-height .target-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  border: none;
 }
 .wielder-panel-log .chat-stream {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 6px 12px;
+  min-height: 0;
 }
 .chat-empty {
   padding: 16px;
@@ -1771,19 +1856,20 @@ select.btn {
   background: transparent;
 }
 
-/* Pulse highlight applied to a LetterCard when the ActivityLog clicks
- * its matching permission row — "look up here, this is the one." */
+/* Pulse highlight applied to a LetterCard when the ActivityLog or a
+ * chat permission marker clicks its matching letter — "look up here,
+ * this is the one." */
 .throne-letter.letter-pulse {
-  animation: letter-pulse 1.6s ease-out;
+  animation: letter-pulse 2s ease-out;
 }
 @keyframes letter-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0.85),
-                0 0 0 0 rgba(255, 122, 60, 0.5);
+    box-shadow: 0 0 0 0 rgba(255, 122, 60, 0.9),
+                0 0 0 0 rgba(255, 122, 60, 0.6);
   }
-  40% {
-    box-shadow: 0 0 0 4px rgba(255, 122, 60, 0.45),
-                0 0 18px 6px rgba(255, 122, 60, 0.30);
+  35% {
+    box-shadow: 0 0 0 5px rgba(255, 122, 60, 0.5),
+                0 0 22px 8px rgba(255, 122, 60, 0.35);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 122, 60, 0),
@@ -1797,6 +1883,61 @@ select.btn {
   position: relative;
   border-radius: 4px;
   transition: background 0.3s;
+}
+/* Subagent rows in the parent's chat — indent + tinted border so
+ * it's clear these are nested under the parent's spawn. */
+.chat-event-subagent {
+  margin-left: 22px;
+  border-left: 2px solid rgba(255, 130, 220, 0.35);
+  padding-left: 8px;
+}
+.chat-subagent-spawn .chat-marker-text {
+  color: #f8a8e8;
+}
+.chat-subagent-name { font-weight: 600; }
+.chat-subagent-prompt { opacity: 0.75; font-style: italic; }
+
+/* Permission-request inline marker — clickable; pulses the matching
+ * AlertsHUD letter (same routing as activity-log perm rows). Orange
+ * tone so it stands out from session markers and subagent spawns. */
+.chat-permission-request {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  background: transparent;
+  border: 1px solid rgba(255, 168, 80, 0.35);
+  border-radius: 6px;
+  padding: 4px 9px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.chat-permission-request:hover {
+  background: rgba(255, 168, 80, 0.08);
+  border-color: rgba(255, 168, 80, 0.55);
+}
+.chat-permission-request .chat-marker-text {
+  color: #ffb070;
+  font-weight: 600;
+}
+.chat-permission-arg {
+  font-weight: 400;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+/* Resolved permission marker — historical context, no click target. */
+.chat-permission-resolved-row {
+  cursor: default;
+  opacity: 0.55;
+}
+.chat-permission-resolved {
+  font-weight: 400;
+  opacity: 0.7;
 }
 .chat-event.event-pulse {
   background: rgba(255, 216, 107, 0.12);
@@ -2843,13 +2984,17 @@ select.btn {
   border-top: 1px solid var(--line);
 }
 
-/* Per-wielder chat input — bottom of the Messages tab. */
+/* Per-wielder chat input — bottom of the Messages tab. flex:0 0 auto
+ * so it never shrinks below its natural height when the message
+ * stream above grows tall, and stays pinned at the bottom of the log
+ * column. */
 .wielder-chat-input {
   display: flex;
   gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.20);
+  flex: 0 0 auto;
 }
 .wielder-chat-textarea {
   flex: 1;

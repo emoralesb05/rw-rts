@@ -408,70 +408,128 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
   return null;
 }
 
-/** Pull a sensible (text, exitCode, isError) tuple out of a tool_result
- * payload. Different upstreams shape this differently:
- *   - Cursor:    `{ output: "...", exitCode: 0 }`
- *   - Claude:    plain string, or `{ stdout, stderr, interrupted, is_error }`
- *   - Codex:     plain string (most), or `{ output, exit_code }` for shells
- * Normalize all three into one shape so the renderer can decide
- * styling and error chips uniformly. */
+/** Detect an error result in plain text. Kept narrow on purpose —
+ * generic prefixes like "Failed to" or "Could not" false-positive on
+ * normal tool output that happens to start that way. We rely on
+ * upstream `is_error` flags for the rest. */
+function looksLikeErrorText(text: string): boolean {
+  const head = text.trimStart().slice(0, 120);
+  return head.startsWith("<tool_use_error>") || head.startsWith("<error>");
+}
+
+/** Pull a (text, exitCode, isError, ...) tuple out of a tool_result
+ * payload. Tries known shapes from each upstream in order, with
+ * shared isError detection at the bottom. */
 function unpackToolResult(output: unknown): {
   text: string;
   exitCode?: number;
   isError: boolean;
+  errorMessage?: string;
+  lineCount?: number;
 } {
-  if (typeof output === "string") return { text: output, isError: false };
+  if (typeof output === "string") {
+    const isError = looksLikeErrorText(output);
+    return {
+      text: output,
+      isError,
+      errorMessage: isError ? output.split("\n")[0].slice(0, 200) : undefined,
+    };
+  }
   if (!output || typeof output !== "object") {
     return { text: String(output ?? ""), isError: false };
   }
   const o = output as Record<string, unknown>;
+
+  // Claude Read's structured response: `{ type: "text", file: { content, numLines } }`
+  if (o.type === "text" && o.file && typeof o.file === "object") {
+    const f = o.file as Record<string, unknown>;
+    return {
+      text: typeof f.content === "string" ? f.content : "",
+      isError: false,
+      lineCount: typeof f.numLines === "number" ? f.numLines : undefined,
+    };
+  }
+  // Claude content-wrapped string response: `{ type: "text", text: "..." }`
+  if (o.type === "text" && typeof o.text === "string") {
+    const isError = o.is_error === true || looksLikeErrorText(o.text);
+    return {
+      text: o.text,
+      isError,
+      errorMessage: isError ? o.text.split("\n")[0].slice(0, 200) : undefined,
+    };
+  }
+
+  // Resolve fields once for the remaining shapes.
   const exitCode =
     typeof o.exitCode === "number"
       ? o.exitCode
       : typeof o.exit_code === "number"
       ? o.exit_code
       : undefined;
-  // Cursor / Codex shell shape. Codex's hook payloads sometimes use
-  // `aggregated_output` instead of `output` (carried over from the
-  // CLI's JSONL stream naming); accept either.
-  const shellOutput =
-    typeof o.output === "string"
-      ? o.output
-      : typeof o.aggregated_output === "string"
-      ? o.aggregated_output
-      : undefined;
-  if (shellOutput !== undefined) {
-    return {
-      text: shellOutput,
-      exitCode,
-      isError: typeof exitCode === "number" && exitCode !== 0,
-    };
-  }
-  // Claude shape.
   const stdout = typeof o.stdout === "string" ? o.stdout : "";
   const stderr = typeof o.stderr === "string" ? o.stderr : "";
-  const text = stderr ? `${stdout}${stdout ? "\n" : ""}${stderr}` : stdout;
+  const errStr =
+    typeof o.error === "string" && o.error
+      ? o.error
+      : typeof o.message === "string" && o.success === false
+      ? o.message
+      : "";
+  // Cursor/Codex shell `{ output | aggregated_output }`, Claude
+  // `{ stdout, stderr }`, plus Cursor non-shell `{ success: false }`
+  // collapse here. Pick the first non-empty text source.
+  const text =
+    (typeof o.output === "string" && o.output) ||
+    (typeof o.aggregated_output === "string" && o.aggregated_output) ||
+    (stderr ? `${stdout}${stdout ? "\n" : ""}${stderr}` : stdout) ||
+    errStr ||
+    JSON.stringify(o, null, 2);
   const isError =
     o.is_error === true ||
     o.isError === true ||
     o.interrupted === true ||
+    o.success === false ||
+    o.ok === false ||
+    !!errStr ||
     (typeof exitCode === "number" && exitCode !== 0);
-  return {
-    text: text || JSON.stringify(o, null, 2),
-    exitCode,
-    isError,
-  };
+  const errorMessage = isError
+    ? (errStr || stderr || "").split("\n")[0].slice(0, 200) || undefined
+    : undefined;
+  return { text, exitCode, isError, errorMessage };
 }
+
+function formatDuration(ms?: number): string | undefined {
+  if (typeof ms !== "number" || ms < 1000) return undefined;
+  if (ms < 10_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  const m = Math.floor(ms / 60_000);
+  const s = Math.round((ms % 60_000) / 1000);
+  return `${m}m${s}s`;
+}
+
+// Tools whose default-collapsed result is "↳ done"-style (with show-raw
+// toggle). For Read, the file path is already a clickable link in the
+// tool_use row, so re-showing the full content in the result is noise.
+// Edit/Write/MultiEdit are collapsed because the diff above already
+// shows the change.
+const TERSE_RESULT_TOOLS = new Set([
+  "Read",
+  "Edit",
+  "Write",
+  "MultiEdit",
+  "NotebookEdit",
+]);
 
 function ToolResultRow({ ev }: { ev: AgentEvent }) {
   const [expanded, setExpanded] = useState(false);
   const name = String(ev.payload.name ?? "");
-  const { text, exitCode, isError } = unpackToolResult(ev.payload.output);
+  const { text, exitCode, isError, errorMessage, lineCount } = unpackToolResult(
+    ev.payload.output
+  );
   const isShell = name === "Bash";
-  // For Edit/Write/MultiEdit, the diff above already shows what
-  // changed; the result payload is mostly the input echoed back as
-  // JSON or a "success: true" object. Render a terse marker by
-  // default with an expand toggle for the curious.
+  const durationLabel = formatDuration(ev.payload.durationMs);
+  // Tools where the diff or path link above already conveys the
+  // information; collapse the verbose body by default.
+  const isTerse = TERSE_RESULT_TOOLS.has(name);
   const isEditFamily = EDIT_TOOLS.has(name);
   if (!text.trim()) {
     return (
@@ -481,14 +539,27 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
           (isError ? " errored" : "")
         }
       >
-        {isError ? "↳ failed" : "↳ done"}
+        {isError ? "⚠ failed" : "↳ done"}
+        {errorMessage && (
+          <span className="chat-tool-error-msg"> {errorMessage}</span>
+        )}
         {typeof exitCode === "number" && exitCode !== 0 && (
           <span className="chat-tool-exit"> exit {exitCode}</span>
+        )}
+        {durationLabel && (
+          <span className="chat-tool-duration"> {durationLabel}</span>
         )}
       </div>
     );
   }
-  if (isEditFamily && !expanded) {
+  if (isTerse && !expanded) {
+    const verb = isError
+      ? "⚠ failed"
+      : isEditFamily
+      ? "↳ applied"
+      : name === "Read" && typeof lineCount === "number"
+      ? `↳ read ${lineCount} line${lineCount === 1 ? "" : "s"}`
+      : "↳ done";
     return (
       <div
         className={
@@ -496,7 +567,10 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
           (isError ? " errored" : "")
         }
       >
-        {isError ? "↳ failed" : "↳ applied"}
+        {verb}
+        {errorMessage && (
+          <span className="chat-tool-error-msg"> {errorMessage}</span>
+        )}
         <button
           type="button"
           className="chat-expand"
@@ -516,6 +590,9 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
     (isShell ? " shell" : "");
   return (
     <div className={cls}>
+      {errorMessage && (
+        <div className="chat-tool-error-banner">⚠ {errorMessage}</div>
+      )}
       <pre className="chat-tool-result-body">{expanded ? text : trimmed}</pre>
       <div className="chat-tool-result-foot">
         {typeof exitCode === "number" && (
@@ -527,9 +604,16 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
             exit {exitCode}
           </span>
         )}
-        {showExpand && (
+        {durationLabel && (
+          <span className="chat-tool-duration">{durationLabel}</span>
+        )}
+        {(showExpand || isTerse) && (
           <button className="chat-expand" onClick={() => setExpanded(!expanded)}>
-            {expanded ? "show less" : `show all (${text.length} chars)`}
+            {expanded
+              ? "show less"
+              : showExpand
+              ? `show all (${text.length} chars)`
+              : "show raw"}
           </button>
         )}
       </div>
@@ -551,9 +635,114 @@ function UserBubble({ text }: { text: string }) {
   return (
     <div className="chat-bubble chat-user">
       <div className="chat-bubble-body">
-        <span className="chat-sender-tag">Me</span>
-        <span className="chat-bubble-text">{text}</span>
+        <span className="chat-sender-tag">King</span>
+        <div className="chat-bubble-text">
+          <Streamdown plugins={STREAMDOWN_PLUGINS}>{text}</Streamdown>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
+  const letters = useStore((s) => s.letters);
+  const requestId =
+    typeof ev.payload.requestId === "string" ? ev.payload.requestId : undefined;
+  // A permission is "active" while a letter for it still exists in
+  // AlertsHUD. Once the King allows/denies (or the upstream resolves
+  // it externally), the letter is dismissed and the inline marker
+  // becomes historical — render as static text, no click target.
+  const isActive = useMemo(() => {
+    if (!requestId) return false;
+    for (const l of letters) {
+      for (const a of l.actions) {
+        if (
+          (a.action.kind === "permission-allow" ||
+            a.action.kind === "permission-deny" ||
+            a.action.kind === "permission-observe") &&
+          a.action.requestId === requestId
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [letters, requestId]);
+  const onClick = () => {
+    if (!requestId || !isActive) return;
+    window.dispatchEvent(
+      new CustomEvent("kh:expand-hud", { detail: { title: "Alerts" } })
+    );
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `.hud-top-right [data-letter-request-id="${requestId}"]`
+      );
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      el.classList.remove("letter-pulse");
+      void el.offsetWidth;
+      el.classList.add("letter-pulse");
+      window.setTimeout(() => el.classList.remove("letter-pulse"), 2000);
+    }));
+  };
+  const inner = (
+    <>
+      <span className="chat-marker-dot" />
+      <span className="chat-marker-text">
+        permission requested
+        {!isActive && requestId && (
+          <span className="chat-permission-resolved"> · resolved</span>
+        )}
+      </span>
+    </>
+  );
+  if (!isActive) {
+    return (
+      <div
+        className="chat-marker chat-permission-request chat-permission-resolved-row"
+        aria-disabled="true"
+      >
+        {inner}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="chat-marker chat-permission-request"
+      onClick={onClick}
+      title="click to spotlight the alert"
+    >
+      {inner}
+    </button>
+  );
+}
+
+function SubagentSpawnRow({
+  ev,
+  units,
+}: {
+  ev: AgentEvent;
+  units: Record<string, UnitState>;
+}) {
+  // The spawned subagent's session may not be a known unit yet (fires
+  // in tight succession); show the prompt summary regardless and the
+  // spawned wielder's display name once we know it.
+  const childId = String(ev.payload.parentSessionId ?? "");
+  const child = childId ? units[childId] : undefined;
+  const summary = String(ev.payload.text ?? ev.payload.input ?? "").slice(0, 200);
+  return (
+    <div className="chat-marker chat-subagent-spawn">
+      <span className="chat-marker-dot" />
+      <span className="chat-marker-text">
+        ↳ summoned subagent
+        {child && (
+          <span className="chat-subagent-name"> · {child.displayName}</span>
+        )}
+        {summary && (
+          <span className="chat-subagent-prompt">: {summary}</span>
+        )}
+      </span>
     </div>
   );
 }
@@ -611,13 +800,85 @@ export function ConversationStream({
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Subagent IDs whose parent is the wielder we're viewing — included
+  // in the filter so their tool calls / responses appear inline under
+  // the parent's chat. Each row is tagged with `isSubagent` so the
+  // renderer can indent it visually.
+  const subagentIds = useMemo(() => {
+    if (!sessionId) return new Set<string>();
+    const out = new Set<string>();
+    for (const u of Object.values(units)) {
+      if (u.parentSessionId === sessionId) out.add(u.sessionId);
+    }
+    return out;
+  }, [units, sessionId]);
+
+  // Build a set of "interrupted" user_prompt event keys — submitted but
+  // never worked on (no tool_use, tool_result, assistant_text, or
+  // permission_request in the same session before the next session_end
+  // or another user_prompt). Covers the King-edits-and-resends case
+  // where dedupe-by-content can't help because content changed. Same
+  // heuristic for all three tools since the involved event kinds are
+  // already canonicalized at the bridge.
+  // A user_prompt is "interrupted" only when we observe a TERMINATOR
+  // (the next user_prompt or session_end) with no intervening work
+  // (tool_use / tool_result / assistant_text / permission_request /
+  // subagent_spawn). If we walk off the end of the event list without
+  // finding a terminator, the prompt is still in progress — don't
+  // mark it. Same heuristic for all 3 tools since the bridge
+  // canonicalizes event kinds.
+  const interruptedPromptIds = useMemo(() => {
+    if (!sessionId) return new Set<string>();
+    const same = events
+      .filter(
+        (e) => e.sessionId === sessionId || subagentIds.has(e.sessionId)
+      )
+      .slice()
+      .reverse(); // oldest-first for forward scan
+    const interrupted = new Set<string>();
+    for (let i = 0; i < same.length; i++) {
+      const e = same[i];
+      if (e.kind !== "user_prompt") continue;
+      let didWork = false;
+      let sawTerminator = false;
+      for (let j = i + 1; j < same.length; j++) {
+        const next = same[j];
+        if (next.kind === "user_prompt" || next.kind === "session_end") {
+          sawTerminator = true;
+          break;
+        }
+        if (
+          next.kind === "tool_use" ||
+          next.kind === "tool_result" ||
+          next.kind === "assistant_text" ||
+          next.kind === "permission_request" ||
+          next.kind === "subagent_spawn"
+        ) {
+          didWork = true;
+          break;
+        }
+      }
+      if (sawTerminator && !didWork) {
+        interrupted.add(`${e.sessionId}:${e.timestamp}`);
+      }
+    }
+    return interrupted;
+  }, [events, sessionId, subagentIds]);
+
   const { filtered, hiddenCount } = useMemo(() => {
+    const isInterrupted = (e: AgentEvent) =>
+      e.kind === "user_prompt" &&
+      interruptedPromptIds.has(`${e.sessionId}:${e.timestamp}`);
     const f = sessionId
-      ? events.filter((e) => e.sessionId === sessionId)
-      : events.filter((e) => !muted[e.sessionId]);
+      ? events.filter(
+          (e) =>
+            (e.sessionId === sessionId || subagentIds.has(e.sessionId)) &&
+            !isInterrupted(e)
+        )
+      : events.filter((e) => !muted[e.sessionId] && !isInterrupted(e));
     const recent = f.slice(0, cap).reverse();
     return { filtered: recent, hiddenCount: Math.max(0, f.length - cap) };
-  }, [events, sessionId, muted, cap]);
+  }, [events, sessionId, subagentIds, muted, cap, interruptedPromptIds]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
@@ -665,11 +926,25 @@ export function ConversationStream({
         const sameUnitAsPrev = prev && prev.sessionId === e.sessionId;
         const badge =
           showBadges && unit && !sameUnitAsPrev ? <UnitBadge unit={unit} /> : null;
+        // Subagent rows: drawn from a session whose parent is the
+        // wielder we're viewing. Always show the badge so the King
+        // can tell whose action is whose; indent for visual nesting.
+        const isSubagent = sessionId
+          ? subagentIds.has(e.sessionId)
+          : false;
+        const subagentBadge =
+          isSubagent && unit && !sameUnitAsPrev ? <UnitBadge unit={unit} /> : null;
         let body: React.ReactNode = null;
         switch (e.kind) {
           case "session_start":
           case "session_end":
             body = <SessionMarker ev={e} />;
+            break;
+          case "subagent_spawn":
+            body = <SubagentSpawnRow ev={e} units={units} />;
+            break;
+          case "permission_request":
+            body = <PermissionRequestRow ev={e} />;
             break;
           case "user_prompt":
             body = <UserBubble text={String(e.payload.text ?? "")} />;
@@ -690,8 +965,15 @@ export function ConversationStream({
             body = null;
         }
         return (
-          <div key={i} data-event-ts={e.timestamp} className="chat-event">
+          <div
+            key={i}
+            data-event-ts={e.timestamp}
+            className={
+              "chat-event" + (isSubagent ? " chat-event-subagent" : "")
+            }
+          >
             {badge}
+            {subagentBadge}
             {body}
           </div>
         );

@@ -73,7 +73,10 @@ function nextPosition(existingCount: number, width: number): { x: number; y: num
 
 export const usePanels = create<State>((set, get) => ({
   panels: [],
-  zCounter: 100,
+  // Start the z-counter high so panels sit above Streamdown plugin
+  // overlays (Mermaid in particular renders its expand-to-full-view
+  // backdrop in the high-thousands). 10000+ keeps us clear.
+  zCounter: 10_000,
   openPanel({ kind, key, title, width = 420, data }) {
     const id = makeId(kind, key);
     const existing = get().panels.find((p) => p.id === id);

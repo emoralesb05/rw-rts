@@ -8,6 +8,14 @@ import {
   stopHookBridge,
   resolvePermissionRequest,
 } from "./adapters/hook-bridge";
+import {
+  startClaudeTranscriptWatcher,
+  stopClaudeTranscriptWatcher,
+} from "./adapters/claude-transcript";
+import {
+  startCodexTranscriptWatcher,
+  stopCodexTranscriptWatcher,
+} from "./adapters/codex-transcript";
 import { playFixture, stopAllFixtures } from "./adapters/fixture";
 import {
   installHooks,
@@ -130,6 +138,8 @@ if (!app.isPackaged) {
 
 app.whenReady().then(async () => {
   startHookBridge();
+  startClaudeTranscriptWatcher();
+  startCodexTranscriptWatcher();
   createWindow();
 
   process.on("SIGUSR1", async () => {
@@ -255,6 +265,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     AgentManager.killAll();
     stopHookBridge();
+    stopClaudeTranscriptWatcher();
+    stopCodexTranscriptWatcher();
     stopAllFixtures();
     app.quit();
   }
