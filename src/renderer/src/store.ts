@@ -638,7 +638,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   const role = roleFor(event.tool, repoRootStable, existing?.role);
   const displayName = existing?.displayName ?? nameFor(role, event.tool, repoRootStable);
   const unit: UnitState = existing
-    ? { ...existing }
+    ? { ...existing, repoRoot: existing.repoRoot ?? repoRootStable }
     : {
         id,
         sessionId: id,
@@ -646,6 +646,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         role,
         displayName,
         cwd: event.cwd,
+        repoRoot: repoRootStable,
         worldId,
         hp: 100,
         mp: 100,
@@ -1187,8 +1188,14 @@ export const useStore = create<Store>((set) => ({
   startStandingOrder(unitId, prompt, intervalMs, maxIterations = 24) {
     const id = `so-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const unit = useStore.getState().units[unitId];
+    // Identity must match the bus-stamped repoRoot used by applyOneEvent
+    // when rebinding orders to wielders on restart. Earlier bug: this
+    // used `unit.cwd`, which differs from `event.repoRoot` whenever the
+    // session started in a subdirectory of a repo — order persisted
+    // but never re-attached. Fall back to cwd for units that pre-date
+    // the repoRoot field on UnitState.
     const identity = unit
-      ? unitIdentityFor(unit.tool, unit.cwd)
+      ? unitIdentityFor(unit.tool, unit.repoRoot ?? unit.cwd)
       : `unknown::${unitId}`;
     const order: StandingOrder = {
       id,

@@ -73,6 +73,13 @@ export type UnitState = {
   // the same name across sessions.
   displayName: string;
   cwd: string;
+  // Repo root the wielder is keyed off of (nearest `.git/` ancestor of
+  // cwd, falls back to cwd). Persisted-state identity (`tool::repoRoot`)
+  // and the bus-stamped event.repoRoot share this value, so anything
+  // that needs to match across spawn vs hook events should use this
+  // rather than `cwd`. Optional for back-compat with units that pre-
+  // date the field; readers should fall back to `cwd` when absent.
+  repoRoot?: string;
   worldId: string;
   hp: number;
   mp: number;

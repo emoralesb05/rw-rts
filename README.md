@@ -93,13 +93,20 @@ workspace-root validation + exclude textarea).
 
 ## Multi-tool support
 
-Three agent providers are wired:
+Three agent providers are wired. All three observe via the same Unix
+socket bridge (`~/.claude/kh-rts.sock`); a small Python script
+(`bin/kh-rts-hook`) is installed into each tool's hook config and
+forwards events into the bridge.
 
-| Tool | Active spawn | Passive watch |
-|---|---|---|
-| Claude Code (`claude`) | ✅ via `claude -p` with `--session-id` | ✅ via socket-bridge hook bridge |
-| Cursor (`cursor-agent`) | ✅ via `cursor-agent create-chat` | ✅ via SQLite tail of `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` |
-| Codex (`codex`) | ✅ via `codex exec --json` | ✅ via JSONL tail of `~/.codex/sessions/...` |
+| Tool | Active spawn | Passive watch | Permission control |
+|---|---|---|---|
+| Claude Code (`claude`) | ✅ `claude -p` with `--session-id` | ✅ hooks in `~/.claude/settings.json` | ✅ keykeeper-authoritative; native terminal prompt races concurrently |
+| Cursor (`cursor-agent` / IDE) | ✅ `cursor-agent create-chat` | ✅ hooks in `~/.cursor/hooks.json` | ⚠ observational only — Cursor's allowlist mode requires user confirmation in its inline UI; keykeeper letter is informational |
+| Codex (`codex` CLI / desktop app) | ✅ `codex exec --json` | ✅ hooks in `~/.codex/config.toml` (managed marker block) | ✅ keykeeper-authoritative; Codex never shows native UI when the hook decides |
+
+Hook installs are managed from the Kingdom panel → **Connection** tab:
+one toggle per tool. Each one reads/writes only its own config and
+preserves any existing entries (e.g. peon-ping for Claude/Cursor).
 
 Each session gets a wielder identity = `(tool, repoRoot)` — same tool +
 same repo always means the same wielder, with persistent visit/seal/fall
@@ -143,9 +150,14 @@ scripts in `scripts/`).
 ## Architecture in a paragraph
 
 Electron main (`src/main/`) hosts agent adapters that turn real CLI
-output / SQLite tails / JSONL streams into a uniform `AgentEvent` bus.
-Each event is stamped with its `repoRoot` (nearest `.git/` ancestor)
-before crossing to the renderer. The renderer's Zustand store
+output and hook events into a uniform `AgentEvent` bus. The Unix-socket
+hook bridge (`adapters/hook-bridge.ts`) is the canonical observation
+channel for all three tools — Claude/Cursor/Codex install their own
+hook configs that pipe payloads into the same socket via
+`bin/kh-rts-hook`. Spawned sessions also stream stdout JSON, with
+per-tool spawn-id registration so the bridge suppresses duplicate hook
+events for the same conversation. Each event is stamped with its
+`repoRoot` (nearest `.git/` ancestor) before crossing to the renderer. The renderer's Zustand store
 (`src/renderer/src/store.ts`) is the simulation state — units, worlds,
 heartless, drives, letters, alert levels — all derived from events. A
 single Phaser scene (`KingdomScene`) renders the unified Star Chart
@@ -177,14 +189,17 @@ Use freely; they emit synthetic events, no API tokens spent.
 
 ## Troubleshooting
 
-**Hooks off / no Claude events flowing.** Open Kingdom panel → **Connection**
-tab. Click `Install hooks`. Adds entries to `~/.claude/settings.json` that
-forward tool-call events to a local Unix socket
-(`~/.claude/kh-rts.sock`). Uninstall reverts cleanly.
+**No events flowing for a tool.** Open Kingdom panel → **Connection**
+tab. Each tool has its own hook bridge toggle; click `Install hooks` for
+the relevant tool. Entries land in `~/.claude/settings.json` (Claude),
+`~/.cursor/hooks.json` (Cursor), or a managed marker block in
+`~/.codex/config.toml` (Codex). All three forward to the same local
+Unix socket (`~/.claude/kh-rts.sock`). Uninstall reverts cleanly.
 
-**Cursor monitor disabled.** No `state.vscdb` found — happens if Cursor
-hasn't been opened yet on this machine. Open Cursor once and restart
-keykeeper.
+**Hooks installed but a tool's events still don't appear.** Tools read
+their hook config at session start. Quit the tool fully (Cmd+Q for the
+desktop app, Ctrl+C for a CLI session) and start a fresh session.
+Cursor especially needs a full IDE restart, not just a chat reload.
 
 **Lost local state / want to start over.** Kingdom panel → Overview tab →
 `Reset kingdom` (danger zone). Or delete
@@ -214,9 +229,14 @@ multi-modal critical-HP feedback), death/victory poses, KH-flavored
 voice barks (per-archetype), Tank/Healer/DPS behavior class chip,
 live cast bars on party rows.
 
-**Permission flow:** PermissionRequest hook with deny-with-reason,
-indefinite-wait (no client-side timeout), heuristic auto-dismiss when
-resolved upstream, force-expand AlertsHUD on activity-row click.
+**Permission flow:** Claude and Codex use the bidirectional
+`PermissionRequest` hook (allow/deny in keykeeper is authoritative,
+deny-with-reason, indefinite-wait, heuristic auto-dismiss when resolved
+upstream, force-expand AlertsHUD on activity-row click). Cursor's
+`approvalMode: "allowlist"` makes hook-allow advisory only — keykeeper
+still pops a letter for visibility but the King decides in Cursor's
+inline yes/no. See `.docs/plans/vision.md` for the protocol-level
+constraints behind that asymmetry.
 
 **HUD redesign (shipped):** four-corner glass-pane HUD widgets,
 floating panel system (drag, stack, no backdrop), per-wielder Messages
@@ -225,6 +245,16 @@ pill as the only top chrome.
 
 **Post-MVP (deferred, not blocking ship):** Cura/Curaga heal-many verbs,
 replay mode (event-log scrubber), outbound MCP server, Quest system.
+
+**Known gaps (see `.docs/plans/vision.md` for details):**
+- Renderer hardening — `sandbox: true` (preload refactor) and per-handler
+  IPC payload schemas. Navigation block + sender-frame guard already
+  shipped; the rest matters before public distribution.
+- Renderer bundle size (~10 MB) — Streamdown markdown stack loads
+  Mermaid/math/Shiki eagerly. Lazy-load is the plan.
+- Send-word/recall on hook-observed sessions — currently only works for
+  sessions keykeeper spawned itself. Hook-observed wielders show up but
+  can't be controlled until AgentManager learns to register them.
 
 See `.docs/plans/vision.md` for the design rationale and the full
 question/decision history (Q1–Q44).

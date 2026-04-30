@@ -1174,3 +1174,103 @@ build on the new foundation):
 7. **Permission approval surface (#18)** — ~1d. Builds on #13 + #17.
 8. **Standing Order (#14 sub-mode)** — ~½d. Loop runner on top of
    Decree.
+
+---
+
+## Known gaps after the multi-tool hook landing (2026-04-30)
+
+Documenting the open items from the post-Codex-hook code review so they
+don't get forgotten. Each one was either deferred deliberately or is a
+known protocol-level constraint we can't fix on our side.
+
+### Renderer hardening (P1, partial)
+
+The renderer drives high-impact APIs (spawn agents, install hooks,
+modify settings, resolve permissions). Today's ship adds:
+
+- `will-navigate` + `setWindowOpenHandler` so external URLs open in
+  the OS browser, never inside the keykeeper renderer
+- A `safeHandle` wrapper around every `ipcMain.handle` call that
+  rejects requests originating from any frame other than our main
+  window's top-level frame
+
+Still missing:
+
+- **`sandbox: true` for the renderer** — currently the preload uses
+  `require()` to import shared types and `electron`. Switching on
+  sandbox would force the preload into a self-contained bundle with
+  only the `electron` whitelist available. Real refactor (~half day);
+  worth doing before any public distribution.
+- **Per-handler IPC payload schemas** — `safeHandle` validates
+  *origin*, not *shape*. A buggy renderer could still send an unsafe
+  payload to e.g. `IPC.SaveSettings`. Wrap each handler with a zod
+  (or hand-rolled) schema (~1–2 hours total). Defensive, not
+  load-bearing today.
+
+### Renderer bundle size (P3)
+
+`ConversationStream` statically imports the full Streamdown stack —
+every Shiki language, the entire Mermaid engine, KaTeX, CJK fonts.
+Builds to a ~10 MB renderer chunk loaded at startup. On a desktop
+Electron app this is invisible to the user (no network round-trip)
+but degrades cold-start time and memory. Two staged fixes:
+
+- (a) Configure Shiki with a small language whitelist (TS/JS/Python/
+  Bash/JSON/Markdown) — chops a few MB.
+- (b) Dynamic-import Mermaid + math only when expanding a log entry
+  that contains those — biggest win.
+
+Not urgent. Wait until cold-start time becomes annoying.
+
+### Standing-order rebind across cwd / repoRoot (fixed 2026-04-30)
+
+Previously broken: standing orders persisted with
+`unitIdentityFor(unit.tool, unit.cwd)` but rebound on restart against
+`unitIdentityFor(event.tool, event.repoRoot)`. Sessions started from
+a subdirectory survived restart but never re-attached to the wielder.
+
+Fixed: `UnitState` now carries a `repoRoot` field, set from the
+bus-stamped `event.repoRoot` at unit creation; standing orders use
+`unit.repoRoot ?? unit.cwd` for identity. Existing persisted units
+pre-dating the field fall back to `cwd` (back-compat).
+
+### Hook-observed sessions can't be controlled (post-MVP)
+
+Today, send-word / recall / dispatch only work for sessions keykeeper
+spawned itself (`AgentManager.spawn` registers the proc). Hook-observed
+wielders (Claude/Cursor/Codex sessions started outside keykeeper) show
+up in the party list with full event history but the control verbs are
+no-ops — there's no proc handle to send into.
+
+Fix would require the bridge to expose a control channel back to the
+upstream tool (e.g. via the same Unix socket, or a per-tool injection
+mechanism). Real feature; out of scope until requested.
+
+### Codex desktop-app version drift (informational)
+
+The Codex desktop app uses its own bundled `codex` binary at
+`/Applications/Codex.app/Contents/Resources/codex`, separately versioned
+from the system `codex` CLI on `PATH`. Both load `~/.codex/config.toml`
+the same way (verified empirically), but this is undocumented — Codex
+hooks are stable in the JSON schema and Rust source but not yet in the
+public docs. Worth re-verifying on each Codex update that the hook
+contract hasn't changed.
+
+### Codex hooks: known constraints (vs. Claude)
+
+Codex's `PermissionRequest` hook is hook-or-bust: if the hook returns
+allow/deny, Codex commits and never shows its native UI. Different from
+Claude (concurrent UI race) and Cursor (one-shot too, but allow is
+advisory). This is a deliberate design choice in Codex's orchestrator
+(`codex-rs/core/src/tools/orchestrator.rs`); we cannot replicate
+Claude's race semantics from outside without an upstream change. Three
+possible upstream fixes Codex could ship: (a) flip to concurrent UI +
+hook race, (b) provide a side-channel to inject decisions after the
+hook returns "no verdict", or (c) add an "ask" decision like Cursor's.
+Worth filing as a feature request.
+
+Also: Codex doesn't support `async = true` in hook entries yet (it
+warns "skipping async hook in ~/.codex/config.toml" and silently drops
+them). Our installer always emits sync entries to work around this; if
+Codex adds async support later, switching observability hooks to
+async would be a small perf win.

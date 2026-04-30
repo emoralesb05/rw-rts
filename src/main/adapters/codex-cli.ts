@@ -19,6 +19,10 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { bus } from "../event-bus";
+import {
+  registerSpawnedSession,
+  unregisterSpawnedSession,
+} from "./claude-cli";
 import type { AgentEvent } from "@shared/events";
 
 export type SpawnCodexOptions = {
@@ -65,7 +69,27 @@ function spawnCodexProcess(prompt: string, cwd: string, resumeId?: string) {
 
 export async function spawnCodexAgent(opts: SpawnCodexOptions): Promise<SpawnedCodexAgent> {
   const proc = spawnCodexProcess(opts.prompt, opts.cwd);
-  const sessionId = await waitForThreadId(proc, 15000);
+  let sessionId: string;
+  try {
+    sessionId = await waitForThreadId(proc, 15000);
+  } catch (err) {
+    // P2 #1: ensure the orphaned process is killed if thread.started
+    // never arrives (broken binary, changed protocol, or true timeout).
+    // Without this, the codex child keeps running outside AgentManager.
+    try {
+      proc.kill("SIGTERM");
+    } catch {
+      /* ignore — already dead */
+    }
+    throw err;
+  }
+
+  // P1 #2: register before emitting session_start so the hook bridge's
+  // isSpawnedSession filter starts dropping hook duplicates immediately.
+  // Codex hooks are installed globally; the same conversation would
+  // otherwise emit through both the spawn stdout stream and the hook
+  // bridge, double-counting tool calls and letters.
+  registerSpawnedSession(sessionId);
 
   bus.emitAgentEvent({
     sessionId,
@@ -78,7 +102,10 @@ export async function spawnCodexAgent(opts: SpawnCodexOptions): Promise<SpawnedC
   });
 
   attachStream(proc, sessionId, opts.cwd);
-  proc.on("exit", () => agents.delete(sessionId));
+  proc.on("exit", () => {
+    agents.delete(sessionId);
+    unregisterSpawnedSession(sessionId);
+  });
 
   const agent: SpawnedCodexAgent = {
     unitId: sessionId,
@@ -109,9 +136,21 @@ export async function spawnCodexAgent(opts: SpawnCodexOptions): Promise<SpawnedC
 function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string> {
   return new Promise((resolve, reject) => {
     let buf = "";
-    const timer = setTimeout(() => {
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
       proc.stdout?.off("data", onData);
-      reject(new Error("codex exec did not emit thread.started in time"));
+      proc.off("exit", onExit);
+      proc.off("error", onError);
+    };
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+    const timer = setTimeout(() => {
+      settle(() => reject(new Error("codex exec did not emit thread.started in time")));
     }, timeoutMs);
     const onData = (chunk: Buffer) => {
       buf += chunk.toString("utf8");
@@ -123,14 +162,17 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
         try {
           const msg = JSON.parse(line);
           if (msg.type === "thread.started" && typeof msg.thread_id === "string") {
-            clearTimeout(timer);
-            proc.stdout?.off("data", onData);
-            // Re-feed any remaining buffered data through the regular stream
-            // handler so we don't lose later events.
-            if (buf) {
-              setImmediate(() => proc.stdout?.emit("data", Buffer.from(buf)));
-            }
-            resolve(msg.thread_id);
+            const remaining = buf;
+            settle(() => {
+              // Re-feed any remaining buffered data through the regular
+              // stream handler so we don't lose later events.
+              if (remaining) {
+                setImmediate(() =>
+                  proc.stdout?.emit("data", Buffer.from(remaining))
+                );
+              }
+              resolve(msg.thread_id);
+            });
             return;
           }
         } catch {
@@ -138,11 +180,15 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
         }
       }
     };
+    const onExit = () => {
+      settle(() => reject(new Error("codex exec exited before emitting thread.started")));
+    };
+    const onError = (err: Error) => {
+      settle(() => reject(err));
+    };
     proc.stdout?.on("data", onData);
-    proc.on("exit", () => {
-      clearTimeout(timer);
-      reject(new Error("codex exec exited before emitting thread.started"));
-    });
+    proc.once("exit", onExit);
+    proc.once("error", onError);
   });
 }
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import { join, resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { bus } from "./event-bus";
@@ -33,6 +33,7 @@ import {
   type SendPromptRequest,
   type PlayFixtureRequest,
   type ResolvePermissionRequest,
+  type AppSettings,
 } from "@shared/ipc";
 import type { PersistedState } from "@shared/events";
 import {
@@ -64,8 +65,43 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
+  // Lock down navigation. The renderer should never leave its bundled
+  // origin (file:// in prod, electron-vite dev URL in dev) — if a
+  // rendering bug or malicious markdown tried to navigate, the
+  // renderer has wide IPC powers (spawn agents, install hooks, modify
+  // settings). Open external URLs in the OS browser instead.
+  const allowedOrigin = process.env.ELECTRON_RENDERER_URL ?? "file://";
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(allowedOrigin)) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: "deny" };
+  });
+
   bus.onAgentEvent((event) => {
     mainWindow?.webContents.send(IPC.EventStream, event);
+  });
+}
+
+// Sender-frame guard for IPC handlers. Wrap the Electron handler so we
+// only run our logic when the call originates from our main window's
+// top-level frame — blocks injected iframes / cross-origin frames
+// from reaching the high-impact APIs (spawn, install hooks, save
+// settings, resolve permission).
+function safeHandle<TArgs extends unknown[], TResult>(
+  channel: string,
+  fn: (event: Electron.IpcMainInvokeEvent, ...args: TArgs) => TResult
+): void {
+  ipcMain.handle(channel, (event, ...args) => {
+    const expected = mainWindow?.webContents;
+    if (!expected || event.sender !== expected || event.senderFrame !== expected.mainFrame) {
+      throw new Error(`[kh-rts] ipc rejected: untrusted sender for ${channel}`);
+    }
+    return fn(event, ...(args as TArgs));
   });
 }
 
@@ -110,7 +146,7 @@ app.whenReady().then(async () => {
 
   await offerHookInstall();
 
-  ipcMain.handle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
+  safeHandle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
     const cwd = resolve(req.cwd || ".");
     const tool: "claude" | "cursor" | "codex" =
       req.tool === "cursor" ? "cursor" : req.tool === "codex" ? "codex" : "claude";
@@ -118,15 +154,15 @@ app.whenReady().then(async () => {
     return { unitId: agent.unitId, sessionId: agent.sessionId };
   });
 
-  ipcMain.handle(IPC.SendPrompt, (_e, req: SendPromptRequest) => {
+  safeHandle(IPC.SendPrompt, (_e, req: SendPromptRequest) => {
     AgentManager.send(req.unitId, req.prompt);
   });
 
-  ipcMain.handle(IPC.KillAgent, (_e, unitId: string) => {
+  safeHandle(IPC.KillAgent, (_e, unitId: string) => {
     AgentManager.kill(unitId);
   });
 
-  ipcMain.handle(IPC.ListUnits, () =>
+  safeHandle(IPC.ListUnits, () =>
     AgentManager.list().map((a) => ({
       unitId: a.unitId,
       sessionId: a.sessionId,
@@ -134,57 +170,57 @@ app.whenReady().then(async () => {
     }))
   );
 
-  ipcMain.handle(IPC.InstallHooks, () => {
+  safeHandle(IPC.InstallHooks, () => {
     installHooks();
     return getStatus();
   });
-  ipcMain.handle(IPC.UninstallHooks, () => {
+  safeHandle(IPC.UninstallHooks, () => {
     uninstallHooks();
     return getStatus();
   });
-  ipcMain.handle(IPC.HooksStatus, () => getStatus());
+  safeHandle(IPC.HooksStatus, () => getStatus());
 
-  ipcMain.handle(IPC.InstallCursorHooks, () => {
+  safeHandle(IPC.InstallCursorHooks, () => {
     installCursorHooks();
     return getCursorHooksStatus();
   });
-  ipcMain.handle(IPC.UninstallCursorHooks, () => {
+  safeHandle(IPC.UninstallCursorHooks, () => {
     uninstallCursorHooks();
     return getCursorHooksStatus();
   });
-  ipcMain.handle(IPC.CursorHooksStatus, () => getCursorHooksStatus());
+  safeHandle(IPC.CursorHooksStatus, () => getCursorHooksStatus());
 
-  ipcMain.handle(IPC.InstallCodexHooks, () => {
+  safeHandle(IPC.InstallCodexHooks, () => {
     installCodexHooks();
     return getCodexHooksStatus();
   });
-  ipcMain.handle(IPC.UninstallCodexHooks, () => {
+  safeHandle(IPC.UninstallCodexHooks, () => {
     uninstallCodexHooks();
     return getCodexHooksStatus();
   });
-  ipcMain.handle(IPC.CodexHooksStatus, () => getCodexHooksStatus());
+  safeHandle(IPC.CodexHooksStatus, () => getCodexHooksStatus());
 
-  ipcMain.handle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
+  safeHandle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
   });
 
-  ipcMain.handle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
+  safeHandle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
     return resolvePermissionRequest(req.requestId, req.decision, req.message);
   });
 
-  ipcMain.handle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
-  ipcMain.handle(IPC.GetSettings, () => loadSettings());
-  ipcMain.handle(IPC.SaveSettings, (_e, next) => saveSettings(next));
-  ipcMain.handle(IPC.ValidateWorkspaceRoot, (_e, p: string) =>
+  safeHandle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
+  safeHandle(IPC.GetSettings, () => loadSettings());
+  safeHandle(IPC.SaveSettings, (_e, next: AppSettings) => saveSettings(next));
+  safeHandle(IPC.ValidateWorkspaceRoot, (_e, p: string) =>
     validateWorkspaceRoot(p)
   );
 
-  ipcMain.handle(IPC.LoadPersisted, () => loadPersisted());
-  ipcMain.handle(IPC.SavePersisted, (_e, state: PersistedState) => {
+  safeHandle(IPC.LoadPersisted, () => loadPersisted());
+  safeHandle(IPC.SavePersisted, (_e, state: PersistedState) => {
     setPersisted(state);
   });
-  ipcMain.handle(IPC.ResetPersisted, () => resetPersisted());
+  safeHandle(IPC.ResetPersisted, () => resetPersisted());
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -24,6 +24,19 @@ export function isSpawnedSession(sessionId: string): boolean {
   return spawnedSessionIds.has(sessionId);
 }
 
+// Cross-tool registry: hook bridge consults isSpawnedSession to drop
+// hook events for sessions we already spawn (and emit events for
+// directly via stdout). Codex spawn (codex-cli.ts) registers its
+// thread_id here once thread.started arrives so the hook bridge
+// suppresses the duplicate hook stream for the same session.
+export function registerSpawnedSession(sessionId: string) {
+  spawnedSessionIds.add(sessionId);
+}
+
+export function unregisterSpawnedSession(sessionId: string) {
+  spawnedSessionIds.delete(sessionId);
+}
+
 function attachStdoutStream(proc: ChildProcess, sessionId: string, cwd: string) {
   let buf = "";
   proc.stdout?.on("data", (chunk: Buffer) => {

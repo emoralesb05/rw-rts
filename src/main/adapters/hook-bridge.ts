@@ -385,11 +385,12 @@ function normalizeClaudePayload(
 
   // For non-permission events, skip sessions we spawned ourselves —
   // those events come through the spawn channel directly with richer
-  // payloads, so hook duplicates would double-emit. Currently the
-  // spawn-id tracker lives in the Claude CLI adapter; Codex spawns
-  // (codex-cli.ts) don't register with isSpawnedSession yet, so this
-  // gate is effectively a no-op for codex. If codex spawns start
-  // double-emitting, register them in the tracker too.
+  // payloads, so hook duplicates would double-emit. Both the Claude
+  // and Codex CLI adapters register their spawned session IDs with
+  // this tracker (registerSpawnedSession in claude-cli.ts), so the
+  // gate works for both tools. Cursor spawns aren't relevant — Cursor
+  // sessions live in a different ID namespace and the bridge already
+  // routes them through normalizeCursorPayload.
   if (isSpawnedSession(p.session_id)) return null;
 
   const map: Record<string, AgentEventKind> = {
