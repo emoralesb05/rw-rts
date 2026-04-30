@@ -304,28 +304,37 @@ function normalizeHookPayload(p: any): AgentEvent | null {
 
 // Wrappers Claude Code's runtime uses to inject system-generated text
 // into a session via the UserPromptSubmit channel — Monitor events,
-// system reminders, slash-command resolutions, etc. None of these are
-// user-typed prompts; surfacing them in keykeeper's activity log is
-// noise. Match on a leading wrapper tag.
+// system reminders, slash-command resolutions, etc. They appear
+// alongside real user text (e.g. system-reminder injected before what
+// the King actually typed), so we strip them out and only drop the
+// prompt if NOTHING substantive remains.
 const SYNTHETIC_PROMPT_TAGS = [
-  "<task-notification",
-  "<system-reminder",
-  "<command-name",
-  "<command-message",
-  "<command-args",
-  "<local-command-stdout",
-  "<local-command-stderr",
-  "<bash-input",
-  "<bash-stdout",
-  "<bash-stderr",
-  "<user-prompt-submit-hook",
-  "<file-write-stdout",
+  "task-notification",
+  "system-reminder",
+  "command-name",
+  "command-message",
+  "command-args",
+  "local-command-stdout",
+  "local-command-stderr",
+  "bash-input",
+  "bash-stdout",
+  "bash-stderr",
+  "user-prompt-submit-hook",
+  "file-write-stdout",
 ];
+
+function stripSyntheticWrappers(text: string): string {
+  let out = text;
+  for (const tag of SYNTHETIC_PROMPT_TAGS) {
+    const re = new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}\\s*>`, "g");
+    out = out.replace(re, "");
+  }
+  return out;
+}
 
 function isSyntheticUserPrompt(text: string | undefined): boolean {
   if (!text) return false;
-  const trimmed = text.trimStart();
-  return SYNTHETIC_PROMPT_TAGS.some((tag) => trimmed.startsWith(tag));
+  return stripSyntheticWrappers(text).trim().length === 0;
 }
 
 function normalizeClaudePayload(p: any, eventName: string): AgentEvent | null {
@@ -475,11 +484,28 @@ function normalizeCursorPayload(p: any, eventName: string): AgentEvent | null {
         kind: "assistant_text",
         payload: { text: (p.text as string) ?? "" },
       };
-    case "beforeShellExecution":
-      // Observation-only — script returns "ask" so Cursor's native UI
-      // decides. Suppressed at the bridge to avoid duplicating the
-      // preToolUse event for the same shell command.
-      return null;
+    case "beforeShellExecution": {
+      // Observational permission letter. Script returns "ask" so
+      // Cursor's native UI decides; we still emit a permission_request
+      // event so the renderer pops a letter for visibility. The
+      // letter's actions are restricted to "dismiss" by the store
+      // when event.tool === "cursor" (allow/deny wouldn't reach
+      // Cursor — its UI is already in control by the time the user
+      // could click). Synthesizes a Bash-like input so the existing
+      // risk classifier in store.ts works unchanged.
+      const requestId = p.__kh_permission_request_id as string | undefined;
+      if (!requestId) return null;
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "permission_request",
+        payload: {
+          name: "Bash",
+          input: { command: p.command, cwd: p.cwd },
+          requestId,
+        },
+      };
+    }
     default:
       return null;
   }

@@ -116,6 +116,13 @@ export type LetterAction =
   // message is the deny reason shown to Claude (decision.message in
   // upstream PermissionRequest hook). Optional — empty = quick deny.
   | { kind: "permission-deny"; requestId: string; message?: string }
+  // Observational permission acknowledgement — used for Cursor, where
+  // the hook can't pre-approve and the King's actual decision happens
+  // in Cursor's native inline UI. The letter is routed to AlertsHUD
+  // (so it pops as an alert) but the only action is to dismiss the
+  // letter locally. Carries requestId so ActivityLog row clicks can
+  // still pulse the matching card.
+  | { kind: "permission-observe"; requestId: string }
   | { kind: "dismiss" };
 
 export type LetterRisk = "low" | "elevated" | "high";

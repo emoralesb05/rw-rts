@@ -28,14 +28,20 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const selectWorld = useStore((s) => s.selectWorld);
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
+  // "Actionable" perm letter — has a deny-reason input. Cursor's
+  // observational letters skip this since deny isn't possible at
+  // that point.
   const isPermLetter = letter.actions.some(
     (a) => a.action.kind === "permission-deny"
   );
-  // Permission letters: surface the requestId as a data attribute so
-  // the ActivityLog can scroll-and-pulse the matching card on click.
+  // Permission letters (including observational): surface the
+  // requestId as a data attribute so the ActivityLog can scroll-and-
+  // pulse the matching card on click.
   const requestId = letter.actions.find(
     (a) =>
-      a.action.kind === "permission-allow" || a.action.kind === "permission-deny"
+      a.action.kind === "permission-allow" ||
+      a.action.kind === "permission-deny" ||
+      a.action.kind === "permission-observe"
   )?.action;
   const reqIdAttr =
     requestId && "requestId" in requestId ? requestId.requestId : undefined;
@@ -166,6 +172,9 @@ export function LetterCard({ letter }: { letter: Letter }) {
 
 export function isPermissionLetter(letter: Letter): boolean {
   return letter.actions.some(
-    (a) => a.action.kind === "permission-allow" || a.action.kind === "permission-deny"
+    (a) =>
+      a.action.kind === "permission-allow" ||
+      a.action.kind === "permission-deny" ||
+      a.action.kind === "permission-observe"
   );
 }

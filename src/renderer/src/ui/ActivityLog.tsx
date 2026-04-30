@@ -84,7 +84,8 @@ export function ActivityLog() {
     for (const a of l.actions) {
       if (
         (a.action.kind === "permission-allow" ||
-          a.action.kind === "permission-deny") &&
+          a.action.kind === "permission-deny" ||
+          a.action.kind === "permission-observe") &&
         a.action.requestId
       ) {
         activePermissionIds.add(a.action.requestId);

@@ -973,21 +973,38 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const risk = classifyRisk(toolName, event.payload.input);
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
+    // Cursor permission letters are observational — Cursor's native
+    // inline yes/no in chat is the authoritative decision surface
+    // (the hook already returned "ask" by the time the King could
+    // click here). Surface only a dismiss button so the alert is
+    // honest about what it can and can't do.
+    const isCursor = event.tool === "cursor";
+    const title = isCursor
+      ? `${palette} asks to use ${toolName} (decide in Cursor)`
+      : `${palette} asks to use ${toolName}`;
+    const body = isCursor
+      ? inputSummary
+        ? `${toolName}: ${inputSummary} · approve in Cursor's chat panel`
+        : `Wielder is asking Cursor for permission to use ${toolName}. Decide in Cursor's inline yes/no.`
+      : inputSummary
+      ? `${toolName}: ${inputSummary}`
+      : `Wielder is requesting permission to use ${toolName}.`;
+    const actions: Letter["actions"] = isCursor
+      ? [{ label: "ack", action: { kind: "permission-observe", requestId: reqId } }]
+      : [
+          { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
+          { label: "✗ deny", action: { kind: "permission-deny", requestId: reqId } },
+          { label: "dismiss", action: { kind: "dismiss" } },
+        ];
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
-      makeLetter("critical", `${palette} asks to use ${toolName}`, {
-        body: inputSummary
-          ? `${toolName}: ${inputSummary}`
-          : `Wielder is requesting permission to use ${toolName}.`,
+      makeLetter("critical", title, {
+        body,
         sessionId: id,
         worldId,
         risk,
         reasoning: reasoning || undefined,
-        actions: [
-          { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
-          { label: "✗ deny", action: { kind: "permission-deny", requestId: reqId } },
-          { label: "dismiss", action: { kind: "dismiss" } },
-        ],
+        actions,
       })
     );
   }
@@ -1030,7 +1047,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       const isPermLetter = l.actions.some(
         (a) =>
           a.action.kind === "permission-allow" ||
-          a.action.kind === "permission-deny"
+          a.action.kind === "permission-deny" ||
+          a.action.kind === "permission-observe"
       );
       if (!isPermLetter) return true;
       // For permission_request: only drop if this is a *different*
@@ -1040,7 +1058,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         const matchesThisReq = l.actions.some(
           (a) =>
             (a.action.kind === "permission-allow" ||
-              a.action.kind === "permission-deny") &&
+              a.action.kind === "permission-deny" ||
+              a.action.kind === "permission-observe") &&
             a.action.requestId === newReqId
         );
         if (matchesThisReq) return true;
@@ -1352,6 +1371,10 @@ export const useStore = create<Store>((set) => ({
             message: action.message,
           })
           .catch(() => {});
+        break;
+      case "permission-observe":
+        // Cursor letters — no upstream resolution; just dismiss locally.
+        // The bridge already dropped the pending entry on socket close.
         break;
       case "dismiss":
         break;

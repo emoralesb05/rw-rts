@@ -30,6 +30,20 @@ SOCK = os.path.join(os.path.expanduser("~"), ".claude", "kh-rts.sock")
 QUICK_TIMEOUT_S = 2.0
 
 
+def emit_cursor_permission(permission, message=None):
+    """Write Cursor's beforeShellExecution reply.
+    permission must be 'allow' or 'deny'. message is shown both in the
+    Cursor UI and sent back to the agent."""
+    msg = str(message) if message else ("Approved via keykeeper." if permission == "allow" else "Denied via keykeeper.")
+    out = {
+        "permission": permission,
+        "user_message": msg,
+        "agent_message": msg,
+    }
+    sys.stdout.write(json.dumps(out))
+    sys.stdout.flush()
+
+
 def emit_claude_permission(behavior, message=None):
     """Write Claude Code's PermissionRequest hookSpecificOutput.
     behavior must be 'allow' or 'deny'. message is the deny reason
@@ -131,12 +145,23 @@ def main():
                     emit_claude_permission(decision, reply.get("denyMessage"))
             silent_exit()
 
-        # Cursor permission gate — return "ask" immediately so Cursor's
-        # native UI takes over (keykeeper can't pre-approve in allowlist
-        # mode anyway). Notify keykeeper fire-and-forget for visibility.
+        # Cursor permission gate — observational. We tag the payload
+        # with a request_id so the bridge creates a permission_request
+        # event (and the renderer pops a letter for visibility), then
+        # immediately return "ask" so Cursor's native UI handles the
+        # actual decision. The bridge's `close` handler drops the
+        # pending entry as soon as we close the socket — letter is
+        # informational, no allow/deny path expected to work.
         if event_name == "beforeShellExecution":
             try:
-                fire_and_forget(raw)
+                request_id = str(uuid.uuid4())
+                payload["__kh_permission_request_id"] = request_id
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                s.settimeout(QUICK_TIMEOUT_S)
+                s.connect(SOCK)
+                s.sendall(json.dumps(payload).encode("utf-8"))
+                s.shutdown(socket.SHUT_WR)
+                s.close()
             except Exception:
                 pass
             sys.stdout.write(json.dumps({"permission": "ask"}))
