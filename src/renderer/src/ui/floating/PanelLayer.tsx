@@ -9,6 +9,7 @@ import { usePanels } from "./panel-store";
 import { FloatingPanel } from "./FloatingPanel";
 import { WielderPanelBody } from "./WielderPanelBody";
 import { SettingsPanelBody } from "./SettingsPanelBody";
+import { KingdomPanelBody } from "./KingdomPanelBody";
 
 export function PanelLayer() {
   const panels = usePanels((s) => s.panels);
@@ -36,6 +37,8 @@ export function PanelLayer() {
             />
           ) : p.kind === "settings" ? (
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
+          ) : p.kind === "kingdom" ? (
+            <KingdomPanelBody />
           ) : null}
         </FloatingPanel>
       ))}

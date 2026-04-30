@@ -1,4 +1,3 @@
-import { Topbar } from "./ui/Topbar";
 import { CommandInput } from "./ui/CommandInput";
 import { DecreeModal } from "./ui/DecreeModal";
 import { ActivityLog } from "./ui/ActivityLog";
@@ -8,29 +7,30 @@ import { WielderHUD } from "./ui/hud/WielderHUD";
 import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
+import { CloseAllChip } from "./ui/CloseAllChip";
 
 /**
- * HUD-overlay layout (FFXIV-style):
+ * HUD-overlay layout (FFXIV-style, no top toolbar):
  *
- *   ┌─ Topbar (app controls) ─────────────────────────────────────┐
- *   │           ┌── KingdomHeader ──┐                              │
- *   │ ┌─Wielder─┤                   ├─Alerts─┐                     │
- *   │ │  HUD   │  Kingdom (Phaser,  │  HUD   │                     │
- *   │ │        │  full-viewport     │        │                     │
- *   │ │        │  canvas)           │        │                     │
- *   │ ├─Activity┤                   ├─Letters┤                     │
- *   │ └────────┘                   └────────┘                     │
- *   │                                                              │
- *   │ ─ CommandInput (bottom strip) ─────────────────────────────  │
- *   └──────────────────────────────────────────────────────────────┘
+ *   ┌─ thin invisible drag strip (8px) ─────────────────────────┐
+ *   │           ┌── KingdomHeader pill ──┐                       │
+ *   │ ┌─Wielder─┤   (stats + 🔊 + ⚙)    ├─Alerts─┐               │
+ *   │ │  HUD   │                          │  HUD   │   ✕N chip   │
+ *   │ │        │  Kingdom (Phaser,        │        │   (top-right│
+ *   │ │        │  full-viewport canvas)   │        │   when      │
+ *   │ ├─Activity┤                         ├─Letters┤   panels    │
+ *   │ └────────┘                         └────────┘   open)      │
+ *   │ ─ CommandInput (bottom strip) ──────────────────────────── │
+ *   └────────────────────────────────────────────────────────────┘
  *
- * Each HUD widget is a glass-pane overlay anchored to its corner.
- * Per Q40: throne side panel is gone; kingdom canvas IS the throne.
+ * Window-drag region is the thin strip at the very top — gives Electron
+ * something to grab without burning visible chrome real estate.
+ * Mute + open-Kingdom moved into the KingdomHeader pill itself.
  */
 export function App() {
   return (
     <div className="app">
-      <Topbar />
+      <div className="window-drag-strip" />
       <div className="stage">
         <PhaserGame />
         <KingdomHeader />
@@ -38,6 +38,7 @@ export function App() {
         <AlertsHUD />
         <ActivityLog />
         <LettersHUD />
+        <CloseAllChip />
       </div>
       <CommandInput />
       <DecreeModal />

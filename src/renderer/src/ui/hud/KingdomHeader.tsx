@@ -1,9 +1,15 @@
 /**
- * Translucent floating strip at top-center showing kingdom-level info
- * (sealed worlds, wielders, founded date) — like FFXIV's status line.
- * Distinct from the topbar (which holds app controls).
+ * Translucent floating strip at top-center — the de-facto top chrome.
+ * Shows kingdom-level info (sealed / wielders / munny / age) plus the
+ * two persistent action icons (🔊 mute toggle, ⚙ Kingdom panel).
+ *
+ * The pill replaced the old topbar; window-drag has moved to a
+ * separate invisible strip behind it.
  */
+import { useState } from "react";
 import { useStore } from "../../store";
+import { isMuted, toggleMuted } from "../../audio/sounds";
+import { usePanels } from "../floating/panel-store";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));
@@ -14,6 +20,8 @@ export function KingdomHeader() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
   const units = useStore((s) => s.units);
+  const openPanel = usePanels((s) => s.openPanel);
+  const [muted, setMuted] = useState(isMuted());
   const liveWielders = Object.values(units).filter(
     (u) => u.status !== "complete" && u.status !== "fallen"
   ).length;
@@ -27,7 +35,7 @@ export function KingdomHeader() {
   const totalMunny = Math.max(persisted.totalMunnyEver, sessionMunny);
   return (
     <div className="kingdom-header">
-      <span className="kingdom-header-title">⌬ Disney Castle</span>
+      <span className="kingdom-header-title">⌬ Keykeeper</span>
       <span className="kingdom-header-sep">·</span>
       <span className="kingdom-header-stat" title="sealed keyholes (lifetime)">
         ✦ {sealedLifetime} sealed
@@ -41,6 +49,28 @@ export function KingdomHeader() {
       <span className="kingdom-header-sep">·</span>
       <span className="kingdom-header-meta">
         founded {fmtDays(persisted.kingdomFoundedAt)} ago
+      </span>
+      <span className="kingdom-header-actions">
+        <button
+          type="button"
+          className="kingdom-header-icon-btn"
+          onClick={() => setMuted(toggleMuted())}
+          title={muted ? "unmute" : "mute"}
+          aria-label={muted ? "unmute" : "mute"}
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
+        <button
+          type="button"
+          className="kingdom-header-icon-btn"
+          onClick={() =>
+            openPanel({ kind: "kingdom", title: "Kingdom", width: 520 })
+          }
+          title="Kingdom — overview, settings, connection, demos"
+          aria-label="Open Kingdom panel"
+        >
+          ⚙
+        </button>
       </span>
     </div>
   );

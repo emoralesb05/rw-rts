@@ -36,30 +36,22 @@ body, html, #root {
 .app {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 44px 1fr auto;
+  grid-template-rows: 1fr auto;
   height: 100vh;
 }
-
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-  background: linear-gradient(180deg, #14204a, #0a0e1a);
-  border-bottom: 1px solid var(--line);
+/* Invisible 12px strip at the very top of the window — the drag region
+ * for moving the Electron window. Stays above all HUD widgets visually
+ * but renders nothing of its own. */
+.window-drag-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  z-index: 200;
   -webkit-app-region: drag;
-  font-size: 13px;
+  pointer-events: none;
 }
-
-.topbar > * { -webkit-app-region: no-drag; }
-.topbar .title { font-weight: 600; letter-spacing: 0.5px; color: var(--accent-2); }
-.topbar .topbar-meta {
-  color: var(--muted);
-  font-size: 11px;
-  font-family: ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-}
-.topbar .spacer { flex: 1; }
 
 /* Stage: canvas fills the full viewport; HUD widgets are absolute
  * overlays anchored to corners. */
@@ -2362,4 +2354,248 @@ select.btn {
   color: var(--muted);
   font-size: 11px;
   font-style: italic;
+}
+.kingdom-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+}
+.kingdom-header-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.kingdom-header-icon-btn:hover {
+  background: rgba(255, 216, 107, 0.10);
+  border-color: rgba(255, 216, 107, 0.40);
+  color: var(--accent);
+}
+
+/* Floating "✕ close N" chip — replaces the topbar close-all button.
+ * Sits below the kingdom-header pill (top-center, ~60px down) so it
+ * doesn't collide with AlertsHUD on the right or WielderHUD on the
+ * left. Only renders when 1+ floating panels are open (component
+ * returns null otherwise). */
+.close-all-chip {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  background: rgba(255, 122, 60, 0.12);
+  border: 1px solid rgba(255, 122, 60, 0.45);
+  color: #ff7a3c;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.close-all-chip:hover {
+  background: rgba(255, 122, 60, 0.22);
+  border-color: #ff7a3c;
+}
+
+/* ─── Kingdom floating panel ───────────────────────────────────── */
+.kingdom-panel {
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.kingdom-tab {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(80vh - 100px);
+  overflow-y: auto;
+}
+.kingdom-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.kingdom-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  background: rgba(10, 17, 48, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+.kingdom-stat-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.kingdom-stat-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.kingdom-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kingdom-section-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.kingdom-section-count {
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.kingdom-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+.kingdom-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kingdom-list-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(10, 17, 48, 0.40);
+}
+.kingdom-list-icon {
+  color: var(--accent);
+}
+.kingdom-list-primary {
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kingdom-list-secondary {
+  color: var(--muted);
+  font-size: 10px;
+}
+.kingdom-list-meta {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+}
+.kingdom-danger {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 90, 60, 0.30);
+  border-radius: 6px;
+  background: rgba(255, 90, 60, 0.04);
+}
+.kingdom-danger .kingdom-section-title {
+  color: #ff7a3c;
+}
+.kingdom-kv {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 11px;
+}
+.kingdom-kv > span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+.kingdom-kv > strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.kingdom-kv > strong.ok { color: #7af0a8; }
+.kingdom-kv > strong.warn { color: #ffb86c; }
+.kingdom-kv > code {
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  word-break: break-all;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.kingdom-footer-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: italic;
+  line-height: 1.4;
+}
+.kingdom-footer-note code {
+  font-family: ui-monospace, monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-style: normal;
+}
+.btn.destructive {
+  background: rgba(255, 90, 60, 0.18);
+  border-color: rgba(255, 90, 60, 0.5);
+  color: #ff7a3c;
+  font-weight: 600;
+}
+.btn.destructive:hover {
+  background: rgba(255, 90, 60, 0.28);
+  border-color: #ff7a3c;
+}
+
+/* SettingsPanelBody renders inside the Kingdom panel's Settings tab —
+ * suppress its own internal max-height/overflow so it lives within the
+ * tab's scroll container. */
+.kingdom-panel .settings-body {
+  padding: 14px 16px;
+}
+.kingdom-demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.kingdom-demo-grid .btn {
+  text-align: left;
+  font-size: 11px;
+  padding: 6px 10px;
 }
