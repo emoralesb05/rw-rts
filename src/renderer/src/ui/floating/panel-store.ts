@@ -21,6 +21,11 @@ export type Panel = {
   x: number;
   y: number;
   width: number;
+  /** Optional fixed height. When unset the panel is content-driven
+   * with the standard `max-height: calc(100vh - 80px)` on the body.
+   * Bodies that want a tab-dependent footprint (e.g. messages-mode
+   * wielder panels) call setSize when the tab changes. */
+  height?: number;
   z: number;
   /** Kind-specific payload — e.g. `{ initialTab: "messages" }` for
    * wielder panels. The body component reads what it needs. Re-opening
@@ -44,6 +49,7 @@ type State = {
   closeAll(): void;
   focusPanel(id: string): void;
   moveTo(id: string, x: number, y: number): void;
+  setSize(id: string, size: { width?: number; height?: number | null }): void;
 };
 
 const PANEL_OFFSET = 28;
@@ -117,6 +123,18 @@ export const usePanels = create<State>((set, get) => ({
   moveTo(id, x, y) {
     set((s) => ({
       panels: s.panels.map((p) => (p.id === id ? { ...p, x, y } : p)),
+    }));
+  },
+  setSize(id, size) {
+    set((s) => ({
+      panels: s.panels.map((p) => {
+        if (p.id !== id) return p;
+        const next: Panel = { ...p };
+        if (typeof size.width === "number") next.width = size.width;
+        if (size.height === null) delete next.height;
+        else if (typeof size.height === "number") next.height = size.height;
+        return next;
+      }),
     }));
   },
 }));

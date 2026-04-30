@@ -89,11 +89,14 @@ export function FloatingPanel({ panel, children }: Props) {
 
   return (
     <div
-      className="floating-panel"
+      className={
+        "floating-panel" + (panel.height ? " floating-panel-fixed-height" : "")
+      }
       style={{
         left: panel.x,
         top: panel.y,
         width: panel.width,
+        height: panel.height,
         zIndex: panel.z,
       }}
       onPointerDown={() => focusPanel(panel.id)}

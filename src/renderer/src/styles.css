@@ -573,6 +573,20 @@ select.btn {
   padding: 0;
 }
 
+.chat-diff {
+  margin: 6px 0 0 18px;
+  font-size: 11px;
+}
+/* Tighten the Shiki-rendered diff block — Streamdown wraps it in
+ * <pre> with default markdown spacing, which is too loose for this
+ * inline context. */
+.chat-diff pre {
+  margin: 0;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .chat-marker {
   display: flex;
   align-items: center;
@@ -1557,6 +1571,22 @@ select.btn {
   padding: 0;
   overflow-y: auto;
   max-height: calc(100vh - 80px);
+}
+/* When a panel sets an explicit height (e.g. wielder messages mode),
+ * convert it into a column flexbox so the body grows to fill the
+ * fixed-height shell and scrolls inside that area. */
+.floating-panel-fixed-height {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.floating-panel-fixed-height .floating-panel-header {
+  flex: 0 0 auto;
+}
+.floating-panel-fixed-height .floating-panel-body {
+  flex: 1 1 auto;
+  max-height: none;
+  min-height: 0;
 }
 /* When the wielder TargetPanel renders inside a floating panel, drop
  * its own border + shadow since the chrome already provides them. */

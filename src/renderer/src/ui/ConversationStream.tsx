@@ -142,6 +142,191 @@ const PATH_TOOLS = new Set([
   "NotebookEdit",
 ]);
 
+// Tools whose input carries a file edit we can preview as a diff
+// (red old / green new lines under the tool row).
+const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write"]);
+
+type EditHunk = { before: string; after: string; label?: string };
+
+/** Extract diff hunks from tool input. Handles Claude's Edit/MultiEdit/
+ * Write shapes plus Cursor's edit_file → Edit (when the bridge
+ * canonicalizes it) which sometimes carries `code_edit` as a unified
+ * diff-ish string instead of explicit old_string/new_string. */
+function extractEditHunks(name: string, input: unknown): EditHunk[] {
+  if (!input || typeof input !== "object") return [];
+  const i = input as Record<string, unknown>;
+  if (name === "Edit") {
+    if (typeof i.old_string === "string" || typeof i.new_string === "string") {
+      return [
+        {
+          before: String(i.old_string ?? ""),
+          after: String(i.new_string ?? ""),
+        },
+      ];
+    }
+    // Cursor edit_file path: code_edit already is a unified-ish diff
+    // string (lines prefixed with + / -) plus `// ...existing code...`
+    // markers. Show as a single hunk with all-after lines; the +/-
+    // styling kicks in via per-line prefix detection in the renderer.
+    if (typeof i.code_edit === "string") {
+      return [{ before: "", after: i.code_edit, label: "code edit" }];
+    }
+    return [];
+  }
+  if (name === "MultiEdit") {
+    const edits = Array.isArray(i.edits) ? i.edits : [];
+    return edits
+      .map((e: any, idx: number): EditHunk | null => {
+        if (!e || typeof e !== "object") return null;
+        return {
+          before: String(e.old_string ?? ""),
+          after: String(e.new_string ?? ""),
+          label: `hunk ${idx + 1}`,
+        };
+      })
+      .filter((h): h is EditHunk => !!h);
+  }
+  if (name === "Write") {
+    return [
+      { before: "", after: String(i.content ?? ""), label: "new file" },
+    ];
+  }
+  return [];
+}
+
+/** LCS-based line diff. Returns ops in order; each op is either an
+ * unchanged line, an addition, or a deletion. Operates on whole lines
+ * — character-level diff isn't needed for our agent-edit visualization
+ * use case (mostly small structural changes). */
+type DiffOp = { kind: "ctx" | "add" | "del"; text: string };
+
+function diffLines(before: string[], after: string[]): DiffOp[] {
+  const m = before.length;
+  const n = after.length;
+  // Trim a common prefix/suffix first so the LCS matrix stays small
+  // even for large files with a localized change.
+  let head = 0;
+  while (head < m && head < n && before[head] === after[head]) head++;
+  let tail = 0;
+  while (
+    tail < m - head &&
+    tail < n - head &&
+    before[m - 1 - tail] === after[n - 1 - tail]
+  ) {
+    tail++;
+  }
+  const midBefore = before.slice(head, m - tail);
+  const midAfter = after.slice(head, n - tail);
+  const a = midBefore.length;
+  const b = midAfter.length;
+  const lcs: number[][] = Array.from({ length: a + 1 }, () =>
+    new Array(b + 1).fill(0)
+  );
+  for (let i = 1; i <= a; i++) {
+    for (let j = 1; j <= b; j++) {
+      if (midBefore[i - 1] === midAfter[j - 1]) lcs[i][j] = lcs[i - 1][j - 1] + 1;
+      else lcs[i][j] = Math.max(lcs[i - 1][j], lcs[i][j - 1]);
+    }
+  }
+  const middle: DiffOp[] = [];
+  let i = a;
+  let j = b;
+  while (i > 0 && j > 0) {
+    if (midBefore[i - 1] === midAfter[j - 1]) {
+      middle.unshift({ kind: "ctx", text: midBefore[i - 1] });
+      i--;
+      j--;
+    } else if (lcs[i - 1][j] >= lcs[i][j - 1]) {
+      middle.unshift({ kind: "del", text: midBefore[i - 1] });
+      i--;
+    } else {
+      middle.unshift({ kind: "add", text: midAfter[j - 1] });
+      j--;
+    }
+  }
+  while (i > 0) middle.unshift({ kind: "del", text: midBefore[--i] });
+  while (j > 0) middle.unshift({ kind: "add", text: midAfter[--j] });
+  return [
+    ...before.slice(0, head).map<DiffOp>((t) => ({ kind: "ctx", text: t })),
+    ...middle,
+    ...before.slice(m - tail).map<DiffOp>((t) => ({ kind: "ctx", text: t })),
+  ];
+}
+
+/** Format diff ops as a unified-diff string with N lines of context
+ * around change clusters. Long unchanged regions become `... N
+ * unchanged lines ...` separators so big files don't dominate. */
+function formatUnifiedDiff(ops: DiffOp[], context = 3): string {
+  // Find indices of change ops (add/del) — context wraps each cluster.
+  const changeIdx = ops
+    .map((o, idx) => (o.kind === "ctx" ? -1 : idx))
+    .filter((i) => i !== -1);
+  if (changeIdx.length === 0) {
+    // No changes — degenerate case; just show the content.
+    return ops.map((o) => " " + o.text).join("\n");
+  }
+  // Build cluster ranges: [start, end] of indices to render with `+/-/ `;
+  // gaps between clusters get the placeholder.
+  const clusters: { start: number; end: number }[] = [];
+  for (const idx of changeIdx) {
+    const lo = Math.max(0, idx - context);
+    const hi = Math.min(ops.length - 1, idx + context);
+    const last = clusters[clusters.length - 1];
+    if (last && lo <= last.end + 1) {
+      last.end = Math.max(last.end, hi);
+    } else {
+      clusters.push({ start: lo, end: hi });
+    }
+  }
+  const out: string[] = [];
+  let cursor = 0;
+  for (const c of clusters) {
+    if (c.start > cursor) {
+      const skipped = c.start - cursor;
+      out.push(`@@ ${skipped} unchanged line${skipped === 1 ? "" : "s"} @@`);
+    }
+    for (let k = c.start; k <= c.end; k++) {
+      const op = ops[k];
+      out.push((op.kind === "add" ? "+" : op.kind === "del" ? "-" : " ") + op.text);
+    }
+    cursor = c.end + 1;
+  }
+  if (cursor < ops.length) {
+    const skipped = ops.length - cursor;
+    out.push(`@@ ${skipped} unchanged line${skipped === 1 ? "" : "s"} @@`);
+  }
+  return out.join("\n");
+}
+
+function DiffPreview({ hunks }: { hunks: EditHunk[] }) {
+  if (hunks.length === 0) return null;
+  const blocks = hunks.map((h, idx) => {
+    const beforeLines = h.before ? h.before.split("\n") : [];
+    const afterLines = h.after ? h.after.split("\n") : [];
+    // Write ("new file") has no before — show the after as all-additions
+    // without LCS, since there's nothing to align against.
+    if (beforeLines.length === 0) {
+      return {
+        label: h.label,
+        body: afterLines.map((l) => "+" + l).join("\n"),
+      };
+    }
+    const ops = diffLines(beforeLines, afterLines);
+    return { label: h.label, body: formatUnifiedDiff(ops) };
+  });
+  const fenced = blocks
+    .map((b) => {
+      const header = b.label ? `# ${b.label}\n` : "";
+      return "```diff\n" + header + b.body + "\n```";
+    })
+    .join("\n\n");
+  return (
+    <div className="chat-diff">
+      <Streamdown plugins={STREAMDOWN_PLUGINS}>{fenced}</Streamdown>
+    </div>
+  );
+}
+
 function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
   const [showTrace, setShowTrace] = useState(false);
   const name = String(ev.payload.name ?? "");
@@ -149,6 +334,11 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
   const summary = summarizeToolInput(name, ev.payload.input);
   const summaryIsPath = PATH_TOOLS.has(name) && summary.startsWith("/");
   const trace = useMemo(() => extractWhyTrace(events, ev), [events, ev]);
+  const hunks = useMemo(
+    () =>
+      EDIT_TOOLS.has(name) ? extractEditHunks(name, ev.payload.input) : [],
+    [name, ev.payload.input]
+  );
   return (
     <div className="chat-tool">
       <div className="chat-tool-line">
@@ -179,6 +369,7 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
           ))}
         </div>
       )}
+      {hunks.length > 0 && <DiffPreview hunks={hunks} />}
     </div>
   );
 }
@@ -277,6 +468,11 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   const name = String(ev.payload.name ?? "");
   const { text, exitCode, isError } = unpackToolResult(ev.payload.output);
   const isShell = name === "Bash";
+  // For Edit/Write/MultiEdit, the diff above already shows what
+  // changed; the result payload is mostly the input echoed back as
+  // JSON or a "success: true" object. Render a terse marker by
+  // default with an expand toggle for the curious.
+  const isEditFamily = EDIT_TOOLS.has(name);
   if (!text.trim()) {
     return (
       <div
@@ -289,6 +485,26 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
         {typeof exitCode === "number" && exitCode !== 0 && (
           <span className="chat-tool-exit"> exit {exitCode}</span>
         )}
+      </div>
+    );
+  }
+  if (isEditFamily && !expanded) {
+    return (
+      <div
+        className={
+          "chat-tool-result chat-tool-result-empty" +
+          (isError ? " errored" : "")
+        }
+      >
+        {isError ? "↳ failed" : "↳ applied"}
+        <button
+          type="button"
+          className="chat-expand"
+          onClick={() => setExpanded(true)}
+          style={{ marginLeft: 8 }}
+        >
+          show raw
+        </button>
       </div>
     );
   }

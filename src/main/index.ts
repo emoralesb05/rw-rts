@@ -203,25 +203,20 @@ app.whenReady().then(async () => {
   safeHandle(
     IPC.OpenPath,
     async (_e, req: { path: string; tool?: "claude" | "cursor" | "codex" }) => {
-      // Routes file-open requests to the right editor based on which
-      // tool's chat the click came from. Cursor sessions open in Cursor
-      // via its `cursor://file/<path>` URL scheme so the file lands in
-      // the same editor that's already running the wielder. Claude and
-      // Codex fall through to shell.openPath (OS default app).
+      // Always try Cursor first regardless of which wielder generated
+      // the path. The user works in Cursor; code files belong there.
+      // If Cursor's URL handler isn't registered (Cursor not installed
+      // or scheme stripped), fall through to the OS default app.
       const path = req?.path;
       if (typeof path !== "string" || !path.startsWith("/")) {
         return "invalid path";
       }
-      if (req?.tool === "cursor") {
-        try {
-          await shell.openExternal(`cursor://file${path}`);
-          return "";
-        } catch {
-          // Fall through to OS default if Cursor's URL handler isn't
-          // registered (e.g. Cursor not installed on this machine).
-        }
+      try {
+        await shell.openExternal(`cursor://file${path}`);
+        return "";
+      } catch {
+        return await shell.openPath(path);
       }
-      return await shell.openPath(path);
     }
   );
 

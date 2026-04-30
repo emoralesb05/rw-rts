@@ -7,6 +7,7 @@
  * body shows a stub instead of crashing — the user can close the panel.
  */
 import { useEffect, useState } from "react";
+import { usePanels } from "./panel-store";
 import { useStore, unitIdentityFor } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
@@ -87,6 +88,7 @@ export function WielderPanelBody({
   const comfort = useStore((s) => s.comfort);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
   const [tab, setTab] = useState<TabKey>(initialTab);
+  const setPanelSize = usePanels((s) => s.setSize);
   const archetype = unit ? classifyArchetype(unit.id, events) : "roamer";
   // When the caller bumps the tick, jump back to whatever tab they
   // requested — covers re-opening an already-parked panel from the
@@ -94,6 +96,22 @@ export function WielderPanelBody({
   useEffect(() => {
     if (initialTabTick > 0) setTab(initialTab);
   }, [initialTab, initialTabTick]);
+
+  // Tab-dependent panel sizing. Status is content-driven (stays at the
+  // ~560px default); messages mode expands to half the viewport width
+  // and 80% of viewport height so logs have room to breathe. Resets to
+  // null on cleanup so a freshly opened panel re-uses its caller's
+  // requested width.
+  useEffect(() => {
+    const panelId = `wielder:${unitId}`;
+    if (tab === "messages") {
+      const w = Math.max(560, Math.round(window.innerWidth * 0.5));
+      const h = Math.round(window.innerHeight * 0.8);
+      setPanelSize(panelId, { width: w, height: h });
+    } else {
+      setPanelSize(panelId, { width: 560, height: null });
+    }
+  }, [tab, unitId, setPanelSize]);
 
   if (!unit) {
     return (
