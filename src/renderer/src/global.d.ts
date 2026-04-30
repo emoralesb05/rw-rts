@@ -21,6 +21,9 @@ declare global {
       installHooks(): Promise<HooksStatus>;
       uninstallHooks(): Promise<HooksStatus>;
       hooksStatus(): Promise<HooksStatus>;
+      installCursorHooks(): Promise<HooksStatus>;
+      uninstallCursorHooks(): Promise<HooksStatus>;
+      cursorHooksStatus(): Promise<HooksStatus>;
       playFixture(req: PlayFixtureRequest): Promise<void>;
       loadPersisted(): Promise<PersistedState>;
       savePersisted(state: PersistedState): Promise<void>;

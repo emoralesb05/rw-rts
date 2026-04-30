@@ -8,7 +8,6 @@ import {
   stopHookBridge,
   resolvePermissionRequest,
 } from "./adapters/claude-hook";
-import { startCursorAdapter, stopCursorAdapter } from "./adapters/cursor";
 import { startCodexWatch, stopCodexWatch } from "./adapters/codex-watch";
 import { playFixture, stopAllFixtures } from "./adapters/fixture";
 import {
@@ -17,6 +16,11 @@ import {
   getStatus,
   isInstalled,
 } from "./hook-installer";
+import {
+  installCursorHooks,
+  uninstallCursorHooks,
+  getCursorHooksStatus,
+} from "./cursor-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import {
@@ -86,7 +90,6 @@ if (!app.isPackaged) {
 
 app.whenReady().then(async () => {
   startHookBridge();
-  startCursorAdapter();
   startCodexWatch();
   createWindow();
 
@@ -138,6 +141,16 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle(IPC.HooksStatus, () => getStatus());
 
+  ipcMain.handle(IPC.InstallCursorHooks, () => {
+    installCursorHooks();
+    return getCursorHooksStatus();
+  });
+  ipcMain.handle(IPC.UninstallCursorHooks, () => {
+    uninstallCursorHooks();
+    return getCursorHooksStatus();
+  });
+  ipcMain.handle(IPC.CursorHooksStatus, () => getCursorHooksStatus());
+
   ipcMain.handle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
@@ -173,7 +186,6 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     AgentManager.killAll();
     stopHookBridge();
-    stopCursorAdapter();
     stopCodexWatch();
     stopAllFixtures();
     app.quit();
@@ -183,7 +195,6 @@ app.on("window-all-closed", () => {
 app.on("will-quit", () => {
   AgentManager.killAll();
   stopHookBridge();
-  stopCursorAdapter();
   stopCodexWatch();
   stopAllFixtures();
   flushPersisted();

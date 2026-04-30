@@ -7,6 +7,9 @@ export const IPC = {
   InstallHooks: "kh:install-hooks",
   UninstallHooks: "kh:uninstall-hooks",
   HooksStatus: "kh:hooks-status",
+  InstallCursorHooks: "kh:install-cursor-hooks",
+  UninstallCursorHooks: "kh:uninstall-cursor-hooks",
+  CursorHooksStatus: "kh:cursor-hooks-status",
   PlayFixture: "kh:play-fixture",
   LoadPersisted: "kh:load-persisted",
   SavePersisted: "kh:save-persisted",
@@ -86,4 +89,7 @@ export type HooksStatus = {
   installed: boolean;
   socketPath: string;
   hookScriptPath: string;
+  // Set on Cursor status — path to ~/.cursor/hooks.json so the UI can
+  // surface where the entry will be written. Omitted for Claude.
+  hooksConfigPath?: string;
 };

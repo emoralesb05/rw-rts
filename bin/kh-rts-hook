@@ -1,41 +1,36 @@
 #!/usr/bin/env python3
-"""kh-rts-managed: forwards Claude Code hook payloads to the kh-rts GUI socket.
+"""kh-rts-managed: forwards Claude Code AND Cursor hook payloads to the
+kh-rts GUI socket.
 
 Most events are fire-and-forget — payload goes to ~/.claude/kh-rts.sock,
 script half-closes, exits. Silent if the GUI isn't listening.
 
-Phase 2B #18 (permission approval) uses Claude Code's `PermissionRequest`
-hook event, which fires only when Claude is about to show its permission
-dialog. That's exactly when keykeeper should also ask. The script:
+Claude `PermissionRequest` (bidirectional):
+  Tagged with a request_id; script blocks waiting for the GUI to reply
+  allow/deny, then writes Claude's hookSpecificOutput shape to stdout.
+  Claude shows its terminal prompt concurrently — first to commit wins.
 
-  1. Tags the payload with a request_id so the GUI can route a reply back.
-  2. Sends payload, half-closes, waits for the GUI's allow/deny.
-  3. Writes Claude Code's expected hookSpecificOutput format to stdout
-     (decision.behavior — distinct from PreToolUse's permissionDecision).
-  4. Returning "allow" SKIPS Claude's terminal prompt entirely. Returning
-     "deny" blocks the tool call.
-  5. Silent exit on timeout / no GUI / socket error → Claude falls back
-     to its own permission prompt. Default-safe.
+Cursor `beforeShellExecution` (observation + handoff):
+  Empirically, Cursor's `allowlist` approvalMode treats hook
+  `permission:"allow"` as advisory — the user must still confirm in
+  Cursor's native inline UI. So we don't pretend keykeeper can
+  pre-approve: the script returns `"ask"` immediately and lets Cursor's
+  UI handle the decision. Visibility into the request still flows to
+  keykeeper as a fire-and-forget event for the activity log.
 
-Earlier iterations tried PreToolUse + risky-pattern detection. That ran
-too eagerly (every PreToolUse) and double-confirmed (Claude's prompt
-and keykeeper letter both showed). PermissionRequest fires only when
-needed, so no risky detection or false-positive suppression.
+All other Cursor hooks (sessionStart/sessionEnd/beforeSubmitPrompt/
+preToolUse/postToolUse/afterAgentResponse/stop): pure fire-and-forget
+to the bridge, which is the canonical observability channel for Cursor
+since the SQLite poller was retired.
 """
 import json, os, socket, sys, uuid
 
 SOCK = os.path.join(os.path.expanduser("~"), ".claude", "kh-rts.sock")
 
-# Permission requests block until the user decides — no client-side
-# timeout. If the GUI dies, the socket drops and recv() returns EOF
-# immediately, so Claude falls back to its own prompt cleanly. We
-# previously had a 60s ceiling, but the user explicitly preferred to
-# wait indefinitely rather than risk an auto-dismiss before they could
-# read and decide.
 QUICK_TIMEOUT_S = 2.0
 
 
-def emit_permission_decision(behavior, message=None):
+def emit_claude_permission(behavior, message=None):
     """Write Claude Code's PermissionRequest hookSpecificOutput.
     behavior must be 'allow' or 'deny'. message is the deny reason
     shown to Claude (decision.message); ignored for allow per upstream
@@ -58,7 +53,8 @@ def silent_exit():
 
 
 def fire_and_forget(raw):
-    """Original behavior — send payload, half-close, exit."""
+    """Send payload, half-close, exit — used for any event that doesn't
+    need a reply (everything except Claude's PermissionRequest)."""
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.settimeout(QUICK_TIMEOUT_S)
     s.connect(SOCK)
@@ -68,14 +64,18 @@ def fire_and_forget(raw):
 
 
 def bidirectional_permission(payload):
-    """Tag with request_id, send, wait for GUI reply, emit decision."""
+    """Tag with request_id, send, block on recv until the bridge
+    replies or closes the socket. Returns the parsed reply dict, or
+    None if the GUI didn't answer.
+
+    No client-side timeout — Claude's terminal prompt runs concurrently,
+    and the hook stays alive until either the GUI clicks (we get a
+    reply) or the user clicks in Claude's terminal (Claude SIGTERMs
+    us)."""
     request_id = str(uuid.uuid4())
     payload["__kh_permission_request_id"] = request_id
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    # No timeout: blocks until the bridge writes a reply or closes the
-    # socket. Socket close (EOF) returns us empty chunks → fall through
-    # to silent exit, so Claude falls back to its terminal prompt.
     s.connect(SOCK)
     s.sendall(json.dumps(payload).encode("utf-8"))
     s.shutdown(socket.SHUT_WR)
@@ -88,23 +88,18 @@ def bidirectional_permission(payload):
                 break
             chunks.append(buf)
     finally:
-        s.close()
+        try:
+            s.close()
+        except Exception:
+            pass
 
     if not chunks:
-        return  # silent exit caller-side
+        return None
 
     try:
-        reply = json.loads(b"".join(chunks).decode("utf-8"))
-        # Bridge replies with {"permissionDecision": "allow"|"deny",
-        # "denyMessage": "..."?} — translate to PermissionRequest's
-        # expected hookSpecificOutput shape. denyMessage only flows
-        # through on deny (allow has no message field upstream).
-        decision = reply.get("permissionDecision")
-        deny_message = reply.get("denyMessage")
-        if decision in ("allow", "deny"):
-            emit_permission_decision(decision, deny_message)
+        return json.loads(b"".join(chunks).decode("utf-8"))
     except Exception:
-        pass
+        return None
 
 
 def main():
@@ -119,7 +114,6 @@ def main():
         try:
             payload = json.loads(raw.decode("utf-8"))
         except Exception:
-            # Malformed payload — best-effort forward, exit.
             try:
                 fire_and_forget(raw)
             except Exception:
@@ -128,14 +122,60 @@ def main():
 
         event_name = payload.get("hook_event_name")
 
+        # Claude permission request — bidirectional, blocks for GUI.
         if event_name == "PermissionRequest":
-            bidirectional_permission(payload)
+            reply = bidirectional_permission(payload)
+            if reply:
+                decision = reply.get("permissionDecision")
+                if decision in ("allow", "deny"):
+                    emit_claude_permission(decision, reply.get("denyMessage"))
             silent_exit()
 
-        # All other events: fire-and-forget.
+        # Cursor permission gate — return "ask" immediately so Cursor's
+        # native UI takes over (keykeeper can't pre-approve in allowlist
+        # mode anyway). Notify keykeeper fire-and-forget for visibility.
+        if event_name == "beforeShellExecution":
+            try:
+                fire_and_forget(raw)
+            except Exception:
+                pass
+            sys.stdout.write(json.dumps({"permission": "ask"}))
+            sys.stdout.flush()
+            silent_exit()
+
+        # Cursor `beforeSubmitPrompt` requires an explicit
+        # `{"continue": true}` for the prompt to proceed unmodified.
+        # Without it, Cursor's behavior is undefined — empirically
+        # results in the prompt bubble being rendered twice.
+        if event_name == "beforeSubmitPrompt":
+            try:
+                fire_and_forget(raw)
+            except Exception:
+                pass
+            sys.stdout.write(json.dumps({"continue": True}))
+            sys.stdout.flush()
+            silent_exit()
+
+        # Cursor `preToolUse` requires `{permission: "allow"|"deny"}`.
+        # Emit "allow" so the tool proceeds unmodified; in allowlist
+        # mode this is advisory (Cursor still gates per its policy).
+        if event_name == "preToolUse":
+            try:
+                fire_and_forget(raw)
+            except Exception:
+                pass
+            sys.stdout.write(json.dumps({"permission": "allow"}))
+            sys.stdout.flush()
+            silent_exit()
+
+        # All other events (Claude PreToolUse/PostToolUse/etc., Cursor
+        # sessionStart/sessionEnd/stop/postToolUse/afterAgentResponse):
+        # pure fire-and-forget to the bridge for activity-log emission.
+        # No stdout output — these events are observational on Cursor's
+        # side ("the response is logged but not used").
         fire_and_forget(raw)
     except Exception:
-        # Never fail a hook — we don't want to break claude.
+        # Never fail a hook — we don't want to break the upstream.
         pass
 
 

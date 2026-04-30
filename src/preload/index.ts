@@ -41,6 +41,15 @@ const api = {
   hooksStatus() {
     return ipcRenderer.invoke(IPC.HooksStatus) as Promise<HooksStatus>;
   },
+  installCursorHooks() {
+    return ipcRenderer.invoke(IPC.InstallCursorHooks) as Promise<HooksStatus>;
+  },
+  uninstallCursorHooks() {
+    return ipcRenderer.invoke(IPC.UninstallCursorHooks) as Promise<HooksStatus>;
+  },
+  cursorHooksStatus() {
+    return ipcRenderer.invoke(IPC.CursorHooksStatus) as Promise<HooksStatus>;
+  },
   playFixture(req: PlayFixtureRequest) {
     return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
   },

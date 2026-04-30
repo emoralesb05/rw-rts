@@ -8,7 +8,7 @@
  *                content the standalone Settings panel had)
  *   Connection — hook bridge install/uninstall + socket path
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { usePanels } from "./panel-store";
@@ -200,62 +200,176 @@ function OverviewTab() {
   );
 }
 
+type HookBridgeProps = {
+  title: string;
+  status: HooksStatus | null;
+  busy: boolean;
+  onToggle: () => void;
+  configPathLabel: string;
+  description: ReactNode;
+};
+
+function HookBridgeSection(props: HookBridgeProps) {
+  const { title, status, busy, onToggle, configPathLabel, description } = props;
+  if (!status) {
+    return (
+      <section className="kingdom-section">
+        <h3 className="kingdom-section-title">{title}</h3>
+        <div className="kingdom-empty">loading…</div>
+      </section>
+    );
+  }
+  return (
+    <section className="kingdom-section">
+      <h3 className="kingdom-section-title">{title}</h3>
+      <div className="kingdom-kv">
+        <span>status</span>
+        <strong className={status.installed ? "ok" : "warn"}>
+          {status.installed ? "installed · listening" : "not installed"}
+        </strong>
+      </div>
+      <div className="kingdom-kv">
+        <span>config</span>
+        <code>{status.hooksConfigPath ?? configPathLabel}</code>
+      </div>
+      <div className="kingdom-kv">
+        <span>socket</span>
+        <code>{status.socketPath}</code>
+      </div>
+      <div className="kingdom-kv">
+        <span>script</span>
+        <code>{status.hookScriptPath}</code>
+      </div>
+      <button
+        type="button"
+        className={"btn" + (status.installed ? " destructive" : " primary")}
+        onClick={onToggle}
+        disabled={busy}
+      >
+        {busy
+          ? "Working…"
+          : status.installed
+          ? "Uninstall hooks"
+          : "Install hooks"}
+      </button>
+      <p className="kingdom-footer-note">{description}</p>
+    </section>
+  );
+}
+
+/** Call an optional `window.kh.*` method safely. Returns null if the
+ * binding isn't present in the loaded preload (which happens after a
+ * preload-shape change without restarting electron — main + preload
+ * don't hot-reload, so the renderer can momentarily race ahead).
+ * Surfaces an inline restart hint instead of unmounting the panel. */
+async function safeIpc<T>(
+  fn: ((...a: any[]) => Promise<T>) | undefined
+): Promise<T | null> {
+  if (typeof fn !== "function") return null;
+  try {
+    return await fn();
+  } catch {
+    return null;
+  }
+}
+
 function ConnectionTab() {
-  const [status, setStatus] = useState<HooksStatus | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [claudeStatus, setClaudeStatus] = useState<HooksStatus | null>(null);
+  const [cursorStatus, setCursorStatus] = useState<HooksStatus | null>(null);
+  const [claudeMissing, setClaudeMissing] = useState(false);
+  const [cursorMissing, setCursorMissing] = useState(false);
+  const [claudeBusy, setClaudeBusy] = useState(false);
+  const [cursorBusy, setCursorBusy] = useState(false);
+
   useEffect(() => {
-    void window.kh.hooksStatus().then(setStatus);
+    void safeIpc(window.kh.hooksStatus?.bind(window.kh)).then((r) => {
+      if (r) setClaudeStatus(r);
+      else setClaudeMissing(true);
+    });
+    void safeIpc(window.kh.cursorHooksStatus?.bind(window.kh)).then((r) => {
+      if (r) setCursorStatus(r);
+      else setCursorMissing(true);
+    });
   }, []);
-  const toggle = async () => {
-    if (!status || busy) return;
-    setBusy(true);
+
+  const toggleClaude = async () => {
+    if (!claudeStatus || claudeBusy) return;
+    setClaudeBusy(true);
     try {
-      const next = status.installed
+      const next = claudeStatus.installed
         ? await window.kh.uninstallHooks()
         : await window.kh.installHooks();
-      setStatus(next);
+      setClaudeStatus(next);
     } finally {
-      setBusy(false);
+      setClaudeBusy(false);
     }
   };
-  if (!status) return <div className="kingdom-tab">loading…</div>;
+
+  const toggleCursor = async () => {
+    if (!cursorStatus || cursorBusy) return;
+    setCursorBusy(true);
+    try {
+      const next = cursorStatus.installed
+        ? await window.kh.uninstallCursorHooks()
+        : await window.kh.installCursorHooks();
+      setCursorStatus(next);
+    } finally {
+      setCursorBusy(false);
+    }
+  };
+
   return (
     <div className="kingdom-tab">
-      <section className="kingdom-section">
-        <h3 className="kingdom-section-title">Claude Code hook bridge</h3>
-        <div className="kingdom-kv">
-          <span>status</span>
-          <strong className={status.installed ? "ok" : "warn"}>
-            {status.installed ? "installed · listening" : "not installed"}
-          </strong>
-        </div>
-        <div className="kingdom-kv">
-          <span>socket</span>
-          <code>{status.socketPath}</code>
-        </div>
-        <div className="kingdom-kv">
-          <span>script</span>
-          <code>{status.hookScriptPath}</code>
-        </div>
-        <button
-          type="button"
-          className={"btn" + (status.installed ? " destructive" : " primary")}
-          onClick={toggle}
-          disabled={busy}
-        >
-          {busy
-            ? "Working…"
-            : status.installed
-            ? "Uninstall hooks"
-            : "Install hooks"}
-        </button>
-        <p className="kingdom-footer-note">
-          Forwards Claude Code tool-call events to keykeeper for any session
-          running on this machine. Uninstall reverts cleanly — the entries
-          live in <code>~/.claude/settings.json</code>.
-        </p>
-      </section>
+      {claudeMissing ? (
+        <PreloadRestartHint title="Claude Code hook bridge" />
+      ) : (
+        <HookBridgeSection
+          title="Claude Code hook bridge"
+          status={claudeStatus}
+          busy={claudeBusy}
+          onToggle={toggleClaude}
+          configPathLabel="~/.claude/settings.json"
+          description={
+            <>
+              Forwards Claude Code tool-call events and gates permission
+              requests for any session running on this machine. Entries live
+              in <code>~/.claude/settings.json</code>.
+            </>
+          }
+        />
+      )}
+      {cursorMissing ? (
+        <PreloadRestartHint title="Cursor hook bridge" />
+      ) : (
+        <HookBridgeSection
+          title="Cursor hook bridge"
+          status={cursorStatus}
+          busy={cursorBusy}
+          onToggle={toggleCursor}
+          configPathLabel="~/.cursor/hooks.json"
+          description={
+            <>
+              Gates Cursor agent shell commands through keykeeper alerts (
+              <code>beforeShellExecution</code>). Added alongside any
+              existing entries in <code>~/.cursor/hooks.json</code> — yours
+              are preserved.
+            </>
+          }
+        />
+      )}
     </div>
+  );
+}
+
+function PreloadRestartHint({ title }: { title: string }) {
+  return (
+    <section className="kingdom-section">
+      <h3 className="kingdom-section-title">{title}</h3>
+      <div className="kingdom-empty">
+        bridge IPC missing — restart <code>bun run dev</code> to rebuild the
+        preload bundle.
+      </div>
+    </section>
   );
 }
 
