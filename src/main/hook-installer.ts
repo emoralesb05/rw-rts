@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync, copyFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { app } from "electron";
@@ -6,6 +6,9 @@ import { SOCKET_PATH } from "./adapters/hook-bridge";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const HOOK_MARKER = "keykeeper-managed";
+
+const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
+const INSTALLED_SCRIPT_PATH = join(KEYKEEPER_DIR, "keykeeper-hook");
 
 const HOOK_EVENTS = [
   "PreToolUse",
@@ -18,18 +21,56 @@ const HOOK_EVENTS = [
   "SubagentStop",
 ];
 
+/**
+ * Path that the user's Claude/Cursor/Codex configs reference. Stable
+ * across app moves and updates because it's in the user's own home dir,
+ * not inside the app bundle. Populated by `syncHookScript()` on every
+ * boot from the bundled source.
+ */
 export function getHookScriptPath(): string {
+  return INSTALLED_SCRIPT_PATH;
+}
+
+/**
+ * Resolve the bundled source script (in dev: the repo's `bin/`; when
+ * packaged: `Resources/bin/` outside app.asar via electron-builder's
+ * `asarUnpack`). Used by `syncHookScript()` to copy into ~/.keykeeper/.
+ */
+function getBundledScriptPath(): string {
   const isDev = !app.isPackaged;
   return isDev
     ? join(app.getAppPath(), "bin", "keykeeper-hook")
     : join(app.getAppPath(), "..", "bin", "keykeeper-hook");
 }
 
+/**
+ * Copy the bundled hook script into ~/.keykeeper/keykeeper-hook on
+ * every app boot, chmod +x. Cheap (small file) and keeps the installed
+ * copy in sync with whatever ships in the current app version (or the
+ * current dev source). Idempotent — safe to call repeatedly.
+ *
+ * Call this in `app.whenReady()` BEFORE installing or running hooks.
+ */
+export function syncHookScript(): void {
+  try {
+    mkdirSync(KEYKEEPER_DIR, { recursive: true });
+    const src = getBundledScriptPath();
+    if (existsSync(src)) {
+      copyFileSync(src, INSTALLED_SCRIPT_PATH);
+      chmodSync(INSTALLED_SCRIPT_PATH, 0o755);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[keykeeper] failed to sync hook script:", err);
+  }
+}
+
 export function ensureHookScriptExecutable() {
-  const path = getHookScriptPath();
-  if (existsSync(path)) {
+  // The script lives at ~/.keykeeper/keykeeper-hook after syncHookScript().
+  // Belt-and-suspenders chmod in case the boot-time copy was missed.
+  if (existsSync(INSTALLED_SCRIPT_PATH)) {
     try {
-      chmodSync(path, 0o755);
+      chmodSync(INSTALLED_SCRIPT_PATH, 0o755);
     } catch {
       // ignore
     }

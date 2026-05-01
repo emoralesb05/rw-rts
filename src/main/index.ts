@@ -22,6 +22,7 @@ import {
   uninstallHooks,
   getStatus,
   isInstalled,
+  syncHookScript,
 } from "./hook-installer";
 import {
   installCursorHooks,
@@ -137,6 +138,12 @@ if (!app.isPackaged) {
 }
 
 app.whenReady().then(async () => {
+  // Refresh the user-dir copy of bin/keykeeper-hook from the bundled
+  // source. Runs every boot — keeps the installed script in sync with
+  // the app version. Must run before hook installers (so they
+  // reference a present, executable file) and before the bridge (so
+  // any racing hook fire finds the script).
+  syncHookScript();
   startHookBridge();
   startClaudeTranscriptWatcher();
   startCodexTranscriptWatcher();
