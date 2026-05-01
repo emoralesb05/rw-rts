@@ -135,4 +135,4 @@ All console output in main + renderer should use the `[keykeeper/<component>]` p
 
 Component names match the file/module: `bridge`, `claude-transcript`, `codex-transcript`, `agent-manager`, etc. Bare `[keykeeper]` is for top-level lifecycle (boot/shutdown).
 
-Don't `console.log` from the renderer for routine events — use the activity log or wielder messages tab instead. Renderer logs should only fire for actual diagnostic concerns (state corruption, IPC errors).
+Don't `console.log` from the renderer for routine events — use the activity log or chat drawer instead. Renderer logs should only fire for actual diagnostic concerns (state corruption, IPC errors).

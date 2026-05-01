@@ -165,21 +165,27 @@ localStorage (`keykeeper:hud:collapsed:<title>`).
   row clicks on permission events force-expand this widget if it's
   collapsed.
 - **Bottom-left: ActivityLog** — one-line summaries. Tone-coded.
-  Click textual rows → wielder Messages tab + scroll-to-event with
-  gold pulse. Click permission rows → pulse the matching alert.
-  System markers (session_start/end, subagent_spawn) non-clickable.
+  Click textual rows → opens a chat-drawer tab for that wielder and
+  scrolls the stream to the event with a gold pulse. Click permission
+  rows → pulse the matching alert. System markers (session_start/end,
+  subagent_spawn) non-clickable.
 - **Bottom-right: LettersHUD** — informational letters, one per
   wielder (most-recent wins). Body click pans canvas to wielder's
   world. `✕ clear` button to drop all at once.
+- **Right edge: ChatDrawer** — singleton, tabbed (one tab per wielder
+  the King opens). Browser-style tabs with per-tab × close and status
+  dots (red = pending permission, yellow = unread). Drag the left
+  edge to resize; minimize collapses to a thin floating pill between
+  Alerts and Letters. Tab body = ConversationStream + chat input.
 
 ### Floating panels
 
 Generic FloatingPanel shell (drag header, z-index stack focus, no
 backdrop, multiple coexist). Panel kinds:
 
-- **`wielder`** — Status / Messages tabs. Status = portrait + bars +
-  meta + action card. Messages = ConversationStream filtered to that
-  wielder + chat input pinned at the bottom.
+- **`wielder`** — Status only. Portrait + bars + meta + action card
+  with verbs (chat / find / decree / comfort / recall). The chat
+  verb opens a tab in the right-edge ChatDrawer.
 - **`kingdom`** — Overview / Settings / Connection / Demos tabs.
 - **`dispatch`** — tool tabs / target world picker / multi-line
   prompt textarea / Cancel / ▶ Spawn.

@@ -10,7 +10,7 @@
  *   session_end (success and KO branches), error
  *
  * NOT barked on: tool_use / tool_result / assistant_text. Those would
- * spam the canvas — there's the activity log + Messages tab for that.
+ * spam the canvas — the activity log + chat drawer cover that.
  */
 import type { UnitRole } from "@shared/events";
 

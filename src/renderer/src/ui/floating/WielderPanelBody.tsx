@@ -81,9 +81,8 @@ export function WielderPanelBody({ unitId }: Props) {
   const openDrawerTab = usePanels((s) => s.openDrawerTab);
   const archetype = unit ? classifyArchetype(unit.id, events) : "roamer";
 
-  // Status panel is now content-driven (Messages tab moved to the
-  // chat drawer). Reset any prior fixed height the messages mode
-  // applied so a re-opened panel sits at the natural height.
+  // Status panel is content-driven; reset any height a previous body
+  // may have set so a re-opened panel sits at its natural height.
   useEffect(() => {
     setPanelSize(`wielder:${unitId}`, { width: 560, height: null });
   }, [unitId, setPanelSize]);

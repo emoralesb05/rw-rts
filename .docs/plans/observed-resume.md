@@ -80,9 +80,9 @@ Idiomatic place: `resumeCursorSession()` in `cursor-cli.ts` → calls a small he
 
 ## Testing
 
-- **Manual smoke per provider** — start a session in the provider's native UI, observe in keykeeper, type from keykeeper, verify the reply appears in the wielder's messages tab. Verify the original UI does NOT update (expected divergence).
+- **Manual smoke per provider** — start a session in the provider's native UI, observe in keykeeper, type from keykeeper, verify the reply appears in the wielder's chat-drawer tab. Verify the original UI does NOT update (expected divergence).
 - **Empirical resume verification** — see [`../providers/claude.md`](../providers/claude.md) § Resume for the JSONL diff procedure. Repeat per provider for any future regression.
-- **Synthetic-event integrity** — for Cursor, verify the synthesized `user_prompt` + `assistant_text` events render correctly in the messages tab and are deduped by the bridge if a (rare) hook also fires for the same content.
+- **Synthetic-event integrity** — for Cursor, verify the synthesized `user_prompt` + `assistant_text` events render correctly in the chat-drawer tab and are deduped by the bridge if a (rare) hook also fires for the same content.
 
 ## Known limitations after shipping
 

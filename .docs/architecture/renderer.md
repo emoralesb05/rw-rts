@@ -52,7 +52,7 @@ type Panel = {
   title: string;
   x: number; y: number;
   width: number;
-  height?: number;     // null = auto-fit (default); set for messages-mode
+  height?: number;     // null = auto-fit (default); set for fixed-height bodies
   z: number;
   data?: unknown;      // panel-kind-specific (e.g. {initialTab, scrollToTs})
 };
@@ -61,16 +61,19 @@ type Panel = {
 - `zCounter: 10_000` (high to clear Mermaid's overlay z-index)
 - Singletons (settings, kingdom, dispatch) only ever have one open instance
 - Wielder panels keyed by `unit.id` — opening the same wielder twice raises the existing one
-- `setSize(id, {width, height})` lets a body call up and resize itself (used when switching between Status and Messages tabs)
+- `setSize(id, {width, height})` lets a body call up and resize itself
 
-`FloatingPanel.tsx` handles drag, focus-on-click (raise z), and applies `floating-panel-fixed-height` class when `panel.height` is set (chains flex layout down for the messages tab).
+`FloatingPanel.tsx` handles drag and focus-on-click (raise z).
+
+The right-edge `ChatDrawer` is a separate singleton (not in the panel array). It owns its own slice of `panel-store` (`drawer.openTabs`, `activeTab`, `width`, `minimized`, `z`) and shares `zCounter` with floating panels for click-to-focus stacking.
 
 | Body | Purpose |
 |---|---|
-| `WielderPanelBody.tsx` | Per-wielder card with Status/Messages tabs |
+| `WielderPanelBody.tsx` | Per-wielder Status card (portrait + bars + verbs); chat verb opens a drawer tab |
 | `DispatchPanelBody.tsx` | Spawn a new wielder (tool + repo + prompt) |
 | `KingdomPanelBody.tsx` | Tabbed kingdom-wide view |
 | `SettingsPanelBody.tsx` | App settings UI |
+| `ChatDrawer.tsx` | Right-edge tabbed conversation drawer (singleton) |
 
 ## Conversation rendering (`src/renderer/src/ui/ConversationStream.tsx`)
 
@@ -89,7 +92,7 @@ Streamdown plugins enabled: `code` (Shiki), `mermaid`, `math` (KaTeX), `cjk`. Me
 
 Bottom-left, one-line summaries across all wielders. Click routing:
 
-- `tool_use` / `tool_result` / `assistant_text` / `user_prompt` / `error` → open the wielder panel on the Messages tab, scroll to that timestamp
+- `tool_use` / `tool_result` / `assistant_text` / `user_prompt` / `error` → open a chat-drawer tab for the wielder, scroll to that timestamp
 - `permission_request` → highlight the matching alert card in AlertsHUD (silent fail if already resolved)
 - `session_start` / `session_end` / `subagent_spawn` / `permission_resolved` → not clickable (system markers)
 

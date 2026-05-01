@@ -29,8 +29,13 @@ wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
   world.
 - **ActivityLog** (bottom-left) — one-line summaries of recent events
   across the kingdom, tone-coded. Click a row to jump: textual events
-  open the wielder's Messages tab and scroll to that event; permission
-  rows force-expand AlertsHUD and pulse the matching alert.
+  open a chat-drawer tab for that wielder and scroll to the event;
+  permission rows force-expand AlertsHUD and pulse the matching alert.
+- **ChatDrawer** (right edge, on demand) — singleton tabbed drawer for
+  per-wielder conversation. Browser-style tabs (per-tab close, status
+  dots for unread / permission), drag-to-resize left edge, minimize-
+  to-pill. Tab body = ConversationStream filtered to that wielder +
+  per-wielder chat input.
 - **Kingdom canvas** — pan/zoom Star Chart. Each repo is a world
   (Disney Castle / Hollow Bastion / Traverse Town / Destiny Islands /
   Twilight Town / Halloween Town). Wielders render inside their world's

@@ -5,7 +5,7 @@
  *
  * Click routing (per design discussion 2026-04-29):
  *   - tool_use / tool_result / assistant_text / user_prompt / error
- *       → open the wielder panel on the Messages tab
+ *       → open a chat-drawer tab for the wielder, scrolled to event
  *   - permission_request
  *       → highlight the matching alert card in AlertsHUD (top-right);
  *         silent fail if it's already been resolved/dismissed

@@ -90,9 +90,7 @@ export function FloatingPanel({ panel, children }: Props) {
 
   return (
     <div
-      className={
-        "floating-panel" + (panel.height ? " floating-panel-fixed-height" : "")
-      }
+      className="floating-panel"
       style={{
         left: panel.x,
         top: panel.y,

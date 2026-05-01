@@ -1,8 +1,8 @@
 /**
- * Per-wielder send-prompt input. Lives at the bottom of the wielder
- * panel's Messages tab. Replaces the global command bar's "send" path
- * — every wielder now has its own focused input. Disabled (with a
- * hint) for observed-only wielders since keykeeper can't drive them.
+ * Per-wielder send-prompt input. Lives at the bottom of the chat-
+ * drawer's active tab. Every wielder gets its own focused input;
+ * disabled (with a hint) for observed-only wielders since keykeeper
+ * can't drive them.
  */
 import { useCallback, useState } from "react";
 import type { UnitState } from "@shared/events";

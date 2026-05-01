@@ -2,8 +2,8 @@
  * Compact party-list row used inside the WielderHUD. Portrait, name +
  * tool pill, status icon strip, dual HP/MP mini bars, chat shortcut.
  *
- * Click body → open wielder panel on Status tab.
- * Click 💬     → open wielder panel on Messages tab.
+ * Click body  → open wielder Status panel.
+ * Click chat  → open a chat-drawer tab for this wielder.
  */
 import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";

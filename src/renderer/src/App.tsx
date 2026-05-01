@@ -22,8 +22,8 @@ import { KingdomHeader } from "./ui/hud/KingdomHeader";
  *   └────────────────────────────────────────────────────────────┘
  *
  * No bottom command bar — spawning lives in the Dispatch dialog,
- * messaging lives inside each wielder's Messages tab. Window-drag is
- * the thin strip at top.
+ * messaging lives inside the right-edge ChatDrawer (one tab per
+ * wielder). Window-drag is the thin strip at top.
  */
 export function App() {
   return (

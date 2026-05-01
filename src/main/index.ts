@@ -55,11 +55,17 @@ import {
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
+  // app.getAppPath() resolves to the repo root in dev and the .app's
+  // Resources/app dir when packaged — both have build/icon.png at the
+  // same relative location, so the lookup works in either mode.
+  const iconPath = join(app.getAppPath(), "build/icon.png");
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     backgroundColor: "#0a0e1a",
     titleBarStyle: "hiddenInset",
+    title: "Keykeeper",
+    icon: iconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
@@ -67,6 +73,12 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+  // macOS dock icon: only needed in dev (packaged builds get it from
+  // the .icns inside the bundle). app.dock is darwin-only — guard
+  // both the platform and the optional chain.
+  if (process.platform === "darwin" && !app.isPackaged && app.dock) {
+    app.dock.setIcon(iconPath);
+  }
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -113,8 +125,14 @@ function safeHandle<TArgs extends unknown[], TResult>(
 ): void {
   ipcMain.handle(channel, (event, ...args) => {
     const expected = mainWindow?.webContents;
-    if (!expected || event.sender !== expected || event.senderFrame !== expected.mainFrame) {
-      throw new Error(`[keykeeper] ipc rejected: untrusted sender for ${channel}`);
+    if (
+      !expected ||
+      event.sender !== expected ||
+      event.senderFrame !== expected.mainFrame
+    ) {
+      throw new Error(
+        `[keykeeper] ipc rejected: untrusted sender for ${channel}`
+      );
     }
     return fn(event, ...(args as TArgs));
   });
@@ -128,7 +146,8 @@ async function offerHookInstall() {
     defaultId: 0,
     cancelId: 1,
     title: "keykeeper hook bridge",
-    message: "Install Claude Code hooks so keykeeper can watch your other Claude sessions?",
+    message:
+      "Install Claude Code hooks so keykeeper can watch your other Claude sessions?",
     detail:
       "Adds entries to ~/.claude/settings.json that forward tool-call events to a local socket. " +
       "Uninstall any time from the Settings menu.",
@@ -172,7 +191,11 @@ app.whenReady().then(async () => {
   safeHandle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
     const cwd = resolve(req.cwd || ".");
     const tool: "claude" | "cursor" | "codex" =
-      req.tool === "cursor" ? "cursor" : req.tool === "codex" ? "codex" : "claude";
+      req.tool === "cursor"
+        ? "cursor"
+        : req.tool === "codex"
+        ? "codex"
+        : "claude";
     const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
     return { unitId: agent.unitId, sessionId: agent.sessionId };
   });

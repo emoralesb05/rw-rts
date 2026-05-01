@@ -274,32 +274,6 @@ select.btn {
   color: var(--muted);
 }
 
-.chat-panel {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  min-height: 0;
-  overflow: hidden;
-}
-.chat-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 14px;
-  font-size: 11px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--line);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.chat-clear {
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0;
-}
-
 .chat-selected-bar {
   display: grid;
   grid-template-columns: 28px 1fr 70px auto;
@@ -1656,37 +1630,18 @@ select.btn {
   overflow-y: auto;
   max-height: calc(100vh - 80px);
 }
-/* When a panel sets an explicit height (e.g. wielder messages mode),
- * convert it into a column flexbox so the body grows to fill the
- * fixed-height shell and scrolls inside that area. */
-.floating-panel-fixed-height {
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-}
-.floating-panel-fixed-height .floating-panel-header {
-  flex: 0 0 auto;
-}
-.floating-panel-fixed-height .floating-panel-body {
-  flex: 1 1 auto;
-  max-height: none;
-  min-height: 0;
-  /* Make the body its own flex column so direct children (e.g.
-   * .target-panel) can grow to fill the available height. Without
-   * this, children just sit at natural height and the input row
-   * floats wherever the messages end. */
-  display: flex;
-  flex-direction: column;
-}
-/* When the wielder TargetPanel renders inside a floating panel, drop
- * its own border + shadow since the chrome already provides them. */
+/* When the TargetPanel renders inside a floating panel, drop its own
+ * border + shadow since the chrome already provides them. */
 .floating-panel-body > .target-panel {
   border: none;
   box-shadow: none;
   background: transparent;
   border-radius: 0;
 }
-/* ─── Wielder panel tabs (status / log) ────────────────────────── */
+/* ─── Kingdom panel tabs (Overview / Settings / Connection) ──────
+ * Class names are .wielder-panel-tab(s) for historical reasons —
+ * pre-drawer they were the wielder's Status/Messages tabs. Now only
+ * the kingdom panel uses them. Renaming would be a bikeshed. */
 .wielder-panel-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
@@ -1711,40 +1666,6 @@ select.btn {
 .wielder-panel-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
-}
-.wielder-panel-log {
-  display: flex;
-  flex-direction: column;
-  max-height: 65vh;
-  padding: 4px 0;
-  min-height: 0;
-}
-/* Inside a fixed-height panel (messages-tab resize mode), the log
- * fills the body and the chat input pins to the bottom. */
-.floating-panel-fixed-height .wielder-panel-log {
-  max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 0;
-}
-/* The wielder-panel body wraps everything in .target-panel which is
- * column-flex; in fixed-height mode it has to grow to fill the
- * floating-panel-body so the chat-input can pin to the bottom and the
- * stream takes the remaining space. Drop padding + gap so children
- * own their spacing — frees ~36px vertical otherwise lost to the
- * default Status-mode chrome that messages-mode doesn't need. */
-.floating-panel-fixed-height .target-panel {
-  flex: 1 1 auto;
-  min-height: 0;
-  padding: 0;
-  gap: 0;
-  border: none;
-}
-.wielder-panel-log .chat-stream {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 6px 12px;
-  min-height: 0;
 }
 .chat-empty {
   padding: 16px;
@@ -3131,10 +3052,10 @@ select.btn {
   border-top: 1px solid var(--line);
 }
 
-/* Per-wielder chat input — bottom of the Messages tab. flex:0 0 auto
- * so it never shrinks below its natural height when the message
- * stream above grows tall, and stays pinned at the bottom of the log
- * column. */
+/* Per-wielder chat input — bottom of the chat-drawer body. flex:0 0
+ * auto so it never shrinks below its natural height when the message
+ * stream above grows tall, and stays pinned at the bottom of the
+ * drawer column. */
 .wielder-chat-input {
   display: flex;
   gap: 6px;

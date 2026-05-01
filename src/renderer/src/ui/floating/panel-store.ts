@@ -166,8 +166,8 @@ export const usePanels = create<State>((set, get) => ({
     const existing = get().panels.find((p) => p.id === id);
     if (existing) {
       // Already open — bump to top of stack and merge any new data the
-      // caller passed (e.g. updated initialTab so the chat icon can
-      // switch a parked panel back to the Messages tab).
+      // caller passed (e.g. updated initialTab if a singleton panel
+      // wants to switch tabs on re-open).
       const z = get().zCounter + 1;
       set((s) => ({
         zCounter: z,
