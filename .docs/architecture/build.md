@@ -66,7 +66,7 @@ out/
 ## Version constraints
 
 - **Electron 41** — latest stable as of 2026-Q1; required for current Phaser 4 + React 19 compat
-- **Phaser 4** — major version jump from Phaser 3 (the older `roadmap.md` references P3); scene API and renderer differ
+- **Phaser 4** — major version jump from Phaser 3; scene API and renderer differ
 - **React 19** — concurrent mode, new fiber. Some libraries (incl. some Streamdown plugins) lagged briefly during the transition
 - **Bun** — chosen over npm/pnpm for install speed and ts script execution. Scripts in `package.json` are bun-runnable but should also work with `npm run` if needed
 

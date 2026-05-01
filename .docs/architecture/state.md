@@ -81,7 +81,7 @@ IPC channels: `kh:load-persisted` / `kh:save-persisted` / `kh:reset-persisted`.
 
 ## Spawn provenance — `unit.spawnedHere`
 
-A wielder's `UnitState` carries `spawnedHere: boolean` — true if keykeeper started this session via `AgentManager.spawn`, false if we observed it via hooks. Verbs like *recall* and *send* are gated on this for now. (For the planned "drive observed sessions via `--resume`" work see `.docs/plans/vision.md`.)
+A wielder's `UnitState` carries `spawnedHere: boolean` — true if keykeeper started this session via `AgentManager.spawn`, false if we observed it via hooks. Verbs like *recall* and *send* are gated on this for now. (For the planned "drive observed sessions via `--resume`" work see [`../vision.md`](../vision.md) and [`../plans/observed-resume.md`](../plans/observed-resume.md).)
 
 ## Identity stability — `unit.repoRoot`
 

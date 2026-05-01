@@ -1,7 +1,9 @@
 # keykeeper — Vision & Open Questions
 
-Supersedes `roadmap.md` (which is stale — references Phaser 3, "RTS" framing,
-and pre-multi-tool design). Keep `roadmap.md` for historical context only.
+The strategic north star — philosophy, locked decisions Q1–Q44, open
+questions, build phases. For tactical per-feature plans see
+[`./plans/`](./plans/). For how things are built today see
+[`./architecture/`](./architecture/).
 
 > Repo dir on disk is still `kh-rts/` — npm package is `keykeeper`.
 
@@ -192,10 +194,10 @@ Explicitly **not** building, even if adjacent products do:
 - **Multi-tenant SaaS / hosted product** — personal-tidy is the locked
   audience trajectory (Q3 + Q28). If that flips, this section flips
   with it.
-- **Mobile companion / PWA** — killed per Q29 (2026-04-28). Real pain
+- **Mobile companion / PWA** — deferred per Q29 (2026-04-28). Real pain
   is desktop attention-direction with multiple parallel agents, not
-  AFK monitoring. Notifications stay (as desktop OS notifications,
-  not Web Push). Revive only if an actual AFK use case emerges.
+  AFK monitoring today. Notifications stay (as desktop OS notifications,
+  not Web Push). Revive when an AFK / on-the-go use case emerges.
 - **Tick-by-tick RTS commanding** — the agents have their own minds; the
   player nudges and decrees, never micromanages.
 - **AgentCraft's "Alliance Hall" multi-King co-op rooms** — solo
@@ -616,11 +618,11 @@ Everything else is downstream of these two.
     disproportionate value on mobile (#16). King speaks the decree
     aloud rather than typing. See Q38 (transcription-only locked for
     v1; voice commands deferred).
-16. ❌ **Mobile companion (PWA)** — **Killed (2026-04-28)** per Q29.
-    Real pain is desktop attention-direction with 3–5 parallel
-    agents, not AFK monitoring. Item preserved for if/when scope
-    flips. See Q29 for the cascading consequences (notifications
-    reframed, voice survives, etc.).
+16. ⏸ **Mobile companion (PWA)** — **Deferred (2026-04-28)** per Q29.
+    Real pain today is desktop attention-direction with 3–5 parallel
+    agents, not AFK monitoring. Revive when an AFK / on-the-go use
+    case emerges. See Q29 for the cascading consequences
+    (notifications reframed as desktop, voice survives, etc.).
 17. ✅ **Desktop OS notifications** *(shipped 2026-04-28)* — *(was ~2h — Electron `Notification` API +
     4 trigger handlers + per-trigger settings toggle)* — was Web Push.
     Reframed per Q29. Four triggers (per Q30=d):
@@ -929,13 +931,12 @@ for the suggested answer order.
       public-internet exposure.
     - Anything implying shared infra, multi-user auth, support load,
       or public branding: out of scope by default.
-29. ✅ **Mobile companion (PWA)?** — **Killed (2026-04-28).** User
-    confirmed the actual pain is desktop attention-direction (focusing
+29. ✅ **Mobile companion (PWA)?** — **Deferred (2026-04-28).** User
+    confirmed today's pain is desktop attention-direction (focusing
     where you're needed *while at your desk*, with 3–5 parallel
-    agents), not AFK monitoring. Mobile would solve a different
-    problem they don't have. Phase 2B item #16 removed from the active
-    plan; can be revived if/when an actual AFK-monitoring use case
-    emerges.
+    agents), not AFK monitoring. Mobile solves a different problem
+    that isn't the current bottleneck. Phase 2B item #16 stays on
+    the radar for revival when an AFK / on-the-go use case emerges.
 
     **Cascading consequences:**
     - **#17 Push notifications** reframed as **desktop OS
@@ -1011,7 +1012,7 @@ for the suggested answer order.
     causes destructive actions (Recall = kills agent), security model
     not worth the lift for v1. Useful on desktop too (hands-free
     Decree while reading code in another window — survives the
-    mobile-killed reframe).
+    mobile-deferred reframe).
 39. ✅ **Decree composer UX?** — **(b) layered composer locked.**
     Free-text primary; `@` opens file palette (recent files +
     typeahead), `/` opens command palette (shell command runner +
@@ -1119,7 +1120,7 @@ unblocked for implementation.
 
 **Locked decisions:**
 - Q28 audience = strictly personal-tidy
-- Q29 mobile/PWA = killed (desktop-only project)
+- Q29 mobile/PWA = deferred (desktop-first; revive if AFK / on-the-go use case emerges)
 - Q30 notifications = all 4 triggers, desktop OS (not Web Push)
 - Q31 relay = deferred (Discord/Slack later if needed)
 - Q32 permission = yes/no/once + context (Phase 2B #13)
@@ -1143,7 +1144,7 @@ unblocked for implementation.
 | 18 | Permission approval surface | ~1d | Was "permission-from-chat"; pairs with #13 |
 
 **Deferred (not in active sprint):**
-- #16 Mobile PWA — killed per Q29
+- #16 Mobile PWA — deferred per Q29
 - #19 Discord/Slack relay — deferred per Q31
 - #20 Shared kingdoms — deferred per Q28=a
 

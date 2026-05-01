@@ -3,7 +3,7 @@
 How keykeeper is built. Slow-changing reference for our internal design.
 
 For external-tool quirks and integration notes, see [`.docs/providers/`](../providers/).
-For roadmap and forward-looking design, see [`.docs/plans/`](../plans/).
+For tactical per-feature plans, see [`.docs/plans/`](../plans/).
 Vocabulary (KH terms + technical) is centralized in [`.docs/glossary.md`](../glossary.md) — skim that before reading the rest.
 
 ## Files
@@ -25,5 +25,6 @@ If you're new: `processes.md` → `events.md` → `bridge.md` → `renderer.md`.
 ## What's NOT here
 
 - Per-CLI quirks (Claude/Codex/Cursor) → [`../providers/`](../providers/)
-- Design rationale, decisions, roadmap → [`../plans/vision.md`](../plans/vision.md)
+- Strategic north star (philosophy, locked decisions, open questions) → [`../vision.md`](../vision.md)
+- Tactical per-feature plans → [`../plans/`](../plans/)
 - UI concept art → `../concept-art.png`, `../sprite-prompts.md`
