@@ -1,0 +1,61 @@
+# Hooks (cross-tool overview)
+
+For per-provider specifics see [`claude.md`](./claude.md), [`codex.md`](./codex.md), [`cursor.md`](./cursor.md). This page covers the shared shape and the multiplexer.
+
+## Protocol
+
+Each provider's hook system follows the same pattern:
+
+1. Provider invokes a configured **command** at hook time
+2. Provider writes a **JSON payload** to the command's stdin
+3. Command writes a **JSON response** to stdout (or exits cleanly = no-op)
+4. Provider acts on the response (allow/deny/etc.) and proceeds
+
+We use **one** command for all three tools: `bin/kh-rts-hook` (Python). It branches on `hook_event_name`; for Codex it's invoked with `--tool codex` to disambiguate from Claude's identical PascalCase event names.
+
+## Event-name conventions
+
+| Tool | Convention | Example |
+|---|---|---|
+| Claude | PascalCase | `PreToolUse` |
+| Codex | PascalCase | `PreToolUse` (same as Claude) |
+| Cursor | camelCase | `preToolUse` |
+
+The bridge dispatches by case of the first letter:
+- camelCase → Cursor normalizer
+- PascalCase → Claude or Codex (disambiguated by `__kh_tool` marker on payload)
+
+## Event coverage matrix
+
+| Concept | Claude | Codex | Cursor |
+|---|---|---|---|
+| Session start | `SessionStart` | `SessionStart` | `sessionStart` |
+| Session end | `SessionEnd` | `SessionEnd` | `sessionEnd` |
+| User prompt | `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` |
+| Tool about to run | `PreToolUse` | `PreToolUse` | `preToolUse` |
+| Tool finished | `PostToolUse` | `PostToolUse` | `postToolUse` |
+| Permission gate | `PermissionRequest` (bi) | `PermissionRequest` (bi) | `beforeShellExecution` (advisory) |
+| Per-turn done | `Stop` | `Stop` | `stop` |
+| Subagent done | `SubagentStop` | — | — |
+| Assistant text | ❌ — needs transcript watcher | ❌ — needs transcript watcher | `afterAgentResponse` ✅ |
+
+## Permission flow per tool
+
+**Claude** (`PermissionRequest`):
+- Bidirectional. We tag with a `requestId`, block on the socket waiting for the user's allow/deny in keykeeper, then write `{hookSpecificOutput: {decision: {behavior, message}}}` to stdout.
+- Claude's terminal also shows its own native prompt concurrently — first to commit wins.
+
+**Codex** (`PermissionRequest`):
+- Same shape as Claude. Bidirectional. Codex doesn't render its own competing prompt for hook-mediated permissions.
+
+**Cursor** (`beforeShellExecution`):
+- Observation-only by design. Cursor's `allowlist` approvalMode treats hook `permission: "allow"` as advisory; the user must confirm in Cursor's UI anyway. So `kh-rts-hook` returns `{permission: "ask"}` immediately and forwards visibility to keykeeper as a fire-and-forget event.
+
+## The multiplexer (`bin/kh-rts-hook`)
+
+- Reads JSON from stdin, parses `hook_event_name`
+- Optional `--tool <name>` argv flag (used for Codex) tags payload with `__kh_tool`
+- Writes payload to `~/.claude/kh-rts.sock`
+- For bidirectional events: blocks on socket recv, writes provider-shaped reply to stdout
+- For fire-and-forget: half-closes after send and exits silently — keykeeper not running = no-op
+- All branches wrapped in try/except; we never want the hook to break the user's CLI session
