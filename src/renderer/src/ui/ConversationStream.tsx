@@ -813,20 +813,19 @@ export function ConversationStream({
     return out;
   }, [units, sessionId]);
 
-  // Build a set of "interrupted" user_prompt event keys — submitted but
-  // never worked on (no tool_use, tool_result, assistant_text, or
-  // permission_request in the same session before the next session_end
-  // or another user_prompt). Covers the King-edits-and-resends case
-  // where dedupe-by-content can't help because content changed. Same
-  // heuristic for all three tools since the involved event kinds are
-  // already canonicalized at the bridge.
-  // A user_prompt is "interrupted" only when we observe a TERMINATOR
-  // (the next user_prompt or session_end) with no intervening work
-  // (tool_use / tool_result / assistant_text / permission_request /
-  // subagent_spawn). If we walk off the end of the event list without
-  // finding a terminator, the prompt is still in progress — don't
-  // mark it. Same heuristic for all 3 tools since the bridge
-  // canonicalizes event kinds.
+  // Build a set of "interrupted" user_prompt event keys — the
+  // King-edits-and-resends case: user starts typing, hits Esc, edits,
+  // re-sends. We see two user_prompts but only the second was processed.
+  // Hide the first.
+  //
+  // Terminator is only the NEXT user_prompt — not session_end. Stop
+  // hooks map to session_end at the bridge (Stop = "agent finished one
+  // turn"), so using session_end as a terminator would hide every
+  // prompt whose response we didn't observe — which includes any tool
+  // (e.g. Codex) whose assistant text bypasses our transcript watcher.
+  // If a prompt has no observed work and no follow-up, leave it visible:
+  // it's more honest to show "you sent X, no response captured" than to
+  // silently drop it.
   const interruptedPromptIds = useMemo(() => {
     if (!sessionId) return new Set<string>();
     const same = events
@@ -840,11 +839,11 @@ export function ConversationStream({
       const e = same[i];
       if (e.kind !== "user_prompt") continue;
       let didWork = false;
-      let sawTerminator = false;
+      let sawNextPrompt = false;
       for (let j = i + 1; j < same.length; j++) {
         const next = same[j];
-        if (next.kind === "user_prompt" || next.kind === "session_end") {
-          sawTerminator = true;
+        if (next.kind === "user_prompt") {
+          sawNextPrompt = true;
           break;
         }
         if (
@@ -858,7 +857,7 @@ export function ConversationStream({
           break;
         }
       }
-      if (sawTerminator && !didWork) {
+      if (sawNextPrompt && !didWork) {
         interrupted.add(`${e.sessionId}:${e.timestamp}`);
       }
     }

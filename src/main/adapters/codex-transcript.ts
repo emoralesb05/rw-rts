@@ -106,28 +106,10 @@ function readNewLines(state: FileState): string[] {
   }
 }
 
-function processLine(state: FileState, line: string) {
-  if (!line.trim()) return;
-  let msg: any;
-  try {
-    msg = JSON.parse(line);
-  } catch {
-    return;
-  }
-  // session_meta carries the cwd; capture it once.
-  if (msg.type === "session_meta") {
-    if (typeof msg.cwd === "string" && msg.cwd) state.cwd = msg.cwd;
-    return;
-  }
-  // Agent text comes as item.completed with item.type === "agent_message".
-  if (msg.type !== "item.completed") return;
-  const item = msg.item;
-  if (!item || item.type !== "agent_message") return;
-  const id = typeof item.id === "string" ? item.id : undefined;
+function emitAssistantText(state: FileState, text: string, id?: string) {
+  if (!text.trim()) return;
   if (id && state.emittedItemIds.has(id)) return;
   if (id) state.emittedItemIds.add(id);
-  const text = typeof item.text === "string" ? item.text : "";
-  if (!text.trim()) return;
   bus.emitAgentEvent({
     sessionId: state.threadId,
     tool: "codex",
@@ -137,6 +119,62 @@ function processLine(state: FileState, line: string) {
     payload: { text },
     source: "hook",
   });
+}
+
+function processLine(state: FileState, line: string) {
+  if (!line.trim()) return;
+  let msg: any;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return;
+  }
+  // session_meta carries the cwd. Format varies by Codex version: older
+  // CLI puts it at top-level, 0.126+ (vscode/desktop) nests it under
+  // payload. Capture from whichever is present.
+  if (msg.type === "session_meta") {
+    const cwd = msg?.payload?.cwd ?? msg?.cwd;
+    if (typeof cwd === "string" && cwd) state.cwd = cwd;
+    return;
+  }
+  // Old format (Codex CLI ≤ 0.125):
+  //   {"type":"item.completed","item":{"type":"agent_message","text":"..."}}
+  if (msg.type === "item.completed") {
+    const item = msg.item;
+    if (item && item.type === "agent_message") {
+      emitAssistantText(
+        state,
+        typeof item.text === "string" ? item.text : "",
+        typeof item.id === "string" ? item.id : undefined
+      );
+    }
+    return;
+  }
+  // New format (Codex 0.126+, vscode/desktop):
+  //   {"type":"response_item","payload":{"type":"message","role":"assistant",
+  //     "content":[{"type":"output_text","text":"..."}],"phase":"final_answer"}}
+  // Only emit on the FINAL answer (phase === "final_answer") — earlier
+  // phases are reasoning steps the user shouldn't see in the chat stream.
+  if (msg.type === "response_item") {
+    const p = msg.payload;
+    if (
+      p &&
+      p.type === "message" &&
+      p.role === "assistant" &&
+      p.phase === "final_answer" &&
+      Array.isArray(p.content)
+    ) {
+      const text = p.content
+        .filter((c: any) => c?.type === "output_text" && typeof c.text === "string")
+        .map((c: any) => c.text)
+        .join("\n\n");
+      // No id in this format; dedup by text hash so a same-content reply
+      // can't double-emit if the file gets re-scanned for any reason.
+      const dedupKey = `t:${text.slice(0, 200)}:${text.length}`;
+      emitAssistantText(state, text, dedupKey);
+    }
+    return;
+  }
 }
 
 function pollOnce() {
