@@ -1,16 +1,12 @@
 # keykeeper
 
-A Kingdom-Hearts-themed *agent watch room* — a Sims-style spectator
+A Kingdom-Hearts-themed _agent watch room_ — a Sims-style spectator
 strategy app where the player is the King and their keyblade wielders
 (Claude / Cursor / Codex sessions) are out clearing worlds (repos).
 
 You don't command tick-by-tick. You **dispatch**, **send word**,
 **comfort**, **recall**, and **seal the keyhole** when each world's
 story is done.
-
-> Currently a personal tool. Built honestly enough to share, not polished
-> enough to onboard strangers. Repo dir on disk is still `kh-rts/` — the
-> package is `keykeeper`. See `.docs/vision.md` for the full design.
 
 ---
 
@@ -19,7 +15,7 @@ story is done.
 A FFXIV-style HUD overlay on a single full-viewport kingdom canvas:
 
 - **KingdomHeader pill** (top-center) — `⌬ Keykeeper · ✦ N sealed · ⚔ N
-  wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
+wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
   opens the **Kingdom panel** (Overview · Settings · Connection · Demos).
 - **WielderHUD** (top-left) — party list with role-colored portrait, name,
   tool pill, behavior-class chip (Tank/Healer/DPS/Roamer), HP/MP bars
@@ -94,11 +90,11 @@ take effect on the next dropdown render.
 {
   "workspaceRoot": "/Users/you/Github",
   "exclude": [
-    "vercel-ai",                 // basename match
-    "forks/foo",                 // parent/repo (matches dropdown label)
-    "forks/*",                   // any repo under any "forks" dir
-    "~/Github/teradata/*",       // absolute prefix glob
-    "/abs/path/to/repo"          // exact absolute path
+    "vercel-ai", // basename match
+    "forks/foo", // parent/repo (matches dropdown label)
+    "forks/*", // any repo under any "forks" dir
+    "~/Github/teradata/*", // absolute prefix glob
+    "/abs/path/to/repo" // exact absolute path
   ]
 }
 ```
@@ -115,11 +111,11 @@ socket bridge (`~/.keykeeper/keykeeper.sock`); a small Python script
 (`bin/keykeeper-hook`) is installed into each tool's hook config and
 forwards events into the bridge.
 
-| Tool | Active spawn | Passive watch | Permission control |
-|---|---|---|---|
-| Claude Code (`claude`) | ✅ `claude -p` with `--session-id` | ✅ hooks in `~/.claude/settings.json` | ✅ keykeeper-authoritative; native terminal prompt races concurrently |
-| Cursor (`cursor-agent` / IDE) | ✅ `cursor-agent create-chat` | ✅ hooks in `~/.cursor/hooks.json` | ⚠ observational only — Cursor's allowlist mode requires user confirmation in its inline UI; keykeeper letter is informational |
-| Codex (`codex` CLI / desktop app) | ✅ `codex exec --json` | ✅ hooks in `~/.codex/config.toml` (managed marker block) | ✅ keykeeper-authoritative; Codex never shows native UI when the hook decides |
+| Tool                              | Active spawn                       | Passive watch                                             | Permission control                                                                                                            |
+| --------------------------------- | ---------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code (`claude`)            | ✅ `claude -p` with `--session-id` | ✅ hooks in `~/.claude/settings.json`                     | ✅ keykeeper-authoritative; native terminal prompt races concurrently                                                         |
+| Cursor (`cursor-agent` / IDE)     | ✅ `cursor-agent create-chat`      | ✅ hooks in `~/.cursor/hooks.json`                        | ⚠ observational only — Cursor's allowlist mode requires user confirmation in its inline UI; keykeeper letter is informational |
+| Codex (`codex` CLI / desktop app) | ✅ `codex exec --json`             | ✅ hooks in `~/.codex/config.toml` (managed marker block) | ✅ keykeeper-authoritative; Codex never shows native UI when the hook decides                                                 |
 
 Hook installs are managed from the Kingdom panel → **Connection** tab:
 one toggle per tool. Each one reads/writes only its own config and
@@ -159,8 +155,9 @@ Generate fresh defaults with `bun scripts/generate-pixel-sprites.ts
 landmarks` (or `heartless` / `tiles` / `all`). The script supports a
 group filter so it doesn't clobber hand-authored keybladers by default.
 Painterly hi-res keybladers were authored separately via AI generation
-+ concept-art extraction (see `.docs/sprite-prompts.md` and the extract
-scripts in `scripts/`).
+
+- concept-art extraction (see `.docs/sprite-prompts.md` and the extract
+  scripts in `scripts/`).
 
 ---
 
@@ -264,6 +261,7 @@ pill as the only top chrome.
 replay mode (event-log scrubber), outbound MCP server, Quest system.
 
 **Known gaps (see `.docs/vision.md` for details):**
+
 - Renderer hardening — `sandbox: true` (preload refactor) and per-handler
   IPC payload schemas. Navigation block + sender-frame guard already
   shipped; the rest matters before public distribution.
