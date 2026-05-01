@@ -11,7 +11,49 @@
     "start": "electron-vite preview",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
-    "typecheck": "bun run typecheck:node && bun run typecheck:web"
+    "typecheck": "bun run typecheck:node && bun run typecheck:web",
+    "pack": "bun run build && electron-builder --mac --dir",
+    "dist": "bun run build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.keykeeper.app",
+    "productName": "Keykeeper",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": ["keykeeper-hook"]
+      }
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "dir", "arch": ["arm64"] }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "darkModeSupport": true,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null
+    },
+    "dmg": {
+      "title": "Keykeeper ${version}",
+      "iconSize": 96,
+      "contents": [
+        { "x": 130, "y": 220, "type": "file" },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
   },
   "dependencies": {
     "@streamdown/cjk": "^1.0.3",
@@ -34,6 +76,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^6.0.0",
     "electron": "^41.0.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "typescript": "^6.0.0",
     "vite": "^8.0.0"
