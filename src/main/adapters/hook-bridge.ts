@@ -1,13 +1,13 @@
 import { createServer, Server, Socket } from "node:net";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { bus } from "../event-bus";
 import { isSpawnedSession } from "./claude-cli";
 import type { AgentEvent, AgentEventKind, AgentTool } from "@shared/events";
 import type { PermissionDecision } from "@shared/ipc";
 
-export const SOCKET_PATH = join(homedir(), ".claude", "kh-rts.sock");
+export const SOCKET_PATH = join(homedir(), ".keykeeper", "keykeeper.sock");
 
 let server: Server | null = null;
 
@@ -127,6 +127,12 @@ function isDuplicateHookFire(payload: any, eventName: string): boolean {
 
 export function startHookBridge() {
   if (server) return;
+  // Ensure ~/.keykeeper/ exists before binding the socket inside it.
+  try {
+    mkdirSync(dirname(SOCKET_PATH), { recursive: true });
+  } catch {
+    // ignore
+  }
   if (existsSync(SOCKET_PATH)) {
     try {
       unlinkSync(SOCKET_PATH);
@@ -168,7 +174,7 @@ export function startHookBridge() {
       const dup = ev && !isPerm && isDuplicateHookFire(payload, eventName);
       // eslint-disable-next-line no-console
       console.log(
-        `[kh-rts/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
+        `[keykeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
           ev ? `${ev.tool}/${ev.kind}${dup ? " DEDUP" : ""}` : "DROPPED"
         }`
       );
@@ -226,7 +232,7 @@ export function startHookBridge() {
   });
   server.listen(SOCKET_PATH, () => {
     // eslint-disable-next-line no-console
-    console.log("[kh-rts] hook bridge listening on", SOCKET_PATH);
+    console.log("[keykeeper] hook bridge listening on", SOCKET_PATH);
   });
 }
 
@@ -268,13 +274,13 @@ export function resolvePermissionRequest(
   if (!p) {
     // eslint-disable-next-line no-console
     console.log(
-      `[kh-rts/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
+      `[keykeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
     );
     return false;
   }
   pending.delete(requestId);
   try {
-    // denyMessage is read by bin/kh-rts-hook and only emitted to the
+    // denyMessage is read by bin/keykeeper-hook and only emitted to the
     // upstream when behavior=deny — Claude's PermissionRequest contract
     // has no message field for allow, and Cursor's shape uses
     // user_message/agent_message instead.
@@ -284,12 +290,12 @@ export function resolvePermissionRequest(
     });
     // eslint-disable-next-line no-console
     console.log(
-      `[kh-rts/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
+      `[keykeeper/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
     );
     p.socket.end(reply);
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.log(`[kh-rts/bridge] resolve ${requestId} write FAILED:`, e);
+    console.log(`[keykeeper/bridge] resolve ${requestId} write FAILED:`, e);
   }
   return true;
 }

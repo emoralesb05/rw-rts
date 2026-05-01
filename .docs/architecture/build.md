@@ -48,8 +48,8 @@ Use `@shared/events` etc. throughout. Don't reach into `src/main/` from the rend
 
 - **Renderer**: open Electron's DevTools (Cmd-Option-I) or attach Chrome DevTools to `localhost:9222`
 - **Main process**: `console.log` lands in the terminal that ran `bun run dev`. For breakpoints, run with `--inspect=9223` and attach Node Inspector
-- **Capture frame**: `kill -SIGUSR1 <electron-pid>` writes `/tmp/kh-rts-frame.png` (see `src/main/index.ts`)
-- **Bridge logs**: every hook fire shows up as `[kh-rts/bridge] hook <Event> sid=<short-id> → <tool>/<kind>` in the dev log
+- **Capture frame**: `kill -SIGUSR1 <electron-pid>` writes `/tmp/keykeeper-frame.png` (see `src/main/index.ts`)
+- **Bridge logs**: every hook fire shows up as `[keykeeper/bridge] hook <Event> sid=<short-id> → <tool>/<kind>` in the dev log
 - **agent-browser**: connect to CDP at port 9222 for scripted UI inspection — see `.claude/skills/agent-browser/`
 
 ## Build outputs
@@ -76,15 +76,15 @@ out/
 
 ## Logging conventions
 
-All console output in main + renderer should use the `[kh-rts/<component>]` prefix so dev-log greps are productive:
+All console output in main + renderer should use the `[keykeeper/<component>]` prefix so dev-log greps are productive:
 
 ```
-[kh-rts/bridge] hook PreToolUse sid=abc123de → claude/tool_use
-[kh-rts/claude-transcript] watcher started, polling every 2000ms
-[kh-rts/codex-transcript] watcher started, polling every 2000ms
-[kh-rts] hook bridge listening on /Users/ed/.claude/kh-rts.sock
+[keykeeper/bridge] hook PreToolUse sid=abc123de → claude/tool_use
+[keykeeper/claude-transcript] watcher started, polling every 2000ms
+[keykeeper/codex-transcript] watcher started, polling every 2000ms
+[keykeeper] hook bridge listening on /Users/ed/.keykeeper/keykeeper.sock
 ```
 
-Component names match the file/module: `bridge`, `claude-transcript`, `codex-transcript`, `agent-manager`, etc. Bare `[kh-rts]` is for top-level lifecycle (boot/shutdown).
+Component names match the file/module: `bridge`, `claude-transcript`, `codex-transcript`, `agent-manager`, etc. Bare `[keykeeper]` is for top-level lifecycle (boot/shutdown).
 
 Don't `console.log` from the renderer for routine events — use the activity log or wielder messages tab instead. Renderer logs should only fire for actual diagnostic concerns (state corruption, IPC errors).

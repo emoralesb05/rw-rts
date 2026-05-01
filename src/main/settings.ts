@@ -1,7 +1,8 @@
 /**
- * User-editable settings file at ~/.keykeeper.json. Auto-created on
- * first launch with defaults. Hand-editable; reloaded on every read so
- * changes take effect immediately without restarting the app.
+ * User-editable settings file at ~/.keykeeper/config.json (sibling to
+ * state.json and the unix socket). Auto-created on first launch with
+ * defaults. Hand-editable; reloaded on every read so changes take
+ * effect immediately without restarting the app.
  *
  * Schema:
  *   {
@@ -15,14 +16,19 @@
  *     ]
  *   }
  *
- * Back-compat: the old key "excludeRepos" is still honored if "exclude"
- * isn't set, so older config files keep working.
+ * Back-compat:
+ *   - old top-level file at ~/.keykeeper.json is read once and
+ *     migrated forward; left in place as a backup the user can delete
+ *   - the key "excludeRepos" is still honored if "exclude" isn't set,
+ *     so older config files keep working
  */
-import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 
-const SETTINGS_PATH = join(homedir(), ".keykeeper.json");
+const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
+const SETTINGS_PATH = join(KEYKEEPER_DIR, "config.json");
+const LEGACY_SETTINGS_PATH = join(homedir(), ".keykeeper.json");
 
 export type Settings = {
   workspaceRoot: string;
@@ -46,21 +52,30 @@ function expandTilde(p: string): string {
 type RawSettings = Partial<Settings> & { excludeRepos?: string[] };
 
 export function loadSettings(): Settings {
+  // Pick the read source: prefer the new path; fall back to the legacy
+  // ~/.keykeeper.json once. If neither exists, write defaults to the
+  // new path.
+  let readPath = SETTINGS_PATH;
   if (!existsSync(SETTINGS_PATH)) {
-    const def = defaults();
-    try {
-      writeFileSync(SETTINGS_PATH, JSON.stringify(def, null, 2) + "\n", "utf8");
-    } catch {
-      // best-effort — if HOME is read-only, just return defaults in-memory
+    if (existsSync(LEGACY_SETTINGS_PATH)) {
+      readPath = LEGACY_SETTINGS_PATH;
+    } else {
+      const def = defaults();
+      try {
+        mkdirSync(KEYKEEPER_DIR, { recursive: true });
+        writeFileSync(SETTINGS_PATH, JSON.stringify(def, null, 2) + "\n", "utf8");
+      } catch {
+        // best-effort — if HOME is read-only, just return defaults in-memory
+      }
+      return def;
     }
-    return def;
   }
   try {
-    const raw = readFileSync(SETTINGS_PATH, "utf8");
+    const raw = readFileSync(readPath, "utf8");
     const parsed = JSON.parse(raw) as RawSettings;
     const def = defaults();
     const excludeRaw = parsed.exclude ?? parsed.excludeRepos ?? def.exclude;
-    return {
+    const settings: Settings = {
       workspaceRoot: expandTilde(parsed.workspaceRoot ?? def.workspaceRoot),
       exclude: Array.isArray(excludeRaw)
         ? excludeRaw
@@ -68,11 +83,23 @@ export function loadSettings(): Settings {
             .map(expandTilde)
         : def.exclude,
     };
+    // If we read from the legacy path, copy to the new path so future
+    // loads find it. Don't unlink the legacy file — leave it as a
+    // backup the user can delete manually.
+    if (readPath === LEGACY_SETTINGS_PATH) {
+      try {
+        mkdirSync(KEYKEEPER_DIR, { recursive: true });
+        writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + "\n", "utf8");
+      } catch {
+        // best-effort
+      }
+    }
+    return settings;
   } catch {
     // Malformed file — log once, fall through to defaults. Don't
     // overwrite the user's broken file; let them fix it.
     // eslint-disable-next-line no-console
-    console.warn(`[keykeeper] failed to parse ${SETTINGS_PATH}; using defaults`);
+    console.warn(`[keykeeper] failed to parse ${readPath}; using defaults`);
     return defaults();
   }
 }
@@ -93,6 +120,7 @@ export function saveSettings(next: Settings): Settings {
           .filter((s) => s.length > 0)
       : [],
   };
+  mkdirSync(KEYKEEPER_DIR, { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(cleaned, null, 2) + "\n", "utf8");
   return cleaned;
 }

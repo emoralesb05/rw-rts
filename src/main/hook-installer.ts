@@ -5,7 +5,7 @@ import { app } from "electron";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
-const HOOK_MARKER = "kh-rts-managed";
+const HOOK_MARKER = "keykeeper-managed";
 
 const HOOK_EVENTS = [
   "PreToolUse",
@@ -21,8 +21,8 @@ const HOOK_EVENTS = [
 export function getHookScriptPath(): string {
   const isDev = !app.isPackaged;
   return isDev
-    ? join(app.getAppPath(), "bin", "kh-rts-hook")
-    : join(app.getAppPath(), "..", "bin", "kh-rts-hook");
+    ? join(app.getAppPath(), "bin", "keykeeper-hook")
+    : join(app.getAppPath(), "..", "bin", "keykeeper-hook");
 }
 
 export function ensureHookScriptExecutable() {

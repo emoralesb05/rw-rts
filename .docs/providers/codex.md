@@ -5,7 +5,7 @@
 - Binary: `codex` (typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
 - Two surfaces: **Codex CLI** (`codex`) and **Codex Desktop / VS Code** (separate bundled binary; version may differ)
 - Settings: `~/.codex/config.toml` (hooks live under `[[hooks.<EventName>]]` arrays)
-- Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# kh-rts-hooks-start` … `# kh-rts-hooks-end`)
+- Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# keykeeper-hooks-start` … `# keykeeper-hooks-end`)
 
 ## Hook events
 
@@ -23,7 +23,7 @@ PascalCase event names, matching Claude's set:
 
 Async hooks (`async = true`) **silently skip** with a warning (`⚠ skipping async hook in /Users/ed/.codex/config.toml: async hooks are not supported yet`). Don't set them.
 
-The hook command is `bin/kh-rts-hook --tool codex`. The `--tool` flag tags the payload with `__kh_tool` so the bridge knows it came from Codex (vs Claude — same PascalCase event names).
+The hook command is `bin/keykeeper-hook --tool codex`. The `--tool` flag tags the payload with `__kh_tool` so the bridge knows it came from Codex (vs Claude — same PascalCase event names).
 
 ## Transcript persistence
 

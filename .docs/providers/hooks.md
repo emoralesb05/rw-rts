@@ -11,7 +11,7 @@ Each provider's hook system follows the same pattern:
 3. Command writes a **JSON response** to stdout (or exits cleanly = no-op)
 4. Provider acts on the response (allow/deny/etc.) and proceeds
 
-We use **one** command for all three tools: `bin/kh-rts-hook` (Python). It branches on `hook_event_name`; for Codex it's invoked with `--tool codex` to disambiguate from Claude's identical PascalCase event names.
+We use **one** command for all three tools: `bin/keykeeper-hook` (Python). It branches on `hook_event_name`; for Codex it's invoked with `--tool codex` to disambiguate from Claude's identical PascalCase event names.
 
 ## Event-name conventions
 
@@ -49,13 +49,13 @@ The bridge dispatches by case of the first letter:
 - Same shape as Claude. Bidirectional. Codex doesn't render its own competing prompt for hook-mediated permissions.
 
 **Cursor** (`beforeShellExecution`):
-- Observation-only by design. Cursor's `allowlist` approvalMode treats hook `permission: "allow"` as advisory; the user must confirm in Cursor's UI anyway. So `kh-rts-hook` returns `{permission: "ask"}` immediately and forwards visibility to keykeeper as a fire-and-forget event.
+- Observation-only by design. Cursor's `allowlist` approvalMode treats hook `permission: "allow"` as advisory; the user must confirm in Cursor's UI anyway. So `keykeeper-hook` returns `{permission: "ask"}` immediately and forwards visibility to keykeeper as a fire-and-forget event.
 
-## The multiplexer (`bin/kh-rts-hook`)
+## The multiplexer (`bin/keykeeper-hook`)
 
 - Reads JSON from stdin, parses `hook_event_name`
 - Optional `--tool <name>` argv flag (used for Codex) tags payload with `__kh_tool`
-- Writes payload to `~/.claude/kh-rts.sock`
+- Writes payload to `~/.keykeeper/keykeeper.sock`
 - For bidirectional events: blocks on socket recv, writes provider-shaped reply to stdout
 - For fire-and-forget: half-closes after send and exits silently — keykeeper not running = no-op
 - All branches wrapped in try/except; we never want the hook to break the user's CLI session

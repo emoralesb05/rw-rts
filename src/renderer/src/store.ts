@@ -98,7 +98,7 @@ type Store = {
   resetKingdom(): Promise<void>;
 };
 
-const MUTED_KEY = "kh-rts:muted-sessions";
+const MUTED_KEY = "keykeeper:muted-sessions";
 function loadMuted(): Record<string, true> {
   try {
     const raw = localStorage.getItem(MUTED_KEY);

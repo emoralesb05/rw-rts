@@ -49,7 +49,7 @@ Wielder identity is `${tool}::${repoRoot}` — used by standing orders, persiste
 `src/main/persistent-state.ts` writes a debounced snapshot to:
 
 ```
-~/Library/Application Support/keykeeper/persisted.json
+~/.keykeeper/state.json
 ```
 
 ```ts

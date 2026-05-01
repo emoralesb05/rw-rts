@@ -7,7 +7,7 @@
  * PreToolUse, PostToolUse, PermissionRequest, Stop), same input field
  * names (snake_case session_id, cwd, hook_event_name, tool_name, tool_input),
  * same output format for PermissionRequest (`hookSpecificOutput.decision.behavior`).
- * That means our existing kh-rts-hook script's Claude path works as-is for
+ * That means our existing keykeeper-hook script's Claude path works as-is for
  * Codex too — we only need to tag events with `__kh_tool: "codex"` so the
  * bridge can attribute them to the right wielder. The installer does this
  * by appending `--tool codex` to the hook command (script reads it).
@@ -27,8 +27,8 @@ import { SOCKET_PATH } from "./adapters/hook-bridge";
 import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
 
 const CODEX_CONFIG_PATH = join(homedir(), ".codex", "config.toml");
-const BLOCK_START = "# kh-rts-hooks-start (managed by keykeeper — do not edit)";
-const BLOCK_END = "# kh-rts-hooks-end";
+const BLOCK_START = "# keykeeper-hooks-start (managed by keykeeper — do not edit)";
+const BLOCK_END = "# keykeeper-hooks-end";
 
 function loadConfigFile(): string {
   if (!existsSync(CODEX_CONFIG_PATH)) return "";

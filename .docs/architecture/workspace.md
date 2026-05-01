@@ -4,7 +4,7 @@ How keykeeper finds repos to spawn into, and how the user configures that.
 
 ## Settings file
 
-User-editable JSON at `~/.keykeeper.json`. Auto-created with defaults on first launch. **Reloaded on every read** — changes take effect immediately, no restart.
+User-editable JSON at `~/.keykeeper/config.json`. Auto-created with defaults on first launch. **Reloaded on every read** — changes take effect immediately, no restart.
 
 ```json
 {

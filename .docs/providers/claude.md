@@ -78,7 +78,7 @@ Use this to drive an observed wielder from keykeeper without owning the original
 
 - **MCP-provided tools** appear as normal `tool_use` events with the MCP tool's name (no special prefix). We don't add MCP-specific handling — they flow through tool-name canonicalization like any built-in tool.
 - **Sub-agents** spawned by Claude (Agent tool / `--agents` JSON / configured agents) emit `SubagentStop` when finished and have a different `session_id` from the parent. We render them as nested under the parent in the conversation stream (see `chat-event-subagent` indent class). The parent-child link is via `parentSessionId` on the spawned session.
-- **Plugins** (configured in user settings.json) install hooks of their own. Multiple hooks per event are fine — Claude runs them all (e.g. peon-ping + kh-rts-hook). The order is the install order in settings.json.
+- **Plugins** (configured in user settings.json) install hooks of their own. Multiple hooks per event are fine — Claude runs them all (e.g. peon-ping + keykeeper-hook). The order is the install order in settings.json.
 
 ## Gaps & quirks
 

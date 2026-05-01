@@ -191,13 +191,13 @@ export function startClaudeTranscriptWatcher(intervalMs = 2000) {
   if (!existsSync(PROJECTS_ROOT)) {
     // eslint-disable-next-line no-console
     console.log(
-      `[kh-rts/claude-transcript] no projects dir at ${PROJECTS_ROOT}; watcher disabled`
+      `[keykeeper/claude-transcript] no projects dir at ${PROJECTS_ROOT}; watcher disabled`
     );
     return;
   }
   // eslint-disable-next-line no-console
   console.log(
-    `[kh-rts/claude-transcript] watcher started, polling every ${intervalMs}ms`
+    `[keykeeper/claude-transcript] watcher started, polling every ${intervalMs}ms`
   );
   pollOnce();
   pollTimer = setInterval(pollOnce, intervalMs);

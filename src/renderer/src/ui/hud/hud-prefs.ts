@@ -1,15 +1,15 @@
 /**
  * Tiny localStorage helper for HUD preferences that should survive
  * across app reloads — collapsed widget state, "show ghosted wielders"
- * toggle, etc. Keep keys namespaced with `kh-rts:hud:` so they don't
- * collide with anything else (existing example: `kh-rts:muted`).
+ * toggle, etc. Keep keys namespaced with `keykeeper:hud:` so they don't
+ * collide with anything else (existing example: `keykeeper:muted`).
  *
  * Errors swallowed silently — a corrupted/disabled localStorage just
  * falls back to the default value.
  */
 import { useEffect, useState } from "react";
 
-const PREFIX = "kh-rts:hud:";
+const PREFIX = "keykeeper:hud:";
 
 function readBool(key: string, fallback: boolean): boolean {
   try {

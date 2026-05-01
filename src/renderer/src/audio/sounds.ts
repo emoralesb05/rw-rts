@@ -24,7 +24,7 @@ export type SoundName =
 
 const FORMATS = ["wav", "mp3", "ogg"];
 const cache = new Map<SoundName, HTMLAudioElement | null>();
-const muteKey = "kh-rts:muted";
+const muteKey = "keykeeper:muted";
 let _muted = localStorage.getItem(muteKey) === "1";
 
 async function probe(name: SoundName): Promise<HTMLAudioElement | null> {

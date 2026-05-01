@@ -6,8 +6,8 @@ The event bus is the spine of keykeeper. Every observable thing a wielder does �
 
 ```
 provider hook fires
-  → bin/kh-rts-hook
-    → bridge socket (~/.claude/kh-rts.sock)
+  → bin/keykeeper-hook
+    → bridge socket (~/.keykeeper/keykeeper.sock)
       → hook-bridge.ts normalizes to AgentEvent
         → event-bus.ts dispatches
           → IPC.EventStream → renderer

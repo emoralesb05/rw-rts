@@ -1,6 +1,7 @@
 /**
  * Persistent kingdom state — wielder memory, sealed keyholes, lifetime
- * counters. JSON file in Electron's userData directory.
+ * counters. JSON file in `~/.keykeeper/state.json` (sibling to
+ * `~/.claude/`, `~/.cursor/`, `~/.codex/`).
  *
  * Identity:
  *   - Wielder = `${tool}::${repoRoot}` (e.g. "claude::/Users/ed/Github/x").
@@ -10,9 +11,16 @@
  *
  * Resets safely: missing/corrupt JSON falls back to EMPTY_PERSISTED with
  * `kingdomFoundedAt = Date.now()`.
+ *
+ * Back-compat: if the legacy path exists at
+ * `~/Library/Application Support/keykeeper/state.json` (Electron's
+ * `userData/state.json` from before the move) and the new path does
+ * not, read the legacy file once, write to the new path, and leave the
+ * legacy file alone.
  */
 
 import { app } from "electron";
+import { homedir } from "node:os";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
@@ -20,7 +28,9 @@ import {
   EMPTY_PERSISTED,
 } from "@shared/events";
 
-const FILE = () => join(app.getPath("userData"), "state.json");
+const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
+const FILE = () => join(KEYKEEPER_DIR, "state.json");
+const LEGACY_FILE = () => join(app.getPath("userData"), "state.json");
 
 let cache: PersistedState | null = null;
 let writeTimer: NodeJS.Timeout | null = null;
@@ -28,13 +38,23 @@ let writeTimer: NodeJS.Timeout | null = null;
 export function loadPersisted(): PersistedState {
   if (cache) return cache;
   const path = FILE();
+  // Back-compat: if the new path doesn't exist but the legacy
+  // userData/state.json does, read from there once. Schedule a write
+  // to the new path so subsequent loads find it. Don't unlink the
+  // legacy file — leave it as a backup the user can delete manually.
+  let readPath = path;
   if (!existsSync(path)) {
-    cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
-    schedulePersist();
-    return cache;
+    const legacy = LEGACY_FILE();
+    if (existsSync(legacy)) {
+      readPath = legacy;
+    } else {
+      cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
+      schedulePersist();
+      return cache;
+    }
   }
   try {
-    const raw = readFileSync(path, "utf8");
+    const raw = readFileSync(readPath, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown> & {
       schemaVersion?: number;
     };
@@ -47,6 +67,9 @@ export function loadPersisted(): PersistedState {
       // Migration didn't recognize the version — reset.
       cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
     }
+    // If we read from the legacy path, write to the new path now so
+    // future loads don't keep falling back.
+    if (readPath !== path) schedulePersist();
     return cache;
   } catch {
     cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };

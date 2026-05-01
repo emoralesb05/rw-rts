@@ -10,7 +10,7 @@ story is done.
 
 > Currently a personal tool. Built honestly enough to share, not polished
 > enough to onboard strangers. Repo dir on disk is still `kh-rts/` — the
-> package is `keykeeper`. See `.docs/plans/vision.md` for the full design.
+> package is `keykeeper`. See `.docs/vision.md` for the full design.
 
 ---
 
@@ -45,8 +45,8 @@ A FFXIV-style HUD overlay on a single full-viewport kingdom canvas:
   individually or with `⌘⇧W` / the `✕ close N` chip.
 - **Persistence** — sealed keyholes, lifetime munny, kingdom founded
   date, per-wielder Renown (visit/seal/fall), HUD collapse + ghosted
-  toggle. Stored in `~/Library/Application Support/keykeeper/state.json`
-  and `~/.keykeeper.json` (workspace settings).
+  toggle. Stored in `~/.keykeeper/state.json`
+  and `~/.keykeeper/config.json` (workspace settings).
 
 ---
 
@@ -68,7 +68,7 @@ panel's **Connection** tab.
 
 ---
 
-## Settings — `~/.keykeeper.json`
+## Settings — `~/.keykeeper/config.json`
 
 Auto-created on first launch. Re-read on every workspace scan, so edits
 take effect on the next dropdown render.
@@ -94,8 +94,8 @@ workspace-root validation + exclude textarea).
 ## Multi-tool support
 
 Three agent providers are wired. All three observe via the same Unix
-socket bridge (`~/.claude/kh-rts.sock`); a small Python script
-(`bin/kh-rts-hook`) is installed into each tool's hook config and
+socket bridge (`~/.keykeeper/keykeeper.sock`); a small Python script
+(`bin/keykeeper-hook`) is installed into each tool's hook config and
 forwards events into the bridge.
 
 | Tool | Active spawn | Passive watch | Permission control |
@@ -154,7 +154,7 @@ output and hook events into a uniform `AgentEvent` bus. The Unix-socket
 hook bridge (`adapters/hook-bridge.ts`) is the canonical observation
 channel for all three tools — Claude/Cursor/Codex install their own
 hook configs that pipe payloads into the same socket via
-`bin/kh-rts-hook`. Spawned sessions also stream stdout JSON, with
+`bin/keykeeper-hook`. Spawned sessions also stream stdout JSON, with
 per-tool spawn-id registration so the bridge suppresses duplicate hook
 events for the same conversation. Each event is stamped with its
 `repoRoot` (nearest `.git/` ancestor) before crossing to the renderer. The renderer's Zustand store
@@ -169,7 +169,7 @@ KingdomHeader pill is the de-facto chrome.
 Persistent state lives in JSON in the userData dir; main reads it on
 launch and writes it debounced as the renderer dispatches updates.
 HUD UI prefs (collapsed widgets, "show ghosted") live in localStorage
-under `kh-rts:hud:*`.
+under `keykeeper:hud:*`.
 
 ---
 
@@ -194,7 +194,7 @@ tab. Each tool has its own hook bridge toggle; click `Install hooks` for
 the relevant tool. Entries land in `~/.claude/settings.json` (Claude),
 `~/.cursor/hooks.json` (Cursor), or a managed marker block in
 `~/.codex/config.toml` (Codex). All three forward to the same local
-Unix socket (`~/.claude/kh-rts.sock`). Uninstall reverts cleanly.
+Unix socket (`~/.keykeeper/keykeeper.sock`). Uninstall reverts cleanly.
 
 **Hooks installed but a tool's events still don't appear.** Tools read
 their hook config at session start. Quit the tool fully (Cmd+Q for the
@@ -203,10 +203,10 @@ Cursor especially needs a full IDE restart, not just a chat reload.
 
 **Lost local state / want to start over.** Kingdom panel → Overview tab →
 `Reset kingdom` (danger zone). Or delete
-`~/Library/Application Support/keykeeper/state.json` directly. Active
+`~/.keykeeper/state.json` directly. Active
 sessions stay running.
 
-**Stale settings or excludes.** Edit `~/.keykeeper.json` directly; the
+**Stale settings or excludes.** Edit `~/.keykeeper/config.json` directly; the
 spawn dropdown re-reads on each open. The Settings tab's live workspace-
 root validation also surfaces typos.
 
@@ -235,7 +235,7 @@ deny-with-reason, indefinite-wait, heuristic auto-dismiss when resolved
 upstream, force-expand AlertsHUD on activity-row click). Cursor's
 `approvalMode: "allowlist"` makes hook-allow advisory only — keykeeper
 still pops a letter for visibility but the King decides in Cursor's
-inline yes/no. See `.docs/plans/vision.md` for the protocol-level
+inline yes/no. See `.docs/vision.md` for the protocol-level
 constraints behind that asymmetry.
 
 **HUD redesign (shipped):** four-corner glass-pane HUD widgets,
@@ -246,7 +246,7 @@ pill as the only top chrome.
 **Post-MVP (deferred, not blocking ship):** Cura/Curaga heal-many verbs,
 replay mode (event-log scrubber), outbound MCP server, Quest system.
 
-**Known gaps (see `.docs/plans/vision.md` for details):**
+**Known gaps (see `.docs/vision.md` for details):**
 - Renderer hardening — `sandbox: true` (preload refactor) and per-handler
   IPC payload schemas. Navigation block + sender-frame guard already
   shipped; the rest matters before public distribution.
@@ -256,5 +256,5 @@ replay mode (event-log scrubber), outbound MCP server, Quest system.
   sessions keykeeper spawned itself. Hook-observed wielders show up but
   can't be controlled until AgentManager learns to register them.
 
-See `.docs/plans/vision.md` for the design rationale and the full
+See `.docs/vision.md` for the design rationale and the full
 question/decision history (Q1–Q44).

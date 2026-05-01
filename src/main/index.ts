@@ -107,7 +107,7 @@ function safeHandle<TArgs extends unknown[], TResult>(
   ipcMain.handle(channel, (event, ...args) => {
     const expected = mainWindow?.webContents;
     if (!expected || event.sender !== expected || event.senderFrame !== expected.mainFrame) {
-      throw new Error(`[kh-rts] ipc rejected: untrusted sender for ${channel}`);
+      throw new Error(`[keykeeper] ipc rejected: untrusted sender for ${channel}`);
     }
     return fn(event, ...(args as TArgs));
   });
@@ -146,11 +146,11 @@ app.whenReady().then(async () => {
     if (!mainWindow) return;
     try {
       const img = await mainWindow.webContents.capturePage();
-      const path = "/tmp/kh-rts-frame.png";
+      const path = "/tmp/keykeeper-frame.png";
       await writeFile(path, img.toPNG());
-      console.log(`[kh-rts] frame captured → ${path}`);
+      console.log(`[keykeeper] frame captured → ${path}`);
     } catch (e) {
-      console.error("[kh-rts] capture failed:", e);
+      console.error("[keykeeper] capture failed:", e);
     }
   });
 

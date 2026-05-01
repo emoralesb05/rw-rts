@@ -1,11 +1,11 @@
 # The hook bridge
 
-`src/main/adapters/hook-bridge.ts` — the unix-socket bridge that ingests payloads from `bin/kh-rts-hook` (and any other producer), normalizes them to a single `AgentEvent` shape, and pushes them onto the in-process event bus.
+`src/main/adapters/hook-bridge.ts` — the unix-socket bridge that ingests payloads from `bin/keykeeper-hook` (and any other producer), normalizes them to a single `AgentEvent` shape, and pushes them onto the in-process event bus.
 
 ## Socket
 
 ```
-~/.claude/kh-rts.sock
+~/.keykeeper/keykeeper.sock
 ```
 
 - Created on `startHookBridge()` at app boot
@@ -17,9 +17,9 @@
 ```
 provider hook fires
    ↓
-bin/kh-rts-hook  (Python; one process per hook fire)
+bin/keykeeper-hook  (Python; one process per hook fire)
    ↓ writes JSON, optionally tagged with --tool / __kh_tool
-~/.claude/kh-rts.sock
+~/.keykeeper/keykeeper.sock
    ↓
 hook-bridge.ts  (in main)
    ↓ normalize → AgentEvent
@@ -92,7 +92,7 @@ When the user clicks allow/deny in keykeeper:
 
 ```ts
 if (event.sender !== expected || event.senderFrame !== expected.mainFrame) {
-  throw new Error(`[kh-rts] ipc rejected: untrusted sender for ${channel}`);
+  throw new Error(`[keykeeper] ipc rejected: untrusted sender for ${channel}`);
 }
 ```
 
@@ -116,6 +116,6 @@ Don't filter on `text.startsWith("<system-reminder>")` — King prompts can have
 
 ## Troubleshooting
 
-- **Bridge silent**: check `~/.claude/kh-rts.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.claude/kh-rts.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__kh_tool':'codex'}).encode())"` and watch the dev log for the `[kh-rts/bridge]` line.
+- **Bridge silent**: check `~/.keykeeper/keykeeper.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.keykeeper/keykeeper.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__kh_tool':'codex'}).encode())"` and watch the dev log for the `[keykeeper/bridge]` line.
 - **Event not reaching renderer**: confirm the bridge logged it. If it did, the renderer side is wrong.
 - **Event arrived but no wielder**: check the sessionId attribution — Cursor in particular uses different identifiers (process sessionId vs chatId; see [`../providers/cursor.md`](../providers/cursor.md)).

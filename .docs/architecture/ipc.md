@@ -27,7 +27,7 @@ function safeHandle(channel, fn) {
   ipcMain.handle(channel, (event, ...args) => {
     const expected = mainWindow?.webContents;
     if (event.sender !== expected || event.senderFrame !== expected.mainFrame) {
-      throw new Error(`[kh-rts] ipc rejected: untrusted sender for ${channel}`);
+      throw new Error(`[keykeeper] ipc rejected: untrusted sender for ${channel}`);
     }
     return fn(event, ...args);
   });

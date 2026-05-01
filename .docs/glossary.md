@@ -38,7 +38,7 @@ The actions a King can take. Each maps to a `LetterAction` kind.
 |---|---|
 | **Hook** | A provider-installed shell-out that fires on lifecycle events (PreToolUse, etc.) and writes to our socket |
 | **Bridge** | `src/main/adapters/hook-bridge.ts` — the unix-socket listener that ingests hook payloads and normalizes them |
-| **Multiplexer** | `bin/kh-rts-hook` — the Python script every provider's hook calls; routes to the bridge |
+| **Multiplexer** | `bin/keykeeper-hook` — the Python script every provider's hook calls; routes to the bridge |
 | **Transcript watcher** | A poller (`*-transcript.ts`) that reads a provider's on-disk session JSONL for events that don't fire as hooks (e.g. assistant text from Claude/Codex) |
 | **Adapter** | `src/main/adapters/<provider>-cli.ts` — the spawn surface for one provider |
 | **AgentEvent** | The normalized event shape emitted by the bridge and consumed by the renderer |

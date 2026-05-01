@@ -75,13 +75,13 @@ function claudeStarter(cwd: string): FakeUnit {
       {
         delayMs: 700,
         kind: "tool_result",
-        output: '{ "name": "kh-rts", "version": "0.0.1" }',
+        output: '{ "name": "keykeeper", "version": "0.0.1" }',
       },
       {
         delayMs: 900,
         kind: "assistant_text",
         text:
-          "It's an Electron desktop app called **kh-rts**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
+          "It's an Electron desktop app called **keykeeper**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
       },
       { delayMs: 800, kind: "tool_use", toolName: "Glob", input: { pattern: "src/**/*.ts" } },
       { delayMs: 600, kind: "tool_result", output: "31 files" },
@@ -167,7 +167,7 @@ function subagentSummon(cwd: string): FakeUnit[] {
         { delayMs: 500, kind: "tool_result", output: "0 files" },
         { delayMs: 600, kind: "tool_use", toolName: "Read", input: { file_path: "package.json" } },
         { delayMs: 400, kind: "tool_result", output: "..." },
-        { delayMs: 700, kind: "assistant_text", text: "Surveyed the repo: no markdown docs, manifest is kh-rts." },
+        { delayMs: 700, kind: "assistant_text", text: "Surveyed the repo: no markdown docs, manifest is keykeeper." },
         { delayMs: 400, kind: "session_end", text: "exit 0" },
       ],
     },

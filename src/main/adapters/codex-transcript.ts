@@ -206,13 +206,13 @@ export function startCodexTranscriptWatcher(intervalMs = 2000) {
   if (!existsSync(SESSIONS_ROOT)) {
     // eslint-disable-next-line no-console
     console.log(
-      `[kh-rts/codex-transcript] no sessions dir at ${SESSIONS_ROOT}; watcher disabled`
+      `[keykeeper/codex-transcript] no sessions dir at ${SESSIONS_ROOT}; watcher disabled`
     );
     return;
   }
   // eslint-disable-next-line no-console
   console.log(
-    `[kh-rts/codex-transcript] watcher started, polling every ${intervalMs}ms`
+    `[keykeeper/codex-transcript] watcher started, polling every ${intervalMs}ms`
   );
   pollOnce();
   pollTimer = setInterval(pollOnce, intervalMs);
