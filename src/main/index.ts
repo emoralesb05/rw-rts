@@ -92,7 +92,13 @@ function createWindow() {
   });
 
   bus.onAgentEvent((event) => {
-    mainWindow?.webContents.send(IPC.EventStream, event);
+    // Hook events can arrive after the window has been closed but
+    // before the bridge has shut down (window-close → will-quit
+    // window). Guard against the destroyed-webContents case so the
+    // user doesn't see an Uncaught Exception dialog on close.
+    const wc = mainWindow?.webContents;
+    if (!wc || wc.isDestroyed()) return;
+    wc.send(IPC.EventStream, event);
   });
 }
 
