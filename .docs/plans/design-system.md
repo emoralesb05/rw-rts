@@ -4,12 +4,17 @@
 
 ## Goal
 
-Migrate keykeeper's UI to **Radix Primitives + Tailwind v4**, with a
-shadcn-style **owned** component library under `src/renderer/src/components/`.
-Replace as much hand-rolled CSS and behavior as possible with tokenized
-utility classes + accessible primitives, while preserving the KH-themed
-gamey aesthetic. We are **not** installing the shadcn CLI — we own every
-component we ship.
+**Fully migrate** keykeeper's UI to **Radix Primitives + Tailwind v4**,
+with a shadcn-style **owned** component library under
+`src/renderer/src/components/`. Vanilla CSS in `styles.css` shrinks to
+**only what's irreducible** — tokens, global resets, the Phaser canvas
+overlay, and any animation Tailwind genuinely can't express cleanly.
+Aesthetic stays KH-themed; the migration is structural. We are **not**
+installing the shadcn CLI — we own every component we ship.
+
+Target end-state: `styles.css` under ~400 lines (down from 3430), and
+every JSX `className` is either a `components/`-exported component or a
+Tailwind utility string.
 
 ## Why this direction
 
@@ -243,14 +248,74 @@ Going forward, the rule is:
   Phaser canvas chrome, complex animations Tailwind can't express
   cleanly).
 
-### Phase 7 (optional) — Migrate load-bearing custom components
+### Phase 7 — Migrate the chrome HUDs (1–2 days)
 
-`HudWidget`, `FloatingPanel`, `ChatDrawer` are working. They use complex
-CSS (animated `grid-template-rows: 1fr ↔ 0fr`, custom z-stack, drag-
-to-resize). Migrate **only if** day-to-day friction warrants — not for
-purity. Likely outcome: keep the animation CSS in `styles.css`, move
-typography / spacing / colors to Tailwind utilities, leave the bones
-alone.
+`HudWidget`, `AlertsHUD`, `LettersHUD`, `WielderHUD`, `KingdomHeader`,
+`ActivityLog`, `LetterCard`, `PartyRow`, `CloseAllChip`. These are
+~1200 lines of `styles.css` between them. Migration:
+- Static layout / spacing / borders / colors → Tailwind utilities
+- Open/close height animation (`grid-template-rows: 1fr ↔ 0fr`) → keep
+  in `styles.css` as a **tagged-irreducible** rule, applied via a
+  Tailwind arbitrary class (`grid-rows-[var(--hud-rows)]`) toggled by
+  the collapsed state
+- Letter pulse, alert flash, focus z-stack → keep keyframes in CSS,
+  trigger via Tailwind `animate-letter-pulse` etc. (define in `@theme`
+  `--animate-*` tokens)
+
+### Phase 8 — Migrate FloatingPanel + ChatDrawer (1–2 days)
+
+The hard ones, last on purpose. ~600 lines of CSS between them.
+- All visual chrome → Tailwind
+- Drag-to-resize / drag-to-move logic stays in TS (it's not CSS)
+- Drawer minimize → expand transition stays as a tagged-irreducible
+  CSS rule + Tailwind arbitrary class hook
+- Per-tab status dot pulses → keyframe in CSS, animate-* in JSX
+
+### Phase 9 — Sweep what's left
+
+After phases 1–8, walk `styles.css` top-to-bottom. Every remaining
+rule must answer one of:
+- "this is a token / global reset / `@theme`" → keep
+- "this is a Phaser canvas overlay / world atmospheric" → keep, tag
+- "this is an animation Tailwind can't express" → keep, tag
+- "this is a markdown / Streamdown / KaTeX override on markup we
+  don't control" → keep, tag
+- otherwise → migrate or delete
+
+A rule with no tag and no Tailwind equivalent is a bug, not a
+feature.
+
+## What stays in vanilla CSS (the irreducible list)
+
+Everything else migrates to Tailwind. These specific things keep
+authored CSS, and each must carry a banner comment explaining why —
+so a future cleanup doesn't try to migrate them and a future audit
+can verify the list isn't growing:
+
+1. **The `@theme` block** — definitionally CSS. The token source of
+   truth.
+2. **Global resets, `body`, `#root`, `.window-drag-strip`, font-face
+   declarations** — runs once, no component layer.
+3. **Phaser canvas overlay positioning** — the canvas + HUD-z-stack
+   integration. Tailwind would fight the absolute positioning here.
+4. **Keyframe declarations** — `@keyframes letter-pulse`, `alert-
+   flash`, `hud-collapse`, `chat-drawer-minimize`, `event-pulse`. The
+   keyframes themselves stay; we trigger via Tailwind `animate-*`
+   classes registered as `@theme --animate-letter-pulse:`.
+5. **A small set of complex layout transitions** Tailwind utilities
+   can't express cleanly:
+   - HUD collapse: `grid-template-rows: 1fr ↔ 0fr` switch driven by
+     a state class. (Tailwind v4 *can* express via arbitrary value;
+     keep authored CSS only if the arbitrary form is unreadable —
+     decide per-rule at migration time.)
+   - Streamdown / markdown content overrides where we don't own the
+     markup.
+6. **Anything with deeply nested combinator selectors** that would
+   require pulling 5+ child components apart to migrate. Audit case-
+   by-case in Phase 9.
+
+Each survivor gets a `/* IRREDUCIBLE: <reason> */` comment so the
+list is greppable: `grep -n IRREDUCIBLE styles.css`.
 
 ## What we explicitly do NOT do
 
@@ -259,39 +324,49 @@ alone.
 - **No Tailwind v3 config file** (`tailwind.config.ts`). v4 uses
   `@theme` in CSS — no JS config.
 - **No CSS-in-JS** (emotion, styled-components, vanilla-extract).
-- **No replacing FloatingPanel / ChatDrawer / HudWidget shape.** They
-  are load-bearing custom geometry, not styling pain.
 - **No design-token sweep into TypeScript constants.** Tokens live in
   `@theme`; reference from JS via `getComputedStyle()` only when
   unavoidable.
-- **No mid-migration "two competing styles" period longer than 2 weeks.**
-  Either phase 3 ships or we revert; we do not let utility classes and
-  bespoke CSS fight each other in the same file indefinitely.
+- **No mid-migration "two competing styles" period longer than 2 weeks
+  per phase.** Each phase ships fully or reverts; we do not let
+  utility classes and bespoke CSS fight each other indefinitely.
+- **No keeping a custom CSS rule "because it works."** If it has no
+  IRREDUCIBLE tag and a Tailwind equivalent exists, it migrates.
 
 ## Success criteria
 
-- All tokens defined in `@theme`; `:root` only holds non-Tailwind app-
-  state vars.
-- `components/primitives/` has at least Dialog, Tabs, Tooltip, Select,
-  Popover.
-- `components/chrome/` has at least Button, Card, Pill, Chip.
-- DecreeModal, DispatchPanelBody select, KingdomPanelBody tabs all use
-  primitives — manual modal/tab code deleted.
+- All tokens defined in `@theme`; `:root` only holds non-Tailwind
+  app-state vars.
+- `components/primitives/` has Dialog, Tabs, Tooltip, Select, Popover,
+  DropdownMenu, ScrollArea.
+- `components/chrome/` has Button, Card, Pill, Chip, Bar.
+- DecreeModal, DispatchPanelBody, KingdomPanelBody use primitives —
+  manual modal / tab / select code deleted.
+- HudWidget, AlertsHUD, LettersHUD, WielderHUD, ActivityLog, LetterCard,
+  PartyRow, KingdomHeader, FloatingPanel, ChatDrawer all migrated —
+  their per-component CSS in `styles.css` deleted.
 - `title=` attributes on HUD surfaces replaced with `<Tooltip>`.
-- `styles.css` shrinks below ~2000 lines (rough heuristic — most of the
-  pure component CSS migrates out).
+- **`styles.css` ≤ ~400 lines**: tokens, global resets, Phaser overlay,
+  keyframes, and a handful of `IRREDUCIBLE`-tagged rules. Nothing else.
+- Every surviving rule in `styles.css` is either inside `@theme` or
+  carries a `/* IRREDUCIBLE: <reason> */` comment.
+- `grep -n IRREDUCIBLE styles.css` returns a short, human-readable
+  inventory — no surprises.
 - New components reach for `components/` by default; PRs that add
-  bespoke modal / dropdown / tooltip code get pushed back.
+  bespoke CSS without an IRREDUCIBLE tag get pushed back.
 
 ## Out of scope
 
 - Visual redesign of any existing surface — this is plumbing, not
-  aesthetics.
+  aesthetics. Pixel-diff equivalence is the bar at the end of every
+  phase.
 - Theming system (light mode, alt palettes) — possible later once
   tokens are real.
 - Storybook — useful at ~30 components, we have ~12.
-- Renaming `.wielder-panel-tab*` (still used by KingdomPanelBody only)
-  until those tabs migrate to the Tabs primitive (then delete entirely).
+- Phaser-canvas-side rendering (sprites, shaders, world atmospherics).
+  That's a different system; this plan is the React DOM only.
+- Renaming `.wielder-panel-tab*` — those die in Phase 3 when
+  KingdomPanelBody migrates to the Tabs primitive.
 
 ## Open questions
 
