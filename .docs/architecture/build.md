@@ -63,6 +63,54 @@ out/
 
 `main` field in `package.json` points at `out/main/index.js` so `electron .` works from the project root.
 
+## Packaging (.app + .dmg)
+
+`electron-builder` 26.x bundles `out/` into a distributable macOS `.app` (and optionally a `.dmg`). Config lives in `package.json` under the `build` field.
+
+| Script | Output | Use |
+|---|---|---|
+| `bun run pack` | `dist/mac-arm64/Keykeeper.app` (unpacked, ~213 MB) | Fast iteration; no DMG compression |
+| `bun run dist` | Same `.app` + `dist/Keykeeper-<version>-arm64.dmg` (~175 MB) | Distribution-ready single-file artifact |
+
+### Why these specific config choices
+
+- **`asar: true`** — main/preload/renderer JS bundled into one archive (`Contents/Resources/app.asar`). Faster app load than thousands of small files.
+- **`extraResources: bin/keykeeper-hook` → `Contents/Resources/bin/`** — the hook script needs to be a real executable on disk, not inside the asar archive (you can't `chmod +x` a file inside asar). `extraResources` puts it at the path `getBundledScriptPath()` in `hook-installer.ts` resolves to in packaged mode (`app.getAppPath() + ".." + "bin/keykeeper-hook"`).
+- **`mac.target: ["dmg", "dir"]`, `arch: ["arm64"]`** — Apple Silicon only for now (saves build time vs universal). Add `"x64"` to `arch` when an Intel Mac is in scope.
+- **`identity: null`, `hardenedRuntime: false`, `gatekeeperAssess: false`** — code signing is skipped. Apple Developer ID required for a signed build (~$99/year). Unsigned `.app`s show a Gatekeeper "developer cannot be verified" warning on first launch — bypass with right-click → Open, or run `xattr -cr <app>` once to clear quarantine.
+- **`darkModeSupport: true`** — required for proper window styling on modern macOS.
+
+### How `bin/keykeeper-hook` reaches users
+
+```
+Repo: bin/keykeeper-hook
+  ↓ extraResources copy at build time
+Bundle: Keykeeper.app/Contents/Resources/bin/keykeeper-hook
+  ↓ syncHookScript() on app boot (cp + chmod +x)
+User dir: ~/.keykeeper/keykeeper-hook
+  ↓ hook installer writes this path to user configs
+~/.claude/settings.json, ~/.cursor/hooks.json, ~/.codex/config.toml
+```
+
+The user-dir copy is what Claude/Cursor/Codex actually invoke. Repo and `.app` location can both change without breaking installed hooks.
+
+### Icon
+
+`build/icon.png` — single 1024×1024 PNG. electron-builder generates `Contents/Resources/icon.icns` (multi-resolution: 16, 32, 64, 128, 256, 512, 1024 + retina) on every build. Missing source → Electron's default icon used + a build warning.
+
+### Other generated artifacts
+
+- `dist/Keykeeper-<version>-arm64.dmg.blockmap` — delta-update manifest. Unused since we don't ship auto-updates. Safe to ignore.
+- `dist/latest-mac.yml` — auto-update manifest for `electron-updater`. Same — unused.
+- `dist/builder-debug.yml` — last build's electron-builder config snapshot. Useful when debugging packaging issues.
+
+### Future enhancements (deferred)
+
+- **Code signing + notarization** — needs Apple Developer ID. Fixes the Gatekeeper warning, allows hosted distribution. ~½ day to wire up via electron-builder's `mac.identity` + notarization config.
+- **Universal binary** — add `"x64"` to `arch` for Intel Mac support. Doubles build time and artifact size.
+- **Auto-update** — `electron-updater` + a hosted release feed (GitHub Releases / S3). Would also need signed builds. Out of scope for personal-tidy distribution.
+- **Bundle size reduction** — biggest win is code-splitting Mermaid/Shiki/KaTeX out of the cold-start chunk (see [`../vision.md`](../vision.md) § Known gaps). Would shave 30-50 MB.
+
 ## Version constraints
 
 - **Electron 41** — latest stable as of 2026-Q1; required for current Phaser 4 + React 19 compat

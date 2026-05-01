@@ -56,8 +56,7 @@ Requires Bun, macOS (other platforms work but untested).
 
 ```sh
 bun install
-bun run dev      # electron-vite dev with hot reload
-bun run build    # bundle for distribution
+bun run dev          # electron-vite dev with hot reload
 bun run typecheck
 ```
 
@@ -65,6 +64,24 @@ The dev launch will offer to install Claude Code hooks the first time —
 this lets keykeeper watch any other Claude session running on your
 machine. You can install or skip; toggle any time from the Kingdom
 panel's **Connection** tab.
+
+---
+
+## Build a distributable
+
+```sh
+bun run pack         # → dist/mac-arm64/Keykeeper.app (unpacked, fast)
+bun run dist         # → dist/mac-arm64/Keykeeper.app + dist/Keykeeper-<version>-arm64.dmg
+```
+
+Outputs are unsigned. First launch will warn "Apple cannot check it for
+malicious software" — bypass with **right-click → Open**, or run
+`xattr -cr dist/mac-arm64/Keykeeper.app` once to clear the quarantine
+flag.
+
+For real distribution (code signing, notarization, x64), see
+[`.docs/architecture/build.md`](./.docs/architecture/build.md). To
+swap the icon, drop a 1024×1024 PNG at `build/icon.png` and rebuild.
 
 ---
 
