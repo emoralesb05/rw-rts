@@ -5,6 +5,7 @@
  * letters, and the action button row.
  */
 import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
@@ -119,7 +120,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
             }}
             title="show what the wielder was thinking right before this ask"
           >
-            {showReasoning ? "▲ thinking" : "▼ thinking"}
+            {showReasoning ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} thinking
           </button>
           {showReasoning && (
             <div className="letter-reasoning-body">{letter.reasoning}</div>

@@ -6,7 +6,6 @@ import { WielderHUD } from "./ui/hud/WielderHUD";
 import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
-import { CloseAllChip } from "./ui/CloseAllChip";
 
 /**
  * HUD-overlay layout (FFXIV-style, no chrome bars):
@@ -37,7 +36,6 @@ export function App() {
         <AlertsHUD />
         <ActivityLog />
         <LettersHUD />
-        <CloseAllChip />
       </div>
       <DecreeModal />
       <PanelLayer />

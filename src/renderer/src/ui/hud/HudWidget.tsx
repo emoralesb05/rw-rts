@@ -6,6 +6,7 @@
  * the anchor with user-chosen positions.
  */
 import { useEffect } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { usePersistedBool } from "./hud-prefs";
 
 export type HudAnchor =
@@ -26,6 +27,12 @@ type Props = {
   /** Default-collapsed widgets render as a small header strip until clicked. */
   defaultCollapsed?: boolean;
   className?: string;
+  /** Inline style overrides — used by AlertsHUD to participate in the
+   * focus-based z-index stack (jumps to top when a new permission
+   * arrives, falls back when other surfaces grab focus). */
+  style?: React.CSSProperties;
+  /** Pointer-down handler — used for click-to-focus stacking. */
+  onPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
   children: React.ReactNode;
 };
 
@@ -37,6 +44,8 @@ export function HudWidget({
   tone = "default",
   defaultCollapsed = false,
   className,
+  style,
+  onPointerDown,
   children,
 }: Props) {
   // Persist collapsed state per widget — the title doubles as a stable
@@ -64,6 +73,8 @@ export function HudWidget({
         (collapsed ? " hud-collapsed" : "") +
         (className ? ` ${className}` : "")
       }
+      style={style}
+      onPointerDown={onPointerDown}
       aria-label={title}
     >
       <header className="hud-header">
@@ -74,17 +85,33 @@ export function HudWidget({
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
         >
-          <span className="hud-collapse-arrow" aria-hidden="true">
-            {collapsed ? "▸" : "▾"}
-          </span>
           <span className="hud-title">{title}</span>
           {typeof count === "number" && (
             <span className="hud-count">{count}</span>
           )}
         </button>
         {headerExtra && <span className="hud-header-extra">{headerExtra}</span>}
+        {/* Chevron lives at the far right — past any action chip — so
+         * the hierarchy reads title → count → action → toggle. Separate
+         * button so headerExtra stays clickable in its own right. */}
+        <button
+          type="button"
+          className="hud-collapse-arrow-btn"
+          onClick={() => setCollapsed((v) => !v)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+        >
+          {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
       </header>
-      {!collapsed && <div className="hud-body">{children}</div>}
+      {/* Body always renders; visibility is driven by a CSS
+       * grid-template-rows + opacity transition on the parent
+       * .hud-collapsed class. Renders the children at full layout
+       * inside the inner div, then the outer grid row collapses
+       * to 0fr → smooth animated open/close. */}
+      <div className="hud-body-shell" aria-hidden={collapsed}>
+        <div className="hud-body">{children}</div>
+      </div>
     </section>
   );
 }

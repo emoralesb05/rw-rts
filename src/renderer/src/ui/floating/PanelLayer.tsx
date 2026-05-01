@@ -11,6 +11,7 @@ import { WielderPanelBody } from "./WielderPanelBody";
 import { SettingsPanelBody } from "./SettingsPanelBody";
 import { KingdomPanelBody } from "./KingdomPanelBody";
 import { DispatchPanelBody } from "./DispatchPanelBody";
+import { ChatDrawer } from "./ChatDrawer";
 
 export function PanelLayer() {
   const panels = usePanels((s) => s.panels);
@@ -19,23 +20,7 @@ export function PanelLayer() {
       {panels.map((p) => (
         <FloatingPanel key={p.id} panel={p}>
           {p.kind === "wielder" && p.key ? (
-            <WielderPanelBody
-              unitId={p.key}
-              initialTab={
-                p.data?.initialTab === "messages" ? "messages" : "status"
-              }
-              initialTabTick={
-                typeof p.data?.tick === "number" ? p.data.tick : 0
-              }
-              scrollToTs={
-                typeof p.data?.scrollToTs === "number"
-                  ? p.data.scrollToTs
-                  : undefined
-              }
-              scrollToTick={
-                typeof p.data?.tick === "number" ? p.data.tick : 0
-              }
-            />
+            <WielderPanelBody unitId={p.key} />
           ) : p.kind === "settings" ? (
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
           ) : p.kind === "kingdom" ? (
@@ -45,6 +30,7 @@ export function PanelLayer() {
           ) : null}
         </FloatingPanel>
       ))}
+      <ChatDrawer />
     </>
   );
 }

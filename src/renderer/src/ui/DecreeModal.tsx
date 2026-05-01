@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { useStore } from "../store";
 import type { AgentEvent } from "@shared/events";
 
@@ -160,7 +161,7 @@ export function DecreeModal() {
             onClick={closeDecree}
             aria-label="close"
           >
-            ×
+            <X size={16} aria-hidden />
           </button>
         </header>
         {!unit.spawnedHere && (

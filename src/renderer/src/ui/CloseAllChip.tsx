@@ -1,15 +1,19 @@
 /**
- * Floating "✕ N" chip that appears at the top-right of the canvas
- * whenever 1+ floating panels are open. Click to close them all;
+ * Floating "✕ N" chip that appears whenever 1+ floating surfaces are
+ * open (panels + chat drawer). Rendered INSIDE KingdomHeader's pill
+ * wrapper so its CSS can anchor it to the pill's right edge — it
+ * floats next to the pill instead of under it. Click closes them all;
  * Cmd/Ctrl+Shift+W keyboard shortcut also bound here for global reach.
- *
- * Replaces the close-all button that lived in the old top toolbar.
  */
 import { useEffect } from "react";
+import { XSquare } from "lucide-react";
 import { usePanels } from "./floating/panel-store";
 
 export function CloseAllChip() {
   const closeAll = usePanels((s) => s.closeAll);
+  // Only floating panels are counted. The chat drawer is excluded —
+  // it has its own minimize affordance for the "get out of the way"
+  // case, and its own ✕ for the rare full-clear case.
   const count = usePanels((s) => s.panels.length);
 
   useEffect(() => {
@@ -25,18 +29,17 @@ export function CloseAllChip() {
   }, [closeAll]);
 
   if (count === 0) return null;
-  // Renders as a floating chip below the kingdom-header pill so it
-  // doesn't collide with AlertsHUD on the right edge. Only visible
-  // when at least one panel is open.
   return (
     <button
       type="button"
       className="close-all-chip"
       onClick={closeAll}
-      title="close all panels — ⌘⇧W"
-      aria-label="Close all panels"
+      title={`close all panels (${count}) — ⌘⇧W`}
+      aria-label={`Close all ${count} open panels`}
     >
-      ✕ close {count}
+      {/* Lucide XSquare reads as "close all in container" — sized to
+       * fit a 28px circular chip. */}
+      <XSquare size={16} strokeWidth={2.25} aria-hidden />
     </button>
   );
 }

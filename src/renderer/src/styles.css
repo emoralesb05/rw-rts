@@ -464,6 +464,9 @@ select.btn {
   filter: brightness(1.1);
 }
 .chat-tool-why {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: transparent;
   border: 1px solid rgba(255, 216, 107, 0.25);
   color: var(--muted);
@@ -1390,6 +1393,9 @@ select.btn {
 }
 
 .throne-card-world-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: transparent;
   color: var(--accent);
   border: none;
@@ -1422,6 +1428,11 @@ select.btn {
   font-family: ui-monospace, monospace;
 }
 .card-verb {
+  /* inline-flex centers icon + label text in the verb buttons. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: rgba(10, 17, 48, 0.85);
   border: 1px solid var(--line);
   color: var(--text);
@@ -1543,11 +1554,15 @@ select.btn {
 }
 .target-panel-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
 }
 .target-panel-actions .card-verb {
   text-align: center;
+  /* Slightly tighter so 5 verbs fit comfortably in the panel width. */
+  padding: 3px 4px;
+  font-size: 10px;
+  letter-spacing: -0.1px;
 }
 .target-panel-empty {
   border: 1px dashed rgba(255, 255, 255, 0.10);
@@ -1576,11 +1591,21 @@ select.btn {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: floating-panel-rise 0.14s ease-out;
+  animation: floating-panel-rise 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  transform-origin: center;
 }
 @keyframes floating-panel-rise {
-  from { transform: translateY(6px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
+  from {
+    transform: translateY(8px) scale(0.96);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 .floating-panel-header {
   display: flex;
@@ -1747,9 +1772,30 @@ select.btn {
   backdrop-filter: blur(6px);
   overflow: hidden;
   font-family: ui-monospace, monospace;
+  /* Width transitions between expanded (360px) and collapsed (180px). */
+  transition: width 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .activity-log.collapsed {
   max-height: 32px;
+  width: 180px;
+}
+/* Animated body shell — same grid-template-rows pattern as the HUD
+ * widgets, so the open/close feels consistent across surfaces. */
+.activity-log-body-shell {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.2, 0.8, 0.3, 1),
+              opacity 160ms ease;
+  opacity: 1;
+  min-height: 0;
+}
+.activity-log.collapsed .activity-log-body-shell {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.activity-log.collapsed .activity-log-body {
+  /* Make sure the inner doesn't push back via padding when collapsing. */
+  padding: 0;
 }
 .activity-log-header {
   display: flex;
@@ -1769,7 +1815,6 @@ select.btn {
   border-bottom: none;
 }
 .activity-log-title {
-  flex: 1;
   font-size: 10px;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -1782,11 +1827,20 @@ select.btn {
   font-variant-numeric: tabular-nums;
 }
 .activity-log-toggle {
+  /* margin-left: auto pushes the chevron to the right edge while
+   * keeping the count tight to the title — same visual as the HUD
+   * widgets, where .hud-collapse-arrow-btn carries the auto margin. */
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
-  font-size: 9px;
 }
 .activity-log-body {
+  /* Internal scroll for long histories; min-height:0 lets the parent
+   * grid-row shrink it below intrinsic height during the collapse
+   * transition. */
   overflow-y: auto;
+  min-height: 0;
   padding: 4px 0;
 }
 .activity-log-empty {
@@ -1832,6 +1886,8 @@ select.btn {
   color: #ffd86b;
 }
 .activity-log-arrow {
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   margin: 0 4px;
   font-weight: 400;
@@ -2518,14 +2574,23 @@ select.btn {
   overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
   max-height: calc(50vh - 24px);
+  /* Width transitions cleanly between expanded (340px) and collapsed
+   * (180px) — auto-width can't animate, so we lock both ends. */
+  transition: width 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .hud.hud-collapsed {
   max-height: none;
-  width: auto;
-  min-width: 140px;
+  width: 180px;
 }
 .hud.hud-collapsed .hud-header {
   padding: 4px 10px;
+}
+/* Hide secondary action affordances (DISPATCH +, clear, etc.) when
+ * collapsed — they're meaningless without the body and would make
+ * the header feel squished at 180px. The count badge stays so the
+ * collapsed widget still surfaces "how much is in here". */
+.hud.hud-collapsed .hud-header-extra {
+  display: none;
 }
 .hud-tone-alert {
   border-color: rgba(255, 122, 60, 0.45);
@@ -2536,11 +2601,14 @@ select.btn {
   border-color: rgba(108, 198, 255, 0.30);
 }
 /* corner anchors. Top edges sit below the 32px window-drag strip so
- * macOS traffic lights don't overlap the WielderHUD/KingdomHeader. */
+ * macOS traffic lights don't overlap the WielderHUD/KingdomHeader.
+ * Right-side anchors cap their max-height at 35vh so AlertsHUD,
+ * LettersHUD, and the minimized chat-drawer pill can coexist on the
+ * right edge without overlapping. */
 .hud-top-left     { top: 38px;    left: 12px; }
-.hud-top-right    { top: 38px;    right: 12px; }
+.hud-top-right    { top: 38px;    right: 12px; max-height: 30vh; }
 .hud-bottom-left  { bottom: 12px; left: 12px; }
-.hud-bottom-right { bottom: 12px; right: 12px; }
+.hud-bottom-right { bottom: 12px; right: 12px; max-height: 30vh; }
 .hud-top-center {
   top: 38px;
   left: 50%;
@@ -2576,10 +2644,19 @@ select.btn {
   font-family: inherit;
   text-align: left;
 }
-.hud-collapse-arrow {
+/* Chevron toggle pinned to the far right of the header — past any
+ * action chip. Separate button so the action chip stays clickable. */
+.hud-collapse-arrow-btn {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
   color: var(--muted);
-  font-size: 9px;
-  width: 10px;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.hud-collapse-arrow-btn:hover {
+  color: var(--accent);
 }
 .hud-title {
   font-size: 10px;
@@ -2595,7 +2672,6 @@ select.btn {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  margin-left: auto;
 }
 .hud-header-extra {
   display: flex;
@@ -2603,6 +2679,10 @@ select.btn {
   gap: 4px;
 }
 .hud-action-btn {
+  /* inline-flex so SVG icons + text don't overlap and align nicely. */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: rgba(255, 216, 107, 0.08);
   border: 1px solid rgba(255, 216, 107, 0.30);
   color: var(--accent);
@@ -2641,9 +2721,34 @@ select.btn {
   border-color: var(--accent);
   color: var(--accent);
 }
+/* Animated open/close shell. The shell uses grid-template-rows: 1fr/0fr
+ * (a modern Chromium-friendly trick) so the body smoothly collapses to
+ * zero height without needing a fixed pixel value. Inner .hud-body
+ * sits inside an overflow:hidden wrapper so its content gets clipped
+ * cleanly during the transition. Opacity adds a fade for polish. */
+.hud-body-shell {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.2, 0.8, 0.3, 1),
+              opacity 160ms ease;
+  opacity: 1;
+  min-height: 0;
+}
+.hud.hud-collapsed .hud-body-shell {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
 .hud-body {
+  /* Internal scroll for long content; min-height:0 lets the grid
+   * shrink it below intrinsic height during the collapse transition. */
   overflow-y: auto;
+  min-height: 0;
   padding: 8px;
+}
+.hud.hud-collapsed .hud-body {
+  /* Drop padding while collapsing so the body smoothly hits 0 height
+   * (padding would keep it slightly taller than the grid row). */
+  padding: 0;
 }
 .hud-empty {
   padding: 14px 8px;
@@ -2704,12 +2809,16 @@ select.btn {
   border-left: 1px solid rgba(255, 255, 255, 0.10);
 }
 .kingdom-header-icon-btn {
+  /* Center icon vertically + horizontally inside the button. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text);
   cursor: pointer;
   font-size: 13px;
-  padding: 2px 6px;
+  padding: 4px;
   border-radius: 4px;
   line-height: 1;
 }
@@ -2724,17 +2833,30 @@ select.btn {
  * doesn't collide with AlertsHUD on the right or WielderHUD on the
  * left. Only renders when 1+ floating panels are open (component
  * returns null otherwise). */
+/* "✕ close N" chip — separate from the KingdomHeader pill but anchored
+ * to its right edge so it always sits next to it regardless of how
+ * wide the pill grows with content. Rendered as a child of the
+ * .kingdom-header pill (so positioning is relative to it) but visually
+ * distinct (own orange-toned pill). Pop-in animation matches the
+ * other "appears-when-needed" affordances. */
 .close-all-chip {
   position: absolute;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   background: rgba(255, 122, 60, 0.12);
   border: 1px solid rgba(255, 122, 60, 0.45);
   color: #ff7a3c;
-  padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: 50%;
+  line-height: 1;
+  animation: close-all-chip-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -2747,6 +2869,10 @@ select.btn {
 .close-all-chip:hover {
   background: rgba(255, 122, 60, 0.22);
   border-color: #ff7a3c;
+}
+@keyframes close-all-chip-pop {
+  from { opacity: 0; transform: translateY(-50%) scale(0.6); }
+  to   { opacity: 1; transform: translateY(-50%) scale(1); }
 }
 
 /* ─── Kingdom floating panel ───────────────────────────────────── */
@@ -3043,3 +3169,341 @@ select.btn {
   font-size: 11px;
   padding: 6px 12px;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+ * Chat drawer
+ *
+ * Right-edge anchored, full height, slides in when first tab opens.
+ * Z-index sits above floating panels (10000+) but BELOW AlertsHUD
+ * (11000) so permission letters stay reachable. Width is user-
+ * resizable via the left-edge handle and persisted to localStorage.
+ * ──────────────────────────────────────────────────────────────── */
+.chat-drawer {
+  position: fixed;
+  /* Anchor below the 32px window-drag strip so the macOS traffic-light
+   * region + drag handle don't eat tab clicks. Matches the HUD widgets'
+   * pattern (which sit at top: 38px). */
+  top: 32px;
+  right: 0;
+  bottom: 0;
+  /* z-index is set inline from panel-store's drawer.z so the drawer
+   * participates in the same focus-based stack as floating panels —
+   * click drawer → it surfaces; click a status panel → that surfaces. */
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 18, 32, 0.96);
+  border-left: 1px solid rgba(255, 216, 107, 0.18);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.5),
+              -1px 0 0 rgba(255, 216, 107, 0.05);
+  backdrop-filter: blur(8px);
+  font-family: system-ui, -apple-system, sans-serif;
+  animation: chat-drawer-slide-in 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  overflow: hidden;
+}
+@keyframes chat-drawer-slide-in {
+  from {
+    transform: translateX(105%);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.chat-drawer-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 1;
+  /* invisible until hover so it doesn't add visual noise */
+}
+.chat-drawer-resize:hover {
+  background: rgba(255, 216, 107, 0.14);
+}
+/* Tab bar — flat FFXIV/keykeeper-style strip, gold underline on active.
+ * Uses theme variables (var(--accent-2) = gold, var(--muted) = soft). */
+.chat-drawer-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  flex: 0 0 auto;
+  min-height: 32px;
+}
+.chat-drawer-tab {
+  display: inline-flex;
+  align-items: stretch;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--line);
+  flex: 0 0 auto;
+  max-width: 200px;
+  position: relative;
+  transition: background 120ms ease;
+}
+.chat-drawer-tab:hover {
+  background: rgba(255, 216, 107, 0.04);
+}
+.chat-drawer-tab.active {
+  background: rgba(255, 216, 107, 0.10);
+}
+.chat-drawer-tab.active::after {
+  /* Gold underline = active, mirrors the FFXIV-style party-row highlight */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent-2);
+  box-shadow: 0 0 8px rgba(255, 216, 107, 0.45);
+}
+.chat-drawer-tab-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  padding: 6px 8px 6px 10px;
+  cursor: pointer;
+  min-width: 0;
+  font-family: inherit;
+}
+.chat-drawer-tab.active .chat-drawer-tab-main {
+  color: var(--accent-2);
+}
+.chat-drawer-tab-tool {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  width: 14px;
+  text-align: center;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.chat-drawer-tab-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.chat-drawer-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  margin-left: 2px;
+}
+.chat-drawer-tab-dot.dot-permission {
+  background: #ff5b5b;
+  box-shadow: 0 0 6px rgba(255, 91, 91, 0.6);
+  animation: chat-drawer-pulse 1.6s ease-in-out infinite;
+}
+.chat-drawer-tab-dot.dot-unread {
+  background: var(--accent-2);
+}
+@keyframes chat-drawer-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(0.85); }
+}
+.chat-drawer-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: auto 6px auto 2px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--muted);
+  opacity: 0;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 120ms ease, opacity 120ms ease, background 120ms ease;
+}
+.chat-drawer-tab:hover .chat-drawer-tab-close,
+.chat-drawer-tab.active .chat-drawer-tab-close {
+  opacity: 0.55;
+}
+.chat-drawer-tab-close:hover {
+  color: #ff7a7a;
+  opacity: 1 !important;
+  background: rgba(255, 122, 122, 0.14);
+}
+.chat-drawer-tools {
+  display: flex;
+  align-items: stretch;
+  margin-left: auto;
+  border-left: 1px solid var(--line);
+}
+.chat-drawer-tool-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0 12px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 120ms ease, background 120ms ease;
+}
+.chat-drawer-tool-btn:hover {
+  color: var(--accent-2);
+  background: rgba(255, 216, 107, 0.06);
+}
+.chat-drawer-tool-btn.close:hover {
+  color: #ff7a7a;
+  background: rgba(255, 122, 122, 0.08);
+}
+
+/* Minimized drawer — small floating pill anchored mid-right between
+ * AlertsHUD (top, max-height 30vh; bottom edge ~30vh + 38px) and
+ * LettersHUD (bottom, max-height 30vh; top edge ~70vh - 12px). The
+ * pill sits at top: 36vh with max-height: 26vh, leaving ~5vh of
+ * breathing room above and below so the three right-edge surfaces
+ * never visually touch. Pill scrolls internally when tabs exceed it. */
+.chat-drawer-minimized {
+  /* Override the expanded-drawer positioning. */
+  top: 36vh !important;
+  bottom: auto !important;
+  right: 12px !important;
+  max-height: 26vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: rgba(8, 12, 22, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45),
+              0 0 0 1px rgba(255, 216, 107, 0.04);
+  animation: chat-drawer-pill-shrink-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+  padding: 6px;
+  gap: 4px;
+  transform-origin: center right;
+}
+@keyframes chat-drawer-pill-shrink-in {
+  /* Starts wider + lower-opacity so it feels like the full drawer is
+   * "collapsing" inward to the pill, not just popping in. The slight
+   * back-easing curve gives a small bounce as it settles. */
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.chat-drawer-mini-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  /* Fill available pill height; scroll when tabs exceed it. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* No padding here — parent provides it. */
+}
+.chat-drawer-mini-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.chat-drawer-mini-tab:hover {
+  background: rgba(255, 216, 107, 0.08);
+}
+.chat-drawer-mini-tab.active {
+  background: rgba(255, 216, 107, 0.14);
+  border-color: rgba(255, 216, 107, 0.45);
+}
+.chat-drawer-mini-tab-letter {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.chat-drawer-mini-tab .chat-drawer-tab-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+.chat-drawer-mini-expand {
+  /* Centers the chevron horizontally + vertically; button stretches
+   * full pill width by parent flex-column align-items: stretch. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  color: var(--accent-2);
+  height: 26px;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 6px;
+  transition: background 120ms ease;
+}
+.chat-drawer-mini-expand:hover {
+  background: rgba(255, 216, 107, 0.08);
+}
+.chat-drawer-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.chat-drawer-body .chat-stream {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.chat-drawer-body .wielder-chat {
+  flex: 0 0 auto;
+}
+.chat-drawer-empty {
+  padding: 24px;
+  color: rgba(220, 230, 245, 0.5);
+  text-align: center;
+  font-size: 12px;
+}
+
+/* AlertsHUD's z-index is now driven by panel-store.alertsZ — it pops
+ * to the top when a new permission letter arrives or on click, then
+ * sits at the default HUD z (50) until the next focus. See
+ * AlertsHUD.tsx for the trigger logic. */

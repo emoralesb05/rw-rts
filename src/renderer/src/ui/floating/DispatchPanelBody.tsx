@@ -5,6 +5,7 @@
  * off a wielder. Replaces the old bottom-strip spawn role.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
 import type { WorkspaceRepoEntry } from "@shared/ipc";
 
@@ -131,8 +132,9 @@ export function DispatchPanelBody() {
           className="btn primary"
           onClick={send}
           disabled={busy || !prompt.trim()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
         >
-          {busy ? "Spawning…" : `▶ Spawn ${tool}`}
+          {busy ? "Spawning…" : (<><Play size={12} aria-hidden /> Spawn {tool}</>)}
         </button>
       </div>
     </div>

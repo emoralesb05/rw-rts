@@ -6,13 +6,20 @@
  * If the unit no longer exists (session ended and was cleaned up), the
  * body shows a stub instead of crashing — the user can close the panel.
  */
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import {
+  ChevronRight,
+  CornerDownRight,
+  Heart,
+  MapPin,
+  MessageSquare,
+  Power,
+  RotateCw,
+} from "lucide-react";
 import { usePanels } from "./panel-store";
 import { useStore, unitIdentityFor } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
-import { ConversationStream } from "../ConversationStream";
-import { WielderChatInput } from "../WielderChatInput";
 import {
   classifyArchetype,
   ARCHETYPE_GLYPH,
@@ -57,28 +64,11 @@ function timeAgo(ts: number): string {
   return `${h}h ago`;
 }
 
-type TabKey = "status" | "messages";
-
 type Props = {
   unitId: string;
-  initialTab?: TabKey;
-  /** Bumped by the caller when it wants a *re-open* to force the tab
-   * back to initialTab (e.g. clicking the chat icon while the panel
-   * is already parked on the Status tab). */
-  initialTabTick?: number;
-  /** Activity-log click drop-target: scroll the Messages tab to the
-   * event with this timestamp. Tick re-triggers on repeat clicks. */
-  scrollToTs?: number;
-  scrollToTick?: number;
 };
 
-export function WielderPanelBody({
-  unitId,
-  initialTab = "status",
-  initialTabTick = 0,
-  scrollToTs,
-  scrollToTick,
-}: Props) {
+export function WielderPanelBody({ unitId }: Props) {
   const unit = useStore((s) => s.units[unitId]);
   const worlds = useStore((s) => s.worlds);
   const events = useStore((s) => s.events);
@@ -87,31 +77,16 @@ export function WielderPanelBody({
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
-  const [tab, setTab] = useState<TabKey>(initialTab);
   const setPanelSize = usePanels((s) => s.setSize);
+  const openDrawerTab = usePanels((s) => s.openDrawerTab);
   const archetype = unit ? classifyArchetype(unit.id, events) : "roamer";
-  // When the caller bumps the tick, jump back to whatever tab they
-  // requested — covers re-opening an already-parked panel from the
-  // chat icon.
-  useEffect(() => {
-    if (initialTabTick > 0) setTab(initialTab);
-  }, [initialTab, initialTabTick]);
 
-  // Tab-dependent panel sizing. Status is content-driven (stays at the
-  // ~560px default); messages mode expands to half the viewport width
-  // and 80% of viewport height so logs have room to breathe. Resets to
-  // null on cleanup so a freshly opened panel re-uses its caller's
-  // requested width.
+  // Status panel is now content-driven (Messages tab moved to the
+  // chat drawer). Reset any prior fixed height the messages mode
+  // applied so a re-opened panel sits at the natural height.
   useEffect(() => {
-    const panelId = `wielder:${unitId}`;
-    if (tab === "messages") {
-      const w = Math.max(560, Math.round(window.innerWidth * 0.5));
-      const h = Math.round(window.innerHeight * 0.8);
-      setPanelSize(panelId, { width: w, height: h });
-    } else {
-      setPanelSize(panelId, { width: 560, height: null });
-    }
-  }, [tab, unitId, setPanelSize]);
+    setPanelSize(`wielder:${unitId}`, { width: 560, height: null });
+  }, [unitId, setPanelSize]);
 
   if (!unit) {
     return (
@@ -138,37 +113,6 @@ export function WielderPanelBody({
 
   return (
     <div className={"target-panel" + (ghosted ? " ghosted" : "")}>
-      <div className="wielder-panel-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "status"}
-          className={"wielder-panel-tab" + (tab === "status" ? " active" : "")}
-          onClick={() => setTab("status")}
-        >
-          Status
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "messages"}
-          className={"wielder-panel-tab" + (tab === "messages" ? " active" : "")}
-          onClick={() => setTab("messages")}
-        >
-          Messages
-        </button>
-      </div>
-      {tab === "messages" ? (
-        <div className="wielder-panel-log">
-          <ConversationStream
-            sessionId={unit.id}
-            scrollToTs={scrollToTs}
-            scrollToTick={scrollToTick}
-          />
-          <WielderChatInput unit={unit} />
-        </div>
-      ) : (
-        <>
       <div className="target-panel-head">
         <div
           className="target-panel-portrait"
@@ -226,7 +170,7 @@ export function WielderPanelBody({
               onClick={() => selectWorld(unit.worldId)}
               title="dive into this world"
             >
-              ▸ {worldLabel} · {themeName}
+              <ChevronRight size={11} aria-hidden /> {worldLabel} · {themeName}
             </button>
           </div>
         </div>
@@ -241,7 +185,7 @@ export function WielderPanelBody({
               onClick={() => haltStandingOrder(o.id)}
               title={`Standing Order — ${o.iterationsRun}/${o.maxIterations} iterations · click to halt`}
             >
-              ⟲ {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
+              <RotateCw size={11} aria-hidden /> {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
             </button>
           ))}
         </div>
@@ -273,7 +217,7 @@ export function WielderPanelBody({
         <span className="throne-card-time">{timeAgo(unit.lastActivity)}</span>
         {unit.lastTool && (
           <span className="target-panel-lasttool" title="last tool call">
-            ↳ {unit.lastTool}
+            <CornerDownRight size={11} aria-hidden /> {unit.lastTool}
           </span>
         )}
       </div>
@@ -282,10 +226,19 @@ export function WielderPanelBody({
           type="button"
           className="card-verb"
           disabled={ghosted}
-          onClick={() => selectWorld(unit.worldId)}
-          title="follow up — opens the world to send a prompt"
+          onClick={() => openDrawerTab(unit.id)}
+          title="open chat in the drawer"
         >
-          send word
+          <MessageSquare size={11} aria-hidden /> chat
+        </button>
+        <button
+          type="button"
+          className="card-verb"
+          disabled={ghosted}
+          onClick={() => selectWorld(unit.worldId)}
+          title="find — pan camera to this wielder's world"
+        >
+          <MapPin size={11} aria-hidden /> find
         </button>
         <button
           type="button"
@@ -298,6 +251,7 @@ export function WielderPanelBody({
               : "decree — directive command (file/function/shell)"
           }
         >
+          {/* ⚜ stays as the gold royal sigil — KH-themed and intentional. */}
           ⚜ decree
         </button>
         <button
@@ -315,7 +269,7 @@ export function WielderPanelBody({
               : "not enough munny in this world (need 50µ)"
           }
         >
-          ♥ comfort
+          <Heart size={11} aria-hidden /> comfort
         </button>
         <button
           type="button"
@@ -336,11 +290,9 @@ export function WielderPanelBody({
               : "recall — end this session"
           }
         >
-          × recall
+          <Power size={11} aria-hidden /> recall
         </button>
       </div>
-        </>
-      )}
     </div>
   );
 }

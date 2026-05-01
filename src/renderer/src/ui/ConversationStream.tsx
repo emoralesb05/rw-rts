@@ -6,6 +6,12 @@
  * Pass `sessionId` to filter to one wielder. Pass nothing for global.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  CornerDownRight,
+} from "lucide-react";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import { mermaid } from "@streamdown/mermaid";
@@ -357,7 +363,7 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
             onClick={() => setShowTrace((v) => !v)}
             title="show what led to this tool call"
           >
-            {showTrace ? "▲ why" : "▼ why"}
+            {showTrace ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} why
           </button>
         )}
       </div>
@@ -539,7 +545,7 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
           (isError ? " errored" : "")
         }
       >
-        {isError ? "⚠ failed" : "↳ done"}
+        {isError ? <><AlertTriangle size={11} aria-hidden /> failed</> : <><CornerDownRight size={11} aria-hidden /> done</>}
         {errorMessage && (
           <span className="chat-tool-error-msg"> {errorMessage}</span>
         )}
@@ -553,13 +559,15 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
     );
   }
   if (isTerse && !expanded) {
-    const verb = isError
-      ? "⚠ failed"
-      : isEditFamily
-      ? "↳ applied"
-      : name === "Read" && typeof lineCount === "number"
-      ? `↳ read ${lineCount} line${lineCount === 1 ? "" : "s"}`
-      : "↳ done";
+    const verb = isError ? (
+      <><AlertTriangle size={11} aria-hidden /> failed</>
+    ) : isEditFamily ? (
+      <><CornerDownRight size={11} aria-hidden /> applied</>
+    ) : name === "Read" && typeof lineCount === "number" ? (
+      <><CornerDownRight size={11} aria-hidden /> read {lineCount} line{lineCount === 1 ? "" : "s"}</>
+    ) : (
+      <><CornerDownRight size={11} aria-hidden /> done</>
+    );
     return (
       <div
         className={
@@ -591,7 +599,9 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   return (
     <div className={cls}>
       {errorMessage && (
-        <div className="chat-tool-error-banner">⚠ {errorMessage}</div>
+        <div className="chat-tool-error-banner">
+          <AlertTriangle size={12} aria-hidden /> {errorMessage}
+        </div>
       )}
       <pre className="chat-tool-result-body">{expanded ? text : trimmed}</pre>
       <div className="chat-tool-result-foot">
@@ -735,7 +745,7 @@ function SubagentSpawnRow({
     <div className="chat-marker chat-subagent-spawn">
       <span className="chat-marker-dot" />
       <span className="chat-marker-text">
-        ↳ summoned subagent
+        <CornerDownRight size={11} aria-hidden /> summoned subagent
         {child && (
           <span className="chat-subagent-name"> · {child.displayName}</span>
         )}

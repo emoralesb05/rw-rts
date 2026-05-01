@@ -6,6 +6,7 @@
  * Click 💬     → open wielder panel on Messages tab.
  */
 import { useEffect, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
@@ -100,6 +101,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
   const palette = ROLE_PALETTE[unit.role];
   const selectUnit = useStore((s) => s.selectUnit);
   const openPanel = usePanels((s) => s.openPanel);
+  const openDrawerTab = usePanels((s) => s.openDrawerTab);
   const panels = usePanels((s) => s.panels);
   const standingOrders = useStore((s) => s.standingOrders);
   const events = useStore((s) => s.events);
@@ -113,15 +115,18 @@ export function PartyRow({ unit }: { unit: UnitState }) {
   const hasPanelOpen = panels.some(
     (p) => p.kind === "wielder" && p.key === unit.id
   );
-  const openWielder = (initialTab?: "messages") => {
+  const openWielder = () => {
     selectUnit(unit.id);
     openPanel({
       kind: "wielder",
       key: unit.id,
       title: `${unit.displayName} · ${unit.tool}`,
       width: 560,
-      data: initialTab ? { initialTab, tick: Date.now() } : undefined,
     });
+  };
+  const openChat = () => {
+    selectUnit(unit.id);
+    openDrawerTab(unit.id);
   };
   return (
     <div
@@ -183,12 +188,12 @@ export function PartyRow({ unit }: { unit: UnitState }) {
         className="party-row-chat"
         onClick={(e) => {
           e.stopPropagation();
-          openWielder("messages");
+          openChat();
         }}
-        title="open messages tab"
-        aria-label={`Open messages with ${unit.displayName}`}
+        title="open chat in the drawer"
+        aria-label={`Open chat with ${unit.displayName}`}
       >
-        💬
+        <MessageSquare size={14} aria-hidden />
       </button>
     </div>
   );

@@ -172,12 +172,17 @@ export function startHookBridge() {
       // renderer's reply, so we never drop them here.
       const isPerm = ev?.kind === "permission_request";
       const dup = ev && !isPerm && isDuplicateHookFire(payload, eventName);
-      // eslint-disable-next-line no-console
-      console.log(
-        `[keykeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
-          ev ? `${ev.tool}/${ev.kind}${dup ? " DEDUP" : ""}` : "DROPPED"
-        }`
-      );
+      // Per-event log is high-volume (fires every tool call across
+      // every wielder) — gated behind an env var so it doesn't spam
+      // dev output and can't trigger EPIPE storms when stdio is dodgy.
+      if (process.env.KEYKEEPER_DEBUG_BRIDGE) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[keykeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
+            ev ? `${ev.tool}/${ev.kind}${dup ? " DEDUP" : ""}` : "DROPPED"
+          }`
+        );
+      }
       if (!ev || dup) {
         socket.destroy();
         return;

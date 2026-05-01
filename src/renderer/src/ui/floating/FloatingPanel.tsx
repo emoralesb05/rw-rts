@@ -10,6 +10,7 @@
  *   - Multiple panels coexist. Z-index managed by panel-store.
  */
 import { useCallback, useEffect, useRef } from "react";
+import { X } from "lucide-react";
 import { usePanels, type Panel } from "./panel-store";
 
 type Props = {
@@ -118,7 +119,7 @@ export function FloatingPanel({ panel, children }: Props) {
           onClick={() => closePanel(panel.id)}
           aria-label={`Close ${panel.title}`}
         >
-          ✕
+          <X size={14} aria-hidden />
         </button>
       </div>
       <div className="floating-panel-body">{children}</div>

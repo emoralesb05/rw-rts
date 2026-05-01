@@ -3,6 +3,7 @@
  * form transitions, finished sessions, stuck-loop hints. Permission
  * letters are filtered OUT (they live in AlertsHUD top-right).
  */
+import { Trash2 } from "lucide-react";
 import { useStore } from "../../store";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
@@ -21,7 +22,7 @@ export function LettersHUD() {
         onClick={dismissInformationalLetters}
         title="Dismiss every letter — permission alerts are kept"
       >
-        ✕ clear
+        <Trash2 size={11} aria-hidden /> clear
       </button>
     ) : null;
   return (

@@ -13,6 +13,7 @@
  *       → not clickable (system markers, no useful drill-through)
  */
 import { useEffect, useRef } from "react";
+import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
 import { usePanels } from "./floating/panel-store";
@@ -64,7 +65,7 @@ export function ActivityLog() {
   const events = useStore((s) => s.events);
   const units = useStore((s) => s.units);
   const letters = useStore((s) => s.letters);
-  const openPanel = usePanels((s) => s.openPanel);
+  const openDrawerTab = usePanels((s) => s.openDrawerTab);
   const [collapsed, setCollapsed] = usePersistedBool(
     "collapsed:Activity",
     false
@@ -115,10 +116,10 @@ export function ActivityLog() {
         <span className="activity-log-title">activity</span>
         <span className="activity-log-count">{events.length}</span>
         <span className="activity-log-toggle" aria-hidden="true">
-          {collapsed ? "▲" : "▼"}
+          {collapsed ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
         </span>
       </button>
-      {!collapsed && (
+      <div className="activity-log-body-shell" aria-hidden={collapsed}>
         <div className="activity-log-body" ref={scrollRef}>
           {recent.length === 0 ? (
             <div className="activity-log-empty">No activity yet.</div>
@@ -160,17 +161,17 @@ export function ActivityLog() {
                   return;
                 }
                 if (!unit) return;
-                openPanel({
-                  kind: "wielder",
-                  key: unit.id,
-                  title: `${unit.displayName} · ${unit.tool}`,
-                  width: 560,
-                  data: {
-                    initialTab: "messages",
-                    tick: Date.now(),
-                    scrollToTs: ev.timestamp,
-                  },
-                });
+                openDrawerTab(unit.id);
+                // Tell the drawer to scroll its conversation stream to
+                // this event. Posted next tick so the drawer renders
+                // first and the active tab is in place.
+                window.setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("kh:drawer-scroll-to", {
+                      detail: { unitId: unit.id, ts: ev.timestamp },
+                    })
+                  );
+                }, 0);
               };
               const titleAttr = !clickable
                 ? isPermResolved
@@ -187,7 +188,7 @@ export function ActivityLog() {
               const NameSlot = isMe ? (
                 <span className="activity-log-name activity-log-name-me">
                   Me
-                  <span className="activity-log-arrow">→</span>
+                  <span className="activity-log-arrow"><ArrowRight size={10} aria-hidden /></span>
                   <span style={{ color: recipientColor }}>{recipientName}</span>
                 </span>
               ) : (
@@ -224,7 +225,7 @@ export function ActivityLog() {
             })
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

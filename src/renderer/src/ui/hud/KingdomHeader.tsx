@@ -7,9 +7,11 @@
  * separate invisible strip behind it.
  */
 import { useState } from "react";
+import { Settings, Volume2, VolumeX } from "lucide-react";
 import { useStore } from "../../store";
 import { isMuted, toggleMuted } from "../../audio/sounds";
 import { usePanels } from "../floating/panel-store";
+import { CloseAllChip } from "../CloseAllChip";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));
@@ -58,7 +60,7 @@ export function KingdomHeader() {
           title={muted ? "unmute" : "mute"}
           aria-label={muted ? "unmute" : "mute"}
         >
-          {muted ? "🔇" : "🔊"}
+          {muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
         </button>
         <button
           type="button"
@@ -69,9 +71,13 @@ export function KingdomHeader() {
           title="Kingdom — overview, settings, connection, demos"
           aria-label="Open Kingdom panel"
         >
-          ⚙
+          <Settings size={14} aria-hidden />
         </button>
       </span>
+      {/* Floating "close all" chip — visually separate (own pill) but
+       * absolutely positioned to the pill's right edge so it always
+       * sits next to it regardless of pill width. */}
+      <CloseAllChip />
     </div>
   );
 }
