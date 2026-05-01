@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.4.0] — 2026-05-01 — Multi-wielder chat drawer, packaging, icon library
+
+The wielder Messages tab dissolves into a singleton right-edge **ChatDrawer** with browser-style tabs — the King can now follow several wielders' conversations at once without juggling floating panels. Rounded out by a top-to-bottom Lucide icon swap, animated HUD collapse/expand, a unified header pattern, an installable macOS `.app` / `.dmg` bundle, and a centralized `~/.keykeeper/` state directory.
+
+### Added
+**ChatDrawer**
+- Right-edge singleton drawer (`src/renderer/src/ui/floating/ChatDrawer.tsx`) — one tab per wielder the King opens
+- Browser-style tabs: per-tab × close, status dots (red = pending permission, yellow = unread since last active)
+- Drag-to-resize the left edge; width persists per-session via `panel-store`
+- Minimize-to-pill: collapses to a thin floating strip between AlertsHUD and LettersHUD with one initial-letter chip per open tab; click a chip to expand + activate
+- Click-to-focus z-stacking — drawer participates in the same `zCounter` as floating panels and AlertsHUD, so whatever you last touched sits on top
+- Tab body = `ConversationStream` filtered to the wielder + per-wielder `WielderChatInput` pinned at the bottom
+- ActivityLog row click → opens a drawer tab for that wielder and scrolls the stream to the exact event with a gold pulse (replaces the prior "open Messages tab" behavior)
+
+**Lucide icon library**
+- `lucide-react` replaces ASCII glyphs across `ConversationStream`, `HudWidget`, `ActivityLog`, `WielderPanelBody`, `KingdomHeader`, `LetterCard`, `LettersHUD`, `PartyRow`, `CloseAllChip`, `DispatchPanelBody`, `DecreeModal`
+- Per-tool decoration icons in the chat stream (Read = book, Edit = pencil, Bash = lightning, Web = globe, etc.) carried at consistent sizes with `inline-flex + gap` for icon+text alignment
+
+**HUD chrome**
+- Open/close **animations** on every HUD section (Wielders, Activity, Alerts, Letters): width animates 340 ↔ 180px and body height animates `grid-template-rows: 1fr ↔ 0fr` for a smooth collapse without fixed-pixel max-heights
+- Header pattern unified across all four widgets: title → count tight to title → optional action chip (DISPATCH / clear) → chevron pinned at the far right (in its own button so action chips stay clickable)
+- AlertsHUD focus-z-stack: bumps to top on new permission arrival or click, falls back to the default HUD z otherwise
+- `CloseAllChip` lives next to the KingdomHeader pill (no longer covering it) and only closes floating panels — the chat drawer survives intentionally
+
+**Build & packaging**
+- Installable macOS bundle: `bun run dist` produces a signed-able `.app` + `.dmg` via electron-builder, ready to drag into `/Applications`
+- Proper application icon from `build/icon.png`; macOS dev runs also call `app.dock.setIcon` so the dock shows the keykeeper icon without packaging
+- Window title set explicitly on `BrowserWindow` (HTML `<title>` was being overridden on some platforms)
+- README has the full build/dev/dist instruction set including the `pack` (unsigned `.app` for local testing) target
+
+**State directory & hooks**
+- Hook script now installed to `~/.keykeeper/keykeeper-hook` (centralized `~/.keykeeper/` directory alongside `state.json` / `config.json`); prior path under the install dir is migrated on first boot
+- `syncHookScript()` runs every boot — keeps the installed script in sync with the bundled version, so a packaged-app update flows through automatically
+
+**Plans queued**
+- `gemini-provider.md` — Google Gemini CLI as a fourth observable tool
+- `world-aliveness.md` — sprite behavior + canvas reactivity (post-MVP polish)
+- `design-system.md` — Radix Primitives + Tailwind v4 migration with shadcn-style owned components under `src/renderer/src/components/`
+- `observed-resume.md` (carryover from 0.3.0)
+
+### Changed
+- Wielder panel is now Status-only — Messages tab moved to the ChatDrawer. The Status panel adds a `chat` verb that opens the drawer for that wielder
+- Activity log routing simplified: textual events open a drawer tab (was: open Messages tab inside floating panel)
+- Hook bridge per-event log gated behind `KEYKEEPER_DEBUG_BRIDGE` env var — was firing dozens of times per second under load and triggering EPIPE cascades on dev restart
+- `floating-panel-fixed-height` resize mode removed (it only existed to support the now-deleted Messages tab)
+- ~127 lines of dead CSS dropped (`.chat-panel`, `.chat-panel-header`, `.chat-clear`, `.wielder-panel-log`, `.floating-panel-fixed-height` family); doc comments swept to point at the drawer instead of the Messages tab
+
+### Fixed
+- Uncaught EPIPE on dev restart — hook bridge's per-event `console.log` was the source; gating it removed the crash and incidentally restored the chat drawer (events had been silently dropped after the bridge crashed mid-write)
+- Closed-window race fixed: hook events arriving after window close no longer surface as Uncaught Exception dialogs — `webContents.isDestroyed()` guard before `wc.send`
+- "why" expander button on tool rows: SVG was stacking above the word "why" (`display: block` default on `<button>`) — fixed with `inline-flex + gap`
+- ActivityLog count alignment: was pushed right by `.activity-log-title { flex: 1 }`; now matches the HUDs (count tight to title, chevron `margin-left: auto` to the right edge)
+
+### Documentation
+- README and `.docs/vision.md` updated for the ChatDrawer + Status-only wielder panel
+- `.docs/architecture/renderer.md` rewritten for the drawer-as-singleton pattern and the new `components/`-bound design-system direction
+- `.docs/architecture/build.md` updated for `~/.keykeeper/` paths
+- `chat-drawer.md` plan deleted on landing — implementation matched the plan; git history preserves the spec
+- All "Messages tab" references swept across code comments, plans, and docs (12 sites) — single canonical name now is "chat drawer"
+
+---
+
 ## [0.3.0] — 2026-04-30 — Multi-tool hook landing polish + handbook
 
 The multi-tool hooks from 0.2.0 picked up real-use polish: cross-tool normalization, transcript watchers for the providers without an `assistant_text` hook, and a fix for the case where Codex 0.126's new rollout format made every Codex prompt look "interrupted" and disappear.
