@@ -370,7 +370,10 @@ function geminiParentSessionFromTranscriptPath(
 ): string | undefined {
   const path = nonEmptyString(transcriptPath);
   if (!path) return undefined;
-  const parentDir = basename(dirname(path));
+  const containingDir = dirname(path);
+  const parentDir = basename(containingDir);
+  const grandparentDir = basename(dirname(containingDir));
+  if (grandparentDir !== "chats") return undefined;
   if (!parentDir || parentDir === "." || parentDir === "chats") return undefined;
   if (parentDir === sessionId) return undefined;
   // Gemini subagent transcripts live under .../chats/<parentSessionId>/<child>.jsonl.
