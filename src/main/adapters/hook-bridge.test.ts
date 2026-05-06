@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeHookPayload } from "./hook-bridge";
+import { normalizeHookPayload } from "./hook-normalizer";
 
 describe("hook bridge normalization", () => {
   it("normalizes Claude shell tool use", () => {

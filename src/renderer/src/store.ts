@@ -15,44 +15,25 @@ import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { MutedSessionIdsSchema } from "@shared/schemas";
 import { play } from "./audio/sounds";
 import {
+  createStandingOrder,
+  dismissInformationalLetters,
+  haltStandingOrderById,
+  hydrateStandingOrders,
+  isPermissionLetter,
+  ordersToPersisted,
+  permissionResolutionForAction,
+  recordStandingOrderTickById,
+  type StandingOrder,
+} from "./store-domain";
+import {
   unitIdentityFor,
   unitIdentityForUnit,
 } from "./unit-identity";
 
 export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
+export type { StandingOrder } from "./store-domain";
 
 export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
-
-export type StandingOrder = {
-  id: string;
-  unitId: string;        // current session's id; "" while waiting to bind to a session
-  unitIdentity: string;  // stable `${tool}::${repoRoot}` — survives session-id changes
-  prompt: string;
-  intervalMs: number;
-  maxIterations: number;
-  iterationsRun: number;
-  failuresInRow: number;
-  status: "active" | "halted" | "exhausted" | "failed";
-  startedAt: number;
-  lastFiredAt: number;
-};
-
-/** Convert in-memory standingOrders to the persisted shape. */
-function ordersToPersisted(
-  orders: Record<string, StandingOrder>
-): import("@shared/events").PersistedStandingOrder[] {
-  return Object.values(orders)
-    .filter((o) => o.status === "active") // only active worth persisting
-    .map((o) => ({
-      id: o.id,
-      unitIdentity: o.unitIdentity,
-      prompt: o.prompt,
-      intervalMs: o.intervalMs,
-      maxIterations: o.maxIterations,
-      iterationsRun: o.iterationsRun,
-      startedAt: o.startedAt,
-    }));
-}
 
 type Store = {
   events: AgentEvent[];
@@ -489,16 +470,6 @@ function makeLetter(
     actions: [],
     ...opts,
   };
-}
-
-/** True if this letter carries a permission-allow / permission-deny
- * action — i.e., it's an alert (AlertsHUD), not informational. */
-function isPermissionLetter(letter: Letter): boolean {
-  return letter.actions.some(
-    (a) =>
-      a.action.kind === "permission-allow" ||
-      a.action.kind === "permission-deny"
-  );
 }
 
 /** Add a letter to the feed. For informational letters, collapse the
@@ -1198,7 +1169,8 @@ export const useStore = create<Store>((set) => ({
     set({ decreeUnitId: null });
   },
   startStandingOrder(unitId, prompt, intervalMs, maxIterations = 24) {
-    const id = `so-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const now = Date.now();
+    const id = `so-${now.toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const unit = useStore.getState().units[unitId];
     // Identity must match the bus-stamped repoRoot used by applyOneEvent
     // when rebinding orders to wielders on restart. Earlier bug: this
@@ -1206,20 +1178,15 @@ export const useStore = create<Store>((set) => ({
     // session started in a subdirectory of a repo — order persisted
     // but never re-attached. Fall back to cwd for units that pre-date
     // the repoRoot field on UnitState.
-    const identity = unit ? unitIdentityForUnit(unit) : `unknown::${unitId}`;
-    const order: StandingOrder = {
+    const order = createStandingOrder({
       id,
       unitId,
-      unitIdentity: identity,
+      unit,
       prompt,
       intervalMs,
       maxIterations,
-      iterationsRun: 0,
-      failuresInRow: 0,
-      status: "active",
-      startedAt: Date.now(),
-      lastFiredAt: 0,
-    };
+      now,
+    });
     set((s) => {
       const standingOrders = { ...s.standingOrders, [id]: order };
       const nextPersisted = {
@@ -1233,21 +1200,13 @@ export const useStore = create<Store>((set) => ({
   },
   recordOrderTick(orderId, ok) {
     set((s) => {
-      const cur = s.standingOrders[orderId];
-      if (!cur || cur.status !== "active") return s;
-      const iterationsRun = cur.iterationsRun + 1;
-      const failuresInRow = ok ? 0 : cur.failuresInRow + 1;
-      let status: StandingOrder["status"] = "active";
-      if (failuresInRow >= 3) status = "failed";
-      else if (iterationsRun >= cur.maxIterations) status = "exhausted";
-      const next: StandingOrder = {
-        ...cur,
-        iterationsRun,
-        failuresInRow,
-        status,
-        lastFiredAt: Date.now(),
-      };
-      const standingOrders = { ...s.standingOrders, [orderId]: next };
+      const standingOrders = recordStandingOrderTickById(
+        s.standingOrders,
+        orderId,
+        ok,
+        Date.now()
+      );
+      if (!standingOrders) return s;
       const nextPersisted = {
         ...s.persisted,
         standingOrders: ordersToPersisted(standingOrders),
@@ -1258,12 +1217,8 @@ export const useStore = create<Store>((set) => ({
   },
   haltStandingOrder(orderId) {
     set((s) => {
-      const cur = s.standingOrders[orderId];
-      if (!cur) return s;
-      const standingOrders = {
-        ...s.standingOrders,
-        [orderId]: { ...cur, status: "halted" as const },
-      };
+      const standingOrders = haltStandingOrderById(s.standingOrders, orderId);
+      if (!standingOrders) return s;
       const nextPersisted = {
         ...s.persisted,
         standingOrders: ordersToPersisted(standingOrders),
@@ -1287,25 +1242,7 @@ export const useStore = create<Store>((set) => ({
     // let applyOneEvent bind them when a wielder with matching identity
     // appears. Only "active" orders survive (halted/exhausted/failed
     // were terminal states).
-    const standingOrders: Record<string, StandingOrder> = {};
-    const persistedOrders = persisted.standingOrders ?? [];
-    for (const p of persistedOrders) {
-      // Skip orders that hit their max — they're done.
-      if (p.iterationsRun >= p.maxIterations) continue;
-      standingOrders[p.id] = {
-        id: p.id,
-        unitId: "",
-        unitIdentity: p.unitIdentity,
-        prompt: p.prompt,
-        intervalMs: p.intervalMs,
-        maxIterations: p.maxIterations,
-        iterationsRun: p.iterationsRun,
-        failuresInRow: 0,
-        status: "active",
-        startedAt: p.startedAt,
-        lastFiredAt: 0,
-      };
-    }
+    const standingOrders = hydrateStandingOrders(persisted.standingOrders ?? []);
     set({ persisted, standingOrders });
   },
   comfort(sessionId) {
@@ -1345,7 +1282,7 @@ export const useStore = create<Store>((set) => ({
    * (alerts) are preserved — those are decisions, not history. */
   dismissInformationalLetters() {
     set((s) => ({
-      letters: s.letters.filter((l) => isPermissionLetter(l)),
+      letters: dismissInformationalLetters(s.letters),
     }));
   },
   applyLetterAction(letter, action) {
@@ -1376,18 +1313,11 @@ export const useStore = create<Store>((set) => ({
         void window.kh.killAgent(action.sessionId).catch(() => {});
         break;
       case "permission-allow":
-        void window.kh
-          .resolvePermission({ requestId: action.requestId, decision: "allow" })
-          .catch(() => {});
-        break;
       case "permission-deny":
-        void window.kh
-          .resolvePermission({
-            requestId: action.requestId,
-            decision: "deny",
-            message: action.message,
-          })
-          .catch(() => {});
+        {
+          const req = permissionResolutionForAction(action);
+          if (req) void window.kh.resolvePermission(req).catch(() => {});
+        }
         break;
       case "permission-observe":
         // Observation-only provider letters — no upstream resolution;
