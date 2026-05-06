@@ -1,29 +1,34 @@
 import { describe, expect, it } from "vitest";
 import type { Letter, UnitState, WorldState } from "@shared/events";
+import { mpCostForToolResult, mpCostForToolUse } from "./store-domain/combat";
 import {
   argKeyForToolInput,
-  bindStandingOrdersForUnit,
   classifyPermissionRisk,
-  computeAlertLevel,
-  createStandingOrder,
   dismissInformationalLetters,
   extractRecentReasoning,
-  haltStandingOrderById,
-  hydrateStandingOrders,
   isPermissionLetter,
   isObservationOnlyPermission,
-  mpCostForToolResult,
-  mpCostForToolUse,
-  ordersToPersisted,
+  permissionActionsForEvent,
+  permissionActionsForOptions,
   permissionResolutionForAction,
+  summarizePermissionInput,
+} from "./store-domain/permissions";
+import {
+  bindStandingOrdersForUnit,
+  createStandingOrder,
+  haltStandingOrderById,
+  hydrateStandingOrders,
+  ordersToPersisted,
   recordStandingOrderTick,
   recordStandingOrderTickById,
-  summarizePermissionInput,
   type StandingOrder,
+} from "./store-domain/standing-orders";
+import {
+  computeAlertLevel,
   worldIdForEvent,
   worldLabelForEvent,
   worldPathForEvent,
-} from "./store-domain";
+} from "./store-domain/worlds";
 
 function activeOrder(overrides: Partial<StandingOrder> = {}): StandingOrder {
   return {
@@ -257,6 +262,70 @@ describe("permission letter domain helpers", () => {
     expect(permissionResolutionForAction({ kind: "dismiss" })).toBeNull();
   });
 
+  it("maps provider permission options to letter actions", () => {
+    expect(
+      permissionActionsForOptions("req-1", [
+        { id: "allow-once", label: "allow", decision: "allow" },
+        { id: "deny", label: "deny", decision: "deny" },
+        { id: "ack-native", label: "ack", decision: "observe" },
+      ])
+    ).toEqual([
+      {
+        label: "allow",
+        action: {
+          kind: "permission-allow",
+          requestId: "req-1",
+          optionId: "allow-once",
+        },
+      },
+      {
+        label: "deny",
+        action: {
+          kind: "permission-deny",
+          requestId: "req-1",
+          optionId: "deny",
+        },
+      },
+      {
+        label: "ack",
+        action: {
+          kind: "permission-observe",
+          requestId: "req-1",
+          optionId: "ack-native",
+        },
+      },
+    ]);
+  });
+
+  it("uses provider capability fallback when permission events omit options", () => {
+    expect(
+      permissionActionsForEvent({
+        sessionId: "s1",
+        tool: "gemini",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "permission_request",
+        payload: { requestId: "req-1" },
+        source: "hook",
+      })
+    ).toMatchObject([
+      {
+        action: {
+          kind: "permission-allow",
+          requestId: "req-1",
+          optionId: "allow-once",
+        },
+      },
+      {
+        action: {
+          kind: "permission-deny",
+          requestId: "req-1",
+          optionId: "deny",
+        },
+      },
+    ]);
+  });
+
   it("summarizes permission inputs in human-readable priority order", () => {
     expect(summarizePermissionInput({ command: "x".repeat(250) })).toHaveLength(200);
     expect(summarizePermissionInput({ file_path: "/repo/file.ts" })).toBe("/repo/file.ts");
@@ -283,6 +352,20 @@ describe("permission letter domain helpers", () => {
         timestamp: 1,
         kind: "permission_request",
         payload: { requestId: "r1" },
+        source: "hook",
+      })
+    ).toBe(true);
+  });
+
+  it("treats explicit observe permission mode as observation-only", () => {
+    expect(
+      isObservationOnlyPermission({
+        sessionId: "s1",
+        tool: "claude",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "permission_request",
+        payload: { requestId: "r1", permissionMode: "observe" },
         source: "hook",
       })
     ).toBe(true);

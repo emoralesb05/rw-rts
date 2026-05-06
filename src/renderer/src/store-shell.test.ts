@@ -92,6 +92,26 @@ describe("store letter action shell", () => {
     expect(useStore.getState().letters).toEqual([]);
   });
 
+  it("passes selected permission option ids through IPC", async () => {
+    const { kh } = installRendererGlobals();
+    const { useStore } = await loadStore();
+    const letter = letterWithAction({
+      kind: "permission-allow",
+      requestId: "req-option",
+      optionId: "allow-once",
+    });
+
+    useStore.setState({ letters: [letter] });
+    useStore.getState().applyLetterAction(letter, letter.actions[0].action);
+
+    expect(kh.resolvePermission).toHaveBeenCalledWith({
+      requestId: "req-option",
+      decision: "allow",
+      optionId: "allow-once",
+    });
+    expect(useStore.getState().letters).toEqual([]);
+  });
+
   it("resolves deny permission actions with a message", async () => {
     const { kh } = installRendererGlobals();
     const { useStore } = await loadStore();

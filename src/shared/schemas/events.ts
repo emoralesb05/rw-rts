@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AgentToolSchema } from "./common";
+import { PermissionOptionSchema } from "./permissions";
 
 export const AgentEventKindSchema = z.enum([
   "session_start",
@@ -26,6 +27,8 @@ export const AgentEventPayloadSchema = z.looseObject({
   error: z.string().optional(),
   parentSessionId: z.string().optional(),
   requestId: z.string().optional(),
+  permissionMode: z.enum(["actionable", "observe"]).optional(),
+  permissionOptions: z.array(PermissionOptionSchema).optional(),
   resolution: z.literal("error").optional(),
   durationMs: z.number().finite().nonnegative().optional(),
 });

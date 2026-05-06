@@ -1,6 +1,7 @@
 import { basename, dirname } from "node:path";
 import type { AgentEvent, AgentEventKind } from "@shared/events";
 import type { HookPayload } from "@shared/schemas";
+import { permissionCapabilityForTool } from "@shared/provider-permissions";
 import { isSpawnedSession } from "./claude-cli";
 
 function nonEmptyString(value: unknown): string | undefined {
@@ -156,6 +157,7 @@ function normalizeClaudePayload(
     (eventName === "PermissionRequest" || eventName === "PreToolUse") &&
     requestId
   ) {
+    const permission = permissionCapabilityForTool(tool);
     return {
       ...base,
       timestamp: ts,
@@ -164,6 +166,8 @@ function normalizeClaudePayload(
         name: canonicalToolName(p.tool_name),
         input: p.tool_input,
         requestId,
+        permissionMode: permission.mode,
+        permissionOptions: permission.options,
       },
     };
   }
@@ -260,6 +264,7 @@ function normalizeGeminiPayload(
   // on Keykeeper. This fires for every tool call; allow only continues the hook
   // path, while deny blocks before Gemini executes the tool.
   if (eventName === "BeforeTool" && requestId) {
+    const permission = permissionCapabilityForTool("gemini");
     return {
       ...base,
       timestamp: ts,
@@ -268,6 +273,8 @@ function normalizeGeminiPayload(
         name: canonicalToolName(p.tool_name),
         input: p.tool_input,
         requestId,
+        permissionMode: permission.mode,
+        permissionOptions: permission.options,
         parentSessionId,
       },
     };
@@ -447,6 +454,7 @@ function normalizeCursorPayload(
       // risk classifier in store.ts works unchanged.
       const requestId = p.__kh_permission_request_id as string | undefined;
       if (!requestId) return null;
+      const permission = permissionCapabilityForTool("cursor");
       return {
         ...base,
         timestamp: ts,
@@ -455,6 +463,8 @@ function normalizeCursorPayload(
           name: "Bash",
           input: { command: p.command, cwd: p.cwd },
           requestId,
+          permissionMode: permission.mode,
+          permissionOptions: permission.options,
         },
       };
     }

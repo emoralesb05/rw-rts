@@ -44,12 +44,19 @@ import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { IPC } from "@shared/ipc";
 import {
   AppSettingsSchema,
+  HooksStatusSchema,
+  ListUnitsResponseSchema,
+  ListWorkspaceReposResponseSchema,
   OpenPathRequestSchema,
+  OpenPathResponseSchema,
   PersistedStateSchema,
   PlayFixtureRequestSchema,
+  ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
   SendPromptRequestSchema,
   SpawnAgentRequestSchema,
+  SpawnAgentResponseSchema,
+  WorkspaceRootValidationSchema,
   WorkspaceRootPathSchema,
 } from "@shared/schemas";
 import type { z } from "zod";
@@ -59,6 +66,7 @@ import {
   resetPersisted,
   flushPersisted,
 } from "./persistent-state";
+import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
@@ -142,11 +150,15 @@ function createWindow() {
 // top-level frame — blocks injected iframes / cross-origin frames
 // from reaching the high-impact APIs (spawn, install hooks, save
 // settings, resolve permission).
-function safeHandle<TArgs extends unknown[], TResult>(
+function safeHandle<TArgs extends unknown[]>(
   channel: string,
-  fn: (event: Electron.IpcMainInvokeEvent, ...args: TArgs) => TResult
+  fn: (
+    event: Electron.IpcMainInvokeEvent,
+    ...args: TArgs
+  ) => unknown | Promise<unknown>,
+  responseSchema?: z.ZodType<unknown>
 ): void {
-  ipcMain.handle(channel, (event, ...args) => {
+  ipcMain.handle(channel, async (event, ...args) => {
     const expected = mainWindow?.webContents;
     if (
       !expected ||
@@ -157,27 +169,10 @@ function safeHandle<TArgs extends unknown[], TResult>(
         `[keykeeper] ipc rejected: untrusted sender for ${channel}`
       );
     }
-    return fn(event, ...(args as TArgs));
+    const result = await fn(event, ...(args as TArgs));
+    if (!responseSchema) return result;
+    return parseIpcResponse(channel, responseSchema, result);
   });
-}
-
-function formatSchemaError(error: z.ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.length ? issue.path.join(".") : "(root)";
-      return `${path}: ${issue.message}`;
-    })
-    .join("; ");
-}
-
-function parseIpc<T>(channel: string, schema: z.ZodType<T>, value: unknown): T {
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) {
-    throw new Error(
-      `[keykeeper] invalid ${channel} payload: ${formatSchemaError(parsed.error)}`
-    );
-  }
-  return parsed.data;
 }
 
 async function offerHookInstall() {
@@ -230,23 +225,27 @@ app.whenReady().then(async () => {
 
   await offerHookInstall();
 
-  safeHandle(IPC.SpawnAgent, async (_e, raw: unknown) => {
-    const req = parseIpc(IPC.SpawnAgent, SpawnAgentRequestSchema, raw);
-    const cwd = resolve(req.cwd || ".");
-    const tool: "claude" | "cursor" | "codex" | "gemini" =
-      req.tool === "cursor"
-        ? "cursor"
-        : req.tool === "codex"
-        ? "codex"
-        : req.tool === "gemini"
-        ? "gemini"
-        : "claude";
-    const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
-    return { unitId: agent.unitId, sessionId: agent.sessionId };
-  });
+  safeHandle(
+    IPC.SpawnAgent,
+    async (_e, raw: unknown) => {
+      const req = parseIpcPayload(IPC.SpawnAgent, SpawnAgentRequestSchema, raw);
+      const cwd = resolve(req.cwd || ".");
+      const tool: "claude" | "cursor" | "codex" | "gemini" =
+        req.tool === "cursor"
+          ? "cursor"
+          : req.tool === "codex"
+          ? "codex"
+          : req.tool === "gemini"
+          ? "gemini"
+          : "claude";
+      const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
+      return { unitId: agent.unitId, sessionId: agent.sessionId };
+    },
+    SpawnAgentResponseSchema
+  );
 
   safeHandle(IPC.SendPrompt, (_e, raw: unknown) => {
-    const req = parseIpc(IPC.SendPrompt, SendPromptRequestSchema, raw);
+    const req = parseIpcPayload(IPC.SendPrompt, SendPromptRequestSchema, raw);
     AgentManager.send(req.unitId, req.prompt);
   });
 
@@ -257,61 +256,105 @@ app.whenReady().then(async () => {
     AgentManager.kill(unitId);
   });
 
-  safeHandle(IPC.ListUnits, () =>
-    AgentManager.list().map((a) => ({
-      unitId: a.unitId,
-      sessionId: a.sessionId,
-      cwd: a.cwd,
-    }))
+  safeHandle(
+    IPC.ListUnits,
+    () =>
+      AgentManager.list().map((a) => ({
+        unitId: a.unitId,
+        sessionId: a.sessionId,
+        cwd: a.cwd,
+      })),
+    ListUnitsResponseSchema
   );
 
-  safeHandle(IPC.InstallHooks, () => {
-    installHooks();
-    return getStatus();
-  });
-  safeHandle(IPC.UninstallHooks, () => {
-    uninstallHooks();
-    return getStatus();
-  });
-  safeHandle(IPC.HooksStatus, () => getStatus());
+  safeHandle(
+    IPC.InstallHooks,
+    () => {
+      installHooks();
+      return getStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.UninstallHooks,
+    () => {
+      uninstallHooks();
+      return getStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(IPC.HooksStatus, () => getStatus(), HooksStatusSchema);
 
-  safeHandle(IPC.InstallCursorHooks, () => {
-    installCursorHooks();
-    return getCursorHooksStatus();
-  });
-  safeHandle(IPC.UninstallCursorHooks, () => {
-    uninstallCursorHooks();
-    return getCursorHooksStatus();
-  });
-  safeHandle(IPC.CursorHooksStatus, () => getCursorHooksStatus());
+  safeHandle(
+    IPC.InstallCursorHooks,
+    () => {
+      installCursorHooks();
+      return getCursorHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.UninstallCursorHooks,
+    () => {
+      uninstallCursorHooks();
+      return getCursorHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.CursorHooksStatus,
+    () => getCursorHooksStatus(),
+    HooksStatusSchema
+  );
 
-  safeHandle(IPC.InstallCodexHooks, () => {
-    installCodexHooks();
-    return getCodexHooksStatus();
-  });
-  safeHandle(IPC.UninstallCodexHooks, () => {
-    uninstallCodexHooks();
-    return getCodexHooksStatus();
-  });
-  safeHandle(IPC.CodexHooksStatus, () => getCodexHooksStatus());
+  safeHandle(
+    IPC.InstallCodexHooks,
+    () => {
+      installCodexHooks();
+      return getCodexHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.UninstallCodexHooks,
+    () => {
+      uninstallCodexHooks();
+      return getCodexHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.CodexHooksStatus,
+    () => getCodexHooksStatus(),
+    HooksStatusSchema
+  );
 
-  safeHandle(IPC.InstallGeminiHooks, () => {
-    installGeminiHooks();
-    return getGeminiHooksStatus();
-  });
-  safeHandle(IPC.UninstallGeminiHooks, () => {
-    uninstallGeminiHooks();
-    return getGeminiHooksStatus();
-  });
-  safeHandle(IPC.GeminiHooksStatus, () => getGeminiHooksStatus());
+  safeHandle(
+    IPC.InstallGeminiHooks,
+    () => {
+      installGeminiHooks();
+      return getGeminiHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.UninstallGeminiHooks,
+    () => {
+      uninstallGeminiHooks();
+      return getGeminiHooksStatus();
+    },
+    HooksStatusSchema
+  );
+  safeHandle(
+    IPC.GeminiHooksStatus,
+    () => getGeminiHooksStatus(),
+    HooksStatusSchema
+  );
 
   safeHandle(
     IPC.OpenPath,
-    async (
-      _e,
-      raw: unknown
-    ) => {
-      const req = parseIpc(IPC.OpenPath, OpenPathRequestSchema, raw);
+    async (_e, raw: unknown) => {
+      const req = parseIpcPayload(IPC.OpenPath, OpenPathRequestSchema, raw);
       // Always try Cursor first regardless of which wielder generated
       // the path. The user works in Cursor; code files belong there.
       // If Cursor's URL handler isn't registered (Cursor not installed
@@ -326,41 +369,67 @@ app.whenReady().then(async () => {
       } catch {
         return await shell.openPath(path);
       }
-    }
+    },
+    OpenPathResponseSchema
   );
 
   safeHandle(IPC.PlayFixture, (_e, raw: unknown) => {
-    const req = parseIpc(IPC.PlayFixture, PlayFixtureRequestSchema, raw);
+    const req = parseIpcPayload(IPC.PlayFixture, PlayFixtureRequestSchema, raw);
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
   });
 
-  safeHandle(IPC.ResolvePermission, (_e, raw: unknown) => {
-    const req = parseIpc(
-      IPC.ResolvePermission,
-      ResolvePermissionRequestSchema,
-      raw
-    );
-    return resolvePermissionRequest(req.requestId, req.decision, req.message);
-  });
+  safeHandle(
+    IPC.ResolvePermission,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ResolvePermission,
+        ResolvePermissionRequestSchema,
+        raw
+      );
+      return resolvePermissionRequest(
+        req.requestId,
+        req.decision,
+        req.message,
+        req.optionId
+      );
+    },
+    ResolvePermissionResponseSchema
+  );
 
-  safeHandle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
-  safeHandle(IPC.GetSettings, () => loadSettings());
-  safeHandle(IPC.SaveSettings, (_e, raw: unknown) => {
-    const next = parseIpc(IPC.SaveSettings, AppSettingsSchema, raw);
-    return saveSettings(next);
-  });
-  safeHandle(IPC.ValidateWorkspaceRoot, (_e, raw: unknown) => {
-    const path = parseIpc(IPC.ValidateWorkspaceRoot, WorkspaceRootPathSchema, raw);
-    return validateWorkspaceRoot(path);
-  });
+  safeHandle(
+    IPC.ListWorkspaceRepos,
+    () => listWorkspaceRepos(),
+    ListWorkspaceReposResponseSchema
+  );
+  safeHandle(IPC.GetSettings, () => loadSettings(), AppSettingsSchema);
+  safeHandle(
+    IPC.SaveSettings,
+    (_e, raw: unknown) => {
+      const next = parseIpcPayload(IPC.SaveSettings, AppSettingsSchema, raw);
+      return saveSettings(next);
+    },
+    AppSettingsSchema
+  );
+  safeHandle(
+    IPC.ValidateWorkspaceRoot,
+    (_e, raw: unknown) => {
+      const path = parseIpcPayload(
+        IPC.ValidateWorkspaceRoot,
+        WorkspaceRootPathSchema,
+        raw
+      );
+      return validateWorkspaceRoot(path);
+    },
+    WorkspaceRootValidationSchema
+  );
 
-  safeHandle(IPC.LoadPersisted, () => loadPersisted());
+  safeHandle(IPC.LoadPersisted, () => loadPersisted(), PersistedStateSchema);
   safeHandle(IPC.SavePersisted, (_e, raw: unknown) => {
-    const state = parseIpc(IPC.SavePersisted, PersistedStateSchema, raw);
+    const state = parseIpcPayload(IPC.SavePersisted, PersistedStateSchema, raw);
     setPersisted(state);
   });
-  safeHandle(IPC.ResetPersisted, () => resetPersisted());
+  safeHandle(IPC.ResetPersisted, () => resetPersisted(), PersistedStateSchema);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

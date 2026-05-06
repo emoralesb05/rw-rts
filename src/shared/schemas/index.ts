@@ -3,6 +3,7 @@ export * from "./events";
 export * from "./hooks";
 export * from "./ipc";
 export * from "./installers";
+export * from "./permissions";
 export * from "./persisted";
 export * from "./provider-streams";
 export * from "./renderer-storage";

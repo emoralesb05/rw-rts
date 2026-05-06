@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AgentToolSchema } from "./common";
+import { PermissionDecisionSchema } from "./permissions";
 import { PersistedStateSchema } from "./persisted";
 import { AppSettingsSchema } from "./settings";
 
@@ -34,12 +35,10 @@ export const SendPromptRequestSchema = z.object({
 });
 export type SendPromptRequest = z.infer<typeof SendPromptRequestSchema>;
 
-export const PermissionDecisionSchema = z.enum(["allow", "deny"]);
-export type PermissionDecision = z.infer<typeof PermissionDecisionSchema>;
-
 export const ResolvePermissionRequestSchema = z.object({
   requestId: z.string().min(1),
   decision: PermissionDecisionSchema,
+  optionId: z.string().optional(),
   message: z.string().optional(),
 });
 export type ResolvePermissionRequest = z.infer<

@@ -230,7 +230,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
         <input
           type="text"
           className="letter-deny-reason"
-          placeholder="deny reason (optional, shown to Claude)"
+          placeholder="deny reason (optional, shown to the agent)"
           value={denyReason}
           onChange={(e) => setDenyReason(e.target.value)}
           onClick={(e) => e.stopPropagation()}

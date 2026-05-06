@@ -13,36 +13,39 @@ import type {
 import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { MutedSessionIdsSchema } from "@shared/schemas";
 import { play } from "./audio/sounds";
+import { mpCostForToolResult, mpCostForToolUse } from "./store-domain/combat";
 import {
   argKeyForToolInput,
-  bindStandingOrdersForUnit,
   classifyPermissionRisk,
-  computeAlertLevel,
-  createStandingOrder,
   dismissInformationalLetters,
   extractRecentReasoning,
-  haltStandingOrderById,
-  hydrateStandingOrders,
   isPermissionLetter,
   isObservationOnlyPermission,
-  mpCostForToolResult,
-  mpCostForToolUse,
-  ordersToPersisted,
+  permissionActionsForEvent,
   permissionResolutionForAction,
-  recordStandingOrderTickById,
   summarizePermissionInput,
+} from "./store-domain/permissions";
+import {
+  bindStandingOrdersForUnit,
+  createStandingOrder,
+  haltStandingOrderById,
+  hydrateStandingOrders,
+  ordersToPersisted,
+  recordStandingOrderTickById,
+  type StandingOrder,
+} from "./store-domain/standing-orders";
+import {
+  computeAlertLevel,
   worldIdForEvent,
   worldLabelForEvent,
   worldPathForEvent,
-  type StandingOrder,
-} from "./store-domain";
+} from "./store-domain/worlds";
 import {
   unitIdentityFor,
   unitIdentityForUnit,
 } from "./unit-identity";
 
 export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
-export type { StandingOrder } from "./store-domain";
 
 export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
 
@@ -804,10 +807,9 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       ? `${toolName}: ${inputSummary}`
       : `Wielder is requesting permission to use ${toolName}.`;
     const actions: Letter["actions"] = observeOnlyProvider
-      ? [{ label: "ack", action: { kind: "permission-observe", requestId: reqId } }]
+      ? permissionActionsForEvent(event)
       : [
-          { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
-          { label: "✗ deny", action: { kind: "permission-deny", requestId: reqId } },
+          ...permissionActionsForEvent(event),
           { label: "dismiss", action: { kind: "dismiss" } },
         ];
     nextLetters = pushLetter(

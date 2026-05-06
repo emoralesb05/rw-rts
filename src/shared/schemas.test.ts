@@ -13,6 +13,7 @@ import {
   MutedSessionIdsSchema,
   NotificationSettingsSchema,
   OpenPathResponseSchema,
+  PermissionOptionSchema,
   PersistedStateSchema,
   ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
@@ -54,6 +55,26 @@ describe("runtime schemas", () => {
         decision: "allow",
       })
     ).toThrow();
+  });
+
+  it("accepts provider permission options and selected option ids", () => {
+    expect(
+      PermissionOptionSchema.parse({
+        id: "allow-once",
+        label: "allow",
+        decision: "allow",
+        variant: "primary",
+      })
+    ).toMatchObject({ decision: "allow" });
+
+    expect(
+      ResolvePermissionRequestSchema.parse({
+        requestId: "req-1",
+        decision: "deny",
+        optionId: "deny",
+        message: "not safe",
+      })
+    ).toMatchObject({ optionId: "deny" });
   });
 
   it("rejects corrupt persisted state counters", () => {

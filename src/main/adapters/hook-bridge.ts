@@ -8,7 +8,9 @@ import {
   HookPayloadSchema,
   type HookPayload,
   type PermissionDecision,
+  type PermissionOption,
 } from "@shared/schemas";
+import { permissionOptionsForPayload } from "@shared/provider-permissions";
 import { createHookDedupe } from "./hook-dedupe";
 import { normalizeHookPayload } from "./hook-normalizer";
 
@@ -36,6 +38,7 @@ type Pending = {
   sessionId: string;
   cwd: string;
   tool: AgentTool;
+  options: PermissionOption[];
 };
 const pending = new Map<string, Pending>();
 const hookDedupe = createHookDedupe();
@@ -157,6 +160,7 @@ export function startHookBridge() {
           sessionId: ev.sessionId,
           cwd: ev.cwd,
           tool: ev.tool,
+          options: permissionOptionsForPayload(ev.tool, ev.payload),
         });
       } else {
         socket.destroy();
@@ -235,13 +239,21 @@ export function stopHookBridge() {
 export function resolvePermissionRequest(
   requestId: string,
   decision: PermissionDecision,
-  message?: string
+  message?: string,
+  optionId?: string
 ): boolean {
   const p = pending.get(requestId);
   if (!p) {
     // eslint-disable-next-line no-console
     console.log(
       `[keykeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
+    );
+    return false;
+  }
+  if (!isAllowedPendingDecision(p.options, decision, optionId)) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[keykeeper/bridge] resolve ${requestId} = ${decision} option=${optionId ?? "(none)"} — UNSUPPORTED OPTION`
     );
     return false;
   }
@@ -253,6 +265,7 @@ export function resolvePermissionRequest(
     // user_message/agent_message instead.
     const reply = JSON.stringify({
       permissionDecision: decision,
+      optionId,
       denyMessage: decision === "deny" ? (message ?? undefined) : undefined,
     });
     // eslint-disable-next-line no-console
@@ -265,6 +278,18 @@ export function resolvePermissionRequest(
     console.log(`[keykeeper/bridge] resolve ${requestId} write FAILED:`, e);
   }
   return true;
+}
+
+function isAllowedPendingDecision(
+  options: readonly PermissionOption[],
+  decision: PermissionDecision,
+  optionId?: string
+): boolean {
+  if (optionId) {
+    const option = options.find((candidate) => candidate.id === optionId);
+    if (option) return option.decision === decision;
+  }
+  return options.some((option) => option.decision === decision);
 }
 
 /**

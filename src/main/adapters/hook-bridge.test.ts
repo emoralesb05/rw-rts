@@ -43,6 +43,35 @@ describe("hook bridge normalization", () => {
         name: "Bash",
         input: { command: "npm test" },
         requestId: "req-1",
+        permissionMode: "actionable",
+        permissionOptions: [
+          expect.objectContaining({ id: "allow-once", decision: "allow" }),
+          expect.objectContaining({ id: "deny", decision: "deny" }),
+        ],
+      },
+    });
+  });
+
+  it("normalizes Cursor shell confirmations as native-ui permission options", () => {
+    const event = normalizeHookPayload({
+      hook_event_name: "beforeShellExecution",
+      conversation_id: "chat-1",
+      cwd: "/repo",
+      command: "npm test",
+      __kh_permission_request_id: "req-cursor",
+    });
+
+    expect(event).toMatchObject({
+      sessionId: "cursor-chat-1",
+      tool: "cursor",
+      kind: "permission_request",
+      payload: {
+        name: "Bash",
+        requestId: "req-cursor",
+        permissionMode: "observe",
+        permissionOptions: [
+          expect.objectContaining({ id: "ack-native", decision: "observe" }),
+        ],
       },
     });
   });
