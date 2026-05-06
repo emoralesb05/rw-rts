@@ -1,25 +1,74 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
+import type { z } from "zod";
+import { IPC } from "../shared/ipc";
 import {
-  IPC,
+  AgentEventSchema,
+  AppSettingsSchema,
+  HooksStatusSchema,
+  ListUnitsResponseSchema,
+  ListWorkspaceReposResponseSchema,
+  OpenPathResponseSchema,
+  PersistedStateSchema,
+  ResolvePermissionResponseSchema,
+  SpawnAgentResponseSchema,
+  WorkspaceRootValidationSchema,
+  type AppSettings,
   type SpawnAgentRequest,
   type SendPromptRequest,
-  type HooksStatus,
   type PlayFixtureRequest,
   type ResolvePermissionRequest,
-  type WorkspaceRepoEntry,
-  type AppSettings,
-  type WorkspaceRootValidation,
-} from "../shared/ipc";
+} from "../shared/schemas";
 import type { AgentEvent, PersistedState } from "../shared/events";
+
+function formatSchemaIssues(error: z.ZodError) {
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join(".") : "<root>";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ");
+}
+
+function parseIpcResponse<T>(
+  channel: string,
+  schema: z.ZodType<T>,
+  value: unknown
+): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(
+      `[keykeeper] invalid ${channel} response: ${formatSchemaIssues(parsed.error)}`
+    );
+  }
+  return parsed.data;
+}
+
+async function invokeParsed<T>(
+  channel: string,
+  schema: z.ZodType<T>,
+  ...args: unknown[]
+): Promise<T> {
+  const value = await ipcRenderer.invoke(channel, ...args);
+  return parseIpcResponse(channel, schema, value);
+}
 
 const api = {
   onEvent(listener: (event: AgentEvent) => void) {
-    const wrapped = (_e: IpcRendererEvent, ev: AgentEvent) => listener(ev);
+    const wrapped = (_e: IpcRendererEvent, ev: unknown) => {
+      const parsed = AgentEventSchema.safeParse(ev);
+      if (parsed.success) {
+        listener(parsed.data);
+        return;
+      }
+      console.warn(
+        `[keykeeper] dropped invalid ${IPC.EventStream} payload: ${formatSchemaIssues(parsed.error)}`
+      );
+    };
     ipcRenderer.on(IPC.EventStream, wrapped);
     return () => ipcRenderer.off(IPC.EventStream, wrapped);
   },
   spawnAgent(req: SpawnAgentRequest) {
-    return ipcRenderer.invoke(IPC.SpawnAgent, req) as Promise<{ unitId: string; sessionId: string }>;
+    return invokeParsed(IPC.SpawnAgent, SpawnAgentResponseSchema, req);
   },
   sendPrompt(req: SendPromptRequest) {
     return ipcRenderer.invoke(IPC.SendPrompt, req) as Promise<void>;
@@ -28,78 +77,87 @@ const api = {
     return ipcRenderer.invoke(IPC.KillAgent, unitId) as Promise<void>;
   },
   listUnits() {
-    return ipcRenderer.invoke(IPC.ListUnits) as Promise<
-      { unitId: string; sessionId: string; cwd: string }[]
-    >;
+    return invokeParsed(IPC.ListUnits, ListUnitsResponseSchema);
   },
   installHooks() {
-    return ipcRenderer.invoke(IPC.InstallHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.InstallHooks, HooksStatusSchema);
   },
   uninstallHooks() {
-    return ipcRenderer.invoke(IPC.UninstallHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.UninstallHooks, HooksStatusSchema);
   },
   hooksStatus() {
-    return ipcRenderer.invoke(IPC.HooksStatus) as Promise<HooksStatus>;
+    return invokeParsed(IPC.HooksStatus, HooksStatusSchema);
   },
   installCursorHooks() {
-    return ipcRenderer.invoke(IPC.InstallCursorHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.InstallCursorHooks, HooksStatusSchema);
   },
   uninstallCursorHooks() {
-    return ipcRenderer.invoke(IPC.UninstallCursorHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.UninstallCursorHooks, HooksStatusSchema);
   },
   cursorHooksStatus() {
-    return ipcRenderer.invoke(IPC.CursorHooksStatus) as Promise<HooksStatus>;
+    return invokeParsed(IPC.CursorHooksStatus, HooksStatusSchema);
   },
   installCodexHooks() {
-    return ipcRenderer.invoke(IPC.InstallCodexHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.InstallCodexHooks, HooksStatusSchema);
   },
   uninstallCodexHooks() {
-    return ipcRenderer.invoke(IPC.UninstallCodexHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.UninstallCodexHooks, HooksStatusSchema);
   },
   codexHooksStatus() {
-    return ipcRenderer.invoke(IPC.CodexHooksStatus) as Promise<HooksStatus>;
+    return invokeParsed(IPC.CodexHooksStatus, HooksStatusSchema);
   },
   installGeminiHooks() {
-    return ipcRenderer.invoke(IPC.InstallGeminiHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.InstallGeminiHooks, HooksStatusSchema);
   },
   uninstallGeminiHooks() {
-    return ipcRenderer.invoke(IPC.UninstallGeminiHooks) as Promise<HooksStatus>;
+    return invokeParsed(IPC.UninstallGeminiHooks, HooksStatusSchema);
   },
   geminiHooksStatus() {
-    return ipcRenderer.invoke(IPC.GeminiHooksStatus) as Promise<HooksStatus>;
+    return invokeParsed(IPC.GeminiHooksStatus, HooksStatusSchema);
   },
   playFixture(req: PlayFixtureRequest) {
     return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
   },
-  openPath(path: string, opts?: { tool?: "claude" | "cursor" | "codex" | "gemini" }) {
-    return ipcRenderer.invoke(IPC.OpenPath, {
+  openPath(
+    path: string,
+    opts?: { tool?: "claude" | "cursor" | "codex" | "gemini" }
+  ) {
+    return invokeParsed(IPC.OpenPath, OpenPathResponseSchema, {
       path,
       tool: opts?.tool,
-    }) as Promise<string>;
+    });
   },
   loadPersisted() {
-    return ipcRenderer.invoke(IPC.LoadPersisted) as Promise<PersistedState>;
+    return invokeParsed(IPC.LoadPersisted, PersistedStateSchema);
   },
   savePersisted(state: PersistedState) {
     return ipcRenderer.invoke(IPC.SavePersisted, state) as Promise<void>;
   },
   resetPersisted() {
-    return ipcRenderer.invoke(IPC.ResetPersisted) as Promise<PersistedState>;
+    return invokeParsed(IPC.ResetPersisted, PersistedStateSchema);
   },
   resolvePermission(req: ResolvePermissionRequest) {
-    return ipcRenderer.invoke(IPC.ResolvePermission, req) as Promise<boolean>;
+    return invokeParsed(
+      IPC.ResolvePermission,
+      ResolvePermissionResponseSchema,
+      req
+    );
   },
   listWorkspaceRepos() {
-    return ipcRenderer.invoke(IPC.ListWorkspaceRepos) as Promise<WorkspaceRepoEntry[]>;
+    return invokeParsed(IPC.ListWorkspaceRepos, ListWorkspaceReposResponseSchema);
   },
   getSettings() {
-    return ipcRenderer.invoke(IPC.GetSettings) as Promise<AppSettings>;
+    return invokeParsed(IPC.GetSettings, AppSettingsSchema);
   },
   saveSettings(next: AppSettings) {
-    return ipcRenderer.invoke(IPC.SaveSettings, next) as Promise<AppSettings>;
+    return invokeParsed(IPC.SaveSettings, AppSettingsSchema, next);
   },
   validateWorkspaceRoot(p: string) {
-    return ipcRenderer.invoke(IPC.ValidateWorkspaceRoot, p) as Promise<WorkspaceRootValidation>;
+    return invokeParsed(
+      IPC.ValidateWorkspaceRoot,
+      WorkspaceRootValidationSchema,
+      p
+    );
   },
 };
 

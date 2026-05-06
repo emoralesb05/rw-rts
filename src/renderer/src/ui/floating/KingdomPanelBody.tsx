@@ -13,7 +13,7 @@ import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { usePanels } from "./panel-store";
 import { SettingsPanelBody } from "./SettingsPanelBody";
-import type { HooksStatus } from "@shared/ipc";
+import type { HooksStatus } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
 

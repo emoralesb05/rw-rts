@@ -1,23 +1,25 @@
 import type {
   SpawnAgentRequest,
+  SpawnAgentResponse,
   SendPromptRequest,
   HooksStatus,
+  ListUnitEntry,
   PlayFixtureRequest,
   ResolvePermissionRequest,
   WorkspaceRepoEntry,
   AppSettings,
   WorkspaceRootValidation,
-} from "@shared/ipc";
+} from "@shared/schemas";
 import type { AgentEvent, PersistedState } from "@shared/events";
 
 declare global {
   interface Window {
     kh: {
       onEvent(listener: (event: AgentEvent) => void): () => void;
-      spawnAgent(req: SpawnAgentRequest): Promise<{ unitId: string; sessionId: string }>;
+      spawnAgent(req: SpawnAgentRequest): Promise<SpawnAgentResponse>;
       sendPrompt(req: SendPromptRequest): Promise<void>;
       killAgent(unitId: string): Promise<void>;
-      listUnits(): Promise<{ unitId: string; sessionId: string; cwd: string }[]>;
+      listUnits(): Promise<ListUnitEntry[]>;
       installHooks(): Promise<HooksStatus>;
       uninstallHooks(): Promise<HooksStatus>;
       hooksStatus(): Promise<HooksStatus>;

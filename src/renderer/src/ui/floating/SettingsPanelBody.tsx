@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePanels } from "./panel-store";
-import type { AppSettings, WorkspaceRootValidation } from "@shared/ipc";
+import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 
 const VALIDATION_REASON: Record<NonNullable<WorkspaceRootValidation["reason"]>, string> = {
   empty: "type a path",

@@ -4,8 +4,11 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { bus } from "../event-bus";
 import type { AgentTool } from "@shared/events";
-import type { PermissionDecision } from "@shared/ipc";
-import { HookPayloadSchema, type HookPayload } from "@shared/schemas";
+import {
+  HookPayloadSchema,
+  type HookPayload,
+  type PermissionDecision,
+} from "@shared/schemas";
 import { createHookDedupe } from "./hook-dedupe";
 import { normalizeHookPayload } from "./hook-normalizer";
 

@@ -12,6 +12,22 @@ export const SpawnAgentRequestSchema = z.object({
 });
 export type SpawnAgentRequest = z.infer<typeof SpawnAgentRequestSchema>;
 
+export const SpawnAgentResponseSchema = z.object({
+  unitId: z.string().min(1),
+  sessionId: z.string().min(1),
+});
+export type SpawnAgentResponse = z.infer<typeof SpawnAgentResponseSchema>;
+
+export const ListUnitEntrySchema = z.object({
+  unitId: z.string().min(1),
+  sessionId: z.string().min(1),
+  cwd: z.string(),
+});
+export type ListUnitEntry = z.infer<typeof ListUnitEntrySchema>;
+
+export const ListUnitsResponseSchema = z.array(ListUnitEntrySchema);
+export type ListUnitsResponse = z.infer<typeof ListUnitsResponseSchema>;
+
 export const SendPromptRequestSchema = z.object({
   unitId: z.string().min(1),
   prompt: z.string(),
@@ -59,7 +75,48 @@ export const OpenPathRequestSchema = z.object({
 });
 export type OpenPathRequest = z.infer<typeof OpenPathRequestSchema>;
 
+export const OpenPathResponseSchema = z.string();
+export type OpenPathResponse = z.infer<typeof OpenPathResponseSchema>;
+
 export const WorkspaceRootPathSchema = z.string();
 export type WorkspaceRootPath = z.infer<typeof WorkspaceRootPathSchema>;
+
+export const WorkspaceRepoEntrySchema = z.object({
+  path: z.string(),
+  label: z.string(),
+});
+export type WorkspaceRepoEntry = z.infer<typeof WorkspaceRepoEntrySchema>;
+
+export const ListWorkspaceReposResponseSchema = z.array(
+  WorkspaceRepoEntrySchema
+);
+export type ListWorkspaceReposResponse = z.infer<
+  typeof ListWorkspaceReposResponseSchema
+>;
+
+export const WorkspaceRootValidationSchema = z.object({
+  valid: z.boolean(),
+  expanded: z.string(),
+  reason: z
+    .enum(["empty", "not-found", "not-a-directory", "stat-failed"])
+    .optional(),
+});
+export type WorkspaceRootValidation = z.infer<
+  typeof WorkspaceRootValidationSchema
+>;
+
+export const HooksStatusSchema = z.object({
+  installed: z.boolean(),
+  socketPath: z.string(),
+  hookScriptPath: z.string(),
+  hooksConfigPath: z.string().optional(),
+  policyConfigPath: z.string().optional(),
+});
+export type HooksStatus = z.infer<typeof HooksStatusSchema>;
+
+export const ResolvePermissionResponseSchema = z.boolean();
+export type ResolvePermissionResponse = z.infer<
+  typeof ResolvePermissionResponseSchema
+>;
 
 export { AppSettingsSchema, PersistedStateSchema };

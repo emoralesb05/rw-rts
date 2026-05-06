@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
-import type { WorkspaceRepoEntry } from "@shared/ipc";
+import type { WorkspaceRepoEntry } from "@shared/schemas";
 
 type Tool = "claude" | "cursor" | "codex" | "gemini";
 const TOOLS: Tool[] = ["claude", "cursor", "codex", "gemini"];

@@ -5,7 +5,6 @@ import type {
   UnitRole,
   WorldState,
   Heartless,
-  WorldAlertLevel,
   DriveForm,
   PersistedState,
   Letter,
@@ -15,14 +14,26 @@ import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { MutedSessionIdsSchema } from "@shared/schemas";
 import { play } from "./audio/sounds";
 import {
+  argKeyForToolInput,
+  bindStandingOrdersForUnit,
+  classifyPermissionRisk,
+  computeAlertLevel,
   createStandingOrder,
   dismissInformationalLetters,
+  extractRecentReasoning,
   haltStandingOrderById,
   hydrateStandingOrders,
   isPermissionLetter,
+  isObservationOnlyPermission,
+  mpCostForToolResult,
+  mpCostForToolUse,
   ordersToPersisted,
   permissionResolutionForAction,
   recordStandingOrderTickById,
+  summarizePermissionInput,
+  worldIdForEvent,
+  worldLabelForEvent,
+  worldPathForEvent,
   type StandingOrder,
 } from "./store-domain";
 import {
@@ -111,24 +122,6 @@ const MAX_EVENTS = 500;
 const HEARTLESS_TTL_MS = 30_000;
 const HEARTLESS_LIMIT = 12;
 const MUNNY_PER_KILL = 5;
-
-// World id derives from the repo root the main bus stamped on the event;
-// fall back to cwd for events that pre-date the stamp (older sessions
-// loaded from log replay, etc.).
-function worldIdFor(event: AgentEvent): string {
-  const base = event.repoRoot ?? event.cwd;
-  return base.replace(/[^a-zA-Z0-9]+/g, "_") || "root";
-}
-
-function worldLabelFor(event: AgentEvent): string {
-  const base = event.repoRoot ?? event.cwd;
-  const parts = base.split("/").filter(Boolean);
-  return parts[parts.length - 1] || base;
-}
-
-function worldPathFor(event: AgentEvent): string {
-  return event.repoRoot ?? event.cwd;
-}
 
 function newHeartlessId(worldId: string): string {
   return `h-${worldId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -223,30 +216,6 @@ function killOldestHeartless(list: Heartless[]): Heartless[] {
   return list.slice(1);
 }
 
-function computeAlertLevel(
-  world: WorldState,
-  units: Record<string, UnitState>
-): WorldAlertLevel {
-  const live = world.unitIds
-    .map((id) => units[id])
-    .filter((u): u is UnitState => !!u && u.status !== "fallen");
-  const everyDone =
-    world.unitIds.length > 0 &&
-    world.unitIds.every((id) => {
-      const u = units[id];
-      return u && (u.status === "complete" || u.status === "fallen");
-    });
-  const heartlessCount = world.heartless.length;
-  if (everyDone && heartlessCount === 0) return "cleared";
-  if (live.length === 0) return "idle";
-  const minHp = Math.min(...live.map((u) => u.hp));
-  if (heartlessCount > 5 || minHp < 30) return "danger";
-  if (heartlessCount > 0 || minHp < 70) return "warning";
-  if (live.some((u) => u.status === "working" || u.status === "casting"))
-    return "active";
-  return "idle";
-}
-
 // Letters cap — keeps the throne feed bounded.
 const MAX_LETTERS = 50;
 const HP_CRITICAL_THRESHOLD = 25;
@@ -273,145 +242,6 @@ const _stuckLetterAt = new Map<string, number>();
 const STUCK_WINDOW_MS = 60_000;
 const STUCK_THRESHOLD = 3;
 const STUCK_LETTER_COOLDOWN_MS = 90_000;
-
-/**
- * Stable key for a tool_use input — folds payloads into a comparable
- * string so the same Edit on the same file (regardless of edit details)
- * counts as a repeat. Returns "*" for unknown shapes.
- */
-/**
- * MP cost per tool_use (Phase 2A real-token MP, light version). Weighted
- * by tool type — Read/Glob/Grep are cheap (observation); Bash/Edit/
- * MultiEdit are heavier (mutation); Task is the costliest (spawns a
- * subagent). Falls back to 4 for unknown tools (matches the pre-Phase-2A
- * fixed cost).
- */
-const TOOL_MP_BASE: Record<string, number> = {
-  Read: 2, Glob: 2, Grep: 2, TodoWrite: 1,
-  Bash: 6, BashOutput: 4,
-  Edit: 5, MultiEdit: 7, Write: 5, NotebookEdit: 5,
-  Task: 12, Agent: 12,
-  WebFetch: 6, WebSearch: 6,
-};
-function mpCostForToolUse(toolName: string): number {
-  return TOOL_MP_BASE[toolName] ?? 4;
-}
-
-/**
- * Extra MP drain on tool_result, proportional to output size. Heavy
- * file reads + verbose Bash output cost more than empty acks. Capped
- * so a single 1MB log doesn't zero MP.
- */
-function mpCostForToolResult(output: unknown): number {
-  let len = 0;
-  if (typeof output === "string") len = output.length;
-  else if (output && typeof output === "object") {
-    const r = output as Record<string, unknown>;
-    if (typeof r.stdout === "string") len = r.stdout.length;
-    else if (typeof r.text === "string") len = r.text.length;
-    else if (typeof r.content === "string") len = r.content.length;
-  }
-  if (len < 1000) return 0;
-  return Math.min(8, Math.floor(len / 5000));
-}
-
-/**
- * Short human description of a permission_request's tool input, for the
- * Critical letter body. Mirrors argKeyFor's coverage but renders for
- * humans rather than as a comparable string.
- */
-function summarizePermissionInput(input: unknown): string {
-  if (!input || typeof input !== "object") return "";
-  const r = input as Record<string, unknown>;
-  if (typeof r.command === "string") return r.command.slice(0, 200);
-  if (typeof r.file_path === "string") return r.file_path;
-  if (typeof r.path === "string") return r.path;
-  if (typeof r.url === "string") return r.url.slice(0, 200);
-  if (typeof r.pattern === "string") return r.pattern;
-  return "";
-}
-
-function isObservationOnlyPermission(event: AgentEvent): boolean {
-  if (event.tool === "cursor") return true;
-  return false;
-}
-
-/**
- * Phase 2B #13c — risk-level classification for permission letters.
- * Quick heuristic on tool + input shape. Three buckets (LOW / ELEVATED
- * / HIGH) so the King has a glance-able cue beyond the Critical
- * severity color.
- *
- * - HIGH: destructive shell, sudo/chmod/chown, writes to system paths
- *   or ~/.ssh / ~/.aws / etc.
- * - ELEVATED: any Bash command, Write/Edit anywhere outside the cwd
- * - LOW: Read, Glob, Grep, WebFetch — observation rather than mutation
- */
-function classifyRisk(toolName: string, input: unknown): import("@shared/events").LetterRisk {
-  const tool = toolName.toLowerCase();
-  const r = (input as Record<string, unknown>) || {};
-  if (tool === "read" || tool === "glob" || tool === "grep" || tool === "webfetch" || tool === "websearch") {
-    return "low";
-  }
-  if (tool === "bash") {
-    const cmd = String(r.command ?? "").toLowerCase();
-    if (
-      /\bsudo\b/.test(cmd) ||
-      /\bchmod\b.+(?:777|-r)/.test(cmd) ||
-      /\bchown\b/.test(cmd) ||
-      /\brm\b.+\b-(?:rf|fr|Rf)\b/.test(cmd) ||
-      /\bdd\b\s+if=/.test(cmd) ||
-      /\bmkfs\b/.test(cmd) ||
-      /\bgit\s+push\s+(?:--force|-f)\b/.test(cmd) ||
-      /\bgit\s+reset\s+--hard\b/.test(cmd)
-    ) {
-      return "high";
-    }
-    return "elevated";
-  }
-  if (tool === "write" || tool === "edit" || tool === "multiedit") {
-    const path = String(r.file_path ?? r.path ?? "");
-    if (
-      path.startsWith("/etc/") ||
-      path.startsWith("/usr/") ||
-      path.startsWith("/System/") ||
-      path.startsWith("/var/") ||
-      /\.(ssh|aws|gnupg)\//.test(path) ||
-      /\.(bash_profile|zshrc|zprofile|netrc)$/.test(path)
-    ) {
-      return "high";
-    }
-    return "elevated";
-  }
-  return "elevated";
-}
-
-/**
- * Phase 2B #13c — extract the wielder's most recent assistant_text
- * before this event, as the "reasoning" context for a permission
- * letter. Walks the event log newest-first; bounded.
- */
-function extractRecentReasoning(events: AgentEvent[], sessionId: string): string {
-  for (const ev of events) {
-    if (ev.sessionId !== sessionId) continue;
-    if (ev.kind !== "assistant_text") continue;
-    const text = String(ev.payload.text ?? "").trim();
-    if (!text) continue;
-    return text.length > 480 ? text.slice(0, 480) + "…" : text;
-  }
-  return "";
-}
-
-function argKeyFor(input: unknown): string {
-  if (!input || typeof input !== "object") return "*";
-  const r = input as Record<string, unknown>;
-  if (typeof r.file_path === "string") return `file:${r.file_path}`;
-  if (typeof r.path === "string") return `file:${r.path}`;
-  if (typeof r.command === "string") return `cmd:${r.command.slice(0, 80)}`;
-  if (typeof r.pattern === "string") return `glob:${r.pattern}`;
-  if (typeof r.url === "string") return `url:${r.url.slice(0, 80)}`;
-  return "*";
-}
 
 /**
  * Walk the recent tool window for a session; if a (tool, argKey) pair
@@ -611,7 +441,7 @@ function chooseDriveForm(
 
 function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   const id = event.sessionId;
-  const worldId = worldIdFor(event);
+  const worldId = worldIdForEvent(event);
   const events = [event, ...state.events].slice(0, MAX_EVENTS);
   const eventCount = state.eventCount + 1;
   const existing = state.units[id];
@@ -750,7 +580,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       list.push({
         ts: now,
         toolName: String(event.payload.name ?? "?"),
-        argKey: argKeyFor(event.payload.input),
+        argKey: argKeyForToolInput(event.payload.input),
       });
       // Trim to window
       const trimmed = list.filter((e) => now - e.ts <= STUCK_WINDOW_MS);
@@ -855,8 +685,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
 
   const nextWorld: WorldState = {
     id: worldId,
-    path: worldPathFor(event),
-    label: worldLabelFor(event),
+    path: worldPathForEvent(event),
+    label: worldLabelForEvent(event),
     unitIds,
     heartless,
     munny,
@@ -955,7 +785,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const reqId = event.payload.requestId;
     const toolName = String(event.payload.name ?? "tool");
     const inputSummary = summarizePermissionInput(event.payload.input);
-    const risk = classifyRisk(toolName, event.payload.input);
+    const risk = classifyPermissionRisk(toolName, event.payload.input);
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
     // Cursor letters are observational. Gemini BeforeTool letters are
@@ -1089,13 +919,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   // Bind any unbound persisted Standing Orders to this wielder if its
   // identity matches. Lets a Standing Order survive an app restart and
   // resume the moment its target session reappears.
-  const identity = unitIdentityFor(event.tool, repoRootStable);
-  let nextOrders = state.standingOrders;
-  for (const o of Object.values(state.standingOrders)) {
-    if (!o.unitId && o.unitIdentity === identity && o.status === "active") {
-      nextOrders = { ...nextOrders, [o.id]: { ...o, unitId: id } };
-    }
-  }
+  const nextOrders = bindStandingOrdersForUnit(state.standingOrders, unit);
 
   return {
     events,

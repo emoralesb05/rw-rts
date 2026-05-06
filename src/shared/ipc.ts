@@ -1,13 +1,3 @@
-export type {
-  AppSettings,
-  FixtureScenario,
-  PermissionDecision,
-  PlayFixtureRequest,
-  ResolvePermissionRequest,
-  SendPromptRequest,
-  SpawnAgentRequest,
-} from "./schemas";
-
 export const IPC = {
   EventStream: "kh:event-stream",
   SpawnAgent: "kh:spawn-agent",
@@ -37,29 +27,3 @@ export const IPC = {
   SaveSettings: "kh:save-settings",
   ValidateWorkspaceRoot: "kh:validate-workspace-root",
 } as const;
-
-export type WorkspaceRepoEntry = {
-  path: string;
-  label: string;
-};
-
-export type WorkspaceRootValidation = {
-  valid: boolean;
-  expanded: string;
-  reason?: "empty" | "not-found" | "not-a-directory" | "stat-failed";
-};
-
-export type SpawnAgentResponse = {
-  unitId: string;
-  sessionId: string;
-};
-
-export type HooksStatus = {
-  installed: boolean;
-  socketPath: string;
-  hookScriptPath: string;
-  // Set on Cursor status — path to ~/.cursor/hooks.json so the UI can
-  // surface where the entry will be written. Omitted for Claude.
-  hooksConfigPath?: string;
-  policyConfigPath?: string;
-};

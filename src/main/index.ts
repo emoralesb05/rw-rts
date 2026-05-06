@@ -41,9 +41,7 @@ import {
 } from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
-import {
-  IPC,
-} from "@shared/ipc";
+import { IPC } from "@shared/ipc";
 import {
   AppSettingsSchema,
   OpenPathRequestSchema,

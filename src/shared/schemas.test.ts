@@ -6,12 +6,19 @@ import {
   CursorHooksFileSchema,
   GeminiInitMessageSchema,
   GeminiSettingsSchema,
+  HooksStatusSchema,
   HookPayloadSchema,
+  ListUnitsResponseSchema,
+  ListWorkspaceReposResponseSchema,
   MutedSessionIdsSchema,
   NotificationSettingsSchema,
+  OpenPathResponseSchema,
   PersistedStateSchema,
+  ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
   SpawnAgentRequestSchema,
+  SpawnAgentResponseSchema,
+  WorkspaceRootValidationSchema,
   parseProviderStreamMessage,
 } from "./schemas";
 
@@ -224,5 +231,73 @@ describe("runtime schemas", () => {
         quietEndHour: 8,
       })
     ).toThrow();
+  });
+
+  it("validates IPC response contracts exposed through preload", () => {
+    expect(
+      SpawnAgentResponseSchema.parse({
+        unitId: "unit-1",
+        sessionId: "session-1",
+      })
+    ).toMatchObject({ unitId: "unit-1" });
+
+    expect(
+      ListUnitsResponseSchema.parse([
+        { unitId: "unit-1", sessionId: "session-1", cwd: "/repo" },
+      ])
+    ).toHaveLength(1);
+
+    expect(
+      HooksStatusSchema.parse({
+        installed: true,
+        socketPath: "/tmp/keykeeper.sock",
+        hookScriptPath: "/repo/dist/keykeeper-hook",
+        hooksConfigPath: "/home/user/.cursor/hooks.json",
+      })
+    ).toMatchObject({ installed: true });
+
+    expect(OpenPathResponseSchema.parse("")).toBe("");
+    expect(ResolvePermissionResponseSchema.parse(true)).toBe(true);
+  });
+
+  it("rejects malformed IPC response payloads", () => {
+    expect(() =>
+      SpawnAgentResponseSchema.parse({
+        unitId: "",
+        sessionId: "session-1",
+      })
+    ).toThrow();
+
+    expect(() =>
+      HooksStatusSchema.parse({
+        installed: true,
+        socketPath: "/tmp/keykeeper.sock",
+      })
+    ).toThrow();
+
+    expect(() =>
+      WorkspaceRootValidationSchema.parse({
+        valid: false,
+        expanded: "/missing",
+        reason: "permission-denied",
+      })
+    ).toThrow();
+  });
+
+  it("validates workspace IPC response shapes", () => {
+    expect(
+      ListWorkspaceReposResponseSchema.parse([
+        { path: "/repo", label: "repo" },
+        { path: "/repo/packages/app", label: "app" },
+      ])
+    ).toHaveLength(2);
+
+    expect(
+      WorkspaceRootValidationSchema.parse({
+        valid: false,
+        expanded: "",
+        reason: "empty",
+      })
+    ).toMatchObject({ reason: "empty" });
   });
 });
