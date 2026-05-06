@@ -349,6 +349,17 @@ function summarizePermissionInput(input: unknown): string {
   return "";
 }
 
+function isObservationOnlyPermission(event: AgentEvent): boolean {
+  if (event.tool === "cursor") return true;
+  if (event.tool !== "gemini") return false;
+  const input = event.payload.input;
+  return (
+    !!input &&
+    typeof input === "object" &&
+    (input as Record<string, unknown>).keykeeperObservationOnly === true
+  );
+}
+
 /**
  * Phase 2B #13c — risk-level classification for permission letters.
  * Quick heuristic on tool + input shape. Three buckets (LOW / ELEVATED
@@ -563,7 +574,14 @@ let _flushScheduled = false;
 type PendingTask = { parentSessionId: string; cwd: string; time: number };
 const _pendingTasks: PendingTask[] = [];
 const PARENT_LINK_WINDOW_MS = 8000;
-const TASK_NAMES = new Set(["Task", "Agent", "task_v2", "task"]);
+const TASK_NAMES = new Set([
+  "Task",
+  "Agent",
+  "task_v2",
+  "task",
+  "invoke_agent",
+  "invoke_subagent",
+]);
 
 // Drive form streak tracking. Per-session counters that reset on error or
 // session_end. Kept off UnitState because they're transient simulation
@@ -727,7 +745,7 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   }
   // Record pending Task call so the next session_start in this cwd can link.
   if (
-    event.kind === "tool_use" &&
+    (event.kind === "tool_use" || event.kind === "permission_request") &&
     typeof event.payload.name === "string" &&
     TASK_NAMES.has(event.payload.name)
   ) {
@@ -965,8 +983,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   // Permission request (Phase 2B #18) — Critical letter, no rate-limit
   // since each request is a distinct decision. Includes the tool name +
   // a short description of the input as context (#13c permission-context
-  // sub-feature). User must respond within ~60s or Python silently
-  // exits (lets Claude's normal permission flow proceed).
+  // sub-feature). The hook socket waits until the user answers or the
+  // provider/app closes the request.
   if (event.kind === "permission_request" && event.payload.requestId) {
     const reqId = event.payload.requestId;
     const toolName = String(event.payload.name ?? "tool");
@@ -974,12 +992,11 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const risk = classifyRisk(toolName, event.payload.input);
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
-    // Cursor and Gemini permission letters are observational — the
-    // provider's native yes/no UI is the authoritative decision surface.
-    // Surface only an ack button so the alert is honest about what it
-    // can and can't do.
-    const observeOnlyProvider =
-      event.tool === "cursor" || event.tool === "gemini";
+    // Cursor letters and Gemini Notification/ToolPermission letters are
+    // observational. Gemini BeforeTool letters are actionable: deny blocks the
+    // tool before execution, while allow lets Gemini continue to its own policy
+    // checks.
+    const observeOnlyProvider = isObservationOnlyPermission(event);
     const providerLabel = event.tool === "gemini" ? "Gemini" : "Cursor";
     const title = observeOnlyProvider
       ? `${palette} asks to use ${toolName} (decide in ${providerLabel})`

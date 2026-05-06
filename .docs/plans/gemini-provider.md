@@ -38,12 +38,12 @@ Add Google's `gemini` CLI as the fourth observable provider alongside Claude, Cu
 
 ### Permission flow caveat
 
-Gemini does NOT have a clean `PermissionRequest` analog (the hook that fires only when permission is needed). Two technical paths, neither great:
+Gemini does NOT have a clean `PermissionRequest` analog (the hook that fires only when permission is needed). Two technical paths:
 
-- **Option A — `BeforeTool decision: "deny"`** — bidirectional, can block, but fires for EVERY tool call. Same noise problem we hit with Claude `PreToolUse` before switching to `PermissionRequest`. Over-aggressive.
+- **Option A — `BeforeTool decision: "deny"`** — bidirectional and can block before execution, but fires for EVERY tool call. Allow only continues past the hook; Gemini's policy engine may still show a native confirmation prompt afterward.
 - **Option B — `Notification ToolPermission`** — observational only, fires when Gemini's UI is about to prompt. We can't actually decide via hook.
 
-**Decision**: ship with **Option B (observational, Cursor-style)** — present a letter for awareness, user decides in Gemini's own UI. Reason: matches the Cursor model, no over-eager false-positive permission requests, simpler. Re-evaluate if Gemini ships a true PermissionRequest hook in a later version.
+**Decision**: ship with **Option A for Keykeeper deny/continue gating** plus **Option B as an ack-only native-prompt notice**. Reason: the user wants Gemini permissions surfaced in Keykeeper now, and `BeforeTool` is the only hook that can deny before execution. Caveat: this is noisier than Claude `PermissionRequest`, and Keykeeper "allow" is not guaranteed to suppress Gemini's own policy/native prompt.
 
 ### Session / resume model
 
@@ -55,14 +55,20 @@ Gemini does NOT have a clean `PermissionRequest` analog (the hook that fires onl
 
 ### Subagent
 
-Gemini does not appear to have a subagent concept (no `SubagentStop` analog). Need empirical verification — if Gemini supports tasks/agents, the lack of a hook for them is a gap.
+Gemini CLI 0.40.1 has subagents:
+
+- Built-ins include `codebase_investigator`, `cli_help`, and `generalist`; custom agents live in `.gemini/agents/*.md` or `~/.gemini/agents/*.md`.
+- The main agent invokes them through `invoke_agent` with `agent_name` and `prompt`.
+- There is no `SubagentStop` hook analog, but subagent transcript paths are shaped as `.../chats/<parentSessionId>/<childSessionId>.jsonl`. The bridge can infer parent/child links from `transcript_path`.
 
 ### Session storage
 
-Unverified. `~/.gemini/history/` only has `.project_root` markers per project, not transcripts. Sessions might live in:
-- `~/Library/Application Support/gemini-cli/` (macOS standard for Electron-style apps)
-- Inside the home dir under a different path
-- A SQLite db somewhere
+Partially verified through Gemini hook payloads and bundled code:
+
+- Hooks include `transcript_path`.
+- Top-level conversations are stored under the project temp `chats/` directory.
+- Subagent conversations are stored under `chats/<parentSessionId>/<childSessionId>.jsonl`.
+- `~/.gemini/history/` only has `.project_root` markers per project, not transcripts.
 
 For v1 we don't need to know — hooks cover everything we observe. Only matters if we ever want a transcript-watcher fallback like Claude/Codex have.
 
@@ -74,7 +80,7 @@ For v1 we don't need to know — hooks cover everything we observe. Only matters
 
 | File | Change |
 |---|---|
-| `bin/keykeeper-hook` | Edit. Handle Gemini's PascalCase events with `--tool gemini` flag (same disambiguation pattern as Codex). Permission flow: `Notification` event maps to fire-and-forget letter; `BeforeTool` is fire-and-forget too (since we go observational). |
+| `bin/keykeeper-hook` | **Done.** Handles Gemini's PascalCase events with `--tool gemini`. `BeforeTool` blocks for Keykeeper allow/deny; `Notification/ToolPermission` remains fire-and-forget ack-only. |
 | `src/main/gemini-hook-installer.ts` | **Done.** Installs hooks in `~/.gemini/settings.json` with `--tool gemini` marker. |
 | `src/main/adapters/hook-bridge.ts` | **Done.** Adds `normalizeGeminiPayload(p, eventName)` and Gemini tool-name canonicalization. |
 | `src/shared/ipc.ts` | **Done.** Adds `InstallGeminiHooks`, `UninstallGeminiHooks`, `GeminiHooksStatus`. |
@@ -94,6 +100,8 @@ Estimated size: ~300 LOC core (installer + bridge normalizer + IPC + tool union)
 
 **Phase 2 — Active spawn** (~½ day): `spawnGeminiAgent` + dispatch UI integration. User can now launch Gemini from keykeeper's Dispatch dialog. **Implemented.**
 
+**Phase 2B — Permissions + subagent modeling**: `BeforeTool` permission letters, `Notification/ToolPermission` ack-only letters, `invoke_agent` canonicalized as `Agent`, and subagent parent links inferred from Gemini transcript paths. **Implemented.**
+
 **Phase 3 — Resume integration** (covered by [`observed-resume.md`](./observed-resume.md)): once observed-resume ships for Claude/Codex/Cursor, add Gemini support — `gemini --resume <session_id> --prompt "<text>"` is the equivalent.
 
 ## Out of scope
@@ -101,22 +109,22 @@ Estimated size: ~300 LOC core (installer + bridge normalizer + IPC + tool union)
 - ACP mode (`--acp`) — JSON-RPC integration is heavier than hooks need, defer until hooks prove insufficient
 - Antigravity IDE sessions — different storage, no hook surface; flag as a known gap
 - True PermissionRequest-equivalent hook — needs Gemini upstream change; track as "would-be-nice" if Google ever adds it
-- Bidirectional `BeforeTool` denials — the noise problem outweighs the value
 
 ## Edge cases / gaps to flag in the provider doc
 
-- **No subagent hook** (need to verify if Gemini has subagents at all)
-- **Permission is observation-only** (Cursor-style)
+- **No subagent stop hook** — parent/child linking is inferred from transcript paths, not a dedicated lifecycle event.
+- **Permission is split** — `BeforeTool` is a Keykeeper deny/continue gate, while `Notification/ToolPermission` is observation-only.
 - **Resume help text is incomplete** — help advertises indexes/latest, but full UUIDs work in 0.40.1.
 - **Trusted-folder gate** — fresh headless smoke requires `--skip-trust` or an interactively trusted repo before Gemini reaches hooks.
 - **Antigravity sessions are out of scope** for the CLI hook surface
-- **Session storage on disk is undocumented** — no transcript-watcher fallback if Gemini ever changes the hook contract
+- **Transcript fallback is not implemented** — not needed while hooks provide `AfterAgent.prompt_response`, but useful if hooks are disabled or an already-running session missed our hook config.
 
 ## Testing
 
 - **Manual smoke**: install hooks via Settings → Connection toggle, run `gemini` in a terminal, confirm events flow into keykeeper (session_start, user_prompt, tool_use, tool_result, assistant_text, session_end)
 - **External CLI regression**: run the hook script with only `GEMINI_SESSION_ID`/`GEMINI_CWD` env vars and no `session_id` in stdin; confirm the bridge still creates a Gemini wielder.
-- **Permission**: trigger a tool that Gemini would prompt for (e.g., a write to a sensitive path), confirm a `Notification` event surfaces a letter in AlertsHUD
+- **Permission**: trigger a `BeforeTool` hook, confirm Keykeeper allow returns `{"decision":"allow"}` and deny returns `{"decision":"deny","reason":"..."}`. Also trigger native `ToolPermission` notification and confirm it renders ack-only.
+- **Subagent modeling**: prompt Gemini to invoke `@codebase_investigator` or `invoke_agent`, confirm `Agent` appears in the stream and child session hooks link back via `transcript_path`.
 - **Cross-tool dispatcher**: confirm Gemini events don't get misrouted to Claude or Codex (PascalCase collision is the risk — `__kh_tool` marker handles it)
 - **Spawn (Phase 2)**: trigger a Gemini wielder via Dispatch dialog, confirm `--output-format stream-json` events parse into the bus
 

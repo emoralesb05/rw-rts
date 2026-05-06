@@ -35,7 +35,7 @@ The bridge dispatches by case of the first letter:
 | User prompt | `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` | `BeforeAgent` |
 | Tool about to run | `PreToolUse` | `PreToolUse` | `preToolUse` | `BeforeTool` |
 | Tool finished | `PostToolUse` | `PostToolUse` | `postToolUse` | `AfterTool` |
-| Permission gate | `PermissionRequest` (bi) | `PermissionRequest` (bi) | `beforeShellExecution` (advisory) | `Notification/ToolPermission` (advisory) |
+| Permission gate | `PermissionRequest` (bi) | `PermissionRequest` (bi) | `beforeShellExecution` (advisory) | `BeforeTool` (bi deny gate) + `Notification/ToolPermission` (advisory) |
 | Per-turn done | `Stop` | `Stop` | `stop` | `AfterAgent` |
 | Subagent done | `SubagentStop` | — | — | — |
 | Assistant text | ❌ — needs transcript watcher | ❌ — needs transcript watcher | `afterAgentResponse` ✅ | `AfterAgent.prompt_response` ✅ |
@@ -52,8 +52,9 @@ The bridge dispatches by case of the first letter:
 **Cursor** (`beforeShellExecution`):
 - Observation-only by design. Cursor's `allowlist` approvalMode treats hook `permission: "allow"` as advisory; the user must confirm in Cursor's UI anyway. So `keykeeper-hook` returns `{permission: "ask"}` immediately and forwards visibility to keykeeper as a fire-and-forget event.
 
-**Gemini** (`Notification` / `ToolPermission`):
-- Observation-only by design. Gemini's Notification hook cannot approve or deny; keykeeper renders an ack-only letter and returns `{}` to Gemini immediately.
+**Gemini** (`BeforeTool` + `Notification` / `ToolPermission`):
+- `BeforeTool` is bidirectional and Keykeeper blocks on it. Deny prevents the tool from executing. Allow lets the hook continue, but Gemini may still apply its own policy/native confirmation afterward.
+- `Notification/ToolPermission` is observation-only by design. Gemini's Notification hook cannot approve or deny; keykeeper renders an ack-only letter and returns `{}` to Gemini immediately.
 
 ## The multiplexer (`bin/keykeeper-hook`)
 

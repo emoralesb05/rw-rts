@@ -5,10 +5,11 @@ keykeeper GUI socket.
 Most events are fire-and-forget — payload goes to ~/.claude/keykeeper.sock,
 script half-closes, exits. Silent if the GUI isn't listening.
 
-Claude `PermissionRequest` (bidirectional):
+Claude `PermissionRequest` and Gemini `BeforeTool` (bidirectional):
   Tagged with a request_id; script blocks waiting for the GUI to reply
-  allow/deny, then writes Claude's hookSpecificOutput shape to stdout.
-  Claude shows its terminal prompt concurrently — first to commit wins.
+  allow/deny, then writes the provider-specific stdout shape.
+  Gemini's allow response only lets the hook continue; Gemini's policy engine
+  may still show its native prompt afterward depending on approval mode.
 
 Cursor `beforeShellExecution` (observation + handoff):
   Empirically, Cursor's `allowlist` approvalMode treats hook
@@ -23,11 +24,10 @@ preToolUse/postToolUse/afterAgentResponse/stop): pure fire-and-forget
 to the bridge, which is the canonical observability channel for Cursor
 since the SQLite poller was retired.
 
-Gemini hooks are observation-only in this script. The command is invoked with
-`--tool gemini`, forwards events to the bridge, and writes `{}` to stdout so
-Gemini's hook runner treats the no-op as valid structured JSON. Gemini's
-Notification/ToolPermission event is visibility-only; the actual decision
-happens in Gemini's own UI.
+Gemini hooks are invoked with `--tool gemini`, forwarded to the bridge, and
+write structured JSON on stdout. `BeforeTool` is a Keykeeper gate; `deny` blocks
+the tool before it runs. `Notification/ToolPermission` remains visibility-only
+because Gemini ignores decision fields for that hook.
 """
 import json, os, socket, sys, uuid
 
@@ -93,6 +93,21 @@ def emit_claude_permission(behavior, message=None):
     sys.stdout.flush()
 
 
+def emit_gemini_permission(decision, message=None):
+    """Write Gemini's generic hook decision shape.
+    `deny` blocks BeforeTool. `allow` is accepted as a hook decision but does
+    not bypass Gemini's later policy/native confirmation checks."""
+    if decision == "deny":
+        out = {
+            "decision": "deny",
+            "reason": str(message) if message else "Denied by Keykeeper.",
+        }
+    else:
+        out = {"decision": "allow"}
+    sys.stdout.write(json.dumps(out))
+    sys.stdout.flush()
+
+
 def emit_noop():
     sys.stdout.write("{}")
     sys.stdout.flush()
@@ -104,7 +119,7 @@ def silent_exit():
 
 def fire_and_forget(raw):
     """Send payload, half-close, exit — used for any event that doesn't
-    need a reply (everything except Claude's PermissionRequest)."""
+    need a reply."""
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.settimeout(QUICK_TIMEOUT_S)
     s.connect(SOCK)
@@ -118,10 +133,9 @@ def bidirectional_permission(payload):
     replies or closes the socket. Returns the parsed reply dict, or
     None if the GUI didn't answer.
 
-    No client-side timeout — Claude's terminal prompt runs concurrently,
-    and the hook stays alive until either the GUI clicks (we get a
-    reply) or the user clicks in Claude's terminal (Claude SIGTERMs
-    us)."""
+    No client-side timeout — the hook stays alive until either the GUI clicks
+    and we get a reply, the provider terminates the hook process, or the GUI
+    closes the socket."""
     request_id = str(uuid.uuid4())
     payload["__kh_permission_request_id"] = request_id
 
@@ -206,6 +220,20 @@ def main():
                     emit_claude_permission(decision, reply.get("denyMessage"))
             silent_exit()
 
+        # Gemini BeforeTool gate — bidirectional. This runs for every tool
+        # call, not just native permission prompts. Keykeeper can deny here;
+        # allow means "continue past the hook" and Gemini may still apply its
+        # own policy/native confirmation afterward.
+        if is_gemini and event_name == "BeforeTool":
+            reply = bidirectional_permission(payload)
+            if reply:
+                decision = reply.get("permissionDecision")
+                if decision in ("allow", "deny"):
+                    emit_gemini_permission(decision, reply.get("denyMessage"))
+                    silent_exit()
+            emit_noop()
+            silent_exit()
+
         # Gemini ToolPermission notification — observational. Tag with a
         # request id so keykeeper can render an acknowledgement letter, but
         # return `{}` immediately because Gemini's Notification hook cannot
@@ -270,7 +298,7 @@ def main():
 
         # All other events (Claude PreToolUse/PostToolUse/etc., Cursor
         # sessionStart/sessionEnd/stop/postToolUse/afterAgentResponse,
-        # Gemini SessionStart/BeforeAgent/BeforeTool/etc.):
+        # Gemini SessionStart/BeforeAgent/AfterTool/etc.):
         # pure fire-and-forget to the bridge for activity-log emission.
         # Gemini expects structured JSON on stdout even for no-op hooks.
         fire_and_forget(raw)

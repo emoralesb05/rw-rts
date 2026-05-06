@@ -1,7 +1,7 @@
 import { createServer, Server, Socket } from "node:net";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { bus } from "../event-bus";
 import { isSpawnedSession } from "./claude-cli";
 import type { AgentEvent, AgentEventKind, AgentTool } from "@shared/events";
@@ -23,7 +23,8 @@ let server: Server | null = null;
  *
  * `tool` is captured so error-path events get the right tool stamp;
  * the Python script handles output-shape translation, so the bridge's
- * reply payload is the same generic shape for both Claude and Cursor.
+ * reply payload is the same generic shape for all providers with a
+ * bidirectional permission path.
  */
 type Pending = {
   socket: Socket;
@@ -345,6 +346,8 @@ const TOOL_NAME_CANONICAL: Record<string, string> = {
   apply_patch: "Edit",
   shell: "Bash",
   // Gemini CLI (read_file / grep_search / write_file shared above)
+  invoke_agent: "Agent",
+  invoke_subagent: "Agent",
   run_shell_command: "Bash",
   read_many_files: "Read",
   list_directory: "Glob",
@@ -359,6 +362,19 @@ const TOOL_NAME_CANONICAL: Record<string, string> = {
 function canonicalToolName(raw: unknown): string | undefined {
   if (typeof raw !== "string" || !raw) return undefined;
   return TOOL_NAME_CANONICAL[raw] ?? raw;
+}
+
+function geminiParentSessionFromTranscriptPath(
+  transcriptPath: unknown,
+  sessionId: string
+): string | undefined {
+  const path = nonEmptyString(transcriptPath);
+  if (!path) return undefined;
+  const parentDir = basename(dirname(path));
+  if (!parentDir || parentDir === "." || parentDir === "chats") return undefined;
+  if (parentDir === sessionId) return undefined;
+  // Gemini subagent transcripts live under .../chats/<parentSessionId>/<child>.jsonl.
+  return parentDir;
 }
 
 function normalizeHookPayload(p: any): AgentEvent | null {
@@ -513,6 +529,11 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
     nonEmptyString(p.sessionId) ??
     nonEmptyString(p.transcript_path) ??
     `gemini-${dedupeHash(cwd)}`;
+  const parentSessionId = geminiParentSessionFromTranscriptPath(
+    p.transcript_path,
+    sessionId
+  );
+  const requestId = nonEmptyString(p.__kh_permission_request_id);
   const base = {
     sessionId,
     tool: "gemini" as const,
@@ -546,10 +567,28 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
       payload: {
         name: canonicalToolName(toolName),
         input: {
+          keykeeperObservationOnly: true,
           message: p.message,
           ...details,
         },
-        requestId: p.__kh_permission_request_id as string,
+        requestId,
+      },
+    };
+  }
+
+  // Gemini BeforeTool with a request_id means the Python script is blocking
+  // on Keykeeper. This fires for every tool call; allow only continues the hook
+  // path, while deny blocks before Gemini executes the tool.
+  if (eventName === "BeforeTool" && requestId) {
+    return {
+      ...base,
+      timestamp: ts,
+      kind: "permission_request",
+      payload: {
+        name: canonicalToolName(p.tool_name),
+        input: p.tool_input,
+        requestId,
+        parentSessionId,
       },
     };
   }
@@ -565,14 +604,17 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
         ...base,
         timestamp: ts,
         kind: "session_start",
-        payload: { text: (p.source as string) ?? "startup" },
+        payload: {
+          text: (p.source as string) ?? "startup",
+          parentSessionId,
+        },
       };
     case "SessionEnd":
       return {
         ...base,
         timestamp: ts,
         kind: "session_end",
-        payload: { text: (p.reason as string) ?? "" },
+        payload: { text: (p.reason as string) ?? "", parentSessionId },
       };
     case "BeforeAgent":
       if (isSyntheticUserPrompt(p.prompt)) return null;
@@ -580,7 +622,7 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
         ...base,
         timestamp: ts,
         kind: "user_prompt",
-        payload: { text: (p.prompt as string) ?? "" },
+        payload: { text: (p.prompt as string) ?? "", parentSessionId },
       };
     case "BeforeTool":
       return {
@@ -590,6 +632,7 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
         payload: {
           name: canonicalToolName(p.tool_name),
           input: p.tool_input,
+          parentSessionId,
         },
       };
     case "AfterTool":
@@ -601,6 +644,7 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
           name: canonicalToolName(p.tool_name),
           input: p.tool_input,
           output: p.tool_response,
+          parentSessionId,
         },
       };
     case "AfterAgent":
@@ -608,7 +652,10 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
         ...base,
         timestamp: ts,
         kind: "assistant_text",
-        payload: { text: (p.prompt_response as string) ?? "" },
+        payload: {
+          text: (p.prompt_response as string) ?? "",
+          parentSessionId,
+        },
       };
     case "BeforeModel":
     case "BeforeToolSelection":

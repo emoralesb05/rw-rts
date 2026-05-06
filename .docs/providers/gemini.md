@@ -17,7 +17,7 @@ PascalCase event names. We install these:
 | `BeforeAgent` | no-op JSON + forward | User submitted a prompt |
 | `BeforeModel` | no-op JSON + forward | LLM request lifecycle; ignored by bridge to avoid noise |
 | `BeforeToolSelection` | no-op JSON + forward | Tool-selection lifecycle; ignored by bridge |
-| `BeforeTool` | no-op JSON + forward | Tool about to run |
+| `BeforeTool` | bidirectional + forward | Tool about to run; Keykeeper permission gate |
 | `AfterTool` | no-op JSON + forward | Tool finished |
 | `AfterModel` | no-op JSON + forward | Fires per output chunk; ignored by bridge to avoid duplicate text |
 | `AfterAgent` | no-op JSON + forward | Final assistant response for the turn |
@@ -42,6 +42,8 @@ Gemini expects hook commands to write structured JSON to stdout even when the ho
 
 Gemini's `AfterAgent` hook includes `prompt_response`, so there is no transcript watcher for Gemini. Active spawns also stream assistant deltas through `--output-format stream-json`; `src/main/adapters/gemini-cli.ts` buffers those deltas into one `assistant_text` event per turn segment.
 
+A transcript fallback would be a resilience layer that tails Gemini's on-disk session JSONL if hooks are disabled, missed by an already-running CLI, or changed upstream. It is not required for the current hook path.
+
 ## Resume And Spawn
 
 ```bash
@@ -53,14 +55,20 @@ The CLI help emphasizes `--resume latest` or numeric indexes, but the bundled `S
 
 ## Permission Flow
 
-Gemini's `Notification` event with `notification_type: "ToolPermission"` is observation-only. Keykeeper shows an acknowledgement letter, but the allow/deny decision must happen in Gemini's native UI.
+Gemini has two permission-adjacent hooks:
 
-We intentionally do not use `BeforeTool` as a permission gate in v1. It fires for every tool call and would create noisy false-positive permission cards.
+- `BeforeTool` is synchronous and can return `{"decision":"deny","reason":"..."}` before the tool executes. Keykeeper blocks on this hook and renders allow/deny letters. Deny prevents execution. Allow only continues past the hook; Gemini's policy engine may still show its native confirmation prompt afterward depending on approval mode.
+- `Notification` with `notification_type: "ToolPermission"` is observation-only. Keykeeper renders an acknowledgement letter for visibility and returns `{}` immediately because Gemini ignores decision fields for this hook.
+
+Tradeoff: `BeforeTool` fires for every tool call, not only actions that Gemini would natively prompt for. This is intentionally noisier than Claude's `PermissionRequest`, but it is the only hook where Keykeeper can deny before execution.
+
+## Subagents
+
+Gemini CLI 0.40.1 has built-in and custom subagents. The main agent invokes them through `invoke_agent` with an `agent_name` and `prompt`; Keykeeper canonicalizes that tool as `Agent`. Gemini stores subagent transcripts under `.../chats/<parentSessionId>/<childSessionId>.jsonl`, so the bridge uses `transcript_path` to attach child sessions to the parent when hook events include that path.
 
 ## Gaps & Quirks
 
 - Auth is required before `gemini --list-sessions` or active spawn works. Without `security.auth.selectedType` or `GEMINI_API_KEY`/Vertex/GCA env, Gemini exits before streaming `init`.
 - Headless launches in an untrusted repo exit before hooks fire unless the repo is trusted or the command uses `--skip-trust`.
 - Antigravity sessions are out of scope for this CLI hook surface.
-- Subagents exist in Gemini CLI, but there is no dedicated keykeeper parent/child normalizer yet. They appear as ordinary tool events for now.
 - Hook stdout must be JSON. Empty stdout is acceptable for Claude/Codex but not for Gemini.

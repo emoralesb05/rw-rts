@@ -11,7 +11,7 @@ For vocabulary (KH terms + technical), see [`../glossary.md`](../glossary.md).
 - [`claude.md`](./claude.md) — Claude Code CLI: hooks, JSONL transcript, resume semantics, gaps
 - [`codex.md`](./codex.md) — Codex CLI + Desktop: two rollout formats, version drift, "thread not found" log noise
 - [`cursor.md`](./cursor.md) — Cursor CLI + IDE: hook stripping on `--print --resume`, identifier confusion (sessionId vs chatId)
-- [`gemini.md`](./gemini.md) — Gemini CLI: hooks, stream-json spawn, UUID resume, observation-only permissions
+- [`gemini.md`](./gemini.md) — Gemini CLI: hooks, stream-json spawn, UUID resume, BeforeTool deny gate, subagent transcript linking
 - [`extending.md`](./extending.md) — checklist for adding a new provider
 
 ## Reading order
