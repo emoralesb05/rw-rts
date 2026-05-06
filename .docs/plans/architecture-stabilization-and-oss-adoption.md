@@ -17,6 +17,16 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Claude/Codex transcript watchers are stopped from shared runtime cleanup.
 - Standing-order runner comments now match persisted order behavior.
 - Cursor provider docs now call out Keykeeper-spawned `--force --trust` sessions.
+- Vitest is installed with a first focused unit-identity regression test.
+- Zod is installed and now validates main-process IPC requests plus settings/persisted state loaded from disk.
+- Agent events are now validated at the event bus envelope, and settings exclusion matching has unit coverage.
+- Shared schemas are split by domain under `src/shared/schemas/`, with inferred TypeScript types exported from the schemas.
+- Hook socket payloads, provider stream JSONL, transcript parser inputs, provider installer JSON config, and renderer-local storage shapes now have schema coverage.
+- Pure renderer logic now has unit coverage for activity summaries and wielder archetype classification.
+- Store standing-order and permission-letter helpers are extracted into `store-domain.ts` with unit coverage.
+- Store letter-action shell behavior now has tests for permission allow/deny, observation-only acknowledgements, dispatch selection, and recalls.
+- Provider hook installers now have idempotency tests against mocked home-directory config files.
+- Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
 
 ## Adopt now
 
@@ -26,10 +36,10 @@ Use for pure TypeScript tests around provider normalization, store domain logic,
 
 First slice:
 
-1. Add `vitest` and a `test` script.
-2. Extract bridge normalizer helpers into importable modules with no socket side effects.
-3. Add fixtures for Claude, Codex, Cursor, and Gemini hook payloads.
-4. Test dedupe keys, permission request mapping, Gemini `BeforeTool`, and transcript assistant text parsing.
+1. Add `vitest` and a `test` script. **Done.**
+2. Extract bridge normalizer helpers into importable modules with no socket side effects. **Done via `hook-normalizer.ts`; no bridge re-export.**
+3. Add fixtures for Claude, Codex, Cursor, and Gemini hook payloads. **Started with Claude shell, Gemini `BeforeTool`, and Cursor assistant response fixtures.**
+4. Test dedupe keys, permission request mapping, Gemini `BeforeTool`, and transcript assistant text parsing. **Done for dedupe keys, permission mapping, Gemini `BeforeTool`, and transcript parsers.**
 
 Acceptance:
 
@@ -47,9 +57,9 @@ Use for runtime validation at process boundaries:
 
 First slice:
 
-1. Add schemas for `SpawnAgentRequest`, `SendPromptRequest`, `ResolvePermissionRequest`, `AppSettings`, and `PersistedState`.
-2. Replace direct casts in IPC handlers with `parse`/`safeParse`.
-3. Add provider-specific hook payload schemas only for fields Keykeeper actually reads; keep raw payloads as unknown for logging/debug.
+1. Add schemas for `SpawnAgentRequest`, `SendPromptRequest`, `ResolvePermissionRequest`, `AppSettings`, and `PersistedState`. **Done.**
+2. Replace direct casts in IPC handlers with `parse`/`safeParse`. **Done for main IPC handlers.**
+3. Add provider-specific hook payload schemas only for fields Keykeeper actually reads; keep raw payloads as unknown for logging/debug. **Started with loose hook envelopes, provider stream handshakes, transcript, installer config, and renderer storage schemas.**
 
 Acceptance:
 
@@ -135,9 +145,11 @@ Defer until provider process lifecycle complexity proves it needs a formal state
 1. Land this stabilization pass.
 2. Add Vitest and the first bridge normalizer tests.
 3. Add Zod schemas around IPC and persisted/settings boundaries.
-4. Extract store reducers and add standing-order/permission tests.
-5. Start Radix-owned component wrappers and convert `DecreeModal`.
-6. Add Playwright Electron smoke tests after fixture-driven UI flows have stable selectors.
+4. Extract store reducers and add standing-order/permission tests. **Started with standing-order and permission-letter domain helpers.**
+5. Add provider installer idempotency tests. **Done for Claude, Cursor, Gemini, and Codex.**
+6. Continue extracting the large store event reducer. **Store letter-action shell coverage is now in place.**
+7. Start Radix-owned component wrappers and convert `DecreeModal`.
+8. Add Playwright Electron smoke tests after fixture-driven UI flows have stable selectors.
 
 ## Source links
 
