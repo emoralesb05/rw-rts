@@ -9,6 +9,10 @@
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { bus } from "../event-bus";
 import type { AgentEvent } from "@shared/events";
+import {
+  parseProviderStreamMessage,
+  type ProviderStreamMessage,
+} from "@shared/schemas";
 
 export type SpawnCursorOptions = {
   prompt: string;
@@ -124,17 +128,14 @@ function attachStream(
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
-      try {
-        const msg = JSON.parse(line);
-        const sid = msg.session_id ?? msg.sessionId;
-        if (typeof sid === "string" && sid && getSessionId() !== sid) {
-          setSessionId(sid);
-        }
-        const events = normalize(msg, getSessionId(), cwd);
-        for (const ev of events) bus.emitAgentEvent(ev);
-      } catch {
-        // ignore non-JSON
+      const msg = parseProviderStreamMessage(line);
+      if (!msg) continue;
+      const sid = msg.session_id ?? msg.sessionId;
+      if (typeof sid === "string" && sid && getSessionId() !== sid) {
+        setSessionId(sid);
       }
+      const events = normalizeCursorStreamMessage(msg, getSessionId(), cwd);
+      for (const ev of events) bus.emitAgentEvent(ev);
     }
   });
   proc.stderr?.on("data", (chunk: Buffer) => {
@@ -171,7 +172,11 @@ function attachStream(
   });
 }
 
-function normalize(msg: Record<string, unknown>, sessionId: string, cwd: string): AgentEvent[] {
+export function normalizeCursorStreamMessage(
+  msg: ProviderStreamMessage,
+  sessionId: string,
+  cwd: string
+): AgentEvent[] {
   // cursor-agent emits a richer stream than claude. We surface only the things
   // that map cleanly to AgentEvent kinds; thinking deltas, tool_call started,
   // partial-output deltas, system init, and user echoes are ignored.

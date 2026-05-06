@@ -6,6 +6,7 @@ import { bus } from "../event-bus";
 import { isSpawnedSession } from "./claude-cli";
 import type { AgentEvent, AgentEventKind, AgentTool } from "@shared/events";
 import type { PermissionDecision } from "@shared/ipc";
+import { HookPayloadSchema, type HookPayload } from "@shared/schemas";
 
 export const SOCKET_PATH = join(homedir(), ".keykeeper", "keykeeper.sock");
 
@@ -161,14 +162,19 @@ export function startHookBridge() {
         socket.destroy();
         return;
       }
-      let payload: Record<string, unknown>;
+      let payload: HookPayload;
       try {
-        payload = JSON.parse(buf);
+        const parsed = HookPayloadSchema.safeParse(JSON.parse(buf));
+        if (!parsed.success) {
+          socket.destroy();
+          return;
+        }
+        payload = parsed.data;
       } catch {
         socket.destroy();
         return;
       }
-      const eventName = (payload?.hook_event_name as string) ?? "?";
+      const eventName = payload.hook_event_name;
       const sid =
         (payload?.session_id as string) ??
         (payload?.conversation_id as string) ??
@@ -386,7 +392,7 @@ function geminiParentSessionFromTranscriptPath(
   return parentDir;
 }
 
-function normalizeHookPayload(p: any): AgentEvent | null {
+export function normalizeHookPayload(p: HookPayload): AgentEvent | null {
   const eventName = p?.hook_event_name as string | undefined;
   if (!eventName) return null;
   // Cursor uses camelCase event names (sessionStart, beforeShellExecution,

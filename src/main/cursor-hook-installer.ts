@@ -31,6 +31,11 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
 import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
+import {
+  CursorHooksFileSchema,
+  type CursorHookEntry,
+  type CursorHooksFile,
+} from "@shared/schemas";
 
 const CURSOR_HOOKS_PATH = join(homedir(), ".cursor", "hooks.json");
 const HOOK_MARKER = "keykeeper-hook";
@@ -45,17 +50,13 @@ const CURSOR_HOOK_EVENTS = [
   "beforeShellExecution",
 ] as const;
 
-type CursorHookEntry = { command: string; timeout?: number };
-type CursorHooksFile = {
-  version?: number;
-  hooks?: Record<string, CursorHookEntry[]>;
-};
-
 function loadHooksFile(): CursorHooksFile {
   if (!existsSync(CURSOR_HOOKS_PATH)) return { version: 1, hooks: {} };
   try {
-    const parsed = JSON.parse(readFileSync(CURSOR_HOOKS_PATH, "utf8"));
-    return parsed && typeof parsed === "object" ? parsed : { version: 1, hooks: {} };
+    const parsed = CursorHooksFileSchema.safeParse(
+      JSON.parse(readFileSync(CURSOR_HOOKS_PATH, "utf8"))
+    );
+    return parsed.success ? parsed.data : { version: 1, hooks: {} };
   } catch {
     return { version: 1, hooks: {} };
   }

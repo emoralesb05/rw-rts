@@ -22,6 +22,11 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
 import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
+import {
+  GeminiSettingsSchema,
+  type GeminiSettings,
+  type JsonHookEntry,
+} from "@shared/schemas";
 
 const GEMINI_SETTINGS_PATH = join(homedir(), ".gemini", "settings.json");
 const GEMINI_POLICY_PATH = join(
@@ -46,22 +51,6 @@ const GEMINI_HOOK_EVENTS = [
   "PreCompress",
   "Notification",
 ] as const;
-
-type GeminiHook = {
-  type: "command";
-  command: string;
-  name?: string;
-  timeout?: number;
-  description?: string;
-};
-type GeminiHookEntry = {
-  matcher?: string;
-  hooks?: GeminiHook[];
-};
-type GeminiSettings = {
-  hooks?: Record<string, GeminiHookEntry[]>;
-  [key: string]: unknown;
-};
 
 const GEMINI_POLICY = `# keykeeper-managed
 # Keykeeper owns Gemini tool approval. The user policy suppresses Gemini's
@@ -90,8 +79,10 @@ function timeoutForEvent(evt: (typeof GEMINI_HOOK_EVENTS)[number]): number {
 function loadSettings(): GeminiSettings {
   if (!existsSync(GEMINI_SETTINGS_PATH)) return {};
   try {
-    const parsed = JSON.parse(readFileSync(GEMINI_SETTINGS_PATH, "utf8"));
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const parsed = GeminiSettingsSchema.safeParse(
+      JSON.parse(readFileSync(GEMINI_SETTINGS_PATH, "utf8"))
+    );
+    return parsed.success ? parsed.data : {};
   } catch {
     return {};
   }
@@ -102,11 +93,11 @@ function saveSettings(settings: GeminiSettings) {
   writeFileSync(GEMINI_SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
-function isOurEntry(entry: GeminiHookEntry): boolean {
+function isOurEntry(entry: JsonHookEntry): boolean {
   return (entry.hooks ?? []).some((h) => h.command?.includes(HOOK_MARKER));
 }
 
-function isFailClosedEntry(entry: GeminiHookEntry): boolean {
+function isFailClosedEntry(entry: JsonHookEntry): boolean {
   return (entry.hooks ?? []).some(
     (h) =>
       h.command?.includes(HOOK_MARKER) &&

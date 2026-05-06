@@ -25,6 +25,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { RawSettingsSchema } from "@shared/schemas";
 
 const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
 const SETTINGS_PATH = join(KEYKEEPER_DIR, "config.json");
@@ -49,8 +50,6 @@ function expandTilde(p: string): string {
   return p;
 }
 
-type RawSettings = Partial<Settings> & { excludeRepos?: string[] };
-
 export function loadSettings(): Settings {
   // Pick the read source: prefer the new path; fall back to the legacy
   // ~/.keykeeper.json once. If neither exists, write defaults to the
@@ -72,7 +71,7 @@ export function loadSettings(): Settings {
   }
   try {
     const raw = readFileSync(readPath, "utf8");
-    const parsed = JSON.parse(raw) as RawSettings;
+    const parsed = RawSettingsSchema.parse(JSON.parse(raw));
     const def = defaults();
     const excludeRaw = parsed.exclude ?? parsed.excludeRepos ?? def.exclude;
     const settings: Settings = {

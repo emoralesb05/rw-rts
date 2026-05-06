@@ -20,15 +20,13 @@
 
 import { useStore } from "./store";
 import type { Letter, LetterSeverity } from "@shared/events";
+import {
+  NotificationSettingsSchema,
+  PartialNotificationSettingsSchema,
+  type NotificationSettings,
+} from "@shared/schemas";
 
-type NotifSettings = {
-  enabled: boolean;
-  fireCritical: boolean;
-  fireImportant: boolean;
-  fireNotable: boolean;
-  quietStartHour: number; // 0-23 inclusive
-  quietEndHour: number;   // 0-23 inclusive (wraps if start > end)
-};
+export type NotifSettings = NotificationSettings;
 
 const SETTINGS_KEY = "keykeeper:notif-settings";
 
@@ -45,7 +43,9 @@ function loadSettings(): NotifSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<NotifSettings>) };
+    const parsed = PartialNotificationSettingsSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return DEFAULTS;
+    return NotificationSettingsSchema.parse({ ...DEFAULTS, ...parsed.data });
   } catch {
     return DEFAULTS;
   }
@@ -56,7 +56,12 @@ export function getNotifSettings(): NotifSettings {
 }
 
 export function setNotifSettings(next: Partial<NotifSettings>): void {
-  const merged = { ...loadSettings(), ...next };
+  const parsed = PartialNotificationSettingsSchema.safeParse(next);
+  if (!parsed.success) return;
+  const merged = NotificationSettingsSchema.parse({
+    ...loadSettings(),
+    ...parsed.data,
+  });
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
   } catch {

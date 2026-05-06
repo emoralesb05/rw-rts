@@ -27,6 +27,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { bus } from "../event-bus";
+import { CodexTranscriptLineSchema } from "@shared/schemas";
 
 const SESSIONS_ROOT = join(homedir(), ".codex", "sessions");
 
@@ -69,7 +70,7 @@ function listJsonlFiles(): string[] {
   return out;
 }
 
-function threadIdFromFilename(path: string): string {
+export function threadIdFromFilename(path: string): string {
   // rollout-2026-04-26T17-15-03-019dcc4a-2230-7953-b4fc-4f2eb06b0d49.jsonl
   const base = path.split("/").pop() ?? "";
   const m = /rollout-.*?-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(
@@ -121,60 +122,70 @@ function emitAssistantText(state: FileState, text: string, id?: string) {
   });
 }
 
-function processLine(state: FileState, line: string) {
-  if (!line.trim()) return;
-  let msg: any;
+export function parseCodexTranscriptLine(line: string):
+  | { type: "cwd"; cwd: string }
+  | { type: "assistant_text"; text: string; id?: string }
+  | null {
+  if (!line.trim()) return null;
+  let raw: unknown;
   try {
-    msg = JSON.parse(line);
+    raw = JSON.parse(line);
   } catch {
-    return;
+    return null;
   }
-  // session_meta carries the cwd. Format varies by Codex version: older
-  // CLI puts it at top-level, 0.126+ (vscode/desktop) nests it under
-  // payload. Capture from whichever is present.
+  const result = CodexTranscriptLineSchema.safeParse(raw);
+  if (!result.success) return null;
+  const msg = result.data;
   if (msg.type === "session_meta") {
-    const cwd = msg?.payload?.cwd ?? msg?.cwd;
-    if (typeof cwd === "string" && cwd) state.cwd = cwd;
-    return;
+    const payload = msg.payload as { cwd?: unknown } | undefined;
+    const cwd = payload?.cwd ?? msg.cwd;
+    return typeof cwd === "string" && cwd ? { type: "cwd", cwd } : null;
   }
-  // Old format (Codex CLI ≤ 0.125):
-  //   {"type":"item.completed","item":{"type":"agent_message","text":"..."}}
   if (msg.type === "item.completed") {
-    const item = msg.item;
-    if (item && item.type === "agent_message") {
-      emitAssistantText(
-        state,
-        typeof item.text === "string" ? item.text : "",
-        typeof item.id === "string" ? item.id : undefined
-      );
+    const item = msg.item as Record<string, unknown> | undefined;
+    if (item?.type === "agent_message" && typeof item.text === "string") {
+      return {
+        type: "assistant_text",
+        text: item.text,
+        id: typeof item.id === "string" ? item.id : undefined,
+      };
     }
-    return;
+    return null;
   }
-  // New format (Codex 0.126+, vscode/desktop):
-  //   {"type":"response_item","payload":{"type":"message","role":"assistant",
-  //     "content":[{"type":"output_text","text":"..."}],"phase":"final_answer"}}
-  // Only emit on the FINAL answer (phase === "final_answer") — earlier
-  // phases are reasoning steps the user shouldn't see in the chat stream.
   if (msg.type === "response_item") {
-    const p = msg.payload;
+    const p = msg.payload as Record<string, unknown> | undefined;
     if (
-      p &&
-      p.type === "message" &&
+      p?.type === "message" &&
       p.role === "assistant" &&
       p.phase === "final_answer" &&
       Array.isArray(p.content)
     ) {
       const text = p.content
-        .filter((c: any) => c?.type === "output_text" && typeof c.text === "string")
-        .map((c: any) => c.text)
+        .filter(
+          (c): c is { type: "output_text"; text: string } =>
+            !!c &&
+            typeof c === "object" &&
+            (c as { type?: unknown }).type === "output_text" &&
+            typeof (c as { text?: unknown }).text === "string"
+        )
+        .map((c) => c.text)
         .join("\n\n");
-      // No id in this format; dedup by text hash so a same-content reply
-      // can't double-emit if the file gets re-scanned for any reason.
-      const dedupKey = `t:${text.slice(0, 200)}:${text.length}`;
-      emitAssistantText(state, text, dedupKey);
+      if (!text.trim()) return null;
+      return {
+        type: "assistant_text",
+        text,
+        id: `t:${text.slice(0, 200)}:${text.length}`,
+      };
     }
-    return;
   }
+  return null;
+}
+
+function processLine(state: FileState, line: string) {
+  const parsed = parseCodexTranscriptLine(line);
+  if (!parsed) return;
+  if (parsed.type === "cwd") state.cwd = parsed.cwd;
+  else emitAssistantText(state, parsed.text, parsed.id);
 }
 
 function pollOnce() {

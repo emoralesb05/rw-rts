@@ -12,6 +12,7 @@ import type {
   LetterAction,
 } from "@shared/events";
 import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
+import { MutedSessionIdsSchema } from "@shared/schemas";
 import { play } from "./audio/sounds";
 import {
   unitIdentityFor,
@@ -103,10 +104,10 @@ function loadMuted(): Record<string, true> {
   try {
     const raw = localStorage.getItem(MUTED_KEY);
     if (!raw) return {};
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return {};
+    const parsed = MutedSessionIdsSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return {};
     const out: Record<string, true> = {};
-    for (const id of arr) if (typeof id === "string") out[id] = true;
+    for (const id of parsed.data) out[id] = true;
     return out;
   } catch {
     return {};

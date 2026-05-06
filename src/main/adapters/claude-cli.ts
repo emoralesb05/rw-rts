@@ -2,6 +2,10 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { bus } from "../event-bus";
 import type { AgentEvent } from "@shared/events";
+import {
+  parseProviderStreamMessage,
+  type ProviderStreamMessage,
+} from "@shared/schemas";
 
 export type SpawnOptions = {
   prompt: string;
@@ -46,13 +50,10 @@ function attachStdoutStream(proc: ChildProcess, sessionId: string, cwd: string) 
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
-      try {
-        const msg = JSON.parse(line);
-        const events = normalizeStreamMessage(msg, sessionId, cwd);
-        for (const ev of events) bus.emitAgentEvent(ev);
-      } catch {
-        // non-JSON banner lines
-      }
+      const msg = parseProviderStreamMessage(line);
+      if (!msg) continue;
+      const events = normalizeStreamMessage(msg, sessionId, cwd);
+      for (const ev of events) bus.emitAgentEvent(ev);
     }
   });
   proc.stderr?.on("data", (chunk: Buffer) => {
@@ -154,8 +155,26 @@ export function listAgents(): SpawnedAgent[] {
   return [...agents.values()];
 }
 
-function normalizeStreamMessage(
-  msg: any,
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function messageContentBlocks(
+  msg: ProviderStreamMessage
+): Record<string, unknown>[] {
+  const message = record(msg.message);
+  const content = message?.content;
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((block) => {
+    const r = record(block);
+    return r ? [r] : [];
+  });
+}
+
+export function normalizeStreamMessage(
+  msg: ProviderStreamMessage,
   sessionId: string,
   cwd: string
 ): AgentEvent[] {
@@ -163,9 +182,9 @@ function normalizeStreamMessage(
   const ts = Date.now();
   const out: AgentEvent[] = [];
 
-  if (msg.type === "assistant" && msg.message?.content) {
-    for (const block of msg.message.content) {
-      if (block.type === "text" && block.text) {
+  if (msg.type === "assistant") {
+    for (const block of messageContentBlocks(msg)) {
+      if (block.type === "text" && typeof block.text === "string") {
         out.push({
           ...base,
           timestamp: ts,
@@ -177,12 +196,15 @@ function normalizeStreamMessage(
           ...base,
           timestamp: ts,
           kind: "tool_use",
-          payload: { name: block.name, input: block.input },
+          payload: {
+            name: typeof block.name === "string" ? block.name : undefined,
+            input: block.input,
+          },
         });
       }
     }
-  } else if (msg.type === "user" && msg.message?.content) {
-    for (const block of msg.message.content) {
+  } else if (msg.type === "user") {
+    for (const block of messageContentBlocks(msg)) {
       if (block.type === "tool_result") {
         out.push({
           ...base,
@@ -197,7 +219,10 @@ function normalizeStreamMessage(
       ...base,
       timestamp: ts,
       kind: "session_end",
-      payload: { text: msg.result, output: msg.usage },
+      payload: {
+        text: typeof msg.result === "string" ? msg.result : "",
+        output: msg.usage,
+      },
     });
   }
   return out;

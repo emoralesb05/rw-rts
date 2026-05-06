@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { app } from "electron";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
+import { ClaudeSettingsSchema, type ClaudeSettings } from "@shared/schemas";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const HOOK_MARKER = "keykeeper-managed";
@@ -77,16 +78,19 @@ export function ensureHookScriptExecutable() {
   }
 }
 
-function loadSettings(): any {
+function loadSettings(): ClaudeSettings {
   if (!existsSync(SETTINGS_PATH)) return {};
   try {
-    return JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
+    const parsed = ClaudeSettingsSchema.safeParse(
+      JSON.parse(readFileSync(SETTINGS_PATH, "utf8"))
+    );
+    return parsed.success ? parsed.data : {};
   } catch {
     return {};
   }
 }
 
-function saveSettings(settings: any) {
+function saveSettings(settings: ClaudeSettings) {
   mkdirSync(dirname(SETTINGS_PATH), { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
@@ -110,7 +114,7 @@ export function installHooks() {
   settings.hooks = settings.hooks ?? {};
 
   for (const evt of HOOK_EVENTS) {
-    settings.hooks[evt] = (settings.hooks[evt] ?? []).filter((entry: any) =>
+    settings.hooks[evt] = (settings.hooks[evt] ?? []).filter((entry) =>
       !(entry.hooks ?? []).some((h: any) => h.command?.includes(HOOK_MARKER))
     );
     settings.hooks[evt].push({

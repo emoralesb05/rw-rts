@@ -26,6 +26,7 @@ import {
 import { join } from "node:path";
 import { bus } from "../event-bus";
 import { isSpawnedSession } from "./claude-cli";
+import { ClaudeTranscriptLineSchema } from "@shared/schemas";
 
 const PROJECTS_ROOT = join(homedir(), ".claude", "projects");
 
@@ -116,31 +117,29 @@ function readNewLines(state: FileState): string[] {
   }
 }
 
-function processLine(state: FileState, line: string) {
-  if (!line.trim()) return;
-  let msg: any;
+export function parseClaudeAssistantTranscriptLine(line: string):
+  | { id?: string; text: string; timestamp: number }
+  | null {
+  if (!line.trim()) return null;
+  let raw: unknown;
   try {
-    msg = JSON.parse(line);
+    raw = JSON.parse(line);
   } catch {
-    return;
+    return null;
   }
-  if (msg.type !== "assistant") return;
-  if (!msg.message || !Array.isArray(msg.message.content)) return;
-  const uuid =
-    typeof msg.uuid === "string"
-      ? msg.uuid
-      : typeof msg.requestId === "string"
-      ? msg.requestId
-      : undefined;
-  if (uuid && state.emittedUuids.has(uuid)) return;
-  if (uuid) state.emittedUuids.add(uuid);
+  const result = ClaudeTranscriptLineSchema.safeParse(raw);
+  if (!result.success) return null;
+  const msg = result.data;
+  if (msg.type !== "assistant") return null;
+  const content = msg.message?.content;
+  if (!Array.isArray(content)) return null;
   const texts: string[] = [];
-  for (const c of msg.message.content) {
-    if (c && c.type === "text" && typeof c.text === "string") {
+  for (const c of content) {
+    if (c?.type === "text" && typeof c.text === "string") {
       texts.push(c.text);
     }
   }
-  if (texts.length === 0) return;
+  if (texts.length === 0) return null;
   const tsRaw = msg.timestamp;
   const ts =
     typeof tsRaw === "string"
@@ -148,13 +147,31 @@ function processLine(state: FileState, line: string) {
       : typeof tsRaw === "number"
       ? tsRaw
       : NaN;
+  const id =
+    typeof msg.uuid === "string"
+      ? msg.uuid
+      : typeof msg.requestId === "string"
+      ? msg.requestId
+      : undefined;
+  return {
+    id,
+    text: texts.join("\n\n"),
+    timestamp: Number.isFinite(ts) ? ts : Date.now(),
+  };
+}
+
+function processLine(state: FileState, line: string) {
+  const parsed = parseClaudeAssistantTranscriptLine(line);
+  if (!parsed) return;
+  if (parsed.id && state.emittedUuids.has(parsed.id)) return;
+  if (parsed.id) state.emittedUuids.add(parsed.id);
   bus.emitAgentEvent({
     sessionId: state.sessionId,
     tool: "claude",
     cwd: state.cwd,
-    timestamp: Number.isFinite(ts) ? ts : Date.now(),
+    timestamp: parsed.timestamp,
     kind: "assistant_text",
-    payload: { text: texts.join("\n\n") },
+    payload: { text: parsed.text },
     source: "hook",
   });
 }

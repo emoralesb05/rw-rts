@@ -15,6 +15,10 @@ import {
   unregisterSpawnedSession,
 } from "./claude-cli";
 import type { AgentEvent } from "@shared/events";
+import {
+  GeminiInitMessageSchema,
+  parseProviderStreamMessage,
+} from "@shared/schemas";
 
 export type SpawnGeminiOptions = {
   prompt: string;
@@ -58,6 +62,14 @@ export function getGeminiAgent(unitId: string): SpawnedGeminiAgent | undefined {
 function canonicalToolName(raw: unknown): string | undefined {
   if (typeof raw !== "string" || !raw) return undefined;
   return GEMINI_TOOL_NAME_CANONICAL[raw] ?? raw;
+}
+
+function errorMessage(raw: unknown, fallback: string): string {
+  if (raw && typeof raw === "object" && "message" in raw) {
+    const message = (raw as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return String(raw ?? fallback);
 }
 
 function buildArgs(prompt: string, resumeId?: string): string[] {
@@ -166,9 +178,10 @@ function waitForSessionId(proc: ChildProcess, timeoutMs: number): Promise<string
         const line = buf.slice(0, nl).trim();
         buf = buf.slice(nl + 1);
         if (!line) continue;
-        try {
-          const msg = JSON.parse(line);
-          if (msg.type === "init" && typeof msg.session_id === "string") {
+        const msg = parseProviderStreamMessage(line);
+        if (msg) {
+          const init = GeminiInitMessageSchema.safeParse(msg);
+          if (init.success) {
             const remaining = buf;
             settle(() => {
               if (remaining) {
@@ -176,12 +189,10 @@ function waitForSessionId(proc: ChildProcess, timeoutMs: number): Promise<string
                   proc.stdout?.emit("data", Buffer.from(remaining))
                 );
               }
-              resolve(msg.session_id);
+              resolve(init.data.session_id);
             });
             return;
           }
-        } catch {
-          // ignore non-JSON banner lines
         }
       }
     };
@@ -228,8 +239,9 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
+      const msg = parseProviderStreamMessage(line);
+      if (!msg) continue;
       try {
-        const msg = JSON.parse(line);
         const ts = Date.now();
         switch (msg.type) {
           case "message":
@@ -279,7 +291,7 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
                 timestamp: ts + 1,
                 kind: "error",
                 payload: {
-                  error: String(msg.error?.message ?? msg.error ?? "tool error"),
+                  error: errorMessage(msg.error, "tool error"),
                 },
               });
             }
@@ -308,7 +320,7 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
             break;
         }
       } catch {
-        // ignore non-JSON lines
+        // ignore malformed provider-specific shapes
       }
     }
   });

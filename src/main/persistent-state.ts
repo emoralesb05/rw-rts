@@ -27,6 +27,7 @@ import {
   type PersistedState,
   EMPTY_PERSISTED,
 } from "@shared/events";
+import { PersistedStateSchema } from "@shared/schemas";
 
 const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
 const FILE = () => join(KEYKEEPER_DIR, "state.json");
@@ -62,10 +63,12 @@ export function loadPersisted(): PersistedState {
       cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
       return cache;
     }
-    cache = migrate(parsed);
-    if (cache.schemaVersion !== EMPTY_PERSISTED.schemaVersion) {
-      // Migration didn't recognize the version — reset.
+    const migrated = migrate(parsed);
+    const result = PersistedStateSchema.safeParse(migrated);
+    if (!result.success) {
       cache = { ...EMPTY_PERSISTED, kingdomFoundedAt: Date.now() };
+    } else {
+      cache = result.data;
     }
     // If we read from the legacy path, write to the new path now so
     // future loads don't keep falling back.

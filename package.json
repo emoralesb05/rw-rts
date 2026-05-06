@@ -84,6 +84,7 @@
     "react-dom": "^19.1.0",
     "streamdown": "^2.5.0",
     "tailwindcss": "^4.2.4",
+    "zod": "^4.4.3",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

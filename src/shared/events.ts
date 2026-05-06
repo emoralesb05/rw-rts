@@ -1,4 +1,14 @@
-export type AgentTool = "claude" | "cursor" | "codex" | "gemini";
+import type { AgentTool, PersistedState } from "./schemas";
+
+export type {
+  AgentEvent,
+  AgentEventKind,
+  AgentTool,
+  PersistedStandingOrder,
+  PersistedState,
+  WielderStats,
+  WorldStats,
+} from "./schemas";
 
 // Four keyblader archetypes:
 //   keyblader1 — Vaelen (masculine, twilight-purple)
@@ -13,57 +23,6 @@ export type UnitRole =
   | "keyblader2"
   | "keyblader3"
   | "keyblader4";
-
-export type AgentEventKind =
-  | "session_start"
-  | "session_end"
-  | "user_prompt"
-  | "assistant_text"
-  | "tool_use"
-  | "tool_result"
-  | "subagent_spawn"
-  | "error"
-  | "permission_request"
-  // Synthetic — emitted by the hook bridge when a pending permission
-  // request times out, errors, or is resolved by something other than
-  // the GUI (e.g., the user answered Claude's terminal prompt). The
-  // renderer dismisses any matching letter so it doesn't go stale.
-  | "permission_resolved";
-
-export type AgentEvent = {
-  sessionId: string;
-  tool: AgentTool;
-  cwd: string;
-  // Repo root for cwd — stamped by the main-process event bus before emit.
-  // The renderer keys worlds by this, so any subdir of the same repo lands
-  // on the same KH world. Falls back to cwd when no repo root is found.
-  repoRoot?: string;
-  timestamp: number;
-  kind: AgentEventKind;
-  payload: {
-    name?: string;
-    input?: unknown;
-    output?: unknown;
-    text?: string;
-    error?: string;
-    parentSessionId?: string;
-    // Set on permission_request: opaque id used to route the user's
-    // allow/deny decision back to the open hook socket. Resolved
-    // (or timed out) on the main side.
-    requestId?: string;
-    // Set on permission_resolved: how the request was concluded outside
-    // the GUI. "error" = socket closed/errored before the renderer
-    // answered, so the letter is unanswerable. (We previously had a
-    // "timeout" case but removed the safety timer per user request —
-    // permission letters now wait indefinitely until decided.)
-    resolution?: "error";
-    // Set on tool_result when the upstream reports per-tool wall-clock
-    // duration (Cursor `duration`, Codex `duration_ms`). Lets the chat
-    // renderer surface a small chip on slow tool calls.
-    durationMs?: number;
-  };
-  source: "spawned" | "hook";
-};
 
 export type DriveForm = "valor" | "wisdom" | "final";
 
@@ -167,50 +126,6 @@ export type WorldAlertLevel =
   | "danger"
   | "cleared";
 
-// Per-wielder persistent stats (Sims-style memory across sessions).
-// Identity = `${tool}::${repoRoot}`.
-export type WielderStats = {
-  tool: AgentTool;
-  repoRoot: string;
-  visits: number;
-  seals: number;
-  falls: number;
-  totalMunny: number;
-  lastSeen: number;
-};
-
-// Per-world (repo root) persistent stats.
-export type WorldStats = {
-  repoRoot: string;
-  lastVisit: number;
-  totalSeals: number;
-  totalClears: number;
-  totalFalls: number;
-  sealedAt?: number;
-};
-
-// Standing Order — Phase 2B #14b. Persisted shape mirrors the in-store
-// type but trimmed to just what survives a restart (status + counters
-// will be re-validated by the runner on hydrate).
-export type PersistedStandingOrder = {
-  id: string;
-  unitIdentity: string; // `${tool}::${repoRoot}` — survives session-id changes
-  prompt: string;
-  intervalMs: number;
-  maxIterations: number;
-  iterationsRun: number;
-  startedAt: number;
-};
-
-export type PersistedState = {
-  schemaVersion: 2;
-  kingdomFoundedAt: number;
-  totalMunnyEver: number;
-  wielders: Record<string, WielderStats>;
-  worlds: Record<string, WorldStats>;
-  standingOrders: PersistedStandingOrder[];
-};
-
 export const EMPTY_PERSISTED: PersistedState = {
   schemaVersion: 2,
   kingdomFoundedAt: 0,
@@ -235,23 +150,79 @@ export type WorldState = {
 // so the same wielder gets the same name every session. One pool per
 // archetype, themed loosely to the character's element.
 export const KEYBLADER1_NAMES: readonly string[] = [
-  "Vaelen", "Aren", "Kael", "Ryn", "Tarek", "Loric", "Brael", "Cyran",
-  "Daeron", "Faolan", "Theron", "Orion", "Rhys", "Niko", "Sable", "Soren",
+  "Vaelen",
+  "Aren",
+  "Kael",
+  "Ryn",
+  "Tarek",
+  "Loric",
+  "Brael",
+  "Cyran",
+  "Daeron",
+  "Faolan",
+  "Theron",
+  "Orion",
+  "Rhys",
+  "Niko",
+  "Sable",
+  "Soren",
 ];
 
 export const KEYBLADER2_NAMES: readonly string[] = [
-  "Selene", "Nyra", "Aria", "Ember", "Lyra", "Maela", "Sera", "Vela",
-  "Kira", "Aurelia", "Nova", "Thalia", "Niva", "Aelis", "Aerin", "Mira",
+  "Selene",
+  "Nyra",
+  "Aria",
+  "Ember",
+  "Lyra",
+  "Maela",
+  "Sera",
+  "Vela",
+  "Kira",
+  "Aurelia",
+  "Nova",
+  "Thalia",
+  "Niva",
+  "Aelis",
+  "Aerin",
+  "Mira",
 ];
 
 export const KEYBLADER3_NAMES: readonly string[] = [
-  "Ryder", "Krell", "Bran", "Dorin", "Garron", "Hadrik", "Joren", "Marek",
-  "Talon", "Volk", "Roan", "Zane", "Cael", "Thane", "Erran", "Magnus",
+  "Ryder",
+  "Krell",
+  "Bran",
+  "Dorin",
+  "Garron",
+  "Hadrik",
+  "Joren",
+  "Marek",
+  "Talon",
+  "Volk",
+  "Roan",
+  "Zane",
+  "Cael",
+  "Thane",
+  "Erran",
+  "Magnus",
 ];
 
 export const KEYBLADER4_NAMES: readonly string[] = [
-  "Lyris", "Marin", "Cara", "Brynn", "Cove", "Maris", "Naia", "Nerys",
-  "Oceane", "Pelin", "Reva", "Saela", "Talia", "Vesper", "Yara", "Asha",
+  "Lyris",
+  "Marin",
+  "Cara",
+  "Brynn",
+  "Cove",
+  "Maris",
+  "Naia",
+  "Nerys",
+  "Oceane",
+  "Pelin",
+  "Reva",
+  "Saela",
+  "Talia",
+  "Vesper",
+  "Yara",
+  "Asha",
 ];
 
 const NAME_POOLS: Record<UnitRole, readonly string[]> = {
@@ -286,7 +257,11 @@ export function archetypeFor(tool: AgentTool, repoRoot: string): UnitRole {
 }
 
 // Pick the display name for a wielder identity.
-export function nameFor(role: UnitRole, tool: AgentTool, repoRoot: string): string {
+export function nameFor(
+  role: UnitRole,
+  tool: AgentTool,
+  repoRoot: string
+): string {
   const pool = NAME_POOLS[role];
   const h = djb2(`name::${tool}::${repoRoot}`);
   return pool[h % pool.length];

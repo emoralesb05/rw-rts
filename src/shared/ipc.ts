@@ -1,3 +1,13 @@
+export type {
+  AppSettings,
+  FixtureScenario,
+  PermissionDecision,
+  PlayFixtureRequest,
+  ResolvePermissionRequest,
+  SendPromptRequest,
+  SpawnAgentRequest,
+} from "./schemas";
+
 export const IPC = {
   EventStream: "kh:event-stream",
   SpawnAgent: "kh:spawn-agent",
@@ -33,64 +43,15 @@ export type WorkspaceRepoEntry = {
   label: string;
 };
 
-export type AppSettings = {
-  workspaceRoot: string;
-  exclude: string[];
-};
-
 export type WorkspaceRootValidation = {
   valid: boolean;
   expanded: string;
   reason?: "empty" | "not-found" | "not-a-directory" | "stat-failed";
 };
 
-export type PermissionDecision = "allow" | "deny";
-
-export type ResolvePermissionRequest = {
-  requestId: string;
-  decision: PermissionDecision;
-  // Reason shown to Claude on deny (upstream PermissionRequest hook's
-  // decision.message). Allow ignores this — upstream contract has no
-  // message field for allow.
-  message?: string;
-};
-
-export type FixtureScenario =
-  | "summon-vaelen"
-  | "summon-selene"
-  | "summon-ryder"
-  | "summon-lyris"
-  | "summon-all"
-  | "cursor-turn"
-  | "codex-shell"
-  | "gemini-turn"
-  | "subagent"
-  | "stress"
-  | "combat"
-  | "permission"
-  | "demo";
-
-export type PlayFixtureRequest = {
-  scenario: FixtureScenario;
-  cwd?: string;
-};
-
-export type SpawnAgentRequest = {
-  prompt: string;
-  cwd: string;
-  tool?: "claude" | "cursor" | "codex" | "gemini";
-  role?: string;
-  name?: string;
-};
-
 export type SpawnAgentResponse = {
   unitId: string;
   sessionId: string;
-};
-
-export type SendPromptRequest = {
-  unitId: string;
-  prompt: string;
 };
 
 export type HooksStatus = {

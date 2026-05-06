@@ -43,13 +43,18 @@ import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import {
   IPC,
-  type SpawnAgentRequest,
-  type SendPromptRequest,
-  type PlayFixtureRequest,
-  type ResolvePermissionRequest,
-  type AppSettings,
 } from "@shared/ipc";
-import type { PersistedState } from "@shared/events";
+import {
+  AppSettingsSchema,
+  OpenPathRequestSchema,
+  PersistedStateSchema,
+  PlayFixtureRequestSchema,
+  ResolvePermissionRequestSchema,
+  SendPromptRequestSchema,
+  SpawnAgentRequestSchema,
+  WorkspaceRootPathSchema,
+} from "@shared/schemas";
+import type { z } from "zod";
 import {
   loadPersisted,
   setPersisted,
@@ -158,6 +163,25 @@ function safeHandle<TArgs extends unknown[], TResult>(
   });
 }
 
+function formatSchemaError(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join(".") : "(root)";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ");
+}
+
+function parseIpc<T>(channel: string, schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(
+      `[keykeeper] invalid ${channel} payload: ${formatSchemaError(parsed.error)}`
+    );
+  }
+  return parsed.data;
+}
+
 async function offerHookInstall() {
   if (isInstalled()) return;
   const result = await dialog.showMessageBox({
@@ -208,7 +232,8 @@ app.whenReady().then(async () => {
 
   await offerHookInstall();
 
-  safeHandle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
+  safeHandle(IPC.SpawnAgent, async (_e, raw: unknown) => {
+    const req = parseIpc(IPC.SpawnAgent, SpawnAgentRequestSchema, raw);
     const cwd = resolve(req.cwd || ".");
     const tool: "claude" | "cursor" | "codex" | "gemini" =
       req.tool === "cursor"
@@ -222,11 +247,15 @@ app.whenReady().then(async () => {
     return { unitId: agent.unitId, sessionId: agent.sessionId };
   });
 
-  safeHandle(IPC.SendPrompt, (_e, req: SendPromptRequest) => {
+  safeHandle(IPC.SendPrompt, (_e, raw: unknown) => {
+    const req = parseIpc(IPC.SendPrompt, SendPromptRequestSchema, raw);
     AgentManager.send(req.unitId, req.prompt);
   });
 
-  safeHandle(IPC.KillAgent, (_e, unitId: string) => {
+  safeHandle(IPC.KillAgent, (_e, unitId: unknown) => {
+    if (typeof unitId !== "string" || !unitId) {
+      throw new Error(`[keykeeper] invalid ${IPC.KillAgent} payload`);
+    }
     AgentManager.kill(unitId);
   });
 
@@ -282,8 +311,9 @@ app.whenReady().then(async () => {
     IPC.OpenPath,
     async (
       _e,
-      req: { path: string; tool?: "claude" | "cursor" | "codex" | "gemini" }
+      raw: unknown
     ) => {
+      const req = parseIpc(IPC.OpenPath, OpenPathRequestSchema, raw);
       // Always try Cursor first regardless of which wielder generated
       // the path. The user works in Cursor; code files belong there.
       // If Cursor's URL handler isn't registered (Cursor not installed
@@ -301,24 +331,35 @@ app.whenReady().then(async () => {
     }
   );
 
-  safeHandle(IPC.PlayFixture, (_e, req: PlayFixtureRequest) => {
+  safeHandle(IPC.PlayFixture, (_e, raw: unknown) => {
+    const req = parseIpc(IPC.PlayFixture, PlayFixtureRequestSchema, raw);
     const cwd = resolve(req.cwd || ".");
     playFixture(req.scenario, cwd);
   });
 
-  safeHandle(IPC.ResolvePermission, (_e, req: ResolvePermissionRequest) => {
+  safeHandle(IPC.ResolvePermission, (_e, raw: unknown) => {
+    const req = parseIpc(
+      IPC.ResolvePermission,
+      ResolvePermissionRequestSchema,
+      raw
+    );
     return resolvePermissionRequest(req.requestId, req.decision, req.message);
   });
 
   safeHandle(IPC.ListWorkspaceRepos, () => listWorkspaceRepos());
   safeHandle(IPC.GetSettings, () => loadSettings());
-  safeHandle(IPC.SaveSettings, (_e, next: AppSettings) => saveSettings(next));
-  safeHandle(IPC.ValidateWorkspaceRoot, (_e, p: string) =>
-    validateWorkspaceRoot(p)
-  );
+  safeHandle(IPC.SaveSettings, (_e, raw: unknown) => {
+    const next = parseIpc(IPC.SaveSettings, AppSettingsSchema, raw);
+    return saveSettings(next);
+  });
+  safeHandle(IPC.ValidateWorkspaceRoot, (_e, raw: unknown) => {
+    const path = parseIpc(IPC.ValidateWorkspaceRoot, WorkspaceRootPathSchema, raw);
+    return validateWorkspaceRoot(path);
+  });
 
   safeHandle(IPC.LoadPersisted, () => loadPersisted());
-  safeHandle(IPC.SavePersisted, (_e, state: PersistedState) => {
+  safeHandle(IPC.SavePersisted, (_e, raw: unknown) => {
+    const state = parseIpc(IPC.SavePersisted, PersistedStateSchema, raw);
     setPersisted(state);
   });
   safeHandle(IPC.ResetPersisted, () => resetPersisted());

@@ -24,6 +24,11 @@ import {
   unregisterSpawnedSession,
 } from "./claude-cli";
 import type { AgentEvent } from "@shared/events";
+import {
+  CodexThreadStartedSchema,
+  parseProviderStreamMessage,
+  type ProviderStreamMessage,
+} from "@shared/schemas";
 
 export type SpawnCodexOptions = {
   prompt: string;
@@ -159,9 +164,10 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
         const line = buf.slice(0, nl).trim();
         buf = buf.slice(nl + 1);
         if (!line) continue;
-        try {
-          const msg = JSON.parse(line);
-          if (msg.type === "thread.started" && typeof msg.thread_id === "string") {
+        const msg = parseProviderStreamMessage(line);
+        if (msg) {
+          const started = CodexThreadStartedSchema.safeParse(msg);
+          if (started.success) {
             const remaining = buf;
             settle(() => {
               // Re-feed any remaining buffered data through the regular
@@ -171,12 +177,10 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
                   proc.stdout?.emit("data", Buffer.from(remaining))
                 );
               }
-              resolve(msg.thread_id);
+              resolve(started.data.thread_id);
             });
             return;
           }
-        } catch {
-          // ignore
         }
       }
     };
@@ -201,13 +205,10 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
-      try {
-        const msg = JSON.parse(line);
-        const events = normalize(msg, sessionId, cwd);
-        for (const ev of events) bus.emitAgentEvent(ev);
-      } catch {
-        // ignore non-JSON lines
-      }
+      const msg = parseProviderStreamMessage(line);
+      if (!msg) continue;
+      const events = normalizeCodexStreamMessage(msg, sessionId, cwd);
+      for (const ev of events) bus.emitAgentEvent(ev);
     }
   });
   proc.stderr?.on("data", (chunk: Buffer) => {
@@ -236,8 +237,8 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
   });
 }
 
-function normalize(
-  msg: Record<string, unknown>,
+export function normalizeCodexStreamMessage(
+  msg: ProviderStreamMessage,
   sessionId: string,
   cwd: string
 ): AgentEvent[] {
