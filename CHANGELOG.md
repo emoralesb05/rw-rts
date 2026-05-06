@@ -2,6 +2,37 @@
 
 All notable changes to keykeeper. Format follows [Keep a Changelog](https://keepachangelog.com/) section names and [Conventional Commits](https://www.conventionalcommits.org/) `type(scope): subject` bullets. Hashes link to the commit on GitHub.
 
+## [0.5.0] (2026-05-06)
+
+Gemini lands as keykeeper's fourth provider. The app can now observe external Gemini CLI sessions, spawn Gemini turns through `stream-json`, route Gemini tool and response events through the shared bridge, and own Gemini tool approvals with a fail-closed `BeforeTool` gate plus managed native policy. This release also adds the Command Palette and documents the next permission-model upgrade.
+
+### Features
+
+- **gemini:** first-class Gemini CLI provider with installable hooks, active spawn support, provider docs, UI connection status, and fixture/demo wiring ([f930aac](https://github.com/emoralesb05/kh-rts/commit/f930aac))
+- **gemini:** active spawns stream assistant text and tool activity from `gemini --prompt ... --output-format stream-json`, with follow-ups routed through `--resume <session-id>` ([f930aac](https://github.com/emoralesb05/kh-rts/commit/f930aac))
+- **gemini:** permission flow now uses the synchronous `BeforeTool` hook as Keykeeper's allow/deny gate while dropping Gemini's observation-only `Notification/ToolPermission` card noise ([9404da4](https://github.com/emoralesb05/kh-rts/commit/9404da4), [ce08523](https://github.com/emoralesb05/kh-rts/commit/ce08523))
+- **gemini:** managed policy at `~/.gemini/policies/keykeeper-managed.toml` suppresses Gemini's native prompt after Keykeeper has already gated the tool; hook command runs with `KEYKEEPER_GEMINI_FAIL_CLOSED=1` so tools are denied if Keykeeper is unavailable ([f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+- **gemini:** subagent events are modeled through `invoke_agent` / `invoke_subagent` canonicalization and transcript-path parent linking, so Gemini child sessions nest under their parent when metadata is available ([9404da4](https://github.com/emoralesb05/kh-rts/commit/9404da4))
+- **ui:** Command Palette for quick navigation and actions, including permission-alert focus routing and keyboard access from the main app chrome ([afecd88](https://github.com/emoralesb05/kh-rts/commit/afecd88))
+
+### Bug Fixes
+
+- **hook-bridge:** transcript parent detection now validates the expected chat directory shape before deriving a parent session id ([6fe16cd](https://github.com/emoralesb05/kh-rts/commit/6fe16cd))
+- **permissions:** stale actionable letters clear when a provider closes the pending hook socket before the UI can answer, preventing dead allow/deny buttons after Gemini timeouts or process restarts ([f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+
+### Refactor
+
+- **gemini:** split native prompt suppression from the Keykeeper gate: Keykeeper remains the real permission decision point, while Gemini's policy layer only prevents a duplicate second prompt ([f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+- **permissions:** letter shortcut text now derives from the actual action label, keeping `A` / `D` hints correct as provider-specific wording changes ([f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+
+### Documentation
+
+- **providers:** Gemini provider documentation added and cross-provider hook docs updated for Gemini events, spawn/resume behavior, managed policy, and known quirks ([f930aac](https://github.com/emoralesb05/kh-rts/commit/f930aac), [f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+- **plans:** `gemini-provider.md` deleted after landing; `multi-choice-permissions.md` added as the next cross-provider research and implementation plan ([f56e365](https://github.com/emoralesb05/kh-rts/commit/f56e365))
+- **changelog:** release notes reformatted to the current Keep-a-Changelog / Conventional Commits style ([364bc56](https://github.com/emoralesb05/kh-rts/commit/364bc56))
+
+---
+
 ## [0.4.0] (2026-05-01)
 
 Multi-wielder **ChatDrawer** replaces the per-wielder Messages tab. macOS `.app` / `.dmg` packaging via electron-builder. Lucide icon library swept in across the app. Centralized `~/.keykeeper/` state directory. Window icon + title now show in dev.
