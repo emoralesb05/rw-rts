@@ -4,12 +4,12 @@
  * title/body, expandable thinking, deny-reason input on permission
  * letters, and the action button row.
  */
-import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useState, type KeyboardEvent } from "react";
+import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
-import type { Letter } from "@shared/events";
+import type { Letter, LetterAction } from "@shared/events";
 
 function timeAgo(ts: number): string {
   const ms = Date.now() - ts;
@@ -29,12 +29,26 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const selectWorld = useStore((s) => s.selectWorld);
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
+  const [copied, setCopied] = useState(false);
   // "Actionable" perm letter — has a deny-reason input. Cursor's
   // observational letters skip this since deny isn't possible at
   // that point.
   const isPermLetter = letter.actions.some(
     (a) => a.action.kind === "permission-deny"
   );
+  const isPermissionLike = isPermissionLetter(letter);
+  const allowAction = letter.actions.find(
+    (a) => a.action.kind === "permission-allow"
+  )?.action;
+  const denyAction = letter.actions.find(
+    (a) => a.action.kind === "permission-deny"
+  )?.action;
+  const observeAction = letter.actions.find(
+    (a) => a.action.kind === "permission-observe"
+  )?.action;
+  const dismissAction = letter.actions.find(
+    (a) => a.action.kind === "dismiss"
+  )?.action;
   // Permission letters (including observational): surface the
   // requestId as a data attribute so the ActivityLog can scroll-and-
   // pulse the matching card on click.
@@ -52,20 +66,73 @@ export function LetterCard({ letter }: { letter: Letter }) {
   // own the activity → alert pulse pattern instead.
   const wielder = letter.sessionId ? units[letter.sessionId] : undefined;
   const targetWorldId = letter.worldId ?? wielder?.worldId;
-  const bodyClickable = !isPermLetter && !!targetWorldId;
+  const bodyClickable = !isPermissionLike && !!targetWorldId;
   const onBodyClick = bodyClickable
     ? () => selectWorld(targetWorldId!)
     : undefined;
+  const applyAction = (action: LetterAction) => {
+    if (action.kind === "permission-deny" && denyReason.trim()) {
+      applyLetterAction(letter, {
+        ...action,
+        message: denyReason.trim(),
+      });
+    } else {
+      applyLetterAction(letter, action);
+    }
+  };
+  const copyRequest = async () => {
+    const text = [
+      letter.title,
+      letter.body,
+      letter.reasoning ? `Thinking:\n${letter.reasoning}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setCopied(false);
+    }
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const tag = target.tagName.toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "button") return;
+    if (bodyClickable && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onBodyClick?.();
+      return;
+    }
+    if (!isPermissionLike) return;
+    const key = e.key.toLowerCase();
+    if (key === "a" && allowAction) {
+      e.preventDefault();
+      applyAction(allowAction);
+    } else if (key === "d" && denyAction) {
+      e.preventDefault();
+      applyAction(denyAction);
+    } else if (key === "enter" && observeAction) {
+      e.preventDefault();
+      applyAction(observeAction);
+    } else if (key === "escape" && dismissAction) {
+      e.preventDefault();
+      applyAction(dismissAction);
+    }
+  };
   return (
     <div
       className={
         `throne-letter sev-${letter.severity}` +
-        (bodyClickable ? " clickable" : "")
+        (bodyClickable ? " clickable" : "") +
+        (isPermissionLike ? " permission" : "")
       }
       data-letter-request-id={reqIdAttr}
       onClick={onBodyClick}
-      role={bodyClickable ? "button" : undefined}
-      tabIndex={bodyClickable ? 0 : undefined}
+      onKeyDown={onKeyDown}
+      role={bodyClickable ? "button" : isPermissionLike ? "group" : undefined}
+      tabIndex={bodyClickable || isPermissionLike ? 0 : undefined}
     >
       <div className="throne-letter-head">
         <span className={`throne-letter-tag sev-${letter.severity}`}>
@@ -108,6 +175,30 @@ export function LetterCard({ letter }: { letter: Letter }) {
       <div className="throne-letter-title">{letter.title}</div>
       {letter.body && (
         <div className="throne-letter-body">{letter.body}</div>
+      )}
+      {isPermissionLike && (
+        <div className="letter-utility-row">
+          <button
+            type="button"
+            className="letter-copy-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              void copyRequest();
+            }}
+            title="copy permission request context"
+          >
+            {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
+            {copied ? "copied" : "copy request"}
+          </button>
+          <span className="letter-shortcuts">
+            {allowAction && "A allow"}
+            {allowAction && denyAction && " · "}
+            {denyAction && "D deny"}
+            {observeAction && "Enter ack"}
+            {dismissAction && (allowAction || denyAction || observeAction) && " · "}
+            {dismissAction && "Esc dismiss"}
+          </span>
+        </div>
       )}
       {letter.reasoning && (
         <div className="throne-letter-reasoning">
@@ -153,14 +244,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
             }
             onClick={(e) => {
               e.stopPropagation();
-              if (a.action.kind === "permission-deny" && denyReason.trim()) {
-                applyLetterAction(letter, {
-                  ...a.action,
-                  message: denyReason.trim(),
-                });
-              } else {
-                applyLetterAction(letter, a.action);
-              }
+              applyAction(a.action);
             }}
           >
             {a.label}

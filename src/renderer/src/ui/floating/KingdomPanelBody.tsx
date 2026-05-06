@@ -450,8 +450,11 @@ function DemosTab() {
   );
 }
 
-export function KingdomPanelBody() {
-  const [tab, setTab] = useState<TabKey>("overview");
+export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
+  const [tab, setTab] = useState<TabKey>(initialTab ?? "overview");
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
   return (
     <div className="kingdom-panel">
       <div className="wielder-panel-tabs" role="tablist">

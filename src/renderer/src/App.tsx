@@ -6,6 +6,7 @@ import { WielderHUD } from "./ui/hud/WielderHUD";
 import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
+import { CommandPalette } from "./ui/CommandPalette";
 
 /**
  * HUD-overlay layout (FFXIV-style, no chrome bars):
@@ -39,6 +40,7 @@ export function App() {
       </div>
       <DecreeModal />
       <PanelLayer />
+      <CommandPalette />
     </div>
   );
 }

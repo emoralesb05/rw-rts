@@ -1211,6 +1211,126 @@ select.btn {
 }
 .decree-interval-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ─── Command palette (⌘K) ─────────────────────────────────────── */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30000;
+  background: rgba(3, 5, 13, 0.38);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 13vh;
+}
+.command-palette {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(11, 17, 42, 0.96);
+  border: 1px solid rgba(108, 198, 255, 0.34);
+  border-radius: 8px;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.68),
+              0 0 0 1px rgba(255, 216, 107, 0.07);
+}
+.command-palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--accent);
+}
+.command-palette-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 15px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.command-palette-input::placeholder {
+  color: rgba(138, 160, 208, 0.75);
+}
+.command-palette-kbd {
+  border: 1px solid rgba(138, 160, 208, 0.28);
+  border-radius: 4px;
+  padding: 2px 5px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+.command-palette-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+.command-palette-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.command-palette-item:hover,
+.command-palette-item.active {
+  background: rgba(108, 198, 255, 0.10);
+  border-color: rgba(108, 198, 255, 0.34);
+}
+.command-palette-item-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 216, 107, 0.09);
+  color: #ffd86b;
+}
+.command-palette-item-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.command-palette-item-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-palette-item-detail {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.command-palette-item-meta {
+  color: rgba(138, 160, 208, 0.85);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+.command-palette-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
 /* Standing Order chip on wielder card */
 .throne-card-orders {
   display: flex;
@@ -2286,6 +2406,14 @@ select.btn {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.throne-letter.permission {
+  background: rgba(35, 24, 48, 0.72);
+  border-color: rgba(255, 122, 60, 0.36);
+}
+.throne-letter.permission:focus-visible {
+  outline: 2px solid rgba(255, 184, 108, 0.85);
+  outline-offset: 2px;
+}
 
 /* Letter actor row — small avatar dot + wielder name + world chip,
  * rendered above the title so you can see who/where at a glance. */
@@ -2417,6 +2545,35 @@ select.btn {
   font-size: 11px;
   color: var(--muted);
   line-height: 1.4;
+}
+.letter-utility-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.letter-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 184, 108, 0.08);
+  border: 1px solid rgba(255, 184, 108, 0.28);
+  color: #ffb86c;
+  font-family: ui-monospace, monospace;
+  font-size: 9.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.letter-copy-btn:hover {
+  background: rgba(255, 184, 108, 0.14);
+  border-color: rgba(255, 184, 108, 0.55);
+}
+.letter-shortcuts {
+  color: rgba(230, 236, 255, 0.52);
+  font-family: ui-monospace, monospace;
+  font-size: 9.5px;
 }
 .throne-letter-actions {
   display: flex;
@@ -2728,6 +2885,64 @@ select.btn {
   margin-left: 4px;
   padding-left: 10px;
   border-left: 1px solid rgba(255, 255, 255, 0.10);
+}
+.provider-health-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+}
+.provider-health-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(138, 160, 208, 0.20);
+  background: rgba(10, 17, 48, 0.45);
+  color: rgba(230, 236, 255, 0.75);
+  font-family: ui-monospace, monospace;
+  font-size: 9.5px;
+}
+.provider-health-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(138, 160, 208, 0.55);
+  box-shadow: 0 0 0 1px rgba(10, 17, 48, 0.8);
+}
+.provider-health-name {
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.provider-health-count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.provider-health-age {
+  color: rgba(138, 160, 208, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+.provider-health-chip.provider-active {
+  border-color: rgba(122, 240, 192, 0.40);
+  background: rgba(122, 240, 192, 0.08);
+}
+.provider-health-chip.provider-active .provider-health-dot {
+  background: #7af0c0;
+  box-shadow: 0 0 8px rgba(122, 240, 192, 0.65);
+}
+.provider-health-chip.provider-warm {
+  border-color: rgba(255, 216, 107, 0.32);
+  background: rgba(255, 216, 107, 0.07);
+}
+.provider-health-chip.provider-warm .provider-health-dot {
+  background: #ffd86b;
+}
+.provider-health-chip.provider-none {
+  opacity: 0.55;
 }
 .kingdom-header-icon-btn {
   /* Center icon vertically + horizontally inside the button. */

@@ -24,7 +24,14 @@ export function PanelLayer() {
           ) : p.kind === "settings" ? (
             <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
           ) : p.kind === "kingdom" ? (
-            <KingdomPanelBody />
+            <KingdomPanelBody
+              initialTab={p.data?.initialTab as
+                | "overview"
+                | "settings"
+                | "connection"
+                | "demos"
+                | undefined}
+            />
           ) : p.kind === "dispatch" ? (
             <DispatchPanelBody />
           ) : null}
