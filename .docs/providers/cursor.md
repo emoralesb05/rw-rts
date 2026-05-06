@@ -61,12 +61,14 @@ This is why our Cursor permission flow is **observation-only**: we return `"ask"
 
 ```bash
 cursor-agent create-chat                         # returns a fresh chatId
-cursor-agent --print --output-format stream-json --resume <chatId> "<prompt>"
+cursor-agent --print --output-format stream-json --force --trust --resume <chatId> "<prompt>"
 ```
 
 Pre-creating the chat means we know the chatId before the agent runs — we can register the wielder, route hook events from the get-go, and stream tool calls / responses live via `stream-json`.
 
 Follow-up prompts in the same wielder spawn another `cursor-agent` invocation against the same chatId (same pattern as resume below).
+
+Keykeeper-spawned Cursor sessions intentionally use `--force --trust` today. That makes Keykeeper-controlled Cursor sessions more autonomous than observed IDE sessions, where permission letters remain observation-only and Cursor's native UI decides. Before distributing this broadly, make this behavior a visible setting or at least a launch-time warning.
 
 ## Resume
 

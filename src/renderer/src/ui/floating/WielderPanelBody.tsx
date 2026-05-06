@@ -17,7 +17,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import { usePanels } from "./panel-store";
-import { useStore, unitIdentityFor } from "../../store";
+import { useStore, unitIdentityForUnit } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import {
@@ -100,7 +100,7 @@ export function WielderPanelBody({ unitId }: Props) {
   const activeOrders = Object.values(standingOrders).filter(
     (o) => o.unitId === unit.id && o.status === "active"
   );
-  const renown = renownFor(persistedWielders[unitIdentityFor(unit.tool, unit.cwd)]);
+  const renown = renownFor(persistedWielders[unitIdentityForUnit(unit)]);
   const world = worlds[unit.worldId];
   const worldLabel = world?.label ?? "—";
   const themeName = world ? themeLabel(themeFor(world.id)) : "—";

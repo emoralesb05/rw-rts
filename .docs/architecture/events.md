@@ -78,7 +78,7 @@ Started in `app.whenReady()` and cleaned up by the Electron app lifecycle:
 
 Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`. New files start at current size (don't replay history). On each ~2s tick it reads appended bytes, splits lines, parses JSON, emits events.
 
-Current cleanup nuance: `will-quit` stops spawned agents, the hook bridge, fixtures, and persistence flushing. The Claude/Codex transcript watchers are explicitly stopped on the non-mac `window-all-closed` path; on macOS they normally die with the process. If watcher shutdown starts to matter for tests or relaunch loops, move both watcher stops into the shared `will-quit` cleanup.
+`will-quit` stops spawned agents, the hook bridge, fixtures, both transcript watchers, and persistence flushing. The non-mac `window-all-closed` path also runs the same idempotent service cleanup before quitting.
 
 ## Event ordering
 

@@ -13,7 +13,12 @@ import type {
 } from "@shared/events";
 import { archetypeFor, nameFor, EMPTY_PERSISTED } from "@shared/events";
 import { play } from "./audio/sounds";
+import {
+  unitIdentityFor,
+  unitIdentityForUnit,
+} from "./unit-identity";
 
+export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
 
 export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
 
@@ -30,11 +35,6 @@ export type StandingOrder = {
   startedAt: number;
   lastFiredAt: number;
 };
-
-/** Stable wielder identity — same across session restarts. */
-export function unitIdentityFor(tool: string, cwdOrRepo: string): string {
-  return `${tool}::${cwdOrRepo}`;
-}
 
 /** Convert in-memory standingOrders to the persisted shape. */
 function ordersToPersisted(
@@ -1205,9 +1205,7 @@ export const useStore = create<Store>((set) => ({
     // session started in a subdirectory of a repo — order persisted
     // but never re-attached. Fall back to cwd for units that pre-date
     // the repoRoot field on UnitState.
-    const identity = unit
-      ? unitIdentityFor(unit.tool, unit.repoRoot ?? unit.cwd)
-      : `unknown::${unitId}`;
+    const identity = unit ? unitIdentityForUnit(unit) : `unknown::${unitId}`;
     const order: StandingOrder = {
       id,
       unitId,
@@ -1418,7 +1416,7 @@ export const useStore = create<Store>((set) => ({
       for (const unitId of world.unitIds) {
         const unit = state.units[unitId];
         if (!unit) continue;
-        const identity = unitIdentityFor(unit.tool, unit.cwd);
+        const identity = unitIdentityForUnit(unit);
         const prior = nextWielders[identity];
         if (prior) {
           nextWielders[identity] = {

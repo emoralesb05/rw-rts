@@ -9,7 +9,9 @@
  * failures, no cost cap. Failure = sendPrompt rejected (network/IPC error)
  * — tool-result-level failure isn't visible from this layer.
  *
- * Not persisted — orders end on app restart. Persistence comes later.
+ * Active orders are persisted by store.ts. If an order rehydrates
+ * before its wielder appears, this runner waits until applyOneEvent
+ * binds it to a matching spawned unit.
  */
 
 import { useStore } from "./store";

@@ -58,6 +58,17 @@ import {
 } from "./persistent-state";
 
 let mainWindow: BrowserWindow | null = null;
+let runtimeStopped = false;
+
+function stopRuntimeServices() {
+  if (runtimeStopped) return;
+  runtimeStopped = true;
+  AgentManager.killAll();
+  stopHookBridge();
+  stopClaudeTranscriptWatcher();
+  stopCodexTranscriptWatcher();
+  stopAllFixtures();
+}
 
 function createWindow() {
   // app.getAppPath() resolves to the repo root in dev and the .app's
@@ -323,18 +334,12 @@ app.on("window-all-closed", () => {
   // the window and expect everything to still be running. Cleanup is
   // handled in "will-quit", which is the only true shutdown signal.
   if (process.platform !== "darwin") {
-    AgentManager.killAll();
-    stopHookBridge();
-    stopClaudeTranscriptWatcher();
-    stopCodexTranscriptWatcher();
-    stopAllFixtures();
+    stopRuntimeServices();
     app.quit();
   }
 });
 
 app.on("will-quit", () => {
-  AgentManager.killAll();
-  stopHookBridge();
-  stopAllFixtures();
+  stopRuntimeServices();
   flushPersisted();
 });
