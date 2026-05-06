@@ -13,6 +13,12 @@ import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { usePanels } from "./panel-store";
 import { SettingsPanelBody } from "./SettingsPanelBody";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../components/primitives/Tabs";
 import type { HooksStatus } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
@@ -264,7 +270,7 @@ function HookBridgeSection(props: HookBridgeProps) {
  * don't hot-reload, so the renderer can momentarily race ahead).
  * Surfaces an inline restart hint instead of unmounting the panel. */
 async function safeIpc<T>(
-  fn: ((...a: any[]) => Promise<T>) | undefined
+  fn: (() => Promise<T>) | undefined
 ): Promise<T | null> {
   if (typeof fn !== "function") return null;
   try {
@@ -498,53 +504,39 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
   return (
-    <div className="kingdom-panel">
-      <div className="wielder-panel-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "overview"}
-          className={"wielder-panel-tab" + (tab === "overview" ? " active" : "")}
-          onClick={() => setTab("overview")}
-        >
+    <Tabs
+      value={tab}
+      onValueChange={(value) => setTab(value as TabKey)}
+      className="kingdom-panel"
+    >
+      <TabsList className="wielder-panel-tabs" aria-label="kingdom panel">
+        <TabsTrigger value="overview" className="wielder-panel-tab">
           Overview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "settings"}
-          className={"wielder-panel-tab" + (tab === "settings" ? " active" : "")}
-          onClick={() => setTab("settings")}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="settings" className="wielder-panel-tab">
           Settings
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "connection"}
-          className={"wielder-panel-tab" + (tab === "connection" ? " active" : "")}
-          onClick={() => setTab("connection")}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="connection" className="wielder-panel-tab">
           Connection
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "demos"}
-          className={"wielder-panel-tab" + (tab === "demos" ? " active" : "")}
-          onClick={() => setTab("demos")}
-        >
+        </TabsTrigger>
+        <TabsTrigger value="demos" className="wielder-panel-tab">
           Demos
-        </button>
-      </div>
-      {tab === "overview" && <OverviewTab />}
-      {tab === "settings" && (
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview">
+        <OverviewTab />
+      </TabsContent>
+      <TabsContent value="settings">
         <SettingsPanelBody
           onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))}
         />
-      )}
-      {tab === "connection" && <ConnectionTab />}
-      {tab === "demos" && <DemosTab />}
-    </div>
+      </TabsContent>
+      <TabsContent value="connection">
+        <ConnectionTab />
+      </TabsContent>
+      <TabsContent value="demos">
+        <DemosTab />
+      </TabsContent>
+    </Tabs>
   );
 }

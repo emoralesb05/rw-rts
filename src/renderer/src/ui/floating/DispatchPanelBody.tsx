@@ -7,10 +7,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/primitives/Select";
 import type { WorkspaceRepoEntry } from "@shared/schemas";
 
 type Tool = "claude" | "cursor" | "codex" | "gemini";
 const TOOLS: Tool[] = ["claude", "cursor", "codex", "gemini"];
+const CURRENT_REPO_VALUE = "__keykeeper_current_repo__";
 
 export function DispatchPanelBody() {
   const closeKind = usePanels((s) => s.closeKind);
@@ -82,20 +90,30 @@ export function DispatchPanelBody() {
         <label className="dispatch-label" htmlFor="dispatch-target">
           Target
         </label>
-        <select
-          id="dispatch-target"
-          className="command-world dispatch-target"
-          value={spawnPath}
-          onChange={(e) => setSpawnPath(e.target.value)}
+        <Select
+          value={spawnPath || CURRENT_REPO_VALUE}
+          onValueChange={(value) =>
+            setSpawnPath(value === CURRENT_REPO_VALUE ? "" : value)
+          }
           disabled={busy}
         >
-          <option value="">(this repo — keykeeper home)</option>
-          {discoveredRepos.map((r) => (
-            <option key={r.path} value={r.path}>
-              {r.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="dispatch-target"
+            className="command-world dispatch-target"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={CURRENT_REPO_VALUE}>
+              (this repo — keykeeper home)
+            </SelectItem>
+            {discoveredRepos.map((r) => (
+              <SelectItem key={r.path} value={r.path}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="dispatch-row dispatch-prompt-row">

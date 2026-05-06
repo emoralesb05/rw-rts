@@ -14,7 +14,14 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogIconClose,
+  DialogTitle,
+} from "../components/primitives/Dialog";
 import { useStore } from "../store";
 import type { AgentEvent } from "@shared/events";
 
@@ -64,16 +71,6 @@ export function DecreeModal() {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [decreeUnitId]);
-
-  // Esc to close.
-  useEffect(() => {
-    if (!decreeUnitId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeDecree();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [decreeUnitId, closeDecree]);
 
   const recentFiles = useMemo(() => {
     if (!unit) return [];
@@ -149,21 +146,30 @@ export function DecreeModal() {
   const sendDisabled = busy || !text.trim() || !unit.spawnedHere;
 
   return (
-    <div className="decree-overlay" onClick={closeDecree}>
-      <div className="decree-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="decree-header">
+    <Dialog
+      open={!!unit}
+      onOpenChange={(open) => {
+        if (!open) closeDecree();
+      }}
+    >
+      <DialogContent
+        className="flex w-[min(620px,calc(100vw-48px))] max-h-[80vh] flex-col overflow-hidden rounded-[10px] border-accent-alt/40 bg-[linear-gradient(180deg,#1a1340_0%,#0a0518_100%)] p-0 shadow-[0_12px_60px_rgba(0,0,0,0.7),0_0_24px_rgba(255,216,107,0.18)]"
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
+        <DialogHeader className="decree-header">
           <span className="decree-sigil">⚜</span>
-          <span className="decree-title">DECREE</span>
+          <DialogTitle asChild>
+            <span className="decree-title">DECREE</span>
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Compose and send a decree to {unit.displayName}.
+          </DialogDescription>
           <span className="decree-target">to {unit.displayName}</span>
-          <button
-            type="button"
-            className="decree-close"
-            onClick={closeDecree}
-            aria-label="close"
-          >
-            <X size={16} aria-hidden />
-          </button>
-        </header>
+          <DialogIconClose className="decree-close" aria-label="close" />
+        </DialogHeader>
         {!unit.spawnedHere && (
           <div className="decree-warn">
             {unit.role} is observed-only — keykeeper didn't spawn this
@@ -233,8 +239,8 @@ export function DecreeModal() {
             {intervalMs === null ? "⚜ Issue Decree" : "⚜ Issue Standing Order"}
           </button>
         </footer>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

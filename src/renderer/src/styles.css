@@ -7,17 +7,58 @@
 @source "../../../node_modules/@streamdown/math/dist/*.js";
 @source "../../../node_modules/@streamdown/cjk/dist/*.js";
 
+@theme {
+  --color-bg: #0a0e1a;
+  --color-panel: #111a30;
+  --color-panel-2: #182447;
+  --color-surface-1: #11172a;
+  --color-surface-2: #161e36;
+  --color-line: #2a3a6c;
+  --color-line-strong: #3a4a8c;
+  --color-text: #e6ecff;
+  --color-muted: #8aa0d0;
+  --color-accent: #6cc6ff;
+  --color-accent-alt: #ffd86b;
+  --color-danger: #ff6b8a;
+  --color-warning: #ffb86c;
+  --color-success: #7af0c0;
+  --color-ok: #7af0c0;
+
+  --spacing: 4px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 9999px;
+
+  --z-canvas: 0;
+  --z-hud: 50;
+  --z-panel: 1000;
+  --z-drawer: 1200;
+  --z-alert: 1400;
+  --z-modal: 2000;
+  --z-popover: 30000;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+}
+
 :root {
-  --bg: #0a0e1a;
-  --panel: #111a30;
-  --panel-2: #182447;
-  --line: #2a3a6c;
-  --accent: #6cc6ff;
-  --accent-2: #ffd86b;
-  --text: #e6ecff;
-  --muted: #8aa0d0;
-  --danger: #ff6b8a;
-  --ok: #7af0c0;
+  --bg: var(--color-bg);
+  --panel: var(--color-panel);
+  --panel-2: var(--color-panel-2);
+  --line: var(--color-line);
+  --accent: var(--color-accent);
+  --accent-2: var(--color-accent-alt);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --danger: var(--color-danger);
+  --ok: var(--color-ok);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 }
 
@@ -1793,7 +1834,8 @@ select.btn {
 .wielder-panel-tab:hover {
   color: var(--text);
 }
-.wielder-panel-tab.active {
+.wielder-panel-tab.active,
+.wielder-panel-tab[data-state="active"] {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
