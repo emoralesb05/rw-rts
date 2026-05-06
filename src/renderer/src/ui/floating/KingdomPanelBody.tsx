@@ -430,10 +430,11 @@ function ConnectionTab() {
           description={
             <>
               Forwards Gemini CLI session, prompt, tool, result, and response
-              events for any session on this machine. BeforeTool gates show
-              allow/deny in Keykeeper; Gemini may still show its own native
-              prompt depending on approval mode. Entries live in{" "}
-              <code>~/.gemini/settings.json</code>.
+              events for any session on this machine. Keykeeper owns Gemini
+              tool approvals via a fail-closed BeforeTool hook and a managed
+              user policy that suppresses Gemini's native prompt. Entries live
+              in <code>~/.gemini/settings.json</code> and{" "}
+              <code>~/.gemini/policies/keykeeper-managed.toml</code>.
             </>
           }
         />

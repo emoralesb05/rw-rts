@@ -53,7 +53,7 @@ The bridge dispatches by case of the first letter:
 - Observation-only by design. Cursor's `allowlist` approvalMode treats hook `permission: "allow"` as advisory; the user must confirm in Cursor's UI anyway. So `keykeeper-hook` returns `{permission: "ask"}` immediately and forwards visibility to keykeeper as a fire-and-forget event.
 
 **Gemini** (`BeforeTool` + `Notification` / `ToolPermission`):
-- `BeforeTool` is bidirectional and Keykeeper blocks on it. Deny prevents the tool from executing. Allow lets the hook continue, but Gemini may still apply its own policy/native confirmation afterward.
+- `BeforeTool` is bidirectional and Keykeeper blocks on it. Deny prevents the tool from executing. Allow lets the hook proceed. The Gemini installer also writes a managed user policy that auto-allows Gemini's native policy prompt after Keykeeper has already gated the tool; the hook command runs fail-closed so Gemini denies if Keykeeper is unavailable.
 - `Notification/ToolPermission` is observation-only by design. Gemini's Notification hook cannot approve or deny; keykeeper returns `{}` to Gemini immediately and does not render an ack-only letter.
 
 ## The multiplexer (`bin/keykeeper-hook`)

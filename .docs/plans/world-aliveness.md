@@ -117,7 +117,7 @@ In rough order of impact:
 
 ## Sequencing with other plans
 
-- Independent of `chat-drawer.md`, `observed-resume.md`, `gemini-provider.md`
+- Independent of `chat-drawer.md` and `observed-resume.md`
 - Cheap to interleave — Tier A items each ship in <½ day, can sneak in between bigger features
 - Pairs naturally with **Quest system** (vision.md backlog) — quest start/complete moments are exactly the kind of canvas-storytelling beats Tier A is building scaffolding for
 - Should land **before** any wider distribution — first impressions matter, and "bleak" is the wrong opening note

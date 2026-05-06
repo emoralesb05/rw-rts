@@ -8,8 +8,8 @@ script half-closes, exits. Silent if the GUI isn't listening.
 Claude `PermissionRequest` and Gemini `BeforeTool` (bidirectional):
   Tagged with a request_id; script blocks waiting for the GUI to reply
   allow/deny, then writes the provider-specific stdout shape.
-  Gemini's allow response only lets the hook continue; Gemini's policy engine
-  may still show its native prompt afterward depending on approval mode.
+  Gemini's managed user policy suppresses its native prompt after Keykeeper's
+  BeforeTool gate answers.
 
 Cursor `beforeShellExecution` (observation + handoff):
   Empirically, Cursor's `allowlist` approvalMode treats hook
@@ -26,8 +26,10 @@ since the SQLite poller was retired.
 
 Gemini hooks are invoked with `--tool gemini`, forwarded to the bridge, and
 write structured JSON on stdout. `BeforeTool` is a Keykeeper gate; `deny` blocks
-the tool before it runs. `Notification/ToolPermission` returns `{}` immediately
-and is not rendered because Gemini ignores decision fields for that hook.
+the tool before it runs. The managed Gemini hook command runs with
+`KEYKEEPER_GEMINI_FAIL_CLOSED=1`, so the hook denies if the GUI is unavailable.
+`Notification/ToolPermission` returns `{}` immediately and is not rendered
+because Gemini ignores decision fields for that hook.
 """
 import json, os, socket, sys, uuid
 
@@ -96,7 +98,8 @@ def emit_claude_permission(behavior, message=None):
 def emit_gemini_permission(decision, message=None):
     """Write Gemini's generic hook decision shape.
     `deny` blocks BeforeTool. `allow` is accepted as a hook decision but does
-    not bypass Gemini's later policy/native confirmation checks."""
+    not itself bypass Gemini's later policy/native confirmation checks. The
+    managed user policy installed by Keykeeper auto-allows that later layer."""
     if decision == "deny":
         out = {
             "decision": "deny",
@@ -178,11 +181,10 @@ def main():
             tool_marker = argv[i + 1]
             break
     is_gemini = tool_marker == "gemini"
-
-    if not os.path.exists(SOCK):
-        if is_gemini:
-            emit_noop()
-        silent_exit()
+    gemini_fail_closed = (
+        is_gemini and os.environ.get("KEYKEEPER_GEMINI_FAIL_CLOSED") == "1"
+    )
+    event_name = None
 
     try:
         raw = sys.stdin.buffer.read()
@@ -211,6 +213,17 @@ def main():
 
         event_name = payload.get("hook_event_name")
 
+        if not os.path.exists(SOCK):
+            if is_gemini:
+                if gemini_fail_closed and event_name == "BeforeTool":
+                    emit_gemini_permission(
+                        "deny",
+                        "Keykeeper is unavailable; refusing Gemini tool execution.",
+                    )
+                else:
+                    emit_noop()
+            silent_exit()
+
         # Claude permission request — bidirectional, blocks for GUI.
         if event_name == "PermissionRequest" and not is_gemini:
             reply = bidirectional_permission(payload)
@@ -222,8 +235,9 @@ def main():
 
         # Gemini BeforeTool gate — bidirectional. This runs for every tool
         # call, not just native permission prompts. Keykeeper can deny here;
-        # allow means "continue past the hook" and Gemini may still apply its
-        # own policy/native confirmation afterward.
+        # allow means "continue past the hook". Keykeeper-spawned Gemini also
+        # runs with approval-mode=yolo; external Gemini terminals rely on the
+        # managed user policy to suppress Gemini's second native prompt.
         if is_gemini and event_name == "BeforeTool":
             reply = bidirectional_permission(payload)
             if reply:
@@ -231,6 +245,12 @@ def main():
                 if decision in ("allow", "deny"):
                     emit_gemini_permission(decision, reply.get("denyMessage"))
                     silent_exit()
+            if gemini_fail_closed:
+                emit_gemini_permission(
+                    "deny",
+                    "Keykeeper did not return a permission decision.",
+                )
+                silent_exit()
             emit_noop()
             silent_exit()
 
@@ -305,10 +325,18 @@ def main():
         if is_gemini:
             emit_noop()
     except Exception:
-        # Never fail a hook — we don't want to break the upstream.
+        # Default to fail-open so an installed hook doesn't brick external CLIs
+        # when Keykeeper is down. Keykeeper-spawned Gemini opts into fail-closed
+        # because it also runs Gemini with approval-mode=yolo.
         if tool_marker == "gemini":
             try:
-                emit_noop()
+                if gemini_fail_closed and event_name == "BeforeTool":
+                    emit_gemini_permission(
+                        "deny",
+                        "Keykeeper permission hook failed.",
+                    )
+                else:
+                    emit_noop()
             except Exception:
                 pass
         pass

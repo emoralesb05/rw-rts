@@ -4,6 +4,7 @@
 
 - Binary: `gemini` (verified locally at `/opt/homebrew/bin/gemini`, version `0.40.1`)
 - Settings: `~/.gemini/settings.json` (hooks live under `hooks.<EventName>`)
+- Managed policy: `~/.gemini/policies/keykeeper-managed.toml`
 - Install hooks via the keykeeper Connection tab or `installGeminiHooks()` in `src/main/gemini-hook-installer.ts`
 
 ## Hook Events
@@ -47,22 +48,26 @@ A transcript fallback would be a resilience layer that tails Gemini's on-disk se
 ## Resume And Spawn
 
 ```bash
-gemini --prompt "<prompt>" --output-format stream-json
-gemini --prompt "<follow-up>" --output-format stream-json --resume <session-id>
+gemini --prompt "<prompt>" --output-format stream-json --approval-mode yolo
+gemini --prompt "<follow-up>" --output-format stream-json --approval-mode yolo --resume <session-id>
 ```
 
 The CLI help emphasizes `--resume latest` or numeric indexes, but the bundled `SessionSelector` also accepts the full UUID emitted in the `init.session_id` stream event. Keykeeper uses that UUID for follow-up prompts.
+
+Keykeeper-spawned Gemini processes also set `KEYKEEPER_GEMINI_FAIL_CLOSED=1`. That makes the hook deny `BeforeTool` if the GUI/socket is unavailable, so `--approval-mode yolo` is only used behind Keykeeper's own gate.
 
 ## Permission Flow
 
 Gemini has two permission-adjacent hooks:
 
-- `BeforeTool` is synchronous and can return `{"decision":"deny","reason":"..."}` before the tool executes. Keykeeper blocks on this hook and renders allow/deny letters. Deny prevents execution. Allow only continues past the hook; Gemini's policy engine may still show its native confirmation prompt afterward depending on approval mode.
+- `BeforeTool` is synchronous and can return `{"decision":"deny","reason":"..."}` before the tool executes. Keykeeper blocks on this hook and renders allow/deny letters. Deny prevents execution. Allow advances past the hook.
 - `Notification` with `notification_type: "ToolPermission"` is observation-only. Keykeeper forwards it for completeness, returns `{}` immediately, and intentionally does not render an ack card because Gemini ignores decision fields for this hook.
 
 Tradeoff: `BeforeTool` fires for every tool call, not only actions that Gemini would natively prompt for. This is intentionally noisier than Claude's `PermissionRequest`, but it is the only hook where Keykeeper can deny before execution.
 
-Installer detail: `BeforeTool` uses a long hook timeout so the approval card can wait for a human decision. Observation hooks keep a short timeout.
+Installer detail: `BeforeTool` uses a long hook timeout so the approval card can wait for a human decision. Observation hooks keep a short timeout. The managed hook command includes `KEYKEEPER_GEMINI_FAIL_CLOSED=1`, and the installer writes `~/.gemini/policies/keykeeper-managed.toml` to auto-allow Gemini's native policy prompt after Keykeeper has already gated the tool.
+
+Running Gemini processes read hook settings when they start. After changing hook timeout or command behavior, restart any already-open `gemini` terminal session; otherwise it may keep the old timeout and kill the hook before Keykeeper can answer.
 
 ## Subagents
 

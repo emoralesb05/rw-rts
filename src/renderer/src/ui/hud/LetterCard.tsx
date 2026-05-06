@@ -22,6 +22,10 @@ function timeAgo(ts: number): string {
   return `${h}h ago`;
 }
 
+function shortcutVerb(label: string | undefined, fallback: string): string {
+  return (label ?? fallback).replace(/[✓✗↪]/g, "").trim() || fallback;
+}
+
 export function LetterCard({ letter }: { letter: Letter }) {
   const applyLetterAction = useStore((s) => s.applyLetterAction);
   const units = useStore((s) => s.units);
@@ -37,18 +41,22 @@ export function LetterCard({ letter }: { letter: Letter }) {
     (a) => a.action.kind === "permission-deny"
   );
   const isPermissionLike = isPermissionLetter(letter);
-  const allowAction = letter.actions.find(
+  const allowEntry = letter.actions.find(
     (a) => a.action.kind === "permission-allow"
-  )?.action;
-  const denyAction = letter.actions.find(
+  );
+  const denyEntry = letter.actions.find(
     (a) => a.action.kind === "permission-deny"
-  )?.action;
+  );
+  const allowAction = allowEntry?.action;
+  const denyAction = denyEntry?.action;
   const observeAction = letter.actions.find(
     (a) => a.action.kind === "permission-observe"
   )?.action;
   const dismissAction = letter.actions.find(
     (a) => a.action.kind === "dismiss"
   )?.action;
+  const allowShortcut = shortcutVerb(allowEntry?.label, "allow");
+  const denyShortcut = shortcutVerb(denyEntry?.label, "deny");
   // Permission letters (including observational): surface the
   // requestId as a data attribute so the ActivityLog can scroll-and-
   // pulse the matching card on click.
@@ -191,9 +199,9 @@ export function LetterCard({ letter }: { letter: Letter }) {
             {copied ? "copied" : "copy request"}
           </button>
           <span className="letter-shortcuts">
-            {allowAction && "A allow"}
+            {allowAction && `A ${allowShortcut}`}
             {allowAction && denyAction && " · "}
-            {denyAction && "D deny"}
+            {denyAction && `D ${denyShortcut}`}
             {observeAction && "Enter ack"}
             {dismissAction && (allowAction || denyAction || observeAction) && " · "}
             {dismissAction && "Esc dismiss"}

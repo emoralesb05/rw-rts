@@ -61,7 +61,14 @@ function canonicalToolName(raw: unknown): string | undefined {
 }
 
 function buildArgs(prompt: string, resumeId?: string): string[] {
-  const args = ["--prompt", prompt, "--output-format", "stream-json"];
+  const args = [
+    "--prompt",
+    prompt,
+    "--output-format",
+    "stream-json",
+    "--approval-mode",
+    "yolo",
+  ];
   if (resumeId) args.push("--resume", resumeId);
   return args;
 }
@@ -70,7 +77,7 @@ function spawnGeminiProcess(prompt: string, cwd: string, resumeId?: string) {
   return spawn("gemini", buildArgs(prompt, resumeId), {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
+    env: { ...process.env, KEYKEEPER_GEMINI_FAIL_CLOSED: "1" },
   });
 }
 

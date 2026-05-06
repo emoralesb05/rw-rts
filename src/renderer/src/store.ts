@@ -987,8 +987,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
     // Cursor letters are observational. Gemini BeforeTool letters are
-    // actionable: deny blocks the tool before execution, while allow lets
-    // Gemini continue to its own policy checks.
+    // actionable when the managed Gemini policy is installed: Keykeeper
+    // decides, then Gemini's native policy auto-allows past its own prompt.
     const observeOnlyProvider = isObservationOnlyPermission(event);
     const providerLabel = event.tool === "gemini" ? "Gemini" : "Cursor";
     const title = observeOnlyProvider

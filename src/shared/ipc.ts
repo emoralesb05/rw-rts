@@ -100,4 +100,5 @@ export type HooksStatus = {
   // Set on Cursor status — path to ~/.cursor/hooks.json so the UI can
   // surface where the entry will be written. Omitted for Claude.
   hooksConfigPath?: string;
+  policyConfigPath?: string;
 };

@@ -11,13 +11,25 @@
  * We tag every command with `--tool gemini` so the bridge can disambiguate
  * Gemini's PascalCase events from Claude and Codex.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
 import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
 
 const GEMINI_SETTINGS_PATH = join(homedir(), ".gemini", "settings.json");
+const GEMINI_POLICY_PATH = join(
+  homedir(),
+  ".gemini",
+  "policies",
+  "keykeeper-managed.toml"
+);
 const HOOK_MARKER = "keykeeper-managed";
 const GEMINI_OBSERVE_TIMEOUT_MS = 5000;
 const GEMINI_PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
@@ -51,6 +63,24 @@ type GeminiSettings = {
   [key: string]: unknown;
 };
 
+const GEMINI_POLICY = `# keykeeper-managed
+# Keykeeper owns Gemini tool approval. The user policy suppresses Gemini's
+# native confirmation prompt after the BeforeTool hook has already asked
+# Keykeeper. The managed hook command sets KEYKEEPER_GEMINI_FAIL_CLOSED=1,
+# so tool execution is denied if Keykeeper is unavailable.
+
+[[rule]]
+toolName = "run_shell_command"
+decision = "allow"
+priority = 999
+allowRedirection = true
+
+[[rule]]
+toolName = "*"
+decision = "allow"
+priority = 998
+`;
+
 function timeoutForEvent(evt: (typeof GEMINI_HOOK_EVENTS)[number]): number {
   return evt === "BeforeTool"
     ? GEMINI_PERMISSION_TIMEOUT_MS
@@ -76,18 +106,47 @@ function isOurEntry(entry: GeminiHookEntry): boolean {
   return (entry.hooks ?? []).some((h) => h.command?.includes(HOOK_MARKER));
 }
 
+function isFailClosedEntry(entry: GeminiHookEntry): boolean {
+  return (entry.hooks ?? []).some(
+    (h) =>
+      h.command?.includes(HOOK_MARKER) &&
+      h.command.includes("KEYKEEPER_GEMINI_FAIL_CLOSED=1")
+  );
+}
+
+function isManagedPolicyInstalled(): boolean {
+  if (!existsSync(GEMINI_POLICY_PATH)) return false;
+  try {
+    return readFileSync(GEMINI_POLICY_PATH, "utf8").includes(HOOK_MARKER);
+  } catch {
+    return false;
+  }
+}
+
+function installManagedPolicy() {
+  mkdirSync(dirname(GEMINI_POLICY_PATH), { recursive: true });
+  writeFileSync(GEMINI_POLICY_PATH, GEMINI_POLICY);
+}
+
+function uninstallManagedPolicy() {
+  if (!isManagedPolicyInstalled()) return;
+  rmSync(GEMINI_POLICY_PATH, { force: true });
+}
+
 export function isGeminiInstalled(): boolean {
   const settings = loadSettings();
   const hooks = settings.hooks ?? {};
-  return GEMINI_HOOK_EVENTS.every((evt) =>
+  const hooksInstalled = GEMINI_HOOK_EVENTS.every((evt) =>
     (hooks[evt] ?? []).some(isOurEntry)
   );
+  const beforeToolFailClosed = (hooks.BeforeTool ?? []).some(isFailClosedEntry);
+  return hooksInstalled && beforeToolFailClosed && isManagedPolicyInstalled();
 }
 
 export function installGeminiHooks() {
   ensureHookScriptExecutable();
   const scriptPath = getHookScriptPath();
-  const command = `${scriptPath} --tool gemini # ${HOOK_MARKER}`;
+  const command = `KEYKEEPER_GEMINI_FAIL_CLOSED=1 ${scriptPath} --tool gemini # ${HOOK_MARKER}`;
   const settings = loadSettings();
   settings.hooks = settings.hooks ?? {};
 
@@ -108,6 +167,7 @@ export function installGeminiHooks() {
     });
   }
 
+  installManagedPolicy();
   saveSettings(settings);
 }
 
@@ -120,6 +180,7 @@ export function uninstallGeminiHooks() {
     settings.hooks[evt] = list.filter((entry) => !isOurEntry(entry));
     if (settings.hooks[evt].length === 0) delete settings.hooks[evt];
   }
+  uninstallManagedPolicy();
   saveSettings(settings);
 }
 
@@ -129,5 +190,6 @@ export function getGeminiHooksStatus() {
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: GEMINI_SETTINGS_PATH,
+    policyConfigPath: GEMINI_POLICY_PATH,
   };
 }

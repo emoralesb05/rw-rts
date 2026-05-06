@@ -229,16 +229,22 @@ export function startHookBridge() {
       }
       socket.destroy();
     });
-    // Cursor handoff path: when the Python script's recv times out and
-    // closes the socket, "close" fires (often without "error"). Drop
-    // the pending entry silently so it doesn't leak. We don't emit
-    // permission_resolved here — the keykeeper letter stays put as
-    // informational context while Cursor's native dialog takes over.
-    // The cursor SQLite poller will pick up the eventual decision and
-    // the renderer's heuristic auto-dismiss can clean up the letter.
+    // If the provider kills the hook process (for example Gemini using an
+    // old short timeout), "close" can fire without an "error". Drop the
+    // pending entry and clear actionable letters so clicks don't appear to
+    // do nothing. Cursor letters are observational handoffs, so they stay as
+    // local context while Cursor's native dialog handles the real decision.
     socket.on("close", () => {
       for (const [id, p] of pending) {
-        if (p.socket === socket) pending.delete(id);
+        if (p.socket !== socket) continue;
+        pending.delete(id);
+        if (p.tool !== "cursor") {
+          emitPermissionResolved(
+            { sessionId: p.sessionId, cwd: p.cwd, tool: p.tool },
+            id,
+            "error"
+          );
+        }
       }
     });
   });

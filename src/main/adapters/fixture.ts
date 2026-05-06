@@ -159,7 +159,7 @@ function geminiTurn(cwd: string): FakeUnit {
         toolName: "Grep",
         input: { pattern: "gemini", path: ".docs" },
       },
-      { delayMs: 450, kind: "tool_result", output: ".docs/plans/gemini-provider.md" },
+      { delayMs: 450, kind: "tool_result", output: ".docs/providers/gemini.md" },
       {
         delayMs: 700,
         kind: "tool_use",
