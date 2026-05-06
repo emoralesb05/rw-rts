@@ -94,7 +94,7 @@ function FilePathLink({
 }: {
   path: string;
   label?: string;
-  tool?: "claude" | "cursor" | "codex";
+  tool?: "claude" | "cursor" | "codex" | "gemini";
 }) {
   if (!path) return null;
   const display = label ?? path;

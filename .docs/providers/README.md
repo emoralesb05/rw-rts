@@ -1,6 +1,6 @@
 # Providers
 
-The external CLI agents keykeeper integrates with: Claude, Cursor, Codex. Fast-changing reference — these docs capture upstream behavior we don't control.
+The external CLI agents keykeeper integrates with: Claude, Cursor, Codex, Gemini. Fast-changing reference — these docs capture upstream behavior we don't control.
 
 For our internal architecture, see [`../architecture/`](../architecture/).
 For vocabulary (KH terms + technical), see [`../glossary.md`](../glossary.md).
@@ -11,6 +11,7 @@ For vocabulary (KH terms + technical), see [`../glossary.md`](../glossary.md).
 - [`claude.md`](./claude.md) — Claude Code CLI: hooks, JSONL transcript, resume semantics, gaps
 - [`codex.md`](./codex.md) — Codex CLI + Desktop: two rollout formats, version drift, "thread not found" log noise
 - [`cursor.md`](./cursor.md) — Cursor CLI + IDE: hook stripping on `--print --resume`, identifier confusion (sessionId vs chatId)
+- [`gemini.md`](./gemini.md) — Gemini CLI: hooks, stream-json spawn, UUID resume, observation-only permissions
 - [`extending.md`](./extending.md) — checklist for adding a new provider
 
 ## Reading order

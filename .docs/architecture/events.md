@@ -37,7 +37,7 @@ Defined in `src/shared/events.ts`. All events share the envelope; `payload` fiel
 ```ts
 type AgentEvent = {
   sessionId: string;            // provider's session/thread/chat id
-  tool: "claude" | "cursor" | "codex";
+  tool: "claude" | "cursor" | "codex" | "gemini";
   cwd: string;
   repoRoot?: string;            // stamped by main bus before emit; renderer keys worlds by this
   timestamp: number;

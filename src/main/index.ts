@@ -34,6 +34,11 @@ import {
   uninstallCodexHooks,
   getCodexHooksStatus,
 } from "./codex-hook-installer";
+import {
+  installGeminiHooks,
+  uninstallGeminiHooks,
+  getGeminiHooksStatus,
+} from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import {
@@ -67,7 +72,7 @@ function createWindow() {
     title: "Keykeeper",
     icon: iconPath,
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: join(__dirname, "../preload/index.cjs"),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -79,6 +84,10 @@ function createWindow() {
   if (process.platform === "darwin" && !app.isPackaged && app.dock) {
     app.dock.setIcon(iconPath);
   }
+
+  mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
+    console.error("[keykeeper] preload failed:", preloadPath, error);
+  });
 
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -190,11 +199,13 @@ app.whenReady().then(async () => {
 
   safeHandle(IPC.SpawnAgent, async (_e, req: SpawnAgentRequest) => {
     const cwd = resolve(req.cwd || ".");
-    const tool: "claude" | "cursor" | "codex" =
+    const tool: "claude" | "cursor" | "codex" | "gemini" =
       req.tool === "cursor"
         ? "cursor"
         : req.tool === "codex"
         ? "codex"
+        : req.tool === "gemini"
+        ? "gemini"
         : "claude";
     const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
     return { unitId: agent.unitId, sessionId: agent.sessionId };
@@ -246,9 +257,22 @@ app.whenReady().then(async () => {
   });
   safeHandle(IPC.CodexHooksStatus, () => getCodexHooksStatus());
 
+  safeHandle(IPC.InstallGeminiHooks, () => {
+    installGeminiHooks();
+    return getGeminiHooksStatus();
+  });
+  safeHandle(IPC.UninstallGeminiHooks, () => {
+    uninstallGeminiHooks();
+    return getGeminiHooksStatus();
+  });
+  safeHandle(IPC.GeminiHooksStatus, () => getGeminiHooksStatus());
+
   safeHandle(
     IPC.OpenPath,
-    async (_e, req: { path: string; tool?: "claude" | "cursor" | "codex" }) => {
+    async (
+      _e,
+      req: { path: string; tool?: "claude" | "cursor" | "codex" | "gemini" }
+    ) => {
       // Always try Cursor first regardless of which wielder generated
       // the path. The user works in Cursor; code files belong there.
       // If Cursor's URL handler isn't registered (Cursor not installed

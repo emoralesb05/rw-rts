@@ -21,6 +21,7 @@ const TOOL_LABEL: Record<AgentTool, string> = {
   claude: "Claude",
   cursor: "Cursor",
   codex: "Codex",
+  gemini: "Gemini",
 };
 
 /** Slim live progress bar shown when a wielder is mid tool-call.

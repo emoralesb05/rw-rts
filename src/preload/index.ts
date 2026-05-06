@@ -59,10 +59,19 @@ const api = {
   codexHooksStatus() {
     return ipcRenderer.invoke(IPC.CodexHooksStatus) as Promise<HooksStatus>;
   },
+  installGeminiHooks() {
+    return ipcRenderer.invoke(IPC.InstallGeminiHooks) as Promise<HooksStatus>;
+  },
+  uninstallGeminiHooks() {
+    return ipcRenderer.invoke(IPC.UninstallGeminiHooks) as Promise<HooksStatus>;
+  },
+  geminiHooksStatus() {
+    return ipcRenderer.invoke(IPC.GeminiHooksStatus) as Promise<HooksStatus>;
+  },
   playFixture(req: PlayFixtureRequest) {
     return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
   },
-  openPath(path: string, opts?: { tool?: "claude" | "cursor" | "codex" }) {
+  openPath(path: string, opts?: { tool?: "claude" | "cursor" | "codex" | "gemini" }) {
     return ipcRenderer.invoke(IPC.OpenPath, {
       path,
       tool: opts?.tool,

@@ -31,9 +31,10 @@ const DEMO_FIXTURES = [
   {
     label: "Flows",
     items: [
-      { id: "demo", label: "All 3 tools (claude / cursor / codex)" },
+      { id: "demo", label: "All 4 tools (claude / cursor / codex / gemini)" },
       { id: "cursor-turn", label: "Cursor · multi-tool turn" },
       { id: "codex-shell", label: "Codex · shell" },
+      { id: "gemini-turn", label: "Gemini · search + write" },
       { id: "subagent", label: "Claude · subagent (Final drive)" },
       { id: "combat", label: "Combat · heartless raid" },
       { id: "stress", label: "Stress · 30 events" },
@@ -277,12 +278,15 @@ function ConnectionTab() {
   const [claudeStatus, setClaudeStatus] = useState<HooksStatus | null>(null);
   const [cursorStatus, setCursorStatus] = useState<HooksStatus | null>(null);
   const [codexStatus, setCodexStatus] = useState<HooksStatus | null>(null);
+  const [geminiStatus, setGeminiStatus] = useState<HooksStatus | null>(null);
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [cursorMissing, setCursorMissing] = useState(false);
   const [codexMissing, setCodexMissing] = useState(false);
+  const [geminiMissing, setGeminiMissing] = useState(false);
   const [claudeBusy, setClaudeBusy] = useState(false);
   const [cursorBusy, setCursorBusy] = useState(false);
   const [codexBusy, setCodexBusy] = useState(false);
+  const [geminiBusy, setGeminiBusy] = useState(false);
 
   useEffect(() => {
     void safeIpc(window.kh.hooksStatus?.bind(window.kh)).then((r) => {
@@ -296,6 +300,10 @@ function ConnectionTab() {
     void safeIpc(window.kh.codexHooksStatus?.bind(window.kh)).then((r) => {
       if (r) setCodexStatus(r);
       else setCodexMissing(true);
+    });
+    void safeIpc(window.kh.geminiHooksStatus?.bind(window.kh)).then((r) => {
+      if (r) setGeminiStatus(r);
+      else setGeminiMissing(true);
     });
   }, []);
 
@@ -335,6 +343,19 @@ function ConnectionTab() {
       setCodexStatus(next);
     } finally {
       setCodexBusy(false);
+    }
+  };
+
+  const toggleGemini = async () => {
+    if (!geminiStatus || geminiBusy) return;
+    setGeminiBusy(true);
+    try {
+      const next = geminiStatus.installed
+        ? await window.kh.uninstallGeminiHooks()
+        : await window.kh.installGeminiHooks();
+      setGeminiStatus(next);
+    } finally {
+      setGeminiBusy(false);
     }
   };
 
@@ -393,6 +414,25 @@ function ConnectionTab() {
               Managed in a marker block at the end of{" "}
               <code>~/.codex/config.toml</code>; the rest of the file is
               left untouched.
+            </>
+          }
+        />
+      )}
+      {geminiMissing ? (
+        <PreloadRestartHint title="Gemini hook bridge" />
+      ) : (
+        <HookBridgeSection
+          title="Gemini hook bridge"
+          status={geminiStatus}
+          busy={geminiBusy}
+          onToggle={toggleGemini}
+          configPathLabel="~/.gemini/settings.json"
+          description={
+            <>
+              Forwards Gemini CLI session, prompt, tool, result, and response
+              events for any session on this machine. Permission prompts are
+              observation-only — decide in Gemini's native UI. Entries live in{" "}
+              <code>~/.gemini/settings.json</code>.
             </>
           }
         />

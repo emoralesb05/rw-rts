@@ -28,12 +28,14 @@ const TOOL_GLYPH: Record<AgentTool, string> = {
   claude: "C",
   cursor: "▶",
   codex: "◆",
+  gemini: "G",
 };
 
 const TOOL_LABEL: Record<AgentTool, string> = {
   claude: "Claude",
   cursor: "Cursor",
   codex: "Codex",
+  gemini: "Gemini",
 };
 
 type TabStatus = "permission" | "unread" | "none";

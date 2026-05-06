@@ -13,8 +13,13 @@ import {
   listCodexAgents,
   getCodexAgent,
 } from "./adapters/codex-cli";
+import {
+  spawnGeminiAgent,
+  listGeminiAgents,
+  getGeminiAgent,
+} from "./adapters/gemini-cli";
 
-export type SpawnableTool = "claude" | "cursor" | "codex";
+export type SpawnableTool = "claude" | "cursor" | "codex" | "gemini";
 
 type AnyAgent = {
   unitId: string;
@@ -30,15 +35,26 @@ async function spawn(
 ): Promise<AnyAgent> {
   if (tool === "cursor") return spawnCursorAgent(opts);
   if (tool === "codex") return spawnCodexAgent(opts);
+  if (tool === "gemini") return spawnGeminiAgent(opts);
   return spawnClaudeAgent(opts);
 }
 
 function get(unitId: string): AnyAgent | undefined {
-  return getClaudeAgent(unitId) ?? getCursorAgent(unitId) ?? getCodexAgent(unitId);
+  return (
+    getClaudeAgent(unitId) ??
+    getCursorAgent(unitId) ??
+    getCodexAgent(unitId) ??
+    getGeminiAgent(unitId)
+  );
 }
 
 function list(): AnyAgent[] {
-  return [...listClaudeAgents(), ...listCursorAgents(), ...listCodexAgents()];
+  return [
+    ...listClaudeAgents(),
+    ...listCursorAgents(),
+    ...listCodexAgents(),
+    ...listGeminiAgents(),
+  ];
 }
 
 export const AgentManager = {

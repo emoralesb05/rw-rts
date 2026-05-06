@@ -9,8 +9,8 @@ import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
 import type { WorkspaceRepoEntry } from "@shared/ipc";
 
-type Tool = "claude" | "cursor" | "codex";
-const TOOLS: Tool[] = ["claude", "cursor", "codex"];
+type Tool = "claude" | "cursor" | "codex" | "gemini";
+const TOOLS: Tool[] = ["claude", "cursor", "codex", "gemini"];
 
 export function DispatchPanelBody() {
   const closeKind = usePanels((s) => s.closeKind);

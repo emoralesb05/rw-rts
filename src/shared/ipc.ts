@@ -13,6 +13,9 @@ export const IPC = {
   InstallCodexHooks: "kh:install-codex-hooks",
   UninstallCodexHooks: "kh:uninstall-codex-hooks",
   CodexHooksStatus: "kh:codex-hooks-status",
+  InstallGeminiHooks: "kh:install-gemini-hooks",
+  UninstallGeminiHooks: "kh:uninstall-gemini-hooks",
+  GeminiHooksStatus: "kh:gemini-hooks-status",
   OpenPath: "kh:open-path",
   PlayFixture: "kh:play-fixture",
   LoadPersisted: "kh:load-persisted",
@@ -60,6 +63,7 @@ export type FixtureScenario =
   | "summon-all"
   | "cursor-turn"
   | "codex-shell"
+  | "gemini-turn"
   | "subagent"
   | "stress"
   | "combat"
@@ -74,7 +78,7 @@ export type PlayFixtureRequest = {
 export type SpawnAgentRequest = {
   prompt: string;
   cwd: string;
-  tool?: "claude" | "cursor" | "codex";
+  tool?: "claude" | "cursor" | "codex" | "gemini";
   role?: string;
   name?: string;
 };

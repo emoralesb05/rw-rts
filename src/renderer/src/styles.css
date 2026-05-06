@@ -221,6 +221,11 @@ body, html, #root {
   background: rgba(122, 240, 192, 0.12);
   border-color: rgba(122, 240, 192, 0.5);
 }
+.unit-tile-tool-pill.tool-gemini {
+  color: #8cc8ff;
+  background: rgba(77, 163, 255, 0.13);
+  border-color: rgba(77, 163, 255, 0.48);
+}
 .unit-tile-bars {
   grid-column: 2 / span 2;
   grid-row: 2;
@@ -1425,6 +1430,11 @@ select.btn {
   color: #7af0c0;
   background: rgba(122, 240, 192, 0.12);
   border-color: rgba(122, 240, 192, 0.5);
+}
+.tool-pill.tool-gemini {
+  color: #8cc8ff;
+  background: rgba(77, 163, 255, 0.13);
+  border-color: rgba(77, 163, 255, 0.48);
 }
 .origin-pill {
   align-self: flex-start;
@@ -2885,64 +2895,6 @@ select.btn {
   margin-left: 4px;
   padding-left: 10px;
   border-left: 1px solid rgba(255, 255, 255, 0.10);
-}
-.provider-health-strip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 2px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.10);
-}
-.provider-health-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  border: 1px solid rgba(138, 160, 208, 0.20);
-  background: rgba(10, 17, 48, 0.45);
-  color: rgba(230, 236, 255, 0.75);
-  font-family: ui-monospace, monospace;
-  font-size: 9.5px;
-}
-.provider-health-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(138, 160, 208, 0.55);
-  box-shadow: 0 0 0 1px rgba(10, 17, 48, 0.8);
-}
-.provider-health-name {
-  font-weight: 800;
-  letter-spacing: 0.4px;
-}
-.provider-health-count {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.provider-health-age {
-  color: rgba(138, 160, 208, 0.85);
-  font-variant-numeric: tabular-nums;
-}
-.provider-health-chip.provider-active {
-  border-color: rgba(122, 240, 192, 0.40);
-  background: rgba(122, 240, 192, 0.08);
-}
-.provider-health-chip.provider-active .provider-health-dot {
-  background: #7af0c0;
-  box-shadow: 0 0 8px rgba(122, 240, 192, 0.65);
-}
-.provider-health-chip.provider-warm {
-  border-color: rgba(255, 216, 107, 0.32);
-  background: rgba(255, 216, 107, 0.07);
-}
-.provider-health-chip.provider-warm .provider-health-dot {
-  background: #ffd86b;
-}
-.provider-health-chip.provider-none {
-  opacity: 0.55;
 }
 .kingdom-header-icon-btn {
   /* Center icon vertically + horizontally inside the button. */

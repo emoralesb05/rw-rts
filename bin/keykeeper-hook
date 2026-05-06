@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""keykeeper-managed: forwards Claude Code AND Cursor hook payloads to the
+"""keykeeper-managed: forwards Claude Code, Cursor, Codex, and Gemini hook payloads to the
 keykeeper GUI socket.
 
 Most events are fire-and-forget — payload goes to ~/.claude/keykeeper.sock,
@@ -22,12 +22,43 @@ All other Cursor hooks (sessionStart/sessionEnd/beforeSubmitPrompt/
 preToolUse/postToolUse/afterAgentResponse/stop): pure fire-and-forget
 to the bridge, which is the canonical observability channel for Cursor
 since the SQLite poller was retired.
+
+Gemini hooks are observation-only in this script. The command is invoked with
+`--tool gemini`, forwards events to the bridge, and writes `{}` to stdout so
+Gemini's hook runner treats the no-op as valid structured JSON. Gemini's
+Notification/ToolPermission event is visibility-only; the actual decision
+happens in Gemini's own UI.
 """
 import json, os, socket, sys, uuid
 
 SOCK = os.path.join(os.path.expanduser("~"), ".keykeeper", "keykeeper.sock")
 
 QUICK_TIMEOUT_S = 2.0
+
+
+def getenv_first(*names):
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return value
+    return None
+
+
+def ensure_gemini_context(payload):
+    # Gemini documents these fields on stdin, but also exposes them as
+    # sanitized hook env vars. Backfill from env so Keykeeper can still
+    # key an external session if a CLI build omits a field on a hook.
+    if not payload.get("session_id"):
+        payload["session_id"] = getenv_first(
+            "GEMINI_SESSION_ID",
+            "GEMINI_CLI_SESSION_ID",
+        ) or "gemini-%s" % os.getppid()
+    if not payload.get("cwd"):
+        payload["cwd"] = getenv_first(
+            "GEMINI_CWD",
+            "GEMINI_PROJECT_DIR",
+            "CLAUDE_PROJECT_DIR",
+        ) or os.getcwd()
 
 
 def emit_cursor_permission(permission, message=None):
@@ -59,6 +90,11 @@ def emit_claude_permission(behavior, message=None):
         }
     }
     sys.stdout.write(json.dumps(out))
+    sys.stdout.flush()
+
+
+def emit_noop():
+    sys.stdout.write("{}")
     sys.stdout.flush()
 
 
@@ -117,22 +153,28 @@ def bidirectional_permission(payload):
 
 
 def main():
-    if not os.path.exists(SOCK):
-        silent_exit()
-
     # Optional --tool flag tags payloads with __kh_tool so the bridge
     # can attribute events to the right wielder when multiple CLIs
-    # share Claude-shaped payload format (Codex uses the same shape).
+    # share Claude-shaped payload format (Codex uses the same shape),
+    # or PascalCase event names (Gemini).
     tool_marker = None
     argv = sys.argv[1:]
     for i, a in enumerate(argv):
         if a == "--tool" and i + 1 < len(argv):
             tool_marker = argv[i + 1]
             break
+    is_gemini = tool_marker == "gemini"
+
+    if not os.path.exists(SOCK):
+        if is_gemini:
+            emit_noop()
+        silent_exit()
 
     try:
         raw = sys.stdin.buffer.read()
         if not raw:
+            if is_gemini:
+                emit_noop()
             silent_exit()
 
         try:
@@ -142,7 +184,12 @@ def main():
                 fire_and_forget(raw)
             except Exception:
                 pass
+            if is_gemini:
+                emit_noop()
             silent_exit()
+
+        if is_gemini:
+            ensure_gemini_context(payload)
 
         if tool_marker:
             payload["__kh_tool"] = tool_marker
@@ -151,12 +198,26 @@ def main():
         event_name = payload.get("hook_event_name")
 
         # Claude permission request — bidirectional, blocks for GUI.
-        if event_name == "PermissionRequest":
+        if event_name == "PermissionRequest" and not is_gemini:
             reply = bidirectional_permission(payload)
             if reply:
                 decision = reply.get("permissionDecision")
                 if decision in ("allow", "deny"):
                     emit_claude_permission(decision, reply.get("denyMessage"))
+            silent_exit()
+
+        # Gemini ToolPermission notification — observational. Tag with a
+        # request id so keykeeper can render an acknowledgement letter, but
+        # return `{}` immediately because Gemini's Notification hook cannot
+        # grant or deny the tool.
+        if is_gemini and event_name == "Notification" and payload.get("notification_type") == "ToolPermission":
+            try:
+                request_id = str(uuid.uuid4())
+                payload["__kh_permission_request_id"] = request_id
+                fire_and_forget(json.dumps(payload).encode("utf-8"))
+            except Exception:
+                pass
+            emit_noop()
             silent_exit()
 
         # Cursor permission gate — observational. We tag the payload
@@ -208,13 +269,20 @@ def main():
             silent_exit()
 
         # All other events (Claude PreToolUse/PostToolUse/etc., Cursor
-        # sessionStart/sessionEnd/stop/postToolUse/afterAgentResponse):
+        # sessionStart/sessionEnd/stop/postToolUse/afterAgentResponse,
+        # Gemini SessionStart/BeforeAgent/BeforeTool/etc.):
         # pure fire-and-forget to the bridge for activity-log emission.
-        # No stdout output — these events are observational on Cursor's
-        # side ("the response is logged but not used").
+        # Gemini expects structured JSON on stdout even for no-op hooks.
         fire_and_forget(raw)
+        if is_gemini:
+            emit_noop()
     except Exception:
         # Never fail a hook — we don't want to break the upstream.
+        if tool_marker == "gemini":
+            try:
+                emit_noop()
+            except Exception:
+                pass
         pass
 
 

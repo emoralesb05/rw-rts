@@ -512,7 +512,7 @@ function pushLetter(state: Store, letter: Letter): Letter[] {
 
 // Read-only / observation tools don't "fight back" — they don't clear
 // heartless. Only concrete progress (edits, shells, web fetches, summons,
-// long results) does. Tool names span all three rosters.
+// long results) does. Tool names span all provider rosters.
 const COMBAT_TOOL_RESULT_NAMES = new Set([
   // Claude
   "Edit",
@@ -974,23 +974,24 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const risk = classifyRisk(toolName, event.payload.input);
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
-    // Cursor permission letters are observational — Cursor's native
-    // inline yes/no in chat is the authoritative decision surface
-    // (the hook already returned "ask" by the time the King could
-    // click here). Surface only a dismiss button so the alert is
-    // honest about what it can and can't do.
-    const isCursor = event.tool === "cursor";
-    const title = isCursor
-      ? `${palette} asks to use ${toolName} (decide in Cursor)`
+    // Cursor and Gemini permission letters are observational — the
+    // provider's native yes/no UI is the authoritative decision surface.
+    // Surface only an ack button so the alert is honest about what it
+    // can and can't do.
+    const observeOnlyProvider =
+      event.tool === "cursor" || event.tool === "gemini";
+    const providerLabel = event.tool === "gemini" ? "Gemini" : "Cursor";
+    const title = observeOnlyProvider
+      ? `${palette} asks to use ${toolName} (decide in ${providerLabel})`
       : `${palette} asks to use ${toolName}`;
-    const body = isCursor
+    const body = observeOnlyProvider
       ? inputSummary
-        ? `${toolName}: ${inputSummary} · approve in Cursor's chat panel`
-        : `Wielder is asking Cursor for permission to use ${toolName}. Decide in Cursor's inline yes/no.`
+        ? `${toolName}: ${inputSummary} · approve in ${providerLabel}'s UI`
+        : `Wielder is asking ${providerLabel} for permission to use ${toolName}. Decide in ${providerLabel}'s native yes/no.`
       : inputSummary
       ? `${toolName}: ${inputSummary}`
       : `Wielder is requesting permission to use ${toolName}.`;
-    const actions: Letter["actions"] = isCursor
+    const actions: Letter["actions"] = observeOnlyProvider
       ? [{ label: "ack", action: { kind: "permission-observe", requestId: reqId } }]
       : [
           { label: "✓ allow", action: { kind: "permission-allow", requestId: reqId } },
@@ -1380,8 +1381,8 @@ export const useStore = create<Store>((set) => ({
           .catch(() => {});
         break;
       case "permission-observe":
-        // Cursor letters — no upstream resolution; just dismiss locally.
-        // The bridge already dropped the pending entry on socket close.
+        // Observation-only provider letters — no upstream resolution;
+        // just dismiss locally.
         break;
       case "dismiss":
         break;

@@ -1,6 +1,6 @@
 # Plan: Add Gemini as a fourth provider
 
-**Status**: planned, not started · **Owner**: TBD · **Phase**: Post-MVP — provider extension
+**Status**: Phase 1 and Phase 2 implemented · **Owner**: keykeeper · **Phase**: Post-MVP — provider extension
 
 ## Goal
 
@@ -8,7 +8,7 @@ Add Google's `gemini` CLI as the fourth observable provider alongside Claude, Cu
 
 ## Why
 
-- The user runs `gemini` in their workflow (verified: `0.38.2` installed locally)
+- The user runs `gemini` in their workflow (verified: `0.40.1` installed locally)
 - Gemini CLI's hook system is **directly compatible with Claude's** — `gemini hooks migrate --from-claude` exists as an explicit migration path. Implementation should be cheap.
 - Closes the "personal-tidy supports your actual stack" loop: Claude + Cursor + Codex + Gemini = the four current first-class coding agents
 
@@ -48,8 +48,8 @@ Gemini does NOT have a clean `PermissionRequest` analog (the hook that fires onl
 ### Session / resume model
 
 - Sessions persist across restarts (verified — `--list-sessions` enumerates them)
-- `--resume <index>` or `--resume latest` for non-interactive resume
-- **Index-based, not UUID-based** — slightly awkward; indexes shift as new sessions accumulate. Need to verify whether `session_id` is a stable identifier we can map back to an index.
+- `--resume <index>`, `--resume latest`, or `--resume <session_id>` for non-interactive resume
+- **UUID resume works** — Gemini CLI 0.40.1's bundled `SessionSelector` accepts the full `session_id`, even though the help text emphasizes indexes/latest.
 - Headless mode: `--prompt "<text>" --output-format stream-json` → JSONL events (init, message, tool_use, tool_result, error, result)
 - ACP mode (`--acp`) — JSON-RPC over stdio for IDE integrations. Alternative path if hooks ever get insufficient. Out of scope for v1.
 
@@ -75,26 +75,26 @@ For v1 we don't need to know — hooks cover everything we observe. Only matters
 | File | Change |
 |---|---|
 | `bin/keykeeper-hook` | Edit. Handle Gemini's PascalCase events with `--tool gemini` flag (same disambiguation pattern as Codex). Permission flow: `Notification` event maps to fire-and-forget letter; `BeforeTool` is fire-and-forget too (since we go observational). |
-| `src/main/gemini-hook-installer.ts` | **NEW.** Install hooks in `~/.gemini/settings.json`. Schema is identical to Claude — can borrow most logic from `hook-installer.ts`. Marker: `keykeeper-managed` (same as others). |
-| `src/main/adapters/hook-bridge.ts` | Edit. Add `normalizeGeminiPayload(p, eventName)`. Dispatcher: PascalCase event names route to Claude *or* Codex *or* Gemini based on `__kh_tool` marker. Add tool-name canonicalization for Gemini-specific tool names (TBD — need to enumerate). |
-| `src/shared/ipc.ts` | Edit. Add `InstallGeminiHooks`, `UninstallGeminiHooks`, `GeminiHooksStatus`. |
-| `src/main/index.ts` | Edit. Wire the new IPC handlers via `safeHandle`. |
-| `src/renderer/src/ui/floating/KingdomPanelBody.tsx` (Connection tab) | Edit. Add a Gemini install/uninstall toggle alongside Claude/Cursor/Codex. |
-| `src/main/agent-manager.ts` | Edit. Add `gemini` to the `SpawnableTool` union. Wire `spawnGeminiAgent` from a new adapter. |
-| `src/main/adapters/gemini-cli.ts` | **NEW (optional, for spawn).** Active spawn via `gemini --prompt --output-format stream-json --session-id <uuid>`. Same pattern as Claude adapter. |
-| `src/shared/events.ts` | Edit `AgentTool` to include `"gemini"`. |
-| `.docs/providers/gemini.md` | **NEW.** Per-provider doc following the existing template (binary & install, hook events, payload shapes, gaps & quirks). |
-| `.docs/providers/hooks.md` | Edit. Add Gemini column to the event coverage matrix. |
+| `src/main/gemini-hook-installer.ts` | **Done.** Installs hooks in `~/.gemini/settings.json` with `--tool gemini` marker. |
+| `src/main/adapters/hook-bridge.ts` | **Done.** Adds `normalizeGeminiPayload(p, eventName)` and Gemini tool-name canonicalization. |
+| `src/shared/ipc.ts` | **Done.** Adds `InstallGeminiHooks`, `UninstallGeminiHooks`, `GeminiHooksStatus`. |
+| `src/main/index.ts` | **Done.** Wires the new IPC handlers via `safeHandle`. |
+| `src/renderer/src/ui/floating/KingdomPanelBody.tsx` (Connection tab) | **Done.** Adds Gemini install/uninstall toggle alongside Claude/Cursor/Codex. |
+| `src/main/agent-manager.ts` | **Done.** Adds `gemini` to the `SpawnableTool` union and wires `spawnGeminiAgent`. |
+| `src/main/adapters/gemini-cli.ts` | **Done.** Active spawn via `gemini --prompt --output-format stream-json`; follow-ups use `--resume <session-id>`. |
+| `src/shared/events.ts` | **Done.** `AgentTool` includes `"gemini"`. |
+| `.docs/providers/gemini.md` | **Done.** Per-provider doc added. |
+| `.docs/providers/hooks.md` | **Done.** Gemini column added to the event coverage matrix. |
 
 Estimated size: ~300 LOC core (installer + bridge normalizer + IPC + tool union) + ~200 LOC for the spawn adapter if we ship that in v1.
 
 ## Phasing
 
-**Phase 1 — Observe-only** (~½ day): hook installer, bridge normalizer, Settings toggle, provider doc. Gemini sessions started in any terminal show up in keykeeper. No spawn from keykeeper, no resume. **Highest leverage / smallest surface.**
+**Phase 1 — Observe-only** (~½ day): hook installer, bridge normalizer, Settings toggle, provider doc. Gemini sessions started in any terminal show up in keykeeper. **Implemented.**
 
-**Phase 2 — Active spawn** (~½ day): `spawnGeminiAgent` + dispatch UI integration. User can now launch Gemini from keykeeper's Dispatch dialog.
+**Phase 2 — Active spawn** (~½ day): `spawnGeminiAgent` + dispatch UI integration. User can now launch Gemini from keykeeper's Dispatch dialog. **Implemented.**
 
-**Phase 3 — Resume integration** (covered by [`observed-resume.md`](./observed-resume.md)): once observed-resume ships for Claude/Codex/Cursor, add Gemini support — `gemini --resume <index> --prompt "<text>"` is the equivalent. **Index-vs-UUID quirk** needs design — probably store the Gemini index alongside the session_id in the wielder's metadata.
+**Phase 3 — Resume integration** (covered by [`observed-resume.md`](./observed-resume.md)): once observed-resume ships for Claude/Codex/Cursor, add Gemini support — `gemini --resume <session_id> --prompt "<text>"` is the equivalent.
 
 ## Out of scope
 
@@ -107,13 +107,15 @@ Estimated size: ~300 LOC core (installer + bridge normalizer + IPC + tool union)
 
 - **No subagent hook** (need to verify if Gemini has subagents at all)
 - **Permission is observation-only** (Cursor-style)
-- **Resume by index, not UUID** — index shifts as new sessions accumulate; maps awkwardly to our stable `sessionId` model
+- **Resume help text is incomplete** — help advertises indexes/latest, but full UUIDs work in 0.40.1.
+- **Trusted-folder gate** — fresh headless smoke requires `--skip-trust` or an interactively trusted repo before Gemini reaches hooks.
 - **Antigravity sessions are out of scope** for the CLI hook surface
 - **Session storage on disk is undocumented** — no transcript-watcher fallback if Gemini ever changes the hook contract
 
 ## Testing
 
 - **Manual smoke**: install hooks via Settings → Connection toggle, run `gemini` in a terminal, confirm events flow into keykeeper (session_start, user_prompt, tool_use, tool_result, assistant_text, session_end)
+- **External CLI regression**: run the hook script with only `GEMINI_SESSION_ID`/`GEMINI_CWD` env vars and no `session_id` in stdin; confirm the bridge still creates a Gemini wielder.
 - **Permission**: trigger a tool that Gemini would prompt for (e.g., a write to a sensitive path), confirm a `Notification` event surfaces a letter in AlertsHUD
 - **Cross-tool dispatcher**: confirm Gemini events don't get misrouted to Claude or Codex (PascalCase collision is the risk — `__kh_tool` marker handles it)
 - **Spawn (Phase 2)**: trigger a Gemini wielder via Dispatch dialog, confirm `--output-format stream-json` events parse into the bus

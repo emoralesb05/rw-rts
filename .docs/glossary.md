@@ -42,7 +42,7 @@ The actions a King can take. Each maps to a `LetterAction` kind.
 | **Transcript watcher** | A poller (`*-transcript.ts`) that reads a provider's on-disk session JSONL for events that don't fire as hooks (e.g. assistant text from Claude/Codex) |
 | **Adapter** | `src/main/adapters/<provider>-cli.ts` — the spawn surface for one provider |
 | **AgentEvent** | The normalized event shape emitted by the bridge and consumed by the renderer |
-| **AgentManager** | `src/main/agent-manager.ts` — unified spawn/kill/list across all three CLI adapters |
+| **AgentManager** | `src/main/agent-manager.ts` — unified spawn/kill/list across CLI adapters |
 | **Wielder identity** | `${tool}::${repoRoot}` — the stable key for "same wielder across sessions" (used by standing orders) |
 | **Spawned vs observed** | `unit.spawnedHere` — true if keykeeper started this session, false if we picked it up via hooks |
 | **Sender frame guard** | `safeHandle()` — IPC wrapper that rejects calls from non-mainframe sources |

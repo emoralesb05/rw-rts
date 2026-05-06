@@ -7,7 +7,7 @@ All defined in `src/shared/ipc.ts`. Every handler in main wraps via `safeHandle(
 | Channel | Direction | Purpose |
 |---|---|---|
 | `kh:event-stream` | main → renderer | Push every `AgentEvent` from the bus |
-| `kh:spawn-agent` | renderer → main | Start a new wielder (claude/cursor/codex) |
+| `kh:spawn-agent` | renderer → main | Start a new wielder (claude/cursor/codex/gemini) |
 | `kh:send-prompt` | renderer → main | Pipe a prompt to a spawned wielder's stdin |
 | `kh:kill-agent` | renderer → main | SIGTERM a wielder |
 | `kh:list-units` | renderer → main | Snapshot of live spawned agents |

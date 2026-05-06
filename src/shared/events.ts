@@ -1,4 +1,4 @@
-export type AgentTool = "claude" | "cursor" | "codex";
+export type AgentTool = "claude" | "cursor" | "codex" | "gemini";
 
 // Four keyblader archetypes:
 //   keyblader1 — Vaelen (masculine, twilight-purple)

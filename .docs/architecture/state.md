@@ -23,7 +23,7 @@ Updates happen through reducer actions on receipt of `IPC.EventStream` messages.
 type UnitState = {
   id: string;
   sessionId: string;
-  tool: "claude" | "cursor" | "codex";
+  tool: "claude" | "cursor" | "codex" | "gemini";
   role: "keyblader1" | "keyblader2" | "keyblader3" | "keyblader4";   // archetype, drives sprite + color
   displayName: string;             // "Vaelen", "Selene", etc. — stable per (tool, repoRoot)
   cwd: string;
@@ -113,7 +113,7 @@ type StandingOrder = {
 
 ## Agent manager
 
-`src/main/agent-manager.ts` is the unified spawn/list/kill surface across all three tools. A single `AgentManager` object hides the per-tool adapter (`spawnClaudeAgent`, `spawnCursorAgent`, `spawnCodexAgent`).
+`src/main/agent-manager.ts` is the unified spawn/list/kill surface across all provider tools. A single `AgentManager` object hides the per-tool adapter (`spawnClaudeAgent`, `spawnCursorAgent`, `spawnCodexAgent`, `spawnGeminiAgent`).
 
 ```ts
 AgentManager.spawn(tool, { prompt, cwd })  // dispatches by tool

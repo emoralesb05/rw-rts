@@ -141,6 +141,43 @@ function codexShell(cwd: string): FakeUnit {
   };
 }
 
+function geminiTurn(cwd: string): FakeUnit {
+  return {
+    sessionId: `gemini-fixture-${randomUUID()}`,
+    tool: "gemini",
+    cwd,
+    events: [
+      { delayMs: 120, kind: "session_start", text: "gemini demo turn" },
+      {
+        delayMs: 400,
+        kind: "user_prompt",
+        text: "inspect the repo and propose the smallest useful write",
+      },
+      {
+        delayMs: 650,
+        kind: "tool_use",
+        toolName: "Grep",
+        input: { pattern: "gemini", path: ".docs" },
+      },
+      { delayMs: 450, kind: "tool_result", output: ".docs/plans/gemini-provider.md" },
+      {
+        delayMs: 700,
+        kind: "tool_use",
+        toolName: "Write",
+        input: { file_path: "notes/gemini-provider-check.md" },
+      },
+      { delayMs: 450, kind: "tool_result", output: "created" },
+      {
+        delayMs: 850,
+        kind: "assistant_text",
+        text:
+          "Gemini provider check complete: hook bridge, active spawn, and UI routing are wired. I wrote a short follow-up note.",
+      },
+      { delayMs: 500, kind: "session_end", text: "exit 0" },
+    ],
+  };
+}
+
 function subagentSummon(cwd: string): FakeUnit[] {
   const parentId = randomUUID();
   const childId = randomUUID();
@@ -276,6 +313,7 @@ export type FixtureScenarioId =
   | "summon-all"
   | "cursor-turn"
   | "codex-shell"
+  | "gemini-turn"
   | "subagent"
   | "stress"
   | "combat"
@@ -309,6 +347,9 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "codex-shell":
       schedule(codexShell(c));
+      break;
+    case "gemini-turn":
+      schedule(geminiTurn(c));
       break;
     case "subagent":
       for (const u of subagentSummon(c)) schedule(u);
@@ -354,10 +395,11 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       }
       break;
     case "demo":
-      // Fire all three tools in parallel for a "show me everything" demo.
+      // Fire all providers in parallel for a "show me everything" demo.
       schedule(claudeStarter(c));
       setTimeout(() => schedule(cursorTurn(c)), 1500);
       setTimeout(() => schedule(codexShell(c)), 3000);
+      setTimeout(() => schedule(geminiTurn(c)), 4500);
       break;
     default: {
       const exhaustive: never = scenario;

@@ -20,6 +20,7 @@ import { LetterCard, isPermissionLetter } from "./LetterCard";
 
 export function AlertsHUD() {
   const letters = useStore((s) => s.letters);
+  const applyLetterAction = useStore((s) => s.applyLetterAction);
   const alerts = letters.filter(isPermissionLetter);
   const alertsZ = usePanels((s) => s.alertsZ);
   const focusAlerts = usePanels((s) => s.focusAlerts);
@@ -39,6 +40,45 @@ export function AlertsHUD() {
     seenIdsRef.current = ids;
     if (hasNew) focusAlerts();
   }, [alerts, focusAlerts]);
+
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName.toLowerCase();
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const kind =
+        key === "a"
+          ? "permission-allow"
+          : key === "d"
+          ? "permission-deny"
+          : key === "enter"
+          ? "permission-observe"
+          : null;
+      if (!kind) return;
+
+      for (const letter of alerts) {
+        const action = letter.actions.find((a) => a.action.kind === kind)?.action;
+        if (action) {
+          e.preventDefault();
+          applyLetterAction(letter, action);
+          return;
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [alerts, applyLetterAction]);
 
   return (
     <HudWidget

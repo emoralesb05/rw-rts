@@ -79,6 +79,10 @@ const DEDUPE_TTL_MS = 1500;
 const PROMPT_DEDUPE_TTL_MS = 12_000;
 const recentEventKeys = new Map<string, number>();
 
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 function dedupeHash(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
@@ -87,8 +91,10 @@ function dedupeHash(s: string): string {
 
 function dedupeKeyFor(payload: any, eventName: string): string {
   const sessionId =
-    (payload.session_id as string) ??
-    (payload.conversation_id as string) ??
+    nonEmptyString(payload.session_id) ??
+    nonEmptyString(payload.sessionId) ??
+    nonEmptyString(payload.conversation_id) ??
+    nonEmptyString(payload.transcript_path) ??
     "";
   const toolUseId = payload.tool_use_id as string | undefined;
   if (toolUseId) return `${eventName}:${sessionId}:tu:${toolUseId}`;
@@ -338,6 +344,16 @@ const TOOL_NAME_CANONICAL: Record<string, string> = {
   command_execution: "Bash",
   apply_patch: "Edit",
   shell: "Bash",
+  // Gemini CLI (read_file / grep_search / write_file shared above)
+  run_shell_command: "Bash",
+  read_many_files: "Read",
+  list_directory: "Glob",
+  glob: "Glob",
+  search_file_content: "Grep",
+  replace: "Edit",
+  write_todos: "TodoWrite",
+  google_web_search: "WebSearch",
+  web_fetch: "WebFetch",
 };
 
 function canonicalToolName(raw: unknown): string | undefined {
@@ -358,6 +374,7 @@ function normalizeHookPayload(p: any): AgentEvent | null {
     return normalizeCursorPayload(p, eventName);
   }
   const tool = (p?.__kh_tool as string | undefined) ?? "claude";
+  if (tool === "gemini") return normalizeGeminiPayload(p, eventName);
   return normalizeClaudePayload(p, eventName, tool === "codex" ? "codex" : "claude");
 }
 
@@ -486,6 +503,121 @@ function normalizeClaudePayload(
         typeof p.duration_ms === "number" ? p.duration_ms : undefined,
     },
   };
+}
+
+function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
+  const ts = Date.now();
+  const cwd = nonEmptyString(p.cwd) ?? process.cwd();
+  const sessionId =
+    nonEmptyString(p.session_id) ??
+    nonEmptyString(p.sessionId) ??
+    nonEmptyString(p.transcript_path) ??
+    `gemini-${dedupeHash(cwd)}`;
+  const base = {
+    sessionId,
+    tool: "gemini" as const,
+    cwd,
+    source: "hook" as const,
+  };
+
+  // Gemini's permission signal is observational. The Notification hook
+  // fires when Gemini is about to show its own ToolPermission prompt, but
+  // hook output cannot grant/deny it. We still surface a keykeeper letter
+  // for visibility and mark it observation-only in the renderer.
+  if (
+    eventName === "Notification" &&
+    p.notification_type === "ToolPermission" &&
+    p.__kh_permission_request_id
+  ) {
+    const details =
+      p.details && typeof p.details === "object"
+        ? (p.details as Record<string, unknown>)
+        : {};
+    const toolName =
+      details.tool_name ??
+      details.toolName ??
+      details.name ??
+      p.tool_name ??
+      "tool";
+    return {
+      ...base,
+      timestamp: ts,
+      kind: "permission_request",
+      payload: {
+        name: canonicalToolName(toolName),
+        input: {
+          message: p.message,
+          ...details,
+        },
+        requestId: p.__kh_permission_request_id as string,
+      },
+    };
+  }
+
+  // Spawned Gemini sessions are observed through `--output-format
+  // stream-json`; skip duplicate hook events once the adapter has the
+  // session id registered.
+  if (isSpawnedSession(sessionId)) return null;
+
+  switch (eventName) {
+    case "SessionStart":
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "session_start",
+        payload: { text: (p.source as string) ?? "startup" },
+      };
+    case "SessionEnd":
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "session_end",
+        payload: { text: (p.reason as string) ?? "" },
+      };
+    case "BeforeAgent":
+      if (isSyntheticUserPrompt(p.prompt)) return null;
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "user_prompt",
+        payload: { text: (p.prompt as string) ?? "" },
+      };
+    case "BeforeTool":
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "tool_use",
+        payload: {
+          name: canonicalToolName(p.tool_name),
+          input: p.tool_input,
+        },
+      };
+    case "AfterTool":
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "tool_result",
+        payload: {
+          name: canonicalToolName(p.tool_name),
+          input: p.tool_input,
+          output: p.tool_response,
+        },
+      };
+    case "AfterAgent":
+      return {
+        ...base,
+        timestamp: ts,
+        kind: "assistant_text",
+        payload: { text: (p.prompt_response as string) ?? "" },
+      };
+    case "BeforeModel":
+    case "BeforeToolSelection":
+    case "AfterModel":
+    case "PreCompress":
+      return null;
+    default:
+      return null;
+  }
 }
 
 /**

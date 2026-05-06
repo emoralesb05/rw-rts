@@ -32,6 +32,7 @@ const TOOL_LABEL: Record<AgentTool, string> = {
   claude: "Claude",
   cursor: "Cursor",
   codex: "Codex",
+  gemini: "Gemini",
 };
 
 function moodFor(unit: UnitState): string {

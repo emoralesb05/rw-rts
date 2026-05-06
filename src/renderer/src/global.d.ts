@@ -27,10 +27,13 @@ declare global {
       installCodexHooks(): Promise<HooksStatus>;
       uninstallCodexHooks(): Promise<HooksStatus>;
       codexHooksStatus(): Promise<HooksStatus>;
+      installGeminiHooks(): Promise<HooksStatus>;
+      uninstallGeminiHooks(): Promise<HooksStatus>;
+      geminiHooksStatus(): Promise<HooksStatus>;
       playFixture(req: PlayFixtureRequest): Promise<void>;
       openPath(
         path: string,
-        opts?: { tool?: "claude" | "cursor" | "codex" }
+        opts?: { tool?: "claude" | "cursor" | "codex" | "gemini" }
       ): Promise<string>;
       loadPersisted(): Promise<PersistedState>;
       savePersisted(state: PersistedState): Promise<void>;
