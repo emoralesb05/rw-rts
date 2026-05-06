@@ -54,7 +54,7 @@ The bridge dispatches by case of the first letter:
 
 **Gemini** (`BeforeTool` + `Notification` / `ToolPermission`):
 - `BeforeTool` is bidirectional and Keykeeper blocks on it. Deny prevents the tool from executing. Allow lets the hook continue, but Gemini may still apply its own policy/native confirmation afterward.
-- `Notification/ToolPermission` is observation-only by design. Gemini's Notification hook cannot approve or deny; keykeeper renders an ack-only letter and returns `{}` to Gemini immediately.
+- `Notification/ToolPermission` is observation-only by design. Gemini's Notification hook cannot approve or deny; keykeeper returns `{}` to Gemini immediately and does not render an ack-only letter.
 
 ## The multiplexer (`bin/keykeeper-hook`)
 

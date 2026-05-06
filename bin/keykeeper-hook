@@ -26,8 +26,8 @@ since the SQLite poller was retired.
 
 Gemini hooks are invoked with `--tool gemini`, forwarded to the bridge, and
 write structured JSON on stdout. `BeforeTool` is a Keykeeper gate; `deny` blocks
-the tool before it runs. `Notification/ToolPermission` remains visibility-only
-because Gemini ignores decision fields for that hook.
+the tool before it runs. `Notification/ToolPermission` returns `{}` immediately
+and is not rendered because Gemini ignores decision fields for that hook.
 """
 import json, os, socket, sys, uuid
 
@@ -234,10 +234,10 @@ def main():
             emit_noop()
             silent_exit()
 
-        # Gemini ToolPermission notification — observational. Tag with a
-        # request id so keykeeper can render an acknowledgement letter, but
-        # return `{}` immediately because Gemini's Notification hook cannot
-        # grant or deny the tool.
+        # Gemini ToolPermission notification — observational. Return `{}`
+        # immediately because Gemini's Notification hook cannot grant or deny
+        # the tool. The bridge drops it so users only see actionable BeforeTool
+        # permission letters.
         if is_gemini and event_name == "Notification" and payload.get("notification_type") == "ToolPermission":
             try:
                 request_id = str(uuid.uuid4())

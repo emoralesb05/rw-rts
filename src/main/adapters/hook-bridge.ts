@@ -544,39 +544,14 @@ function normalizeGeminiPayload(p: any, eventName: string): AgentEvent | null {
     source: "hook" as const,
   };
 
-  // Gemini's permission signal is observational. The Notification hook
-  // fires when Gemini is about to show its own ToolPermission prompt, but
-  // hook output cannot grant/deny it. We still surface a keykeeper letter
-  // for visibility and mark it observation-only in the renderer.
+  // Gemini's Notification/ToolPermission hook is observational only; hook
+  // output cannot grant or deny it. Do not render an ack card because it looks
+  // like a broken permission prompt. BeforeTool below is the actionable gate.
   if (
     eventName === "Notification" &&
-    p.notification_type === "ToolPermission" &&
-    p.__kh_permission_request_id
+    p.notification_type === "ToolPermission"
   ) {
-    const details =
-      p.details && typeof p.details === "object"
-        ? (p.details as Record<string, unknown>)
-        : {};
-    const toolName =
-      details.tool_name ??
-      details.toolName ??
-      details.name ??
-      p.tool_name ??
-      "tool";
-    return {
-      ...base,
-      timestamp: ts,
-      kind: "permission_request",
-      payload: {
-        name: canonicalToolName(toolName),
-        input: {
-          keykeeperObservationOnly: true,
-          message: p.message,
-          ...details,
-        },
-        requestId,
-      },
-    };
+    return null;
   }
 
   // Gemini BeforeTool with a request_id means the Python script is blocking

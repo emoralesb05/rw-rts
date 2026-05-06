@@ -351,13 +351,7 @@ function summarizePermissionInput(input: unknown): string {
 
 function isObservationOnlyPermission(event: AgentEvent): boolean {
   if (event.tool === "cursor") return true;
-  if (event.tool !== "gemini") return false;
-  const input = event.payload.input;
-  return (
-    !!input &&
-    typeof input === "object" &&
-    (input as Record<string, unknown>).keykeeperObservationOnly === true
-  );
+  return false;
 }
 
 /**
@@ -992,10 +986,9 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     const risk = classifyRisk(toolName, event.payload.input);
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
-    // Cursor letters and Gemini Notification/ToolPermission letters are
-    // observational. Gemini BeforeTool letters are actionable: deny blocks the
-    // tool before execution, while allow lets Gemini continue to its own policy
-    // checks.
+    // Cursor letters are observational. Gemini BeforeTool letters are
+    // actionable: deny blocks the tool before execution, while allow lets
+    // Gemini continue to its own policy checks.
     const observeOnlyProvider = isObservationOnlyPermission(event);
     const providerLabel = event.tool === "gemini" ? "Gemini" : "Cursor";
     const title = observeOnlyProvider

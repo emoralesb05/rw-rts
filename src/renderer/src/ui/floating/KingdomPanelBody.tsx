@@ -430,8 +430,9 @@ function ConnectionTab() {
           description={
             <>
               Forwards Gemini CLI session, prompt, tool, result, and response
-              events for any session on this machine. Permission prompts are
-              observation-only — decide in Gemini's native UI. Entries live in{" "}
+              events for any session on this machine. BeforeTool gates show
+              allow/deny in Keykeeper; Gemini may still show its own native
+              prompt depending on approval mode. Entries live in{" "}
               <code>~/.gemini/settings.json</code>.
             </>
           }

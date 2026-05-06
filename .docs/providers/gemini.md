@@ -22,7 +22,7 @@ PascalCase event names. We install these:
 | `AfterModel` | no-op JSON + forward | Fires per output chunk; ignored by bridge to avoid duplicate text |
 | `AfterAgent` | no-op JSON + forward | Final assistant response for the turn |
 | `PreCompress` | no-op JSON + forward | Context-compression advisory |
-| `Notification` | no-op JSON + forward | Tool permission alert visibility |
+| `Notification` | no-op JSON + forward | Native permission alert visibility; dropped by bridge |
 
 Payload shape (excerpt):
 
@@ -58,9 +58,11 @@ The CLI help emphasizes `--resume latest` or numeric indexes, but the bundled `S
 Gemini has two permission-adjacent hooks:
 
 - `BeforeTool` is synchronous and can return `{"decision":"deny","reason":"..."}` before the tool executes. Keykeeper blocks on this hook and renders allow/deny letters. Deny prevents execution. Allow only continues past the hook; Gemini's policy engine may still show its native confirmation prompt afterward depending on approval mode.
-- `Notification` with `notification_type: "ToolPermission"` is observation-only. Keykeeper renders an acknowledgement letter for visibility and returns `{}` immediately because Gemini ignores decision fields for this hook.
+- `Notification` with `notification_type: "ToolPermission"` is observation-only. Keykeeper forwards it for completeness, returns `{}` immediately, and intentionally does not render an ack card because Gemini ignores decision fields for this hook.
 
 Tradeoff: `BeforeTool` fires for every tool call, not only actions that Gemini would natively prompt for. This is intentionally noisier than Claude's `PermissionRequest`, but it is the only hook where Keykeeper can deny before execution.
+
+Installer detail: `BeforeTool` uses a long hook timeout so the approval card can wait for a human decision. Observation hooks keep a short timeout.
 
 ## Subagents
 

@@ -5,7 +5,8 @@
  * names and no-op behavior differ:
  *   - events are PascalCase: SessionStart, BeforeAgent, BeforeTool, etc.
  *   - hook commands should return JSON on stdout even for no-op
- *   - Notification/ToolPermission is observational only
+ *   - BeforeTool is the only hook that can block execution; Notification is
+ *     observational only and is not rendered as a Keykeeper decision
  *
  * We tag every command with `--tool gemini` so the bridge can disambiguate
  * Gemini's PascalCase events from Claude and Codex.
@@ -18,6 +19,8 @@ import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer"
 
 const GEMINI_SETTINGS_PATH = join(homedir(), ".gemini", "settings.json");
 const HOOK_MARKER = "keykeeper-managed";
+const GEMINI_OBSERVE_TIMEOUT_MS = 5000;
+const GEMINI_PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
 const GEMINI_HOOK_EVENTS = [
   "SessionStart",
   "SessionEnd",
@@ -47,6 +50,12 @@ type GeminiSettings = {
   hooks?: Record<string, GeminiHookEntry[]>;
   [key: string]: unknown;
 };
+
+function timeoutForEvent(evt: (typeof GEMINI_HOOK_EVENTS)[number]): number {
+  return evt === "BeforeTool"
+    ? GEMINI_PERMISSION_TIMEOUT_MS
+    : GEMINI_OBSERVE_TIMEOUT_MS;
+}
 
 function loadSettings(): GeminiSettings {
   if (!existsSync(GEMINI_SETTINGS_PATH)) return {};
@@ -92,7 +101,7 @@ export function installGeminiHooks() {
           name: "keykeeper",
           type: "command",
           command,
-          timeout: 5000,
+          timeout: timeoutForEvent(evt),
           description: "Forward Gemini CLI activity to Keykeeper.",
         },
       ],
