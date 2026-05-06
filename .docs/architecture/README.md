@@ -24,7 +24,7 @@ If you're new: `processes.md` → `events.md` → `bridge.md` → `renderer.md`.
 
 ## What's NOT here
 
-- Per-CLI quirks (Claude/Codex/Cursor) → [`../providers/`](../providers/)
+- Per-CLI quirks (Claude/Codex/Cursor/Gemini) → [`../providers/`](../providers/)
 - Strategic north star (philosophy, locked decisions, open questions) → [`../vision.md`](../vision.md)
 - Tactical per-feature plans → [`../plans/`](../plans/)
 - UI concept art → `../concept-art.png`, `../sprite-prompts.md`

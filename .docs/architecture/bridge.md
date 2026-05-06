@@ -32,22 +32,25 @@ renderer (zustand store)
 
 ## Dispatch
 
-The bridge inspects the event-name case to pick a normalizer:
+The bridge inspects the event-name case and optional tool marker to pick a normalizer:
 
 ```ts
 if (eventName[0] === eventName[0].toLowerCase()) {
   return normalizeCursorPayload(p, eventName);
 }
 const tool = (p?.__kh_tool as string | undefined) ?? "claude";
+if (tool === "gemini") return normalizeGeminiPayload(p, eventName);
 return normalizeClaudePayload(p, eventName, tool === "codex" ? "codex" : "claude");
 ```
 
 - camelCase → Cursor
-- PascalCase → Claude (default) or Codex (if `__kh_tool: "codex"` marker present)
+- PascalCase → Claude by default
+- `__kh_tool: "codex"` → Codex through the Claude-shaped normalizer
+- `__kh_tool: "gemini"` → Gemini through its own normalizer
 
 ## Tool-name canonicalization
 
-Each provider names its tools differently — Cursor calls Bash `run_terminal_command_v2`, Codex calls it `command_execution`, Claude just calls it `Bash`. We normalize at the bridge so the renderer can render one card type per logical tool.
+Each provider names its tools differently — Cursor calls Bash `run_terminal_command_v2`, Codex calls it `command_execution`, Gemini calls shell execution `run_shell_command`, and Claude just calls it `Bash`. We normalize at the bridge so the renderer can render one card type per logical tool.
 
 ```ts
 const TOOL_NAME_CANONICAL: Record<string, string> = {
@@ -58,6 +61,8 @@ const TOOL_NAME_CANONICAL: Record<string, string> = {
   // Codex
   command_execution: "Bash",
   apply_patch: "Edit",
+  // Gemini
+  run_shell_command: "Bash",
   // ...
 };
 ```
@@ -116,6 +121,6 @@ Don't filter on `text.startsWith("<system-reminder>")` — King prompts can have
 
 ## Troubleshooting
 
-- **Bridge silent**: check `~/.keykeeper/keykeeper.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.keykeeper/keykeeper.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__kh_tool':'codex'}).encode())"` and watch the dev log for the `[keykeeper/bridge]` line.
+- **Bridge silent**: check `~/.keykeeper/keykeeper.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.keykeeper/keykeeper.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__kh_tool':'codex'}).encode())"`. Per-event bridge logs require `KEYKEEPER_DEBUG_BRIDGE=1`.
 - **Event not reaching renderer**: confirm the bridge logged it. If it did, the renderer side is wrong.
 - **Event arrived but no wielder**: check the sessionId attribution — Cursor in particular uses different identifiers (process sessionId vs chatId; see [`../providers/cursor.md`](../providers/cursor.md)).

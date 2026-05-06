@@ -77,7 +77,7 @@ IPC channels: `kh:load-persisted` / `kh:save-persisted` / `kh:reset-persisted`.
 { socket, sessionId, cwd, tool }
 ```
 
-**Not persisted.** A keykeeper crash means orphaned requests, but the upstream provider (Claude / Codex) will time out the hook on its own (default 30s for Claude, 600s for Codex), so the user's CLI session recovers without manual cleanup.
+**Not persisted.** A keykeeper crash means orphaned requests, but the upstream provider will time out the hook on its own (for example, Claude defaults around 30s; Codex and Gemini use longer blocking permission timeouts), so the user's CLI session recovers without manual cleanup.
 
 ## Spawn provenance — `unit.spawnedHere`
 
@@ -96,13 +96,16 @@ We persist `unit.repoRoot` (not just `cwd`) so that "standing orders" (auto-rebi
 ```ts
 type StandingOrder = {
   id: string;
-  unitIdentity: { repoRoot: string; tool: string };  // NOT unitId — rebinds across restarts
+  unitId: string;                  // current session id; "" while waiting to rebind
+  unitIdentity: string;            // `${tool}::${repoRoot}`, not unitId
   prompt: string;
   intervalMs: number;
+  maxIterations: number;           // default 24
   iterationsRun: number;
-  maxIterations: number;          // default 24
-  lastFiredAt?: number;
-  failures: number;
+  failuresInRow: number;
+  status: "active" | "halted" | "exhausted" | "failed";
+  startedAt: number;
+  lastFiredAt: number;
 };
 ```
 
@@ -117,7 +120,7 @@ type StandingOrder = {
 
 ```ts
 AgentManager.spawn(tool, { prompt, cwd })  // dispatches by tool
-AgentManager.send(unitId, prompt)          // looks up across all 3 registries
+AgentManager.send(unitId, prompt)          // looks up across all provider registries
 AgentManager.kill(unitId)
 AgentManager.killAll()                     // called in will-quit
 ```

@@ -28,7 +28,7 @@ provider writes JSONL line
       → (rest of pipeline same as above)
 ```
 
-Cursor's `afterAgentResponse` hook covers it directly, so there's no `cursor-transcript.ts`.
+Cursor's `afterAgentResponse` hook and Gemini's `AfterAgent` hook cover assistant text directly, so there is no `cursor-transcript.ts` or `gemini-transcript.ts`.
 
 ## `AgentEvent` shape
 
@@ -68,7 +68,7 @@ Bridge normalizers (one per tool) map provider-specific event names and payloads
 
 ## Long-lived background workers
 
-Started in `app.whenReady()`, stopped in `will-quit`:
+Started in `app.whenReady()` and cleaned up by the Electron app lifecycle:
 
 | Worker | What it does |
 |---|---|
@@ -78,6 +78,8 @@ Started in `app.whenReady()`, stopped in `will-quit`:
 
 Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`. New files start at current size (don't replay history). On each ~2s tick it reads appended bytes, splits lines, parses JSON, emits events.
 
+Current cleanup nuance: `will-quit` stops spawned agents, the hook bridge, fixtures, and persistence flushing. The Claude/Codex transcript watchers are explicitly stopped on the non-mac `window-all-closed` path; on macOS they normally die with the process. If watcher shutdown starts to matter for tests or relaunch loops, move both watcher stops into the shared `will-quit` cleanup.
+
 ## Event ordering
 
 - Within one session, events are ordered by `timestamp`
@@ -86,10 +88,10 @@ Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`
 
 ## Fixture replay (testing)
 
-`src/main/adapters/fixture.ts` lets you replay a recorded scenario as synthetic events on the bus — `source: "fixture"` instead of `"hook"`. Useful for iterating on the renderer without spinning up real provider sessions.
+`src/main/adapters/fixture.ts` lets you replay a recorded scenario as synthetic events on the bus. Fixtures currently emit `source: "spawned"` because `AgentEvent.source` only allows `"spawned" | "hook"`. Useful for iterating on the renderer without spinning up real provider sessions.
 
 - Built-in scenarios: summon, combat, subagent, permission, etc.
 - IPC: `kh:play-fixture` with `{scenario, cwd}` triggers playback
 - Synthetic role assignment via archetype hashing — keeps the same prompt → same color across runs
 
-Fixtures emit through the same bus pipeline as hooks; the only differentiator is the `source` field, which the renderer can ignore. Adding a scenario = appending an entry to the fixture map.
+Fixtures emit through the same bus pipeline as hooks. Adding a scenario = appending an entry to the fixture map.

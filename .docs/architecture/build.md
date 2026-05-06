@@ -89,10 +89,11 @@ Bundle: Keykeeper.app/Contents/Resources/bin/keykeeper-hook
   ↓ syncHookScript() on app boot (cp + chmod +x)
 User dir: ~/.keykeeper/keykeeper-hook
   ↓ hook installer writes this path to user configs
-~/.claude/settings.json, ~/.cursor/hooks.json, ~/.codex/config.toml
+~/.claude/settings.json, ~/.cursor/hooks.json, ~/.codex/config.toml,
+~/.gemini/settings.json
 ```
 
-The user-dir copy is what Claude/Cursor/Codex actually invoke. Repo and `.app` location can both change without breaking installed hooks.
+The user-dir copy is what Claude/Cursor/Codex/Gemini actually invoke. Repo and `.app` location can both change without breaking installed hooks.
 
 ### Icon
 
