@@ -18,6 +18,8 @@ import {
 import { useStore } from "../store";
 import { usePanels } from "./floating/panel-store";
 import { summarizeEvent, shortAgo } from "./event-summary";
+import { Input } from "../components/chrome/Input";
+import { Kbd } from "../components/chrome/Kbd";
 import type { AgentEvent, UnitState, WorldState } from "@shared/events";
 
 type CommandItem = {
@@ -248,7 +250,7 @@ export function CommandPalette() {
       >
         <div className="command-palette-input-row">
           <Search size={15} aria-hidden />
-          <input
+          <Input
             ref={inputRef}
             className="command-palette-input"
             value={query}
@@ -278,7 +280,7 @@ export function CommandPalette() {
             }}
             placeholder="Search wielders, worlds, files, and actions..."
           />
-          <span className="command-palette-kbd">esc</span>
+          <Kbd className="command-palette-kbd">esc</Kbd>
         </div>
         <div className="command-palette-list" role="listbox">
           {filtered.length === 0 ? (

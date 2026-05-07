@@ -7,6 +7,11 @@ import { Trash2 } from "lucide-react";
 import { useStore } from "../../store";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../components/primitives/Tooltip";
 
 export function LettersHUD() {
   const letters = useStore((s) => s.letters);
@@ -16,14 +21,18 @@ export function LettersHUD() {
   const informational = letters.filter((l) => !isPermissionLetter(l));
   const clearBtn =
     informational.length > 0 ? (
-      <button
-        type="button"
-        className="hud-action-btn hud-action-btn-ghost"
-        onClick={dismissInformationalLetters}
-        title="Dismiss every letter — permission alerts are kept"
-      >
-        <Trash2 size={11} aria-hidden /> clear
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="hud-action-btn hud-action-btn-ghost"
+            onClick={dismissInformationalLetters}
+          >
+            <Trash2 size={11} aria-hidden /> clear
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Dismiss every letter — permission alerts are kept</TooltipContent>
+      </Tooltip>
     ) : null;
   return (
     <HudWidget

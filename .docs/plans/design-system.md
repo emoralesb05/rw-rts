@@ -151,6 +151,8 @@ src/renderer/src/components/
     Badge.tsx
     EmptyState.tsx
     SegmentedControl.tsx
+    Code.tsx
+    Kbd.tsx
 ```
 
 App-specific surfaces (HudWidget, ChatDrawer, FloatingPanel, the various
@@ -166,8 +168,6 @@ them in the same slice. Pending components:
 | Component | Type | Add When | Notes |
 |---|---|---|---|
 | `Separator` | chrome or Radix wrapper | Panel sections, dropdown menus, settings groups | Tiny, low risk; can be added with the next panel migration. |
-| `Kbd` | chrome | Shortcut labels in Decree, Dispatch, command palette, hints | Low risk; replaces ad hoc `⌘↩`, `Esc`, `⌘K` text styling. |
-| `Code` | chrome | Provider paths, config snippets, command names | Low risk; standardizes inline path/code rendering. |
 | `Skeleton` | chrome | Hook status loading, workspace scan, provider checks | Low risk; use instead of text-only `loading...` states. |
 | `Toolbar` | chrome | Repeated HUD/panel icon-button clusters | Useful after `IconButton` migrations reveal common layout. |
 | `Progress` | Radix wrapper or chrome | Determinate progress with ARIA semantics | Keep `Bar` for HP/MP/FC visuals unless accessibility semantics matter. |
@@ -266,11 +266,15 @@ In this order (smallest blast radius first):
    manual modal markup. Verify keyboard nav works end-to-end. **Done.**
 2. **DispatchPanelBody native `<select>` → Select** — fixes the
    long-standing aesthetic outlier. **Done.**
+   Dispatch also uses `Field`, `Textarea`, `SegmentedControl`, `Button`,
+   and `Kbd` for the rest of its form chrome. **Done.**
 3. **KingdomPanelBody manual tablist → Tabs** — cleaner JSX, free arrow-
    key nav. **Done.**
+   Initial Kingdom action/code surfaces use `Button` and `Code`. **Done.**
 4. **Sweep `title=` attributes on HUD chips → Tooltip** — start with the
    most-hovered surfaces (party-row chat icon, KingdomHeader pill,
-   action chips).
+   action chips). **Started for `KingdomHeader`, `CloseAllChip`, and the
+   Letters clear action.**
 
 After each, delete the now-dead CSS from `styles.css`.
 
@@ -284,8 +288,10 @@ Add when the next surface needs them:
   (custom dark scrollbar). **Scaffolded.**
 - **Switch / Checkbox / RadioGroup** — settings toggles, multi-select
   permissions, and segmented controls. **Scaffolded.**
-- **Separator / Kbd / Code / Skeleton** — low-risk chrome components.
-  **Pending; add with the next panel/settings migration.**
+- **Kbd / Code** — shortcut and inline-code chrome. **Scaffolded and
+  used in Dispatch, Settings, and Kingdom panel surfaces.**
+- **Separator / Skeleton** — low-risk chrome components. **Pending; add
+  with the next panel/settings migration.**
 - **Toolbar** — repeated icon-button clusters. **Pending; add after
   `IconButton` has at least two migrated call sites.**
 - **Progress / Slider** — accessible progress and numeric adjustment
@@ -296,8 +302,11 @@ Add when the next surface needs them:
 ### Phase 5 — Chrome atoms (1 day)
 
 Build `Button`, `Card`, `Pill`, `Chip`, `Bar`, `Input`, `Textarea`,
-`Field`, `IconButton`, `Badge`, `EmptyState`, and `SegmentedControl` in
-`components/chrome/`. **Scaffolded.** Migrate the existing `.btn`,
+`Field`, `IconButton`, `Badge`, `EmptyState`, `SegmentedControl`,
+`Code`, and `Kbd` in `components/chrome/`. **Scaffolded.** `SettingsPanelBody`,
+`DispatchPanelBody`, `WielderChatInput`, `CommandPalette`, `LetterCard`,
+and initial `KingdomPanelBody` controls now use these atoms. Migrate the
+existing `.btn`,
 `.target-panel`, `.tool-pill`, `.hud-action-btn`, `.bar`, empty-state,
 form-control, and segmented button rules out of `styles.css`. These are
 touched by ~30 sites each — bulk find-replace.
@@ -406,7 +415,8 @@ list is greppable: `grep -n IRREDUCIBLE styles.css`.
 - `components/primitives/` has Dialog, Tabs, Tooltip, Select, Popover,
   DropdownMenu, ScrollArea, Label, Switch, Checkbox, RadioGroup.
 - `components/chrome/` has Button, Card, Pill, Chip, Bar, Input,
-  Textarea, Field, IconButton, Badge, EmptyState, SegmentedControl.
+  Textarea, Field, IconButton, Badge, EmptyState, SegmentedControl,
+  Code, Kbd.
 - DecreeModal, DispatchPanelBody, KingdomPanelBody use primitives —
   manual modal / tab / select code deleted.
 - HudWidget, AlertsHUD, LettersHUD, WielderHUD, ActivityLog, LetterCard,

@@ -8,6 +8,11 @@
 import { useEffect } from "react";
 import { XSquare } from "lucide-react";
 import { usePanels } from "./floating/panel-store";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../components/primitives/Tooltip";
 
 export function CloseAllChip() {
   const closeAll = usePanels((s) => s.closeAll);
@@ -30,16 +35,20 @@ export function CloseAllChip() {
 
   if (count === 0) return null;
   return (
-    <button
-      type="button"
-      className="close-all-chip"
-      onClick={closeAll}
-      title={`close all panels (${count}) — ⌘⇧W`}
-      aria-label={`Close all ${count} open panels`}
-    >
-      {/* Lucide XSquare reads as "close all in container" — sized to
-       * fit a 28px circular chip. */}
-      <XSquare size={16} strokeWidth={2.25} aria-hidden />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="close-all-chip"
+          onClick={closeAll}
+          aria-label={`Close all ${count} open panels`}
+        >
+          {/* Lucide XSquare reads as "close all in container" — sized to
+           * fit a 28px circular chip. */}
+          <XSquare size={16} strokeWidth={2.25} aria-hidden />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>close all panels ({count}) — ⌘⇧W</TooltipContent>
+    </Tooltip>
   );
 }

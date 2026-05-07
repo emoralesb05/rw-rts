@@ -12,6 +12,11 @@ import { useStore } from "../../store";
 import { isMuted, toggleMuted } from "../../audio/sounds";
 import { usePanels } from "../floating/panel-store";
 import { CloseAllChip } from "../CloseAllChip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "../../components/primitives/Tooltip";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));
@@ -39,40 +44,57 @@ export function KingdomHeader() {
     <div className="kingdom-header">
       <span className="kingdom-header-title">⌬ Keykeeper</span>
       <span className="kingdom-header-sep">·</span>
-      <span className="kingdom-header-stat" title="sealed keyholes (lifetime)">
-        ✦ {sealedLifetime} sealed
-      </span>
-      <span className="kingdom-header-stat" title="active wielders">
-        ⚔ {liveWielders} wielders
-      </span>
-      <span className="kingdom-header-stat" title="total munny earned">
-        µ {totalMunny.toLocaleString()}
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="kingdom-header-stat">✦ {sealedLifetime} sealed</span>
+        </TooltipTrigger>
+        <TooltipContent>sealed keyholes (lifetime)</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="kingdom-header-stat">⚔ {liveWielders} wielders</span>
+        </TooltipTrigger>
+        <TooltipContent>active wielders</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="kingdom-header-stat">µ {totalMunny.toLocaleString()}</span>
+        </TooltipTrigger>
+        <TooltipContent>total munny earned</TooltipContent>
+      </Tooltip>
       <span className="kingdom-header-sep">·</span>
       <span className="kingdom-header-meta">
         founded {fmtDays(persisted.kingdomFoundedAt)} ago
       </span>
       <span className="kingdom-header-actions">
-        <button
-          type="button"
-          className="kingdom-header-icon-btn"
-          onClick={() => setMuted(toggleMuted())}
-          title={muted ? "unmute" : "mute"}
-          aria-label={muted ? "unmute" : "mute"}
-        >
-          {muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
-        </button>
-        <button
-          type="button"
-          className="kingdom-header-icon-btn"
-          onClick={() =>
-            openPanel({ kind: "kingdom", title: "Kingdom", width: 520 })
-          }
-          title="Kingdom — overview, settings, connection, demos"
-          aria-label="Open Kingdom panel"
-        >
-          <Settings size={14} aria-hidden />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="kingdom-header-icon-btn"
+              onClick={() => setMuted(toggleMuted())}
+              aria-label={muted ? "unmute" : "mute"}
+            >
+              {muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{muted ? "unmute" : "mute"}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="kingdom-header-icon-btn"
+              onClick={() =>
+                openPanel({ kind: "kingdom", title: "Kingdom", width: 520 })
+              }
+              aria-label="Open Kingdom panel"
+            >
+              <Settings size={14} aria-hidden />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Kingdom — overview, settings, connection, demos</TooltipContent>
+        </Tooltip>
       </span>
       {/* Floating "close all" chip — visually separate (own pill) but
        * absolutely positioned to the pill's right edge so it always

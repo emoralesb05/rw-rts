@@ -7,6 +7,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
+import { Button } from "../../components/chrome/Button";
+import { Field } from "../../components/chrome/Field";
+import { Kbd } from "../../components/chrome/Kbd";
+import { SegmentedControl } from "../../components/chrome/SegmentedControl";
+import { Textarea } from "../../components/chrome/Textarea";
 import {
   Select,
   SelectContent,
@@ -18,6 +23,7 @@ import type { WorkspaceRepoEntry } from "@shared/schemas";
 
 type Tool = "claude" | "cursor" | "codex" | "gemini";
 const TOOLS: Tool[] = ["claude", "cursor", "codex", "gemini"];
+const TOOL_OPTIONS = TOOLS.map((tool) => ({ value: tool, label: tool }));
 const CURRENT_REPO_VALUE = "__keykeeper_current_repo__";
 
 export function DispatchPanelBody() {
@@ -68,28 +74,21 @@ export function DispatchPanelBody() {
 
   return (
     <div className="dispatch-panel">
-      <div className="dispatch-row">
-        <label className="dispatch-label">Tool</label>
-        <div className="command-tool" role="tablist" aria-label="agent tool">
-          {TOOLS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tool === t}
-              className={"command-tool-btn" + (tool === t ? " active" : "")}
-              onClick={() => setTool(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Field className="dispatch-row" label="Tool">
+        <SegmentedControl
+          aria-label="agent tool"
+          className="command-tool"
+          value={tool}
+          onValueChange={(value) => setTool(value as Tool)}
+          options={TOOL_OPTIONS}
+        />
+      </Field>
 
-      <div className="dispatch-row">
-        <label className="dispatch-label" htmlFor="dispatch-target">
-          Target
-        </label>
+      <Field
+        className="dispatch-row"
+        htmlFor="dispatch-target"
+        label="Target"
+      >
         <Select
           value={spawnPath || CURRENT_REPO_VALUE}
           onValueChange={(value) =>
@@ -114,17 +113,24 @@ export function DispatchPanelBody() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </Field>
 
-      <div className="dispatch-row dispatch-prompt-row">
-        <label className="dispatch-label" htmlFor="dispatch-prompt">
-          Prompt
-          <span className="dispatch-hint">⌘↵ to send</span>
-        </label>
-        <textarea
+      <Field
+        className="dispatch-row dispatch-prompt-row"
+        htmlFor="dispatch-prompt"
+        label="Prompt"
+        description={
+          <span className="inline-flex items-center gap-1">
+            <Kbd>⌘</Kbd>
+            <Kbd>↵</Kbd>
+            <span>to send</span>
+          </span>
+        }
+      >
+        <Textarea
           ref={promptRef}
           id="dispatch-prompt"
-          className="dispatch-prompt"
+          className="dispatch-prompt font-mono"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={onKeyDown}
@@ -134,26 +140,24 @@ export function DispatchPanelBody() {
           spellCheck
           autoCapitalize="sentences"
         />
-      </div>
+      </Field>
 
       <div className="dispatch-footer">
-        <button
+        <Button
           type="button"
-          className="btn"
           onClick={() => closeKind("dispatch")}
           disabled={busy}
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn primary"
+          variant="primary"
           onClick={send}
           disabled={busy || !prompt.trim()}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
         >
           {busy ? "Spawning…" : (<><Play size={12} aria-hidden /> Spawn {tool}</>)}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -6,6 +6,8 @@
  */
 import { useCallback, useState } from "react";
 import type { UnitState } from "@shared/events";
+import { Button } from "../components/chrome/Button";
+import { Textarea } from "../components/chrome/Textarea";
 
 export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
@@ -44,8 +46,8 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
 
   return (
     <div className="wielder-chat-input">
-      <textarea
-        className="wielder-chat-textarea"
+      <Textarea
+        className="wielder-chat-textarea font-mono"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={onKeyDown}
@@ -54,14 +56,15 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
         rows={2}
         spellCheck
       />
-      <button
+      <Button
         type="button"
-        className="btn primary wielder-chat-send"
+        variant="primary"
+        className="wielder-chat-send"
         onClick={send}
         disabled={disabled || !prompt.trim()}
       >
         {busy ? "…" : "send"}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePanels } from "./panel-store";
+import { Button } from "../../components/chrome/Button";
+import { Code } from "../../components/chrome/Code";
+import { Field } from "../../components/chrome/Field";
+import { Input } from "../../components/chrome/Input";
+import { Textarea } from "../../components/chrome/Textarea";
 import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 
 const VALIDATION_REASON: Record<NonNullable<WorkspaceRootValidation["reason"]>, string> = {
@@ -56,11 +61,15 @@ export function SettingsPanelBody({ onSaved }: Props) {
 
   return (
     <div className="settings-body">
-      <label className="settings-field">
-        <span className="settings-label">Workspace root</span>
-        <input
+      <Field
+        className="settings-field"
+        htmlFor="settings-workspace-root"
+        label="Workspace root"
+      >
+        <Input
+          id="settings-workspace-root"
           type="text"
-          className="settings-input"
+          className="settings-input font-mono"
           value={workspaceRoot}
           onChange={(e) => setWorkspaceRoot(e.target.value)}
           placeholder="~/Github"
@@ -83,17 +92,17 @@ export function SettingsPanelBody({ onSaved }: Props) {
             ? `✓ resolves to ${validation.expanded}`
             : `⚠ ${VALIDATION_REASON[validation.reason ?? "empty"]}`}
         </span>
-      </label>
+      </Field>
 
-      <label className="settings-field">
-        <span className="settings-label">
-          Exclude patterns
-          <span className="settings-hint">
-            one per line · basename, label, dir/*, /abs/path/*, or full path
-          </span>
-        </span>
-        <textarea
-          className="settings-textarea"
+      <Field
+        className="settings-field"
+        htmlFor="settings-exclude"
+        label="Exclude patterns"
+        description="one per line · basename, label, dir/*, /abs/path/*, or full path"
+      >
+        <Textarea
+          id="settings-exclude"
+          className="settings-textarea font-mono"
           value={excludeText}
           onChange={(e) => setExcludeText(e.target.value)}
           rows={8}
@@ -101,30 +110,29 @@ export function SettingsPanelBody({ onSaved }: Props) {
           spellCheck={false}
           autoCapitalize="off"
         />
-      </label>
+      </Field>
 
       <p className="settings-footer-note">
-        Edits also persist to <code>~/.keykeeper.json</code>; you can hand-edit that file
+        Edits also persist to <Code>~/.keykeeper.json</Code>; you can hand-edit that file
         and the next dropdown render will pick it up.
       </p>
 
       <div className="settings-footer">
-        <button
+        <Button
           type="button"
-          className="btn"
           onClick={() => closeKind("settings")}
           disabled={saving}
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn primary"
+          variant="primary"
           onClick={save}
           disabled={!canSave}
         >
           {saving ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </div>
     </div>
   );

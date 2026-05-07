@@ -19,6 +19,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "../../components/primitives/Tabs";
+import { Button } from "../../components/chrome/Button";
+import { Code } from "../../components/chrome/Code";
 import type { HooksStatus } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
@@ -195,11 +197,11 @@ function OverviewTab() {
 
       <section className="kingdom-section kingdom-danger">
         <h3 className="kingdom-section-title">Danger zone</h3>
-        <button type="button" className="btn destructive" onClick={onReset}>
+        <Button type="button" variant="danger" onClick={onReset}>
           Reset kingdom
-        </button>
+        </Button>
         <p className="kingdom-footer-note">
-          Drops persisted state in <code>~/Library/Application Support/keykeeper/state.json</code>.
+          Drops persisted state in <Code>~/Library/Application Support/keykeeper/state.json</Code>.
           Active sessions stay running.
         </p>
       </section>
@@ -237,19 +239,19 @@ function HookBridgeSection(props: HookBridgeProps) {
       </div>
       <div className="kingdom-kv">
         <span>config</span>
-        <code>{status.hooksConfigPath ?? configPathLabel}</code>
+        <Code>{status.hooksConfigPath ?? configPathLabel}</Code>
       </div>
       <div className="kingdom-kv">
         <span>socket</span>
-        <code>{status.socketPath}</code>
+        <Code>{status.socketPath}</Code>
       </div>
       <div className="kingdom-kv">
         <span>script</span>
-        <code>{status.hookScriptPath}</code>
+        <Code>{status.hookScriptPath}</Code>
       </div>
-      <button
+      <Button
         type="button"
-        className={"btn" + (status.installed ? " destructive" : " primary")}
+        variant={status.installed ? "danger" : "primary"}
         onClick={onToggle}
         disabled={busy}
       >
@@ -258,7 +260,7 @@ function HookBridgeSection(props: HookBridgeProps) {
           : status.installed
           ? "Uninstall hooks"
           : "Install hooks"}
-      </button>
+      </Button>
       <p className="kingdom-footer-note">{description}</p>
     </section>
   );
@@ -380,7 +382,7 @@ function ConnectionTab() {
             <>
               Forwards Claude Code tool-call events and gates permission
               requests for any session running on this machine. Entries live
-              in <code>~/.claude/settings.json</code>.
+              in <Code>~/.claude/settings.json</Code>.
             </>
           }
         />
@@ -399,7 +401,7 @@ function ConnectionTab() {
               Forwards Cursor agent activity for any chat on this machine.
               Permissions are observation-only — Cursor's allowlist
               approvalMode requires the King to confirm in Cursor's inline
-              UI. Entries live in <code>~/.cursor/hooks.json</code>.
+              UI. Entries live in <Code>~/.cursor/hooks.json</Code>.
             </>
           }
         />
@@ -418,7 +420,7 @@ function ConnectionTab() {
               Forwards Codex CLI events and gates permission requests for
               any session on this machine — same architecture as Claude.
               Managed in a marker block at the end of{" "}
-              <code>~/.codex/config.toml</code>; the rest of the file is
+              <Code>~/.codex/config.toml</Code>; the rest of the file is
               left untouched.
             </>
           }
@@ -439,8 +441,8 @@ function ConnectionTab() {
               events for any session on this machine. Keykeeper owns Gemini
               tool approvals via a fail-closed BeforeTool hook and a managed
               user policy that suppresses Gemini's native prompt. Entries live
-              in <code>~/.gemini/settings.json</code> and{" "}
-              <code>~/.gemini/policies/keykeeper-managed.toml</code>.
+              in <Code>~/.gemini/settings.json</Code> and{" "}
+              <Code>~/.gemini/policies/keykeeper-managed.toml</Code>.
             </>
           }
         />
@@ -454,7 +456,7 @@ function PreloadRestartHint({ title }: { title: string }) {
     <section className="kingdom-section">
       <h3 className="kingdom-section-title">{title}</h3>
       <div className="kingdom-empty">
-        bridge IPC missing — restart <code>bun run dev</code> to rebuild the
+        bridge IPC missing — restart <Code>bun run dev</Code> to rebuild the
         preload bundle.
       </div>
     </section>
@@ -482,14 +484,14 @@ function DemosTab() {
           <h3 className="kingdom-section-title">{group.label}</h3>
           <div className="kingdom-demo-grid">
             {group.items.map((item) => (
-              <button
+              <Button
                 key={item.id}
                 type="button"
-                className="btn"
+                className="justify-start px-2.5 py-1.5 text-left text-[11px]"
                 onClick={() => fire(item.id)}
               >
                 ▶ {item.label}
-              </button>
+              </Button>
             ))}
           </div>
         </section>

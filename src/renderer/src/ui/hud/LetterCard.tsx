@@ -9,6 +9,7 @@ import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { Input } from "../../components/chrome/Input";
 import type { Letter, LetterAction } from "@shared/events";
 
 function timeAgo(ts: number): string {
@@ -227,7 +228,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
         </div>
       )}
       {isPermLetter && (
-        <input
+        <Input
           type="text"
           className="letter-deny-reason"
           placeholder="deny reason (optional, shown to the agent)"
