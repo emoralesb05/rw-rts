@@ -12,13 +12,14 @@
  *   - session_start / session_end / subagent_spawn / permission_resolved
  *       → not clickable (system markers, no useful drill-through)
  */
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
 import { usePanels } from "./floating/panel-store";
 import { usePersistedBool } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
+import { TooltipHint } from "../components/chrome/TooltipHint";
 import type { AgentEvent } from "@shared/events";
 
 const VISIBLE = 60;
@@ -202,25 +203,28 @@ export function ActivityLog() {
                   <span className="activity-log-time">{shortAgo(ev.timestamp)}</span>
                 </>
               );
-              return clickable ? (
+              const Row = clickable ? (
                 <button
                   type="button"
-                  key={key}
                   className={className}
                   onClick={onClick}
-                  title={titleAttr}
                 >
                   {Body}
                 </button>
               ) : (
                 <div
-                  key={key}
                   className={className}
-                  title={titleAttr}
                   aria-disabled="true"
                 >
                   {Body}
                 </div>
+              );
+              return titleAttr ? (
+                <TooltipHint key={key} label={titleAttr}>
+                  {Row}
+                </TooltipHint>
+              ) : (
+                <Fragment key={key}>{Row}</Fragment>
               );
             })
           )}

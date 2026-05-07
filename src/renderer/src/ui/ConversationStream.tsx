@@ -19,6 +19,7 @@ import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
+import { TooltipHint } from "../components/chrome/TooltipHint";
 import type { AgentEvent, UnitState } from "@shared/events";
 
 const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk };
@@ -102,19 +103,20 @@ function FilePathLink({
     e.stopPropagation();
     void window.kh.openPath(path, { tool }).catch(() => {});
   };
+  const hint =
+    tool === "cursor"
+      ? `open ${path} in Cursor`
+      : `open ${path}`;
   return (
-    <button
-      type="button"
-      className="chat-path-link"
-      onClick={onClick}
-      title={
-        tool === "cursor"
-          ? `open ${path} in Cursor`
-          : `open ${path}`
-      }
-    >
-      {display}
-    </button>
+    <TooltipHint label={hint}>
+      <button
+        type="button"
+        className="chat-path-link"
+        onClick={onClick}
+      >
+        {display}
+      </button>
+    </TooltipHint>
   );
 }
 
@@ -357,14 +359,15 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
             <span className="chat-tool-arg">{summary}</span>
           ))}
         {trace.length > 0 && (
-          <button
-            type="button"
-            className="chat-tool-why"
-            onClick={() => setShowTrace((v) => !v)}
-            title="show what led to this tool call"
-          >
-            {showTrace ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} why
-          </button>
+          <TooltipHint label="show what led to this tool call">
+            <button
+              type="button"
+              className="chat-tool-why"
+              onClick={() => setShowTrace((v) => !v)}
+            >
+              {showTrace ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} why
+            </button>
+          </TooltipHint>
         )}
       </div>
       {showTrace && trace.length > 0 && (
@@ -717,14 +720,15 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
     );
   }
   return (
-    <button
-      type="button"
-      className="chat-marker chat-permission-request"
-      onClick={onClick}
-      title="click to spotlight the alert"
-    >
-      {inner}
-    </button>
+    <TooltipHint label="click to spotlight the alert">
+      <button
+        type="button"
+        className="chat-marker chat-permission-request"
+        onClick={onClick}
+      >
+        {inner}
+      </button>
+    </TooltipHint>
   );
 }
 

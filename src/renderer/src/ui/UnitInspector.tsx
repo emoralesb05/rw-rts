@@ -1,5 +1,6 @@
 import { useStore } from "../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
+import { TooltipHint } from "../components/chrome/TooltipHint";
 
 export function UnitInspector() {
   const selectedUnitId = useStore((s) => s.selectedUnitId);
@@ -50,20 +51,23 @@ export function UnitInspector() {
               <div className="bar hp"><div style={{ width: `${u.hp}%` }} /></div>
               <div className="bar mp"><div style={{ width: `${u.mp}%` }} /></div>
             </div>
-            <button
-              className="unit-mute"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleMute(u.sessionId);
-              }}
-              title={
+            <TooltipHint
+              label={
                 muted[u.sessionId]
                   ? "unmute — show events from this unit in the chat"
                   : "mute — hide events from this unit in the chat"
               }
             >
-              {muted[u.sessionId] ? "🔇" : "🔊"}
-            </button>
+              <button
+                className="unit-mute"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute(u.sessionId);
+                }}
+              >
+                {muted[u.sessionId] ? "🔇" : "🔊"}
+              </button>
+            </TooltipHint>
           </div>
         );
       })}

@@ -19,8 +19,20 @@ import {
   TabsList,
   TabsTrigger,
 } from "../../components/primitives/Tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/primitives/AlertDialog";
 import { Button } from "../../components/chrome/Button";
 import { Code } from "../../components/chrome/Code";
+import { Skeleton } from "../../components/chrome/Skeleton";
 import type { HooksStatus } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
@@ -99,13 +111,7 @@ function OverviewTab() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  const onReset = async () => {
-    if (
-      !confirm(
-        "Reset the kingdom? Lifetime stats, sealed-keyhole history, and Renown all clear. Active sessions are not killed."
-      )
-    )
-      return;
+  const resetKingdom = async () => {
     await reset();
     closeKind("kingdom");
   };
@@ -197,9 +203,28 @@ function OverviewTab() {
 
       <section className="kingdom-section kingdom-danger">
         <h3 className="kingdom-section-title">Danger zone</h3>
-        <Button type="button" variant="danger" onClick={onReset}>
-          Reset kingdom
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="danger">
+              Reset kingdom
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reset the kingdom?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Lifetime stats, sealed-keyhole history, and Renown all clear.
+                Active sessions are not killed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void resetKingdom()}>
+                Reset kingdom
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <p className="kingdom-footer-note">
           Drops persisted state in <Code>~/Library/Application Support/keykeeper/state.json</Code>.
           Active sessions stay running.
@@ -224,7 +249,15 @@ function HookBridgeSection(props: HookBridgeProps) {
     return (
       <section className="kingdom-section">
         <h3 className="kingdom-section-title">{title}</h3>
-        <div className="kingdom-empty">loading…</div>
+        <div
+          className="flex flex-col gap-2 py-2"
+          role="status"
+          aria-label={`Loading ${title} status`}
+        >
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-3 w-56" />
+          <Skeleton className="h-8 w-28" />
+        </div>
       </section>
     );
   }

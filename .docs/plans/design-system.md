@@ -1,6 +1,6 @@
 # Plan: Design system — Radix + Tailwind, shadcn-style owned components
 
-**Status**: in progress · **Owner**: TBD · **Phase**: Post-Phase-2B polish
+**Status**: foundation complete; CSS migration ongoing · **Owner**: TBD · **Phase**: Radix/OSS UI foundation
 
 ## Goal
 
@@ -12,7 +12,7 @@ overlay, and any animation Tailwind genuinely can't express cleanly.
 Aesthetic stays KH-themed; the migration is structural. We are **not**
 installing the shadcn CLI — we own every component we ship.
 
-Target end-state: `styles.css` under ~400 lines (down from 3430), and
+Target end-state: `styles.css` under ~400 lines (currently ~3500), and
 every JSX `className` is either a `components/`-exported component or a
 Tailwind utility string.
 
@@ -28,7 +28,7 @@ Three forces:
    component. Tailwind solves this by being the scale.
 3. **AI-agent productivity** — keykeeper is a tool *for* AI agents
    editing code. Tailwind + Radix is the most-trained-on combination on
-   the planet; agents (and humans) onboard faster on it than on a 3430-
+   the planet; agents (and humans) onboard faster on it than on a 3500-
    line bespoke CSS file.
 
 shadcn the *aesthetic* (clean SaaS dashboard) is wrong for keykeeper.
@@ -47,9 +47,11 @@ is exactly right. We adopt the pattern, skip the package.
   `--bg --line --accent --accent-2 --text --muted` remain for existing
   CSS while new components use `bg-*`, `text-*`, `border-*`, radius, z,
   motion, and font tokens.
-- **Radix primitives are installed** for dialog, tabs, tooltip, select,
-  popover, dropdown menu, scroll area, label, switch, checkbox, and
-  radio group.
+- **Radix primitives are installed** for dialog, alert dialog, tabs,
+  tooltip, select, separator, popover, dropdown menu, scroll area,
+  label, switch, checkbox, and radio group.
+- **cmdk is installed** and wrapped as an owned `Command` primitive for
+  command-palette behavior.
 - **Owned component directories exist** under
   `src/renderer/src/components/primitives/` and
   `src/renderer/src/components/chrome/`. Imports are direct rather than
@@ -58,14 +60,11 @@ is exactly right. We adopt the pattern, skip the package.
   `DispatchPanelBody` uses Radix Select for target selection, and
   `KingdomPanelBody` uses Radix Tabs.
 - **Hand-rolled behavior** in:
-  - `DecreeModal.tsx:72` — Escape close, no focus trap, no scroll lock
   - `FloatingPanel.tsx:81` — Escape close + manual z-stack focus
   - `ChatDrawer.tsx` — drag-to-resize, manual tab close, manual focus
   - `LetterCard.tsx` × 4 + 5 other places — `e.stopPropagation()`
-  - `KingdomPanelBody.tsx` — manual `role="tablist"` plumbing
-  - `DispatchPanelBody.tsx` — native `<select>` (the one aesthetic
-    outlier)
-  - Everywhere — `title=` instead of real tooltips
+  - Remaining work is now mostly CSS migration, not missing Radix/OSS
+    behavior primitives.
 
 ## Target architecture
 
@@ -128,8 +127,10 @@ Tailwind v4 uses CSS-based config via `@theme`. Define tokens once in
 src/renderer/src/components/
   primitives/                    ← thin Radix wrappers, our chrome
     Dialog.tsx                   ← wraps @radix-ui/react-dialog
+    AlertDialog.tsx              ← wraps @radix-ui/react-alert-dialog
     Tabs.tsx                     ← wraps @radix-ui/react-tabs
     Tooltip.tsx                  ← wraps @radix-ui/react-tooltip
+    Separator.tsx                ← wraps @radix-ui/react-separator
     Popover.tsx
     Select.tsx
     DropdownMenu.tsx
@@ -138,6 +139,7 @@ src/renderer/src/components/
     Switch.tsx
     Checkbox.tsx
     RadioGroup.tsx
+    Command.tsx                  ← wraps cmdk command menu primitives
   chrome/                        ← styled atoms with no Radix counterpart
     Button.tsx                   ← .btn / .btn.primary / .btn.ghost variants
     Card.tsx
@@ -153,33 +155,42 @@ src/renderer/src/components/
     SegmentedControl.tsx
     Code.tsx
     Kbd.tsx
+    Skeleton.tsx
+    TooltipHint.tsx
 ```
 
 App-specific surfaces (HudWidget, ChatDrawer, FloatingPanel, the various
 `*PanelBody` files) stay in `ui/` and *use* the components.
 Imports stay direct; no component barrel is planned.
 
-### Pending Component Inventory
+### Component Inventory
 
 The current scaffold covers the common controls we already know we need.
 Do not add more generic components speculatively unless a migration uses
-them in the same slice. Pending components:
+them in the same slice.
+
+Shipped in the Radix/OSS foundation:
+
+| Component | Type | Current use |
+|---|---|---|
+| `Command` | cmdk wrapper | Global command palette; Decree inline @file and /command palettes |
+| `Separator` | Radix wrapper | Command palette divider |
+| `Skeleton` | chrome | Hook bridge loading state |
+| `Bar` | chrome | Party-row HP/MP meters |
+
+Pending components:
 
 | Component | Type | Add When | Notes |
 |---|---|---|---|
-| `Separator` | chrome or Radix wrapper | Panel sections, dropdown menus, settings groups | Tiny, low risk; can be added with the next panel migration. |
-| `Skeleton` | chrome | Hook status loading, workspace scan, provider checks | Low risk; use instead of text-only `loading...` states. |
 | `Toolbar` | chrome | Repeated HUD/panel icon-button clusters | Useful after `IconButton` migrations reveal common layout. |
 | `Progress` | Radix wrapper or chrome | Determinate progress with ARIA semantics | Keep `Bar` for HP/MP/FC visuals unless accessibility semantics matter. |
 | `Slider` | Radix wrapper | Volume, density, animation speed, zoom, future settings | Add with the first real slider setting. |
-| `AlertDialog` | Radix wrapper | Reset kingdom, uninstall hooks, recall/kill confirmations | Replace native `confirm()` only when migrating a destructive flow. |
 | `Toast` | Radix wrapper or Sonner-style owned layer | Save success, copy-to-clipboard, hook install results, provider errors | Needs app-level provider/viewport; add with the first notification flow. |
-| `Command` | cmdk or owned primitive | Command palette rewrite | Bigger behavioral change; do not add until command palette migration starts. |
 
 ### Component conventions (shadcn-style)
 
 Each primitive component:
-- Re-exports the Radix subcomponents we use, styled
+- Exports the styled Radix subcomponents we use
 - Uses Tailwind utilities for styling, with token-backed classes
 - Uses React 19 ref-as-prop conventions and exposes `className` for
   surface-specific overrides (`cn()` helper merges defaults + caller
@@ -251,12 +262,13 @@ prove it.
 4. Build `Dialog`, `Tabs`, `Tooltip` as the first three primitives.
    Style with Tailwind utilities only — no entries in `styles.css`.
    **Done, with `Select`, `Popover`, `DropdownMenu`, `ScrollArea`,
-   `Label`, `Switch`, `Checkbox`, and `RadioGroup` wrappers also
-   scaffolded.**
+   `Label`, `Switch`, `Checkbox`, `RadioGroup`, `AlertDialog`,
+   `Separator`, and `Command` wrappers also scaffolded.**
 5. Build first chrome atoms for common app surfaces. **Done for
    `Button`, `Card`, `Pill`, `Chip`, `Bar`, `Input`, `Textarea`,
    `Field`, `IconButton`, `Badge`, `EmptyState`, and
-   `SegmentedControl`.**
+   `SegmentedControl`, with `Code`, `Kbd`, `Skeleton`, and
+   `TooltipHint` added as later migration slices needed them.**
 
 ### Phase 3 — First migrations (1 day)
 
@@ -273,8 +285,18 @@ In this order (smallest blast radius first):
    Initial Kingdom action/code surfaces use `Button` and `Code`. **Done.**
 4. **Sweep `title=` attributes on HUD chips → Tooltip** — start with the
    most-hovered surfaces (party-row chat icon, KingdomHeader pill,
-   action chips). **Started for `KingdomHeader`, `CloseAllChip`, and the
-   Letters clear action.**
+   action chips). **Done for DOM `title` attributes under `ui/`; the
+   remaining `title=` matches are component props.**
+5. **ChatDrawer manual tablist → Tabs** — dynamic tab bar now uses Radix
+   Tabs while preserving the existing visual chrome. **Done.**
+6. **Native `confirm()` flows → AlertDialog** — Reset Kingdom, Recall,
+   and Standing Order confirmation now use the owned AlertDialog wrapper.
+   **Done.**
+7. **CommandPalette manual dialog/listbox → cmdk + Dialog** — global
+   command search now uses the owned `Command` wrapper inside Radix
+   Dialog; the old command-palette CSS block was deleted. **Done.**
+8. **Decree inline palettes → Command** — @file and /command suggestions
+   use the same owned `Command` primitive. **Done.**
 
 After each, delete the now-dead CSS from `styles.css`.
 
@@ -290,23 +312,27 @@ Add when the next surface needs them:
   permissions, and segmented controls. **Scaffolded.**
 - **Kbd / Code** — shortcut and inline-code chrome. **Scaffolded and
   used in Dispatch, Settings, and Kingdom panel surfaces.**
-- **Separator / Skeleton** — low-risk chrome components. **Pending; add
-  with the next panel/settings migration.**
+- **AlertDialog** — destructive confirmation primitive. **Scaffolded and
+  used for Reset Kingdom, Recall, and Standing Order confirmation.**
+- **Separator / Skeleton** — low-risk components. **Scaffolded and used.**
 - **Toolbar** — repeated icon-button clusters. **Pending; add after
   `IconButton` has at least two migrated call sites.**
 - **Progress / Slider** — accessible progress and numeric adjustment
   controls. **Pending; add with the first real progress/slider surface.**
-- **AlertDialog / Toast / Command** — higher-behavior primitives.
-  **Pending; add only with their owning flows.**
+- **Command** — cmdk-backed command primitive. **Scaffolded and used.**
+- **Toast** — higher-behavior primitive. **Pending; add only with its
+  owning notification flow.**
 
 ### Phase 5 — Chrome atoms (1 day)
 
 Build `Button`, `Card`, `Pill`, `Chip`, `Bar`, `Input`, `Textarea`,
 `Field`, `IconButton`, `Badge`, `EmptyState`, `SegmentedControl`,
-`Code`, and `Kbd` in `components/chrome/`. **Scaffolded.** `SettingsPanelBody`,
-`DispatchPanelBody`, `WielderChatInput`, `CommandPalette`, `LetterCard`,
-and initial `KingdomPanelBody` controls now use these atoms. Migrate the
-existing `.btn`,
+`Code`, `Kbd`, `Skeleton`, and `TooltipHint` in `components/chrome/`.
+**Scaffolded.**
+`SettingsPanelBody`, `DispatchPanelBody`, `WielderChatInput`,
+`CommandPalette`, `LetterCard`, `PartyRow`, `WielderHUD`, ActivityLog,
+ConversationStream, UnitInspector, and initial `KingdomPanelBody` controls
+now use these atoms. `PartyRow` uses `Bar` for HP/MP meters. Migrate the existing `.btn`,
 `.target-panel`, `.tool-pill`, `.hud-action-btn`, `.bar`, empty-state,
 form-control, and segmented button rules out of `styles.css`. These are
 touched by ~30 sites each — bulk find-replace.
@@ -413,12 +439,14 @@ list is greppable: `grep -n IRREDUCIBLE styles.css`.
 - All tokens defined in `@theme`; `:root` only holds non-Tailwind
   app-state vars.
 - `components/primitives/` has Dialog, Tabs, Tooltip, Select, Popover,
-  DropdownMenu, ScrollArea, Label, Switch, Checkbox, RadioGroup.
+  DropdownMenu, ScrollArea, Label, Switch, Checkbox, RadioGroup,
+  AlertDialog, Separator, Command.
 - `components/chrome/` has Button, Card, Pill, Chip, Bar, Input,
   Textarea, Field, IconButton, Badge, EmptyState, SegmentedControl,
-  Code, Kbd.
-- DecreeModal, DispatchPanelBody, KingdomPanelBody use primitives —
-  manual modal / tab / select code deleted.
+  Code, Kbd, Skeleton, TooltipHint.
+- DecreeModal, DispatchPanelBody, KingdomPanelBody, ChatDrawer, and
+  CommandPalette use primitives — manual modal / tab / select /
+  command-list code deleted.
 - HudWidget, AlertsHUD, LettersHUD, WielderHUD, ActivityLog, LetterCard,
   PartyRow, KingdomHeader, FloatingPanel, ChatDrawer all migrated —
   their per-component CSS in `styles.css` deleted.

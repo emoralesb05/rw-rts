@@ -8,6 +8,7 @@ import { HudWidget } from "./HudWidget";
 import { PartyRow } from "./PartyRow";
 import { usePersistedBool } from "./hud-prefs";
 import { usePanels } from "../floating/panel-store";
+import { TooltipHint } from "../../components/chrome/TooltipHint";
 
 export function WielderHUD() {
   const units = useStore((s) => s.units);
@@ -27,34 +28,40 @@ export function WielderHUD() {
   const headerExtra = (
     <>
       {ghostedCount > 0 && (
-        <button
-          type="button"
-          className={
-            "hud-action-btn hud-action-btn-toggle" +
-            (showGhosted ? " active" : "")
-          }
-          onClick={() => setShowGhosted((v) => !v)}
-          title={
+        <TooltipHint
+          label={
             showGhosted
               ? `Hide ${ghostedCount} completed/fallen wielders`
               : `Show ${ghostedCount} completed/fallen wielders`
           }
-          aria-pressed={showGhosted}
         >
-          ✦ {ghostedCount}
-        </button>
+          <button
+            type="button"
+            className={
+              "hud-action-btn hud-action-btn-toggle" +
+              (showGhosted ? " active" : "")
+            }
+            onClick={() => setShowGhosted((v) => !v)}
+            aria-pressed={showGhosted}
+          >
+            ✦ {ghostedCount}
+          </button>
+        </TooltipHint>
       )}
-      <button
-        type="button"
-        className="hud-action-btn"
-        onClick={() =>
-          openPanel({ kind: "dispatch", title: "Dispatch", width: 480 })
-        }
-        title="dispatch a wielder — opens the spawn dialog"
-        aria-label="Dispatch a wielder"
+      <TooltipHint
+        label="dispatch a wielder — opens the spawn dialog"
       >
-        + dispatch
-      </button>
+        <button
+          type="button"
+          className="hud-action-btn"
+          onClick={() =>
+            openPanel({ kind: "dispatch", title: "Dispatch", width: 480 })
+          }
+          aria-label="Dispatch a wielder"
+        >
+          + dispatch
+        </button>
+      </TooltipHint>
     </>
   );
   return (

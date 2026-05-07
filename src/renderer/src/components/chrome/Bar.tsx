@@ -4,15 +4,33 @@ import { cn } from "@/lib/cn";
 type BarTone = "hp" | "mp" | "focus" | "danger";
 
 export type BarProps = HTMLAttributes<HTMLDivElement> & {
+  max?: number;
+  min?: number;
   value: number;
   tone?: BarTone;
 };
 
-export function Bar({ value, tone = "hp", className, ...props }: BarProps) {
-  const clamped = Math.max(0, Math.min(100, value));
+export function Bar({
+  "aria-valuemax": ariaValueMax,
+  "aria-valuemin": ariaValueMin,
+  "aria-valuenow": ariaValueNow,
+  className,
+  max = 100,
+  min = 0,
+  role,
+  tone = "hp",
+  value,
+  ...props
+}: BarProps) {
+  const clamped = Math.max(min, Math.min(max, value));
+  const percent = max === min ? 0 : ((clamped - min) / (max - min)) * 100;
   return (
     <div
       className={cn("h-1.5 overflow-hidden rounded-pill bg-black/30", className)}
+      role={role ?? "meter"}
+      aria-valuemax={ariaValueMax ?? max}
+      aria-valuemin={ariaValueMin ?? min}
+      aria-valuenow={ariaValueNow ?? Math.round(clamped)}
       {...props}
     >
       <div
@@ -23,7 +41,7 @@ export function Bar({ value, tone = "hp", className, ...props }: BarProps) {
           tone === "focus" && "bg-accent-alt",
           tone === "danger" && "bg-danger"
         )}
-        style={{ width: `${clamped}%` }}
+        style={{ width: `${percent}%` }}
       />
     </div>
   );

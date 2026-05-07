@@ -15,6 +15,8 @@ import {
   ARCHETYPE_GLYPH,
   ARCHETYPE_TITLE,
 } from "../role-archetype";
+import { Bar } from "../../components/chrome/Bar";
+import { TooltipHint } from "../../components/chrome/TooltipHint";
 import type { AgentTool, UnitState } from "@shared/events";
 
 const TOOL_LABEL: Record<AgentTool, string> = {
@@ -40,10 +42,12 @@ function CastBar({ unit }: { unit: UnitState }) {
   const elapsedSec = Math.floor(elapsedMs / 1000);
   const label = `${unit.lastTool ?? unit.status} · ${elapsedSec}s`;
   return (
-    <div className="party-row-cast" title={label}>
-      <div className="party-row-cast-fill" />
-      <span className="party-row-cast-label">{label}</span>
-    </div>
+    <TooltipHint label={label}>
+      <div className="party-row-cast">
+        <div className="party-row-cast-fill" />
+        <span className="party-row-cast-label">{label}</span>
+      </div>
+    </TooltipHint>
   );
 }
 
@@ -86,13 +90,11 @@ function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean })
   return (
     <span className="status-icons">
       {icons.map((i) => (
-        <span
-          key={i.key}
-          className={`status-icon status-${i.cls}`}
-          title={i.title}
-        >
-          {i.glyph}
-        </span>
+        <TooltipHint key={i.key} label={i.title}>
+          <span className={`status-icon status-${i.cls}`}>
+            {i.glyph}
+          </span>
+        </TooltipHint>
       ))}
     </span>
   );
@@ -145,7 +147,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           openWielder();
         }
       }}
-      title={`${unit.displayName} · ${palette.faction}`}
+      aria-label={`${unit.displayName} · ${palette.faction}`}
     >
       <div
         className="party-row-portrait"
@@ -165,37 +167,49 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           <span className={`tool-pill tool-${unit.tool}`}>
             {TOOL_LABEL[unit.tool]}
           </span>
-          <span
-            className={`archetype-chip archetype-${archetype}`}
-            title={ARCHETYPE_TITLE[archetype]}
-            aria-label={`Behavior class: ${archetype}`}
-          >
-            {ARCHETYPE_GLYPH[archetype]}
-          </span>
+          <TooltipHint label={ARCHETYPE_TITLE[archetype]}>
+            <span
+              className={`archetype-chip archetype-${archetype}`}
+              aria-label={`Behavior class: ${archetype}`}
+            >
+              {ARCHETYPE_GLYPH[archetype]}
+            </span>
+          </TooltipHint>
           <StatusIcons unit={unit} hasOrder={hasOrder} />
         </div>
         <div className="party-row-bars">
-          <div className="bar-mini hp" title={`HP ${Math.round(hpPct)}/100`}>
-            <div style={{ width: `${hpPct}%` }} />
-          </div>
-          <div className="bar-mini mp" title={`MP ${Math.round(mpPct)}/100`}>
-            <div style={{ width: `${mpPct}%` }} />
-          </div>
+          <TooltipHint label={`HP ${Math.round(hpPct)}/100`}>
+            <Bar
+              className="bar-mini hp"
+              tone="hp"
+              value={hpPct}
+              aria-label={`${unit.displayName} HP`}
+            />
+          </TooltipHint>
+          <TooltipHint label={`MP ${Math.round(mpPct)}/100`}>
+            <Bar
+              className="bar-mini mp"
+              tone="mp"
+              value={mpPct}
+              aria-label={`${unit.displayName} MP`}
+            />
+          </TooltipHint>
         </div>
         <CastBar unit={unit} />
       </div>
-      <button
-        type="button"
-        className="party-row-chat"
-        onClick={(e) => {
-          e.stopPropagation();
-          openChat();
-        }}
-        title="open chat in the drawer"
-        aria-label={`Open chat with ${unit.displayName}`}
-      >
-        <MessageSquare size={14} aria-hidden />
-      </button>
+      <TooltipHint label="open chat in the drawer">
+        <button
+          type="button"
+          className="party-row-chat"
+          onClick={(e) => {
+            e.stopPropagation();
+            openChat();
+          }}
+          aria-label={`Open chat with ${unit.displayName}`}
+        >
+          <MessageSquare size={14} aria-hidden />
+        </button>
+      </TooltipHint>
     </div>
   );
 }

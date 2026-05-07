@@ -26,6 +26,18 @@ import {
   ARCHETYPE_LABEL,
   ARCHETYPE_TITLE,
 } from "../role-archetype";
+import { TooltipHint } from "../../components/chrome/TooltipHint";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/primitives/AlertDialog";
 import type { AgentTool, UnitState, WielderStats } from "@shared/events";
 
 const TOOL_LABEL: Record<AgentTool, string> = {
@@ -114,79 +126,89 @@ export function WielderPanelBody({ unitId }: Props) {
   return (
     <div className={"target-panel" + (ghosted ? " ghosted" : "")}>
       <div className="target-panel-head">
-        <div
-          className="target-panel-portrait"
-          style={{ background: ROLE_HEX[unit.role] }}
-          title={`${unit.displayName} — ${palette.faction}`}
-        >
-          <img
-            src={`/sprites/kh-default/${unit.role}.png`}
-            alt=""
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-        </div>
+        <TooltipHint label={`${unit.displayName} — ${palette.faction}`}>
+          <div
+            className="target-panel-portrait"
+            style={{ background: ROLE_HEX[unit.role] }}
+          >
+            <img
+              src={`/sprites/kh-default/${unit.role}.png`}
+              alt=""
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        </TooltipHint>
         <div className="target-panel-info">
           <div className="target-panel-name-row">
             <span className="target-panel-name">{unit.displayName}</span>
             <span className={`tool-pill tool-${unit.tool}`}>
               {TOOL_LABEL[unit.tool]}
             </span>
-            <span
-              className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
-              title={
+            <TooltipHint
+              label={
                 unit.spawnedHere
                   ? "spawned by keykeeper — you can send prompts here"
                   : "observed terminal session — read-only"
               }
             >
-              {unit.spawnedHere ? "spawned" : "observed"}
-            </span>
+              <span
+                className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
+              >
+                {unit.spawnedHere ? "spawned" : "observed"}
+              </span>
+            </TooltipHint>
           </div>
           <div className="target-panel-meta">
             <span className="target-panel-mood">{moodFor(unit)}</span>
-            <span
-              className={`archetype-chip archetype-${archetype}`}
-              title={ARCHETYPE_TITLE[archetype]}
-            >
-              {ARCHETYPE_GLYPH[archetype]}
-              <span className="archetype-chip-label">
-                {ARCHETYPE_LABEL[archetype]}
+            <TooltipHint label={ARCHETYPE_TITLE[archetype]}>
+              <span
+                className={`archetype-chip archetype-${archetype}`}
+              >
+                {ARCHETYPE_GLYPH[archetype]}
+                <span className="archetype-chip-label">
+                  {ARCHETYPE_LABEL[archetype]}
+                </span>
               </span>
-            </span>
-            <span
-              className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
-              title={`Renown: ${renown.score} (${renown.tier})`}
-            >
-              {renown.stars && (
-                <span className="throne-card-renown-stars">{renown.stars}</span>
-              )}
-              <span className="throne-card-renown-tier">{renown.tier}</span>
-            </span>
-            <button
-              type="button"
-              className="throne-card-world-link"
-              onClick={() => selectWorld(unit.worldId)}
-              title="dive into this world"
-            >
-              <ChevronRight size={11} aria-hidden /> {worldLabel} · {themeName}
-            </button>
+            </TooltipHint>
+            <TooltipHint label={`Renown: ${renown.score} (${renown.tier})`}>
+              <span
+                className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
+              >
+                {renown.stars && (
+                  <span className="throne-card-renown-stars">{renown.stars}</span>
+                )}
+                <span className="throne-card-renown-tier">{renown.tier}</span>
+              </span>
+            </TooltipHint>
+            <TooltipHint label="dive into this world">
+              <button
+                type="button"
+                className="throne-card-world-link"
+                onClick={() => selectWorld(unit.worldId)}
+              >
+                <ChevronRight size={11} aria-hidden /> {worldLabel} · {themeName}
+              </button>
+            </TooltipHint>
           </div>
         </div>
       </div>
       {activeOrders.length > 0 && (
         <div className="target-panel-orders">
           {activeOrders.map((o) => (
-            <button
+            <TooltipHint
               key={o.id}
-              type="button"
-              className="standing-order-chip"
-              onClick={() => haltStandingOrder(o.id)}
-              title={`Standing Order — ${o.iterationsRun}/${o.maxIterations} iterations · click to halt`}
+              label={`Standing Order — ${o.iterationsRun}/${o.maxIterations} iterations · click to halt`}
             >
-              <RotateCw size={11} aria-hidden /> {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
-            </button>
+              <button
+                type="button"
+                className="standing-order-chip"
+                onClick={() => haltStandingOrder(o.id)}
+              >
+                <RotateCw size={11} aria-hidden /> {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
+              </button>
+            </TooltipHint>
           ))}
         </div>
       )}
@@ -216,50 +238,59 @@ export function WielderPanelBody({ unitId }: Props) {
       <div className="target-panel-foot">
         <span className="throne-card-time">{timeAgo(unit.lastActivity)}</span>
         {unit.lastTool && (
-          <span className="target-panel-lasttool" title="last tool call">
-            <CornerDownRight size={11} aria-hidden /> {unit.lastTool}
-          </span>
+          <TooltipHint label="last tool call">
+            <span className="target-panel-lasttool">
+              <CornerDownRight size={11} aria-hidden /> {unit.lastTool}
+            </span>
+          </TooltipHint>
         )}
       </div>
       <div className="target-panel-actions">
-        <button
-          type="button"
-          className="card-verb"
-          disabled={ghosted}
-          onClick={() => openDrawerTab(unit.id)}
-          title="open chat in the drawer"
-        >
-          <MessageSquare size={11} aria-hidden /> chat
-        </button>
-        <button
-          type="button"
-          className="card-verb"
-          disabled={ghosted}
-          onClick={() => selectWorld(unit.worldId)}
-          title="find — pan camera to this wielder's world"
-        >
-          <MapPin size={11} aria-hidden /> find
-        </button>
-        <button
-          type="button"
-          className="card-verb decree"
-          disabled={ghosted || !unit.spawnedHere}
-          onClick={() => useStore.getState().openDecreeFor(unit.id)}
-          title={
+        <TooltipHint label="open chat in the drawer">
+          <span className="inline-flex">
+            <button
+              type="button"
+              className="card-verb"
+              disabled={ghosted}
+              onClick={() => openDrawerTab(unit.id)}
+            >
+              <MessageSquare size={11} aria-hidden /> chat
+            </button>
+          </span>
+        </TooltipHint>
+        <TooltipHint label="find — pan camera to this wielder's world">
+          <span className="inline-flex">
+            <button
+              type="button"
+              className="card-verb"
+              disabled={ghosted}
+              onClick={() => selectWorld(unit.worldId)}
+            >
+              <MapPin size={11} aria-hidden /> find
+            </button>
+          </span>
+        </TooltipHint>
+        <TooltipHint
+          label={
             !unit.spawnedHere
               ? "observed-only — keykeeper didn't spawn this wielder"
               : "decree — directive command (file/function/shell)"
           }
         >
-          {/* ⚜ stays as the gold royal sigil — KH-themed and intentional. */}
-          ⚜ decree
-        </button>
-        <button
-          type="button"
-          className="card-verb"
-          disabled={!canComfort}
-          onClick={() => comfort(unit.id)}
-          title={
+          <span className="inline-flex">
+            <button
+              type="button"
+              className="card-verb decree"
+              disabled={ghosted || !unit.spawnedHere}
+              onClick={() => useStore.getState().openDecreeFor(unit.id)}
+            >
+              {/* ⚜ stays as the gold royal sigil — KH-themed and intentional. */}
+              ⚜ decree
+            </button>
+          </span>
+        </TooltipHint>
+        <TooltipHint
+          label={
             canComfort
               ? "restore +30 HP for 50µ"
               : ghosted
@@ -269,29 +300,59 @@ export function WielderPanelBody({ unitId }: Props) {
               : "not enough munny in this world (need 50µ)"
           }
         >
-          <Heart size={11} aria-hidden /> comfort
-        </button>
-        <button
-          type="button"
-          className="card-verb destructive"
-          // Recall calls window.kh.killAgent, which only knows about
-          // processes keykeeper spawned. For hook-observed wielders it
-          // would silently no-op; gate the same way decree does so the
-          // button reflects what's actually possible.
-          disabled={ghosted || !unit.spawnedHere}
-          onClick={() => {
-            if (confirm(`Recall ${unit.displayName}? This ends the session.`)) {
-              void window.kh.killAgent(unit.id).catch(() => {});
+          <span className="inline-flex">
+            <button
+              type="button"
+              className="card-verb"
+              disabled={!canComfort}
+              onClick={() => comfort(unit.id)}
+            >
+              <Heart size={11} aria-hidden /> comfort
+            </button>
+          </span>
+        </TooltipHint>
+        <AlertDialog>
+          <TooltipHint
+            label={
+              !unit.spawnedHere
+                ? "observed-only — keykeeper didn't spawn this wielder, no process to recall"
+                : "recall — end this session"
             }
-          }}
-          title={
-            !unit.spawnedHere
-              ? "observed-only — keykeeper didn't spawn this wielder, no process to recall"
-              : "recall — end this session"
-          }
-        >
-          <Power size={11} aria-hidden /> recall
-        </button>
+          >
+            <span className="inline-flex">
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="card-verb destructive"
+                  // Recall calls window.kh.killAgent, which only knows about
+                  // processes keykeeper spawned. For hook-observed wielders it
+                  // would silently no-op; gate the same way decree does so the
+                  // button reflects what's actually possible.
+                  disabled={ghosted || !unit.spawnedHere}
+                >
+                  <Power size={11} aria-hidden /> recall
+                </button>
+              </AlertDialogTrigger>
+            </span>
+          </TooltipHint>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Recall {unit.displayName}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This ends the spawned session. Hook-observed sessions cannot be
+                recalled from Keykeeper.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void window.kh.killAgent(unit.id).catch(() => {})}
+              >
+                Recall
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

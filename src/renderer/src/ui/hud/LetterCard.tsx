@@ -10,6 +10,7 @@ import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { Input } from "../../components/chrome/Input";
+import { TooltipHint } from "../../components/chrome/TooltipHint";
 import type { Letter, LetterAction } from "@shared/events";
 
 function timeAgo(ts: number): string {
@@ -187,18 +188,19 @@ export function LetterCard({ letter }: { letter: Letter }) {
       )}
       {isPermissionLike && (
         <div className="letter-utility-row">
-          <button
-            type="button"
-            className="letter-copy-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              void copyRequest();
-            }}
-            title="copy permission request context"
-          >
-            {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
-            {copied ? "copied" : "copy request"}
-          </button>
+          <TooltipHint label="copy permission request context">
+            <button
+              type="button"
+              className="letter-copy-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                void copyRequest();
+              }}
+            >
+              {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
+              {copied ? "copied" : "copy request"}
+            </button>
+          </TooltipHint>
           <span className="letter-shortcuts">
             {allowAction && `A ${allowShortcut}`}
             {allowAction && denyAction && " · "}
@@ -211,17 +213,18 @@ export function LetterCard({ letter }: { letter: Letter }) {
       )}
       {letter.reasoning && (
         <div className="throne-letter-reasoning">
-          <button
-            type="button"
-            className="letter-reasoning-toggle"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowReasoning((v) => !v);
-            }}
-            title="show what the wielder was thinking right before this ask"
-          >
-            {showReasoning ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} thinking
-          </button>
+          <TooltipHint label="show what the wielder was thinking right before this ask">
+            <button
+              type="button"
+              className="letter-reasoning-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowReasoning((v) => !v);
+              }}
+            >
+              {showReasoning ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} thinking
+            </button>
+          </TooltipHint>
           {showReasoning && (
             <div className="letter-reasoning-body">{letter.reasoning}</div>
           )}

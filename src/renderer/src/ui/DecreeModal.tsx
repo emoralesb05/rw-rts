@@ -22,6 +22,22 @@ import {
   DialogIconClose,
   DialogTitle,
 } from "../components/primitives/Dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/primitives/AlertDialog";
+import {
+  Command,
+  CommandItem,
+  CommandList,
+} from "../components/primitives/Command";
+import { Textarea } from "../components/chrome/Textarea";
 import { useStore } from "../store";
 import type { AgentEvent } from "@shared/events";
 
@@ -37,6 +53,11 @@ const COMMON_COMMANDS = [
 ];
 
 type Mode = { kind: "idle" } | { kind: "files"; query: string } | { kind: "commands"; query: string };
+type PendingOrder = {
+  intervalLabel: string;
+  intervalMs: number;
+  text: string;
+};
 
 // Standing Order interval options per Q37.
 const INTERVALS: { label: string; ms: number | null }[] = [
@@ -59,6 +80,7 @@ export function DecreeModal() {
   const [mode, setMode] = useState<Mode>({ kind: "idle" });
   const [busy, setBusy] = useState(false);
   const [intervalMs, setIntervalMs] = useState<number | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset state when modal opens for a different wielder.
@@ -67,6 +89,7 @@ export function DecreeModal() {
       setText("");
       setMode({ kind: "idle" });
       setIntervalMs(null);
+      setPendingOrder(null);
       // Focus next tick so React mounts the textarea first.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -119,24 +142,30 @@ export function DecreeModal() {
   async function send() {
     if (!unit || !text.trim() || busy) return;
     if (!unit.spawnedHere) return;
+    const trimmed = text.trim();
+    if (intervalMs !== null) {
+      const intervalLabel = INTERVALS.find((i) => i.ms === intervalMs)?.label ?? "interval";
+      setPendingOrder({ intervalLabel, intervalMs, text: trimmed });
+      return;
+    }
     setBusy(true);
     try {
-      const trimmed = text.trim();
-      if (intervalMs === null) {
-        // One-shot Decree.
-        const prompt = `[Decree from the King]\n\n${trimmed}`;
-        await window.kh.sendPrompt({ unitId: unit.id, prompt });
-      } else {
-        // Standing Order — confirm before starting (per Q37 visibility).
-        const intervalLabel = INTERVALS.find((i) => i.ms === intervalMs)?.label ?? "interval";
-        const confirmed = confirm(
-          `Issue Standing Order to ${unit.displayName}?\n\n` +
-            `Will run ${intervalLabel} (max 24 iterations, halts after 3 consecutive failures).\n\n` +
-            `"${trimmed.slice(0, 200)}${trimmed.length > 200 ? "…" : ""}"`
-        );
-        if (!confirmed) return;
-        useStore.getState().startStandingOrder(unit.id, trimmed, intervalMs);
-      }
+      const prompt = `[Decree from the King]\n\n${trimmed}`;
+      await window.kh.sendPrompt({ unitId: unit.id, prompt });
+      closeDecree();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function confirmStandingOrder() {
+    if (!unit || !pendingOrder || busy) return;
+    setBusy(true);
+    try {
+      useStore
+        .getState()
+        .startStandingOrder(unit.id, pendingOrder.text, pendingOrder.intervalMs);
+      setPendingOrder(null);
       closeDecree();
     } finally {
       setBusy(false);
@@ -177,7 +206,7 @@ export function DecreeModal() {
           </div>
         )}
         <div className="decree-composer">
-          <textarea
+          <Textarea
             ref={inputRef}
             className="decree-textarea"
             placeholder="Issue your command. Type @ for files, / for commands."
@@ -240,6 +269,39 @@ export function DecreeModal() {
           </button>
         </footer>
       </DialogContent>
+      <AlertDialog
+        open={pendingOrder !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingOrder(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Issue Standing Order to {unit.displayName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Will run {pendingOrder?.intervalLabel ?? "on interval"} with a
+              max of 24 iterations, halting after 3 consecutive failures.
+            </AlertDialogDescription>
+            {pendingOrder && (
+              <div className="mt-1 rounded-sm border border-line bg-black/25 p-2 text-xs leading-relaxed text-text">
+                {pendingOrder.text.slice(0, 240)}
+                {pendingOrder.text.length > 240 ? "…" : ""}
+              </div>
+            )}
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={() => confirmStandingOrder()}
+            >
+              Issue order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
@@ -254,19 +316,26 @@ function Palette({
   onPick: (item: string) => void;
 }) {
   return (
-    <div className="decree-palette" role="listbox" aria-label={label}>
+    <Command
+      className="decree-palette"
+      label={label}
+      shouldFilter={false}
+      loop
+    >
       <div className="decree-palette-label">{label}</div>
-      {items.map((item) => (
-        <button
-          key={item}
-          type="button"
-          className="decree-palette-item"
-          onClick={() => onPick(item)}
-        >
-          {item}
-        </button>
-      ))}
-    </div>
+      <CommandList className="max-h-none overflow-visible p-0">
+        {items.map((item) => (
+          <CommandItem
+            key={item}
+            className="decree-palette-item data-[selected=true]:bg-accent-alt/10 data-[selected=true]:text-accent-alt"
+            value={item}
+            onSelect={() => onPick(item)}
+          >
+            {item}
+          </CommandItem>
+        ))}
+      </CommandList>
+    </Command>
   );
 }
 

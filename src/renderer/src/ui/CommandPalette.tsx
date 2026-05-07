@@ -1,7 +1,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -18,8 +17,21 @@ import {
 import { useStore } from "../store";
 import { usePanels } from "./floating/panel-store";
 import { summarizeEvent, shortAgo } from "./event-summary";
-import { Input } from "../components/chrome/Input";
 import { Kbd } from "../components/chrome/Kbd";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../components/primitives/Dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../components/primitives/Command";
+import { Separator } from "../components/primitives/Separator";
 import type { AgentEvent, UnitState, WorldState } from "@shared/events";
 
 type CommandItem = {
@@ -66,8 +78,6 @@ function unitDetail(unit: UnitState, world?: WorldState): string {
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const units = useStore((s) => s.units);
   const worlds = useStore((s) => s.worlds);
   const letters = useStore((s) => s.letters);
@@ -81,18 +91,16 @@ export function CommandPalette() {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        setOpen((v) => {
+          const next = !v;
+          if (!next) setQuery("");
+          return next;
+        });
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    setSelected(0);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [open]);
 
   const commands = useMemo<CommandItem[]>(() => {
     const openKingdom = (initialTab?: "overview" | "settings" | "connection" | "demos") =>
@@ -215,110 +223,73 @@ export function CommandPalette() {
     return items;
   }, [events, focusAlerts, letters, openDrawerTab, openPanel, selectWorld, units, worlds]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return commands.slice(0, 14);
-    return commands
-      .filter((item) =>
-        `${item.label} ${item.detail} ${item.keywords}`.toLowerCase().includes(q)
-      )
-      .slice(0, 14);
-  }, [commands, query]);
+  const setPaletteOpen = (next: boolean) => {
+    setOpen(next);
+    if (!next) setQuery("");
+  };
 
-  useEffect(() => {
-    setSelected(0);
-  }, [query]);
-
-  if (!open) return null;
-
-  const runSelected = () => {
-    const item = filtered[selected];
-    if (!item) return;
+  const runItem = (item: CommandItem) => {
     item.run();
-    setOpen(false);
-    setQuery("");
+    setPaletteOpen(false);
   };
 
   return (
-    <div className="command-palette-overlay" onMouseDown={() => setOpen(false)}>
-      <div
-        className="command-palette"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
-        onMouseDown={(e) => e.stopPropagation()}
+    <Dialog open={open} onOpenChange={setPaletteOpen}>
+      <DialogContent
+        className={[
+          "top-[13vh] w-[min(680px,calc(100vw-32px))] translate-y-0 p-0",
+          "max-h-[calc(100vh-120px)] overflow-hidden border-accent/35",
+          "bg-surface-1/95 shadow-[0_22px_80px_rgba(0,0,0,0.68),0_0_0_1px_rgba(255,216,107,0.07)]",
+        ].join(" ")}
       >
-        <div className="command-palette-input-row">
-          <Search size={15} aria-hidden />
-          <Input
-            ref={inputRef}
-            className="command-palette-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setOpen(false);
-                return;
-              }
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                if (filtered.length === 0) return;
-                setSelected((i) => Math.min(filtered.length - 1, i + 1));
-                return;
-              }
-              if (e.key === "ArrowUp") {
-                e.preventDefault();
-                if (filtered.length === 0) return;
-                setSelected((i) => Math.max(0, i - 1));
-                return;
-              }
-              if (e.key === "Enter") {
-                e.preventDefault();
-                runSelected();
-              }
-            }}
-            placeholder="Search wielders, worlds, files, and actions..."
-          />
-          <Kbd className="command-palette-kbd">esc</Kbd>
-        </div>
-        <div className="command-palette-list" role="listbox">
-          {filtered.length === 0 ? (
-            <div className="command-palette-empty">No matches.</div>
-          ) : (
-            filtered.map((item, i) => (
-              <button
+        <DialogTitle className="sr-only">Command palette</DialogTitle>
+        <DialogDescription className="sr-only">
+          Search wielders, worlds, files, and actions.
+        </DialogDescription>
+        <Command label="Command palette" loop>
+          <div className="flex items-center gap-2.5 px-3.5 py-3 text-accent">
+            <Search size={15} aria-hidden />
+            <CommandInput
+              autoFocus
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Search wielders, worlds, files, and actions..."
+            />
+            <Kbd>esc</Kbd>
+          </div>
+          <Separator className="bg-white/10" />
+          <CommandList>
+            <CommandEmpty>No matches.</CommandEmpty>
+            {commands.map((item) => (
+              <CommandItem
                 key={item.id}
-                type="button"
-                className={
-                  "command-palette-item" + (i === selected ? " active" : "")
-                }
-                onMouseEnter={() => setSelected(i)}
-                onClick={() => {
-                  item.run();
-                  setOpen(false);
-                  setQuery("");
-                }}
-                role="option"
-                aria-selected={i === selected}
+                value={`${item.label} ${item.id}`}
+                keywords={[item.detail, item.keywords]}
+                onSelect={() => runItem(item)}
               >
-                <span className="command-palette-item-icon">{item.icon}</span>
-                <span className="command-palette-item-main">
-                  <span className="command-palette-item-label">{item.label}</span>
-                  <span className="command-palette-item-detail">{item.detail}</span>
+                <span className="inline-flex size-7 items-center justify-center rounded-md bg-accent-alt/10 text-accent-alt">
+                  {item.icon}
+                </span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-[12.5px] font-bold">
+                    {item.label}
+                  </span>
+                  <span className="truncate text-[11px] text-muted">
+                    {item.detail}
+                  </span>
                 </span>
                 {item.id.startsWith("chat:") && (
-                  <span className="command-palette-item-meta">
+                  <span className="font-mono text-[10px] text-muted/85">
                     {shortAgo(
                       units[item.id.slice("chat:".length)]?.lastActivity ?? Date.now()
                     )}
                   </span>
                 )}
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 }
