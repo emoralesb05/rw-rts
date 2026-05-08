@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { usePersistedBool } from "./hud-prefs";
+import { cn } from "@/lib/cn";
 
 export type HudAnchor =
   | "top-left"
@@ -65,38 +66,72 @@ export function HudWidget({
     window.addEventListener("kh:expand-hud", onExpand);
     return () => window.removeEventListener("kh:expand-hud", onExpand);
   }, [title, setCollapsed]);
+
+  const anchorClass: Record<HudAnchor, string> = {
+    "top-left": "left-3 top-[38px]",
+    "top-right": "right-3 top-[38px] max-h-[30vh]",
+    "bottom-left": "bottom-3 left-3",
+    "bottom-right": "bottom-3 right-3 max-h-[30vh]",
+    "top-center":
+      "left-1/2 top-[38px] w-auto max-w-[calc(100%-720px)] -translate-x-1/2",
+  };
+
   return (
     <section
-      className={
-        `hud hud-${anchor}` +
-        ` hud-tone-${tone}` +
-        (collapsed ? " hud-collapsed" : "") +
-        (className ? ` ${className}` : "")
-      }
+      className={cn(
+        "hud",
+        `hud-${anchor}`,
+        `hud-tone-${tone}`,
+        "absolute z-hud flex max-h-[calc(50vh-24px)] w-[340px] flex-col overflow-hidden",
+        "rounded-md border border-accent-alt/20 bg-[#0a1130]/60 font-ui shadow-2xl backdrop-blur-md",
+        "transition-[width] duration-base ease-out",
+        tone === "alert" && "border-warning/45 shadow-[0_0_0_1px_rgba(255,122,60,0.10),0_16px_40px_rgba(0,0,0,0.45)]",
+        tone === "info" && "border-accent/30",
+        collapsed && "hud-collapsed max-h-none w-[180px]",
+        anchorClass[anchor],
+        className
+      )}
       style={style}
       onPointerDown={onPointerDown}
       aria-label={title}
     >
-      <header className="hud-header">
+      <header
+        className={cn(
+          "flex items-center gap-1.5 border-b border-white/[0.06] bg-accent-alt/5 px-2.5 py-1.5",
+          tone === "alert" && "bg-warning/[0.06]",
+          collapsed && "border-b-transparent py-1"
+        )}
+      >
         <button
           type="button"
-          className="hud-collapse-btn"
+          className="flex flex-1 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-[inherit] text-inherit"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
         >
-          <span className="hud-title">{title}</span>
+          <span
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt",
+              tone === "alert" && "text-warning"
+            )}
+          >
+            {title}
+          </span>
           {typeof count === "number" && (
-            <span className="hud-count">{count}</span>
+            <span className="font-mono text-[10px] tabular-nums text-muted">
+              {count}
+            </span>
           )}
         </button>
-        {headerExtra && <span className="hud-header-extra">{headerExtra}</span>}
+        {headerExtra && !collapsed && (
+          <span className="flex items-center gap-1">{headerExtra}</span>
+        )}
         {/* Chevron lives at the far right — past any action chip — so
          * the hierarchy reads title → count → action → toggle. Separate
          * button so headerExtra stays clickable in its own right. */}
         <button
           type="button"
-          className="hud-collapse-arrow-btn"
+          className="inline-flex cursor-pointer items-center border-0 bg-transparent px-0.5 text-muted hover:text-accent-alt"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
@@ -104,13 +139,19 @@ export function HudWidget({
           {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
       </header>
-      {/* Body always renders; visibility is driven by a CSS
-       * grid-template-rows + opacity transition on the parent
-       * .hud-collapsed class. Renders the children at full layout
-       * inside the inner div, then the outer grid row collapses
-       * to 0fr → smooth animated open/close. */}
-      <div className="hud-body-shell" aria-hidden={collapsed}>
-        <div className="hud-body">{children}</div>
+      <div
+        className={cn(
+          "grid min-h-0 grid-rows-[1fr] opacity-100 transition-[grid-template-rows,opacity]",
+          "duration-base ease-out",
+          collapsed && "grid-rows-[0fr] opacity-0"
+        )}
+        aria-hidden={collapsed}
+      >
+        <div
+          className={cn("min-h-0 overflow-y-auto p-2", collapsed && "p-0")}
+        >
+          {children}
+        </div>
       </div>
     </section>
   );

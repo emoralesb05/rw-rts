@@ -73,11 +73,10 @@ export function DispatchPanelBody() {
     spawnPath && discoveredRepos.find((r) => r.path === spawnPath)?.label;
 
   return (
-    <div className="dispatch-panel">
-      <Field className="dispatch-row" label="Tool">
+    <div className="flex flex-col gap-3 px-4 py-3.5 font-ui">
+      <Field label="Tool">
         <SegmentedControl
           aria-label="agent tool"
-          className="command-tool"
           value={tool}
           onValueChange={(value) => setTool(value as Tool)}
           options={TOOL_OPTIONS}
@@ -85,7 +84,6 @@ export function DispatchPanelBody() {
       </Field>
 
       <Field
-        className="dispatch-row"
         htmlFor="dispatch-target"
         label="Target"
       >
@@ -98,7 +96,7 @@ export function DispatchPanelBody() {
         >
           <SelectTrigger
             id="dispatch-target"
-            className="command-world dispatch-target"
+            className="w-full max-w-none"
           >
             <SelectValue />
           </SelectTrigger>
@@ -116,7 +114,7 @@ export function DispatchPanelBody() {
       </Field>
 
       <Field
-        className="dispatch-row dispatch-prompt-row"
+        className="flex-1"
         htmlFor="dispatch-prompt"
         label="Prompt"
         description={
@@ -130,7 +128,7 @@ export function DispatchPanelBody() {
         <Textarea
           ref={promptRef}
           id="dispatch-prompt"
-          className="dispatch-prompt font-mono"
+          className="min-h-[140px] resize-y font-mono text-xs leading-[1.45]"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={onKeyDown}
@@ -142,7 +140,7 @@ export function DispatchPanelBody() {
         />
       </Field>
 
-      <div className="dispatch-footer">
+      <div className="flex justify-end gap-2 border-t border-line pt-2">
         <Button
           type="button"
           onClick={() => closeKind("dispatch")}

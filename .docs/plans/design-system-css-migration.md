@@ -1,6 +1,6 @@
 # Plan: Design System CSS Migration
 
-**Status**: follow-up · **Owner**: TBD · **Phase**: CSS shrink after Radix/OSS foundation
+**Status**: in progress · **Owner**: TBD · **Phase**: CSS shrink after Radix/OSS foundation
 
 ## Goal
 
@@ -10,16 +10,32 @@ resets, Phaser canvas integration, keyframes, and markup we do not own.
 The Radix/OSS component foundation has landed; this plan owns only the
 remaining CSS migration work.
 
+## Progress
+
+- Baseline before this migration pass: `styles.css` ~3519 lines.
+- Current size after the Panel Shells slice: `styles.css` 1569 lines.
+- Migrated to owned components / Tailwind utilities:
+  `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`,
+  `PartyRow`, `LetterCard`, `WielderHUD`, `AlertsHUD`, and
+  `LettersHUD`, plus `FloatingPanel`, `WielderPanelBody`,
+  `DispatchPanelBody`, `SettingsPanelBody`, and `KingdomPanelBody`.
+- App-specific chip styling now lives in `AgentToolBadge`,
+  `ArchetypeChip`, and `RenownBadge` instead of shared global CSS.
+- CSS kept from these slices is limited to shared keyframes and surfaces
+  still awaiting migration, mainly drawer/conversation, decree, unit
+  tiles, and generated markdown/Streamdown styling.
+
 ## Migration Order
 
 1. **Chrome HUDs**
    `HudWidget`, `AlertsHUD`, `LettersHUD`, `WielderHUD`,
    `KingdomHeader`, `ActivityLog`, `LetterCard`, `PartyRow`, and
-   `CloseAllChip`.
+   `CloseAllChip`. **Done.**
 
 2. **Panel Shells**
    `FloatingPanel`, `PanelLayer`, `WielderPanelBody`,
    `DispatchPanelBody`, `SettingsPanelBody`, and `KingdomPanelBody`.
+   **Done.**
 
 3. **Drawer + Conversation**
    `ChatDrawer`, `ConversationStream`, `WielderChatInput`, and

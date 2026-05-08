@@ -8,7 +8,7 @@
  *                content the standalone Settings panel had)
  *   Connection — hook bridge install/uninstall + socket path
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { usePanels } from "./panel-store";
@@ -32,7 +32,10 @@ import {
 } from "../../components/primitives/AlertDialog";
 import { Button } from "../../components/chrome/Button";
 import { Code } from "../../components/chrome/Code";
+import { EmptyState } from "../../components/chrome/EmptyState";
 import { Skeleton } from "../../components/chrome/Skeleton";
+import { RenownBadge, type RenownTier } from "../RenownBadge";
+import { cn } from "@/lib/cn";
 import type { HooksStatus } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
@@ -62,6 +65,127 @@ const DEMO_FIXTURES = [
     ],
   },
 ] as const;
+
+type KingdomTabProps = ComponentProps<"div">;
+
+function KingdomTab({ className, ...props }: KingdomTabProps) {
+  return (
+    <div
+      className={cn(
+        "flex max-h-[calc(80vh-100px)] flex-col gap-4 overflow-y-auto px-4 py-3.5",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+type KingdomSectionProps = ComponentProps<"section"> & {
+  count?: number;
+  danger?: boolean;
+  title: ReactNode;
+};
+
+function KingdomSection({
+  children,
+  className,
+  count,
+  danger,
+  title,
+  ...props
+}: KingdomSectionProps) {
+  return (
+    <section
+      className={cn(
+        "flex flex-col gap-1.5",
+        danger &&
+          "mt-2 rounded-md border border-[#ff5a3c]/30 bg-[#ff5a3c]/[0.04] p-3",
+        className
+      )}
+      {...props}
+    >
+      <h3
+        className={cn(
+          "m-0 text-[11px] font-bold uppercase tracking-[0.8px]",
+          danger ? "text-[#ff7a3c]" : "text-accent"
+        )}
+      >
+        {title}
+        {typeof count === "number" && (
+          <span className="ml-1.5 text-[10px] font-medium tracking-normal text-muted">
+            {count}
+          </span>
+        )}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function KingdomEmpty({
+  className,
+  ...props
+}: ComponentProps<typeof EmptyState>) {
+  return (
+    <EmptyState
+      className={cn("min-h-0 rounded-sm px-2.5 py-2.5 text-[11px]", className)}
+      {...props}
+    />
+  );
+}
+
+function KingdomFooterNote({
+  className,
+  ...props
+}: ComponentProps<"p">) {
+  return (
+    <p
+      className={cn(
+        "mb-0 mt-1.5 text-[10.5px] italic leading-[1.4] text-muted",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function KingdomKv({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="grid grid-cols-[80px_1fr] items-baseline gap-2.5 py-1 text-[11px]">
+      <span className="text-[10px] uppercase tracking-[0.5px] text-muted">
+        {label}
+      </span>
+      <div className="min-w-0 break-words text-text">{children}</div>
+    </div>
+  );
+}
+
+function KingdomStat({ label, value }: { label: ReactNode; value: ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-0.5 rounded-md border border-white/[0.06] bg-surface-2/55 px-2.5 py-2">
+      <span className="text-lg font-bold leading-[1.1] text-accent-alt tabular-nums">
+        {value}
+      </span>
+      <span className="text-[10px] uppercase tracking-[0.5px] text-muted">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+const KINGDOM_LIST_CLASS = "m-0 flex list-none flex-col gap-0.5 p-0";
+const KINGDOM_LIST_ITEM_CLASS =
+  "grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-sm bg-surface-2/40 px-2 py-1 text-[11px]";
+const KINGDOM_LIST_PRIMARY_CLASS =
+  "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11px] text-text";
+const KINGDOM_LIST_SECONDARY_CLASS = "text-[10px] text-muted";
+const KINGDOM_LIST_META_CLASS = "font-mono text-[10px] tabular-nums text-muted";
 
 function fmtAbsoluteDate(ts: number): string {
   if (!ts) return "—";
@@ -96,7 +220,7 @@ function OverviewTab() {
   const topWielders = Object.entries(persisted.wielders)
     .map(([identity, w]) => {
       const score = w.visits + w.seals * 3 - w.falls * 2;
-      const tier =
+      const tier: RenownTier =
         score >= 24
           ? "Hero"
           : score >= 12
@@ -117,53 +241,41 @@ function OverviewTab() {
   };
 
   return (
-    <div className="kingdom-tab">
-      <div className="kingdom-stats-grid">
-        <div className="kingdom-stat">
-          <span className="kingdom-stat-num">{sealedWorlds.length}</span>
-          <span className="kingdom-stat-label">sealed</span>
-        </div>
-        <div className="kingdom-stat">
-          <span className="kingdom-stat-num">{totalMunny.toLocaleString()}</span>
-          <span className="kingdom-stat-label">µ munny</span>
-        </div>
-        <div className="kingdom-stat">
-          <span className="kingdom-stat-num">{eventCount}</span>
-          <span className="kingdom-stat-label">events</span>
-        </div>
-        <div className="kingdom-stat">
-          <span className="kingdom-stat-num">
-            {persisted.kingdomFoundedAt
+    <KingdomTab>
+      <div className="grid grid-cols-4 gap-2">
+        <KingdomStat label="sealed" value={sealedWorlds.length} />
+        <KingdomStat label="µ munny" value={totalMunny.toLocaleString()} />
+        <KingdomStat label="events" value={eventCount} />
+        <KingdomStat
+          value={
+            persisted.kingdomFoundedAt
               ? fmtRelDays(persisted.kingdomFoundedAt)
-              : "today"}
-          </span>
-          <span className="kingdom-stat-label">
-            {persisted.kingdomFoundedAt
+              : "today"
+          }
+          label={
+            persisted.kingdomFoundedAt
               ? `since ${fmtAbsoluteDate(persisted.kingdomFoundedAt)}`
-              : "founded today"}
-          </span>
-        </div>
+              : "founded today"
+          }
+        />
       </div>
 
-      <section className="kingdom-section">
-        <h3 className="kingdom-section-title">
-          Sealed worlds <span className="kingdom-section-count">{sealedWorlds.length}</span>
-        </h3>
+      <KingdomSection title="Sealed worlds" count={sealedWorlds.length}>
         {sealedWorlds.length === 0 ? (
-          <div className="kingdom-empty">No keyholes sealed yet.</div>
+          <KingdomEmpty>No keyholes sealed yet.</KingdomEmpty>
         ) : (
-          <ul className="kingdom-list">
+          <ul className={KINGDOM_LIST_CLASS}>
             {sealedWorlds.map((w) => {
               const theme = themeFor(w.repoRoot.split("/").pop() ?? w.repoRoot);
               const repo = w.repoRoot.split("/").slice(-2).join("/");
               return (
-                <li key={w.repoRoot} className="kingdom-list-item">
-                  <span className="kingdom-list-icon">✦</span>
-                  <span className="kingdom-list-primary">{repo}</span>
-                  <span className="kingdom-list-secondary">
+                <li key={w.repoRoot} className={KINGDOM_LIST_ITEM_CLASS}>
+                  <span className="text-accent-alt">✦</span>
+                  <span className={KINGDOM_LIST_PRIMARY_CLASS}>{repo}</span>
+                  <span className={KINGDOM_LIST_SECONDARY_CLASS}>
                     {themeLabel(theme)}
                   </span>
-                  <span className="kingdom-list-meta">
+                  <span className={KINGDOM_LIST_META_CLASS}>
                     {fmtRelDays(w.sealedAt ?? 0)}
                   </span>
                 </li>
@@ -171,38 +283,29 @@ function OverviewTab() {
             })}
           </ul>
         )}
-      </section>
+      </KingdomSection>
 
-      <section className="kingdom-section">
-        <h3 className="kingdom-section-title">
-          Top wielders by Renown
-        </h3>
+      <KingdomSection title="Top wielders by Renown">
         {topWielders.length === 0 ? (
-          <div className="kingdom-empty">No wielders yet.</div>
+          <KingdomEmpty>No wielders yet.</KingdomEmpty>
         ) : (
-          <ul className="kingdom-list">
+          <ul className={KINGDOM_LIST_CLASS}>
             {topWielders.map((w) => {
               const repo = w.repoRoot.split("/").slice(-2).join("/");
               return (
-                <li key={w.identity} className="kingdom-list-item">
-                  <span
-                    className={`throne-card-renown rank-${w.tier.toLowerCase()}`}
-                  >
-                    {w.stars && <span className="throne-card-renown-stars">{w.stars}</span>}
-                    <span className="throne-card-renown-tier">{w.tier}</span>
-                  </span>
-                  <span className="kingdom-list-primary">{w.tool}</span>
-                  <span className="kingdom-list-secondary">{repo}</span>
-                  <span className="kingdom-list-meta">{w.score} pts</span>
+                <li key={w.identity} className={KINGDOM_LIST_ITEM_CLASS}>
+                  <RenownBadge tier={w.tier} stars={w.stars} />
+                  <span className={KINGDOM_LIST_PRIMARY_CLASS}>{w.tool}</span>
+                  <span className={KINGDOM_LIST_SECONDARY_CLASS}>{repo}</span>
+                  <span className={KINGDOM_LIST_META_CLASS}>{w.score} pts</span>
                 </li>
               );
             })}
           </ul>
         )}
-      </section>
+      </KingdomSection>
 
-      <section className="kingdom-section kingdom-danger">
-        <h3 className="kingdom-section-title">Danger zone</h3>
+      <KingdomSection title="Danger zone" danger>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button type="button" variant="danger">
@@ -225,12 +328,12 @@ function OverviewTab() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <p className="kingdom-footer-note">
+        <KingdomFooterNote>
           Drops persisted state in <Code>~/Library/Application Support/keykeeper/state.json</Code>.
           Active sessions stay running.
-        </p>
-      </section>
-    </div>
+        </KingdomFooterNote>
+      </KingdomSection>
+    </KingdomTab>
   );
 }
 
@@ -247,8 +350,7 @@ function HookBridgeSection(props: HookBridgeProps) {
   const { title, status, busy, onToggle, configPathLabel, description } = props;
   if (!status) {
     return (
-      <section className="kingdom-section">
-        <h3 className="kingdom-section-title">{title}</h3>
+      <KingdomSection title={title}>
         <div
           className="flex flex-col gap-2 py-2"
           role="status"
@@ -258,30 +360,30 @@ function HookBridgeSection(props: HookBridgeProps) {
           <Skeleton className="h-3 w-56" />
           <Skeleton className="h-8 w-28" />
         </div>
-      </section>
+      </KingdomSection>
     );
   }
   return (
-    <section className="kingdom-section">
-      <h3 className="kingdom-section-title">{title}</h3>
-      <div className="kingdom-kv">
-        <span>status</span>
-        <strong className={status.installed ? "ok" : "warn"}>
+    <KingdomSection title={title}>
+      <KingdomKv label="status">
+        <strong
+          className={cn(
+            "font-semibold",
+            status.installed ? "text-success" : "text-warning"
+          )}
+        >
           {status.installed ? "installed · listening" : "not installed"}
         </strong>
-      </div>
-      <div className="kingdom-kv">
-        <span>config</span>
+      </KingdomKv>
+      <KingdomKv label="config">
         <Code>{status.hooksConfigPath ?? configPathLabel}</Code>
-      </div>
-      <div className="kingdom-kv">
-        <span>socket</span>
+      </KingdomKv>
+      <KingdomKv label="socket">
         <Code>{status.socketPath}</Code>
-      </div>
-      <div className="kingdom-kv">
-        <span>script</span>
+      </KingdomKv>
+      <KingdomKv label="script">
         <Code>{status.hookScriptPath}</Code>
-      </div>
+      </KingdomKv>
       <Button
         type="button"
         variant={status.installed ? "danger" : "primary"}
@@ -294,8 +396,8 @@ function HookBridgeSection(props: HookBridgeProps) {
           ? "Uninstall hooks"
           : "Install hooks"}
       </Button>
-      <p className="kingdom-footer-note">{description}</p>
-    </section>
+      <KingdomFooterNote>{description}</KingdomFooterNote>
+    </KingdomSection>
   );
 }
 
@@ -401,7 +503,7 @@ function ConnectionTab() {
   };
 
   return (
-    <div className="kingdom-tab">
+    <KingdomTab>
       {claudeMissing ? (
         <PreloadRestartHint title="Claude Code hook bridge" />
       ) : (
@@ -480,19 +582,18 @@ function ConnectionTab() {
           }
         />
       )}
-    </div>
+    </KingdomTab>
   );
 }
 
 function PreloadRestartHint({ title }: { title: string }) {
   return (
-    <section className="kingdom-section">
-      <h3 className="kingdom-section-title">{title}</h3>
-      <div className="kingdom-empty">
+    <KingdomSection title={title}>
+      <KingdomEmpty>
         bridge IPC missing — restart <Code>bun run dev</Code> to rebuild the
         preload bundle.
-      </div>
-    </section>
+      </KingdomEmpty>
+    </KingdomSection>
   );
 }
 
@@ -507,15 +608,14 @@ function DemosTab() {
     void window.kh.playFixture({ scenario: id as never });
   };
   return (
-    <div className="kingdom-tab">
-      <p className="kingdom-footer-note">
+    <KingdomTab>
+      <KingdomFooterNote className="mt-0">
         Scripted demos for visual + chat + combat iteration. None of these
         burn API tokens — they emit synthetic events.
-      </p>
+      </KingdomFooterNote>
       {DEMO_FIXTURES.map((group) => (
-        <section key={group.label} className="kingdom-section">
-          <h3 className="kingdom-section-title">{group.label}</h3>
-          <div className="kingdom-demo-grid">
+        <KingdomSection key={group.label} title={group.label}>
+          <div className="grid grid-cols-2 gap-1.5">
             {group.items.map((item) => (
               <Button
                 key={item.id}
@@ -527,9 +627,9 @@ function DemosTab() {
               </Button>
             ))}
           </div>
-        </section>
+        </KingdomSection>
       ))}
-    </div>
+    </KingdomTab>
   );
 }
 
@@ -542,21 +642,13 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as TabKey)}
-      className="kingdom-panel"
+      className="flex flex-col font-ui"
     >
-      <TabsList className="wielder-panel-tabs" aria-label="kingdom panel">
-        <TabsTrigger value="overview" className="wielder-panel-tab">
-          Overview
-        </TabsTrigger>
-        <TabsTrigger value="settings" className="wielder-panel-tab">
-          Settings
-        </TabsTrigger>
-        <TabsTrigger value="connection" className="wielder-panel-tab">
-          Connection
-        </TabsTrigger>
-        <TabsTrigger value="demos" className="wielder-panel-tab">
-          Demos
-        </TabsTrigger>
+      <TabsList aria-label="kingdom panel">
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsTrigger value="connection">Connection</TabsTrigger>
+        <TabsTrigger value="demos">Demos</TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
         <OverviewTab />

@@ -22,10 +22,15 @@ import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import {
   classifyArchetype,
-  ARCHETYPE_GLYPH,
-  ARCHETYPE_LABEL,
   ARCHETYPE_TITLE,
 } from "../role-archetype";
+import { AgentToolBadge } from "../AgentToolBadge";
+import { ArchetypeChip } from "../ArchetypeChip";
+import { RenownBadge, type RenownTier } from "../RenownBadge";
+import { Badge } from "../../components/chrome/Badge";
+import { Bar } from "../../components/chrome/Bar";
+import { Button } from "../../components/chrome/Button";
+import { EmptyState } from "../../components/chrome/EmptyState";
 import { TooltipHint } from "../../components/chrome/TooltipHint";
 import {
   AlertDialog,
@@ -38,14 +43,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../components/primitives/AlertDialog";
-import type { AgentTool, UnitState, WielderStats } from "@shared/events";
-
-const TOOL_LABEL: Record<AgentTool, string> = {
-  claude: "Claude",
-  cursor: "Cursor",
-  codex: "Codex",
-  gemini: "Gemini",
-};
+import { cn } from "@/lib/cn";
+import type { UnitState, WielderStats } from "@shared/events";
 
 function moodFor(unit: UnitState): string {
   if (unit.status === "fallen") return "fallen";
@@ -57,7 +56,11 @@ function moodFor(unit: UnitState): string {
   return "eager";
 }
 
-function renownFor(stats: WielderStats | undefined) {
+function renownFor(stats: WielderStats | undefined): {
+  tier: RenownTier;
+  stars: string;
+  score: number;
+} {
   if (!stats) return { tier: "New", stars: "", score: 0 };
   const score = stats.visits + stats.seals * 3 - stats.falls * 2;
   if (score >= 24) return { tier: "Hero", stars: "★★★", score };
@@ -102,9 +105,9 @@ export function WielderPanelBody({ unitId }: Props) {
 
   if (!unit) {
     return (
-      <div className="target-panel-empty">
+      <EmptyState className="m-3 min-h-0 border border-dashed border-white/10 bg-transparent">
         This wielder is no longer active.
-      </div>
+      </EmptyState>
     );
   }
 
@@ -124,14 +127,15 @@ export function WielderPanelBody({ unitId }: Props) {
     !ghosted && unit.hp < 100 && (world?.munny ?? 0) >= 50;
 
   return (
-    <div className={"target-panel" + (ghosted ? " ghosted" : "")}>
-      <div className="target-panel-head">
+    <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
+      <div className="flex items-start gap-3">
         <TooltipHint label={`${unit.displayName} — ${palette.faction}`}>
           <div
-            className="target-panel-portrait"
+            className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10"
             style={{ background: ROLE_HEX[unit.role] }}
           >
             <img
+              className="size-full object-cover [image-rendering:pixelated]"
               src={`/sprites/kh-default/${unit.role}.png`}
               alt=""
               onError={(e) => {
@@ -140,12 +144,12 @@ export function WielderPanelBody({ unitId }: Props) {
             />
           </div>
         </TooltipHint>
-        <div className="target-panel-info">
-          <div className="target-panel-name-row">
-            <span className="target-panel-name">{unit.displayName}</span>
-            <span className={`tool-pill tool-${unit.tool}`}>
-              {TOOL_LABEL[unit.tool]}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-bold tracking-[0.3px] text-text">
+              {unit.displayName}
             </span>
+            <AgentToolBadge tool={unit.tool} className="self-start" />
             <TooltipHint
               label={
                 unit.spawnedHere
@@ -153,39 +157,32 @@ export function WielderPanelBody({ unitId }: Props) {
                   : "observed terminal session — read-only"
               }
             >
-              <span
-                className={`origin-pill origin-${unit.spawnedHere ? "spawned" : "observed"}`}
+              <Badge
+                className={cn(
+                  "h-4 min-h-0 self-start px-1 text-[8px]",
+                  unit.spawnedHere
+                    ? "border-accent/40 bg-accent/10 text-accent"
+                    : "border-white/10 bg-white/[0.04] text-muted"
+                )}
               >
                 {unit.spawnedHere ? "spawned" : "observed"}
-              </span>
+              </Badge>
             </TooltipHint>
           </div>
-          <div className="target-panel-meta">
-            <span className="target-panel-mood">{moodFor(unit)}</span>
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted">
+            <span className="font-mono uppercase tracking-[0.6px]">
+              {moodFor(unit)}
+            </span>
             <TooltipHint label={ARCHETYPE_TITLE[archetype]}>
-              <span
-                className={`archetype-chip archetype-${archetype}`}
-              >
-                {ARCHETYPE_GLYPH[archetype]}
-                <span className="archetype-chip-label">
-                  {ARCHETYPE_LABEL[archetype]}
-                </span>
-              </span>
+              <ArchetypeChip archetype={archetype} labeled />
             </TooltipHint>
             <TooltipHint label={`Renown: ${renown.score} (${renown.tier})`}>
-              <span
-                className={`throne-card-renown rank-${renown.tier.toLowerCase()}`}
-              >
-                {renown.stars && (
-                  <span className="throne-card-renown-stars">{renown.stars}</span>
-                )}
-                <span className="throne-card-renown-tier">{renown.tier}</span>
-              </span>
+              <RenownBadge tier={renown.tier} stars={renown.stars} />
             </TooltipHint>
             <TooltipHint label="dive into this world">
               <button
                 type="button"
-                className="throne-card-world-link"
+                className="inline-flex items-center gap-1 border-0 bg-transparent p-0 font-mono text-[10.5px] text-accent hover:underline"
                 onClick={() => selectWorld(unit.worldId)}
               >
                 <ChevronRight size={11} aria-hidden /> {worldLabel} · {themeName}
@@ -195,7 +192,7 @@ export function WielderPanelBody({ unitId }: Props) {
         </div>
       </div>
       {activeOrders.length > 0 && (
-        <div className="target-panel-orders">
+        <div className="flex flex-wrap gap-1">
           {activeOrders.map((o) => (
             <TooltipHint
               key={o.id}
@@ -203,7 +200,7 @@ export function WielderPanelBody({ unitId }: Props) {
             >
               <button
                 type="button"
-                className="standing-order-chip"
+                className="inline-flex items-center gap-1 rounded-sm border border-accent-alt/45 bg-accent-alt/[0.08] px-2 py-1 text-left font-mono text-[10px] font-semibold text-accent-alt hover:border-[#ff5a3c]/60 hover:bg-accent-alt/[0.18] hover:text-[#ff5a3c]"
                 onClick={() => haltStandingOrder(o.id)}
               >
                 <RotateCw size={11} aria-hidden /> {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
@@ -212,62 +209,77 @@ export function WielderPanelBody({ unitId }: Props) {
           ))}
         </div>
       )}
-      <div className="target-panel-bars">
-        <div className="bar-row">
-          <span className="bar-label">HP</span>
-          <div className="bar hp">
-            <div style={{ width: `${hpPct}%` }} />
-          </div>
-          <span className="bar-num">{Math.round(hpPct)}</span>
+      <div className="grid grid-cols-[18px_1fr_28px] gap-x-1.5 gap-y-1 font-mono text-[9.5px] text-muted">
+        <div className="contents">
+          <span className="uppercase tracking-[0.5px]">HP</span>
+          <Bar
+            className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
+            tone="hp"
+            value={hpPct}
+            aria-label={`${unit.displayName} HP`}
+          />
+          <span className="text-right tabular-nums text-text">
+            {Math.round(hpPct)}
+          </span>
         </div>
-        <div className="bar-row">
-          <span className="bar-label">MP</span>
-          <div className="bar mp">
-            <div style={{ width: `${mpPct}%` }} />
-          </div>
-          <span className="bar-num">{Math.round(mpPct)}</span>
+        <div className="contents">
+          <span className="uppercase tracking-[0.5px]">MP</span>
+          <Bar
+            className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
+            tone="mp"
+            value={mpPct}
+            aria-label={`${unit.displayName} MP`}
+          />
+          <span className="text-right tabular-nums text-text">
+            {Math.round(mpPct)}
+          </span>
         </div>
-        <div className="bar-row">
-          <span className="bar-label">FC</span>
-          <div className="bar focus">
-            <div style={{ width: `${focusPct}%` }} />
-          </div>
-          <span className="bar-num">{unit.driveForm ?? "—"}</span>
+        <div className="contents">
+          <span className="uppercase tracking-[0.5px]">FC</span>
+          <Bar
+            className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
+            tone="focus"
+            value={focusPct}
+            aria-label={`${unit.displayName} focus`}
+          />
+          <span className="text-right tabular-nums text-text">
+            {unit.driveForm ?? "—"}
+          </span>
         </div>
       </div>
-      <div className="target-panel-foot">
-        <span className="throne-card-time">{timeAgo(unit.lastActivity)}</span>
+      <div className="flex items-center justify-between border-t border-white/[0.07] pt-1.5 font-mono text-[10px] text-muted">
+        <span>{timeAgo(unit.lastActivity)}</span>
         {unit.lastTool && (
           <TooltipHint label="last tool call">
-            <span className="target-panel-lasttool">
+            <span className="text-accent">
               <CornerDownRight size={11} aria-hidden /> {unit.lastTool}
             </span>
           </TooltipHint>
         )}
       </div>
-      <div className="target-panel-actions">
+      <div className="grid grid-cols-5 gap-1">
         <TooltipHint label="open chat in the drawer">
-          <span className="inline-flex">
-            <button
+          <span className="inline-flex w-full">
+            <Button
               type="button"
-              className="card-verb"
+              className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
               disabled={ghosted}
               onClick={() => openDrawerTab(unit.id)}
             >
               <MessageSquare size={11} aria-hidden /> chat
-            </button>
+            </Button>
           </span>
         </TooltipHint>
         <TooltipHint label="find — pan camera to this wielder's world">
-          <span className="inline-flex">
-            <button
+          <span className="inline-flex w-full">
+            <Button
               type="button"
-              className="card-verb"
+              className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
               disabled={ghosted}
               onClick={() => selectWorld(unit.worldId)}
             >
               <MapPin size={11} aria-hidden /> find
-            </button>
+            </Button>
           </span>
         </TooltipHint>
         <TooltipHint
@@ -277,16 +289,16 @@ export function WielderPanelBody({ unitId }: Props) {
               : "decree — directive command (file/function/shell)"
           }
         >
-          <span className="inline-flex">
-            <button
+          <span className="inline-flex w-full">
+            <Button
               type="button"
-              className="card-verb decree"
+              className="h-6 min-h-0 w-full gap-1 rounded-sm border-accent-alt/45 bg-accent-alt/[0.06] px-1 py-0 text-[10px] font-semibold text-accent-alt hover:border-accent-alt/70 hover:bg-accent-alt/[0.14]"
               disabled={ghosted || !unit.spawnedHere}
               onClick={() => useStore.getState().openDecreeFor(unit.id)}
             >
               {/* ⚜ stays as the gold royal sigil — KH-themed and intentional. */}
               ⚜ decree
-            </button>
+            </Button>
           </span>
         </TooltipHint>
         <TooltipHint
@@ -300,15 +312,15 @@ export function WielderPanelBody({ unitId }: Props) {
               : "not enough munny in this world (need 50µ)"
           }
         >
-          <span className="inline-flex">
-            <button
+          <span className="inline-flex w-full">
+            <Button
               type="button"
-              className="card-verb"
+              className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
               disabled={!canComfort}
               onClick={() => comfort(unit.id)}
             >
               <Heart size={11} aria-hidden /> comfort
-            </button>
+            </Button>
           </span>
         </TooltipHint>
         <AlertDialog>
@@ -319,11 +331,12 @@ export function WielderPanelBody({ unitId }: Props) {
                 : "recall — end this session"
             }
           >
-            <span className="inline-flex">
+            <span className="inline-flex w-full">
               <AlertDialogTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  className="card-verb destructive"
+                  variant="danger"
+                  className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
                   // Recall calls window.kh.killAgent, which only knows about
                   // processes keykeeper spawned. For hook-observed wielders it
                   // would silently no-op; gate the same way decree does so the
@@ -331,7 +344,7 @@ export function WielderPanelBody({ unitId }: Props) {
                   disabled={ghosted || !unit.spawnedHere}
                 >
                   <Power size={11} aria-hidden /> recall
-                </button>
+                </Button>
               </AlertDialogTrigger>
             </span>
           </TooltipHint>

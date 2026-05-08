@@ -13,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../components/primitives/Tooltip";
+import { IconButton } from "../components/chrome/IconButton";
 
 export function CloseAllChip() {
   const closeAll = usePanels((s) => s.closeAll);
@@ -37,16 +38,18 @@ export function CloseAllChip() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <IconButton
           type="button"
-          className="close-all-chip"
+          variant="danger"
+          size="md"
+          className="absolute left-[calc(100%+8px)] top-1/2 z-[70] size-7 -translate-y-1/2 rounded-pill border-danger/50 bg-danger/15 font-mono text-[11px] font-bold tracking-[0.4px] text-danger shadow-lg backdrop-blur-sm animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] hover:border-danger hover:bg-danger/25"
           onClick={closeAll}
           aria-label={`Close all ${count} open panels`}
         >
           {/* Lucide XSquare reads as "close all in container" — sized to
            * fit a 28px circular chip. */}
           <XSquare size={16} strokeWidth={2.25} aria-hidden />
-        </button>
+        </IconButton>
       </TooltipTrigger>
       <TooltipContent>close all panels ({count}) — ⌘⇧W</TooltipContent>
     </Tooltip>

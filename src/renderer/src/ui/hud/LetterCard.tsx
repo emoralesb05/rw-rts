@@ -9,10 +9,13 @@ import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { Badge } from "../../components/chrome/Badge";
+import { Button } from "../../components/chrome/Button";
 import { Input } from "../../components/chrome/Input";
 import { Toolbar } from "../../components/chrome/Toolbar";
 import { TooltipHint } from "../../components/chrome/TooltipHint";
 import { useToast } from "../../components/chrome/ToastLayer";
+import { cn } from "@/lib/cn";
 import type { Letter, LetterAction } from "@shared/events";
 
 function timeAgo(ts: number): string {
@@ -28,6 +31,39 @@ function timeAgo(ts: number): string {
 
 function shortcutVerb(label: string | undefined, fallback: string): string {
   return (label ?? fallback).replace(/[✓✗↪]/g, "").trim() || fallback;
+}
+
+function severityClass(severity: Letter["severity"]) {
+  switch (severity) {
+    case "critical":
+      return "border-l-[#ff5a3c]";
+    case "important":
+      return "border-l-accent-alt";
+    default:
+      return "border-l-accent";
+  }
+}
+
+function severityTone(severity: Letter["severity"]) {
+  switch (severity) {
+    case "critical":
+      return "danger";
+    case "important":
+      return "gold";
+    default:
+      return "accent";
+  }
+}
+
+function riskTone(risk: NonNullable<Letter["risk"]>) {
+  switch (risk) {
+    case "high":
+      return "danger";
+    case "elevated":
+      return "warning";
+    default:
+      return "success";
+  }
 }
 
 export function LetterCard({ letter }: { letter: Letter }) {
@@ -142,65 +178,79 @@ export function LetterCard({ letter }: { letter: Letter }) {
   };
   return (
     <div
-      className={
-        `throne-letter sev-${letter.severity}` +
-        (bodyClickable ? " clickable" : "") +
-        (isPermissionLike ? " permission" : "")
-      }
+      className={cn(
+        "throne-letter flex flex-col gap-1 rounded-md border border-l-[3px] border-line",
+        "bg-panel-2/65 px-2.5 py-2 text-left",
+        severityClass(letter.severity),
+        bodyClickable &&
+          "cursor-pointer transition-colors hover:border-accent-alt/30 hover:bg-panel-2/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-alt",
+        isPermissionLike &&
+          "border-warning/40 bg-[#231830]/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning/85"
+      )}
       data-letter-request-id={reqIdAttr}
       onClick={onBodyClick}
       onKeyDown={onKeyDown}
       role={bodyClickable ? "button" : isPermissionLike ? "group" : undefined}
       tabIndex={bodyClickable || isPermissionLike ? 0 : undefined}
     >
-      <div className="throne-letter-head">
-        <span className={`throne-letter-tag sev-${letter.severity}`}>
+      <div className="flex items-center justify-between text-[9.5px] uppercase tracking-[0.6px]">
+        <Badge
+          tone={severityTone(letter.severity)}
+          className="min-h-0 px-1.5 py-0.5 text-[9.5px]"
+        >
           {letter.severity}
-        </span>
+        </Badge>
         {letter.risk && (
-          <span className={`letter-risk-chip risk-${letter.risk}`}>
+          <Badge
+            tone={riskTone(letter.risk)}
+            className={cn(
+              "min-h-0 px-1.5 py-0.5 font-mono text-[8.5px] tracking-[1px]",
+              letter.risk === "high" &&
+                "animate-[voice-pulse_1.4s_ease-in-out_infinite]"
+            )}
+          >
             {letter.risk === "high"
               ? "HIGH RISK"
               : letter.risk === "elevated"
               ? "ELEVATED"
               : "LOW RISK"}
-          </span>
+          </Badge>
         )}
-        <span className="throne-letter-time">{timeAgo(letter.createdAt)}</span>
+        <span className="font-mono text-muted">{timeAgo(letter.createdAt)}</span>
       </div>
       {wielder && (
-        <div className="throne-letter-actor">
+        <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-muted">
           <span
-            className="throne-letter-avatar"
+            className="size-2.5 shrink-0 rounded-pill border border-black/40"
             style={{ background: ROLE_HEX[wielder.role] }}
             aria-hidden="true"
           />
-          <span className="throne-letter-actor-name">
+          <span className="font-ui font-semibold text-text">
             {wielder.displayName}
           </span>
           {targetWorldId && worlds[targetWorldId] && (
             <>
-              <span className="throne-letter-actor-sep">·</span>
-              <span className="throne-letter-actor-world">
+              <span className="text-muted/50">·</span>
+              <span className="text-accent">
                 {worlds[targetWorldId].label}
               </span>
-              <span className="throne-letter-actor-theme">
+              <span className="ml-0.5 text-[9.5px] text-muted/70">
                 {themeLabel(themeFor(targetWorldId))}
               </span>
             </>
           )}
         </div>
       )}
-      <div className="throne-letter-title">{letter.title}</div>
+      <div className="text-[12.5px] font-semibold text-text">{letter.title}</div>
       {letter.body && (
-        <div className="throne-letter-body">{letter.body}</div>
+        <div className="text-[11px] leading-relaxed text-muted">{letter.body}</div>
       )}
       {isPermissionLike && (
-        <div className="letter-utility-row">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
           <TooltipHint label="copy permission request context">
-            <button
+            <Button
               type="button"
-              className="letter-copy-btn"
+              className="min-h-0 border-warning/30 bg-warning/10 px-1.5 py-0.5 font-mono text-[9.5px] text-warning hover:border-warning/60 hover:bg-warning/15"
               onClick={(e) => {
                 e.stopPropagation();
                 void copyRequest();
@@ -208,9 +258,9 @@ export function LetterCard({ letter }: { letter: Letter }) {
             >
               {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
               {copied ? "copied" : "copy request"}
-            </button>
+            </Button>
           </TooltipHint>
-          <span className="letter-shortcuts">
+          <span className="font-mono text-[9.5px] text-text/50">
             {allowAction && `A ${allowShortcut}`}
             {allowAction && denyAction && " · "}
             {denyAction && `D ${denyShortcut}`}
@@ -221,28 +271,30 @@ export function LetterCard({ letter }: { letter: Letter }) {
         </div>
       )}
       {letter.reasoning && (
-        <div className="throne-letter-reasoning">
+        <div className="mt-0.5">
           <TooltipHint label="show what the wielder was thinking right before this ask">
-            <button
+            <Button
               type="button"
-              className="letter-reasoning-toggle"
+              className="min-h-0 border-accent/40 bg-transparent px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.5px] text-accent hover:bg-accent/10"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowReasoning((v) => !v);
               }}
             >
               {showReasoning ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} thinking
-            </button>
+            </Button>
           </TooltipHint>
           {showReasoning && (
-            <div className="letter-reasoning-body">{letter.reasoning}</div>
+            <div className="mt-1 rounded-r-sm border-l-2 border-accent/40 bg-accent/[0.06] px-2 py-1.5 text-[10.5px] italic leading-relaxed text-text whitespace-pre-wrap">
+              {letter.reasoning}
+            </div>
           )}
         </div>
       )}
       {isPermLetter && (
         <Input
           type="text"
-          className="letter-deny-reason"
+          className="my-1.5 h-auto w-full rounded-sm bg-[#0a1130]/60 px-1.5 py-1 text-[11px] placeholder:italic"
           placeholder="deny reason (optional, shown to the agent)"
           value={denyReason}
           onChange={(e) => setDenyReason(e.target.value)}
@@ -250,26 +302,26 @@ export function LetterCard({ letter }: { letter: Letter }) {
           aria-label="Deny reason"
         />
       )}
-      <Toolbar className="throne-letter-actions" aria-label="Letter actions">
+      <Toolbar className="mt-1 flex-wrap gap-1" aria-label="Letter actions">
         {letter.actions.map((a, i) => (
-          <button
+          <Button
             key={i}
             type="button"
-            className={
-              "letter-verb" +
-              (a.action.kind === "seal"
-                ? " primary"
+            variant={
+              a.action.kind === "seal"
+                ? "primary"
                 : a.action.kind === "dismiss"
-                ? " ghost"
-                : "")
+                ? "ghost"
+                : "default"
             }
+            className="min-h-0 px-2 py-1 text-[10.5px]"
             onClick={(e) => {
               e.stopPropagation();
               applyAction(a.action);
             }}
           >
             {a.label}
-          </button>
+          </Button>
         ))}
       </Toolbar>
     </div>

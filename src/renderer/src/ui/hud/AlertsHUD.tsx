@@ -15,6 +15,7 @@
 import { useEffect, useRef } from "react";
 import { useStore } from "../../store";
 import { usePanels } from "../floating/panel-store";
+import { EmptyState } from "../../components/chrome/EmptyState";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
 
@@ -90,9 +91,11 @@ export function AlertsHUD() {
       onPointerDown={() => focusAlerts()}
     >
       {alerts.length === 0 ? (
-        <div className="hud-empty">no alerts</div>
+        <EmptyState className="min-h-0 bg-transparent px-2 py-3">
+          no alerts
+        </EmptyState>
       ) : (
-        <div className="throne-letter-feed">
+        <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {alerts.map((l) => (
             <LetterCard key={l.id} letter={l} />
           ))}

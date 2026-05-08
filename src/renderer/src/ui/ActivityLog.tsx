@@ -20,6 +20,7 @@ import { usePanels } from "./floating/panel-store";
 import { usePersistedBool } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
 import { TooltipHint } from "../components/chrome/TooltipHint";
+import { cn } from "@/lib/cn";
 import type { AgentEvent } from "@shared/events";
 
 const VISIBLE = 60;
@@ -30,6 +31,19 @@ const NON_CLICKABLE: ReadonlySet<AgentEvent["kind"]> = new Set([
   "subagent_spawn",
   "permission_resolved",
 ]);
+
+function toneTextClass(tone: string) {
+  switch (tone) {
+    case "warn":
+      return "text-warning";
+    case "danger":
+      return "text-danger";
+    case "ok":
+      return "text-text";
+    default:
+      return "text-muted";
+  }
+}
 
 /** Pulse + scroll the AlertsHUD letter card whose permission action
  * carries the given requestId. If AlertsHUD is collapsed, fire an
@@ -104,26 +118,52 @@ export function ActivityLog() {
 
   return (
     <div
-      className={"activity-log" + (collapsed ? " collapsed" : "")}
+      className={cn(
+        "activity-log absolute bottom-3 left-3 z-hud flex w-[360px] max-h-[280px]",
+        "flex-col overflow-hidden rounded-md border border-accent-alt/20",
+        "bg-[#0a1130]/80 font-mono text-text shadow-2xl backdrop-blur-md",
+        "transition-[width] duration-base ease-out",
+        collapsed && "w-[180px] max-h-8"
+      )}
       role="log"
       aria-label="Activity log"
     >
       <button
         type="button"
-        className="activity-log-header"
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-2 border-0 border-b border-line",
+          "bg-accent-alt/5 px-2.5 py-1.5 text-left font-[inherit] text-text",
+          collapsed && "border-b-transparent"
+        )}
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
       >
-        <span className="activity-log-title">activity</span>
-        <span className="activity-log-count">{events.length}</span>
-        <span className="activity-log-toggle" aria-hidden="true">
+        <span className="text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt">
+          activity
+        </span>
+        <span className="text-[10px] tabular-nums text-muted">
+          {events.length}
+        </span>
+        <span className="ml-auto inline-flex items-center text-muted" aria-hidden="true">
           {collapsed ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
         </span>
       </button>
-      <div className="activity-log-body-shell" aria-hidden={collapsed}>
-        <div className="activity-log-body" ref={scrollRef}>
+      <div
+        className={cn(
+          "grid min-h-0 grid-rows-[1fr] opacity-100 transition-[grid-template-rows,opacity]",
+          "duration-base ease-out",
+          collapsed && "grid-rows-[0fr] opacity-0"
+        )}
+        aria-hidden={collapsed}
+      >
+        <div
+          className={cn("min-h-0 overflow-y-auto py-1", collapsed && "p-0")}
+          ref={scrollRef}
+        >
           {recent.length === 0 ? (
-            <div className="activity-log-empty">No activity yet.</div>
+            <div className="px-3.5 py-3 text-center font-ui text-[11px] italic text-muted">
+              No activity yet.
+            </div>
           ) : (
             recent.map((ev, i) => {
               const unit = units[ev.sessionId];
@@ -153,8 +193,15 @@ export function ActivityLog() {
                 !isPermResolved &&
                 (ev.kind === "permission_request" ? !!ev.payload.requestId : !!unit);
               const tone = isPermResolved ? "muted" : summary.tone;
-              const className = `activity-log-row tone-${tone}` +
-                (clickable ? "" : " not-clickable");
+              const rowClassName = cn(
+                "grid w-full grid-cols-[8px_100px_minmax(0,1fr)_28px] items-center gap-1.5",
+                "border-0 border-b border-white/[0.03] bg-transparent px-2.5 py-1",
+                "text-left font-[inherit] text-[10.5px] text-inherit",
+                clickable
+                  ? "cursor-pointer hover:bg-accent-alt/[0.06]"
+                  : "cursor-default opacity-60",
+                !clickable && "hover:bg-transparent"
+              );
               const onClick = () => {
                 if (!clickable) return;
                 if (ev.kind === "permission_request" && ev.payload.requestId) {
@@ -187,33 +234,49 @@ export function ActivityLog() {
                 ? `${summary.text} · resolved`
                 : summary.text;
               const NameSlot = isMe ? (
-                <span className="activity-log-name activity-log-name-me">
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-accent-alt">
                   Me
-                  <span className="activity-log-arrow"><ArrowRight size={10} aria-hidden /></span>
+                  <span className="mx-1 inline-flex items-center font-normal text-muted">
+                    <ArrowRight size={10} aria-hidden />
+                  </span>
                   <span style={{ color: recipientColor }}>{recipientName}</span>
                 </span>
               ) : (
-                <span className="activity-log-name">{recipientName}</span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-text">
+                  {recipientName}
+                </span>
               );
               const Body = (
                 <>
-                  <span className="activity-log-dot" style={{ background: dotColor }} />
+                  <span
+                    className="size-1.5 rounded-pill"
+                    style={{ background: dotColor }}
+                  />
                   {NameSlot}
-                  <span className="activity-log-text">{summaryText}</span>
-                  <span className="activity-log-time">{shortAgo(ev.timestamp)}</span>
+                  <span
+                    className={cn(
+                      "overflow-hidden text-ellipsis whitespace-nowrap",
+                      toneTextClass(tone)
+                    )}
+                  >
+                    {summaryText}
+                  </span>
+                  <span className="text-right text-[9.5px] tabular-nums text-muted">
+                    {shortAgo(ev.timestamp)}
+                  </span>
                 </>
               );
               const Row = clickable ? (
                 <button
                   type="button"
-                  className={className}
+                  className={rowClassName}
                   onClick={onClick}
                 >
                   {Body}
                 </button>
               ) : (
                 <div
-                  className={className}
+                  className={rowClassName}
                   aria-disabled="true"
                 >
                   {Body}

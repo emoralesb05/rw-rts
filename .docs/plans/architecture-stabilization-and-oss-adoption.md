@@ -28,6 +28,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Provider hook installers now have idempotency tests against mocked home-directory config files.
 - Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
 - The Radix/Tailwind owned component foundation has landed; remaining UI cleanup is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
+- The completed `design-system.md` plan was removed; active UI cleanup now lives in the CSS migration plan.
+- The first CSS migration slice moved HUD/chrome styling for `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`, `PartyRow`, `LetterCard`, and HUD empty/action states into owned components/Tailwind, reducing `styles.css` from ~3519 to 2547 lines.
+- The second CSS migration slice moved floating panel, settings, dispatch, kingdom, wielder detail, and shared tool/archetype/renown chip styling into owned React components, reducing `styles.css` to 1569 lines.
 
 ## Adopt now
 

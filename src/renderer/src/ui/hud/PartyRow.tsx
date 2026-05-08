@@ -12,19 +12,34 @@ import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
 import {
   classifyArchetype,
-  ARCHETYPE_GLYPH,
   ARCHETYPE_TITLE,
 } from "../role-archetype";
+import { AgentToolBadge } from "../AgentToolBadge";
+import { ArchetypeChip } from "../ArchetypeChip";
 import { Bar } from "../../components/chrome/Bar";
+import { IconButton } from "../../components/chrome/IconButton";
 import { TooltipHint } from "../../components/chrome/TooltipHint";
-import type { AgentTool, UnitState } from "@shared/events";
+import { cn } from "@/lib/cn";
+import type { UnitState } from "@shared/events";
 
-const TOOL_LABEL: Record<AgentTool, string> = {
-  claude: "Claude",
-  cursor: "Cursor",
-  codex: "Codex",
-  gemini: "Gemini",
-};
+function statusIconClass(cls: string) {
+  switch (cls) {
+    case "drive-valor":
+      return "border-[#ff5a3c]/50 bg-[#ff5a3c]/10 text-[#ff5a3c]";
+    case "drive-wisdom":
+      return "border-accent/50 bg-accent/10 text-accent";
+    case "drive-final":
+      return "border-accent-alt/50 bg-accent-alt/10 text-accent-alt";
+    case "casting":
+      return "border-[#c9a4ff]/50 bg-[#c9a4ff]/10 text-[#c9a4ff] animate-[status-pulse_1.4s_ease-in-out_infinite]";
+    case "order":
+      return "border-success/50 bg-success/10 text-success";
+    case "danger":
+      return "border-[#ff5a3c]/70 bg-[#ff5a3c]/20 text-[#ff5a3c] animate-[status-pulse_1s_ease-in-out_infinite]";
+    default:
+      return "border-transparent bg-white/5 text-muted";
+  }
+}
 
 /** Slim live progress bar shown when a wielder is mid tool-call.
  * Renders only while status is "casting" or "working". Re-renders
@@ -43,9 +58,11 @@ function CastBar({ unit }: { unit: UnitState }) {
   const label = `${unit.lastTool ?? unit.status} · ${elapsedSec}s`;
   return (
     <TooltipHint label={label}>
-      <div className="party-row-cast">
-        <div className="party-row-cast-fill" />
-        <span className="party-row-cast-label">{label}</span>
+      <div className="relative mt-0.5 flex h-2 items-center overflow-hidden rounded-sm border border-black/50 bg-black/45 font-mono text-[7.5px] leading-none text-text">
+        <div className="absolute inset-0 animate-[cast-sweep_0.9s_linear_infinite] bg-[length:24px_24px] bg-[repeating-linear-gradient(-45deg,rgba(201,164,255,0.45)_0,rgba(201,164,255,0.45)_6px,rgba(157,107,255,0.20)_6px,rgba(157,107,255,0.20)_12px)]" />
+        <span className="relative z-[1] overflow-hidden text-ellipsis whitespace-nowrap px-1 tracking-[0.2px] [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+          {label}
+        </span>
       </div>
     </TooltipHint>
   );
@@ -88,10 +105,15 @@ function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean })
   }
   if (icons.length === 0) return null;
   return (
-    <span className="status-icons">
+    <span className="ml-auto flex shrink-0 gap-0.5">
       {icons.map((i) => (
         <TooltipHint key={i.key} label={i.title}>
-          <span className={`status-icon status-${i.cls}`}>
+          <span
+            className={cn(
+              "inline-flex size-4 items-center justify-center rounded-sm border text-[10px] font-bold",
+              statusIconClass(i.cls)
+            )}
+          >
             {i.glyph}
           </span>
         </TooltipHint>
@@ -135,11 +157,14 @@ export function PartyRow({ unit }: { unit: UnitState }) {
     <div
       role="button"
       tabIndex={0}
-      className={
-        "party-row" +
-        (ghosted ? " ghosted" : "") +
-        (hasPanelOpen ? " selected" : "")
-      }
+      className={cn(
+        "flex w-full cursor-pointer items-center gap-2 rounded-md border border-white/[0.06]",
+        "bg-[#0a1130]/55 px-2 py-1.5 text-left font-[inherit] text-inherit",
+        "transition-colors hover:border-accent-alt/30 hover:bg-[#0a1130]/80",
+        ghosted && "opacity-40",
+        hasPanelOpen &&
+          "border-accent-alt bg-accent-alt/10 shadow-[inset_2px_0_0_var(--color-accent-alt)]"
+      )}
       onClick={() => openWielder()}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -150,10 +175,11 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       aria-label={`${unit.displayName} · ${palette.faction}`}
     >
       <div
-        className="party-row-portrait"
+        className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10"
         style={{ background: ROLE_HEX[unit.role] }}
       >
         <img
+          className="size-full object-cover [image-rendering:pixelated]"
           src={`/sprites/kh-default/${unit.role}.png`}
           alt=""
           onError={(e) => {
@@ -161,26 +187,21 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           }}
         />
       </div>
-      <div className="party-row-body">
-        <div className="party-row-line">
-          <span className="party-row-name">{unit.displayName}</span>
-          <span className={`tool-pill tool-${unit.tool}`}>
-            {TOOL_LABEL[unit.tool]}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <span className="shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-text">
+            {unit.displayName}
           </span>
+          <AgentToolBadge tool={unit.tool} />
           <TooltipHint label={ARCHETYPE_TITLE[archetype]}>
-            <span
-              className={`archetype-chip archetype-${archetype}`}
-              aria-label={`Behavior class: ${archetype}`}
-            >
-              {ARCHETYPE_GLYPH[archetype]}
-            </span>
+            <ArchetypeChip archetype={archetype} />
           </TooltipHint>
           <StatusIcons unit={unit} hasOrder={hasOrder} />
         </div>
-        <div className="party-row-bars">
+        <div className="mt-0.5 flex flex-col gap-0.5">
           <TooltipHint label={`HP ${Math.round(hpPct)}/100`}>
             <Bar
-              className="bar-mini hp"
+              className="h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
               tone="hp"
               value={hpPct}
               aria-label={`${unit.displayName} HP`}
@@ -188,7 +209,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           </TooltipHint>
           <TooltipHint label={`MP ${Math.round(mpPct)}/100`}>
             <Bar
-              className="bar-mini mp"
+              className="h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
               tone="mp"
               value={mpPct}
               aria-label={`${unit.displayName} MP`}
@@ -198,9 +219,11 @@ export function PartyRow({ unit }: { unit: UnitState }) {
         <CastBar unit={unit} />
       </div>
       <TooltipHint label="open chat in the drawer">
-        <button
+        <IconButton
           type="button"
-          className="party-row-chat"
+          variant="ghost"
+          size="md"
+          className="ml-1 self-center text-muted hover:border-accent-alt hover:bg-accent-alt/10 hover:text-accent-alt"
           onClick={(e) => {
             e.stopPropagation();
             openChat();
@@ -208,7 +231,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           aria-label={`Open chat with ${unit.displayName}`}
         >
           <MessageSquare size={14} aria-hidden />
-        </button>
+        </IconButton>
       </TooltipHint>
     </div>
   );

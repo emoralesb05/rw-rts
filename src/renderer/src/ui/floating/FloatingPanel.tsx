@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { usePanels, type Panel } from "./panel-store";
+import { IconButton } from "../../components/chrome/IconButton";
+import { cn } from "@/lib/cn";
 
 type Props = {
   panel: Panel;
@@ -90,7 +92,12 @@ export function FloatingPanel({ panel, children }: Props) {
 
   return (
     <div
-      className="floating-panel"
+      className={cn(
+        "fixed flex origin-center flex-col overflow-hidden rounded-lg",
+        "border border-accent bg-[linear-gradient(180deg,#0f1635_0%,#0a1130_100%)]",
+        "shadow-[0_30px_80px_rgba(0,0,0,0.65),0_8px_24px_rgba(0,0,0,0.50),0_0_0_1px_rgba(255,216,107,0.18)]",
+        "animate-[floating-panel-rise_200ms_cubic-bezier(0.2,0.8,0.3,1)]"
+      )}
       style={{
         left: panel.x,
         top: panel.y,
@@ -103,24 +110,33 @@ export function FloatingPanel({ panel, children }: Props) {
       aria-label={panel.title}
     >
       <div
-        className="floating-panel-header"
+        className="flex cursor-grab select-none items-center gap-2 border-b border-line bg-accent-alt/[0.06] px-2 py-1.5 pl-2.5 font-ui active:cursor-grabbing"
         onPointerDown={onHeaderPointerDown}
         onPointerMove={onHeaderPointerMove}
         onPointerUp={onHeaderPointerUp}
         onPointerCancel={onHeaderPointerUp}
       >
-        <span className="floating-panel-grip" aria-hidden="true">⋮⋮</span>
-        <span className="floating-panel-title">{panel.title}</span>
-        <button
+        <span
+          className="text-xs tracking-[-1px] text-muted opacity-60"
+          aria-hidden="true"
+        >
+          ⋮⋮
+        </span>
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.8px] text-accent-alt">
+          {panel.title}
+        </span>
+        <IconButton
           type="button"
-          className="floating-panel-close"
+          variant="ghost"
+          size="sm"
+          className="text-muted hover:bg-white/[0.06] hover:text-text"
           onClick={() => closePanel(panel.id)}
           aria-label={`Close ${panel.title}`}
         >
           <X size={14} aria-hidden />
-        </button>
+        </IconButton>
       </div>
-      <div className="floating-panel-body">{children}</div>
+      <div className="max-h-[calc(100vh-80px)] overflow-y-auto">{children}</div>
     </div>
   );
 }

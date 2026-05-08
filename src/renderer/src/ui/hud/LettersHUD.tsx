@@ -5,6 +5,8 @@
  */
 import { Trash2 } from "lucide-react";
 import { useStore } from "../../store";
+import { Button } from "../../components/chrome/Button";
+import { EmptyState } from "../../components/chrome/EmptyState";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
 import {
@@ -23,13 +25,14 @@ export function LettersHUD() {
     informational.length > 0 ? (
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
             type="button"
-            className="hud-action-btn hud-action-btn-ghost"
+            variant="danger"
+            className="min-h-6 px-2 py-0.5 text-[10px] uppercase tracking-[0.5px]"
             onClick={dismissInformationalLetters}
           >
             <Trash2 size={11} aria-hidden /> clear
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent>Dismiss every letter — permission alerts are kept</TooltipContent>
       </Tooltip>
@@ -42,9 +45,11 @@ export function LettersHUD() {
       headerExtra={clearBtn}
     >
       {informational.length === 0 ? (
-        <div className="hud-empty">no letters</div>
+        <EmptyState className="min-h-0 bg-transparent px-2 py-3">
+          no letters
+        </EmptyState>
       ) : (
-        <div className="throne-letter-feed">
+        <div className="flex flex-col gap-2 overflow-y-auto pr-1">
           {informational.map((l) => (
             <LetterCard key={l.id} letter={l} />
           ))}
