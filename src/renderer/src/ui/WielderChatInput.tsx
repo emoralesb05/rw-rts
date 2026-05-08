@@ -24,6 +24,8 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
     try {
       await window.kh.sendPrompt({ unitId: unit.id, prompt: text });
       setPrompt("");
+    } catch {
+      // Keep the text in place so the user can retry.
     } finally {
       setBusy(false);
     }

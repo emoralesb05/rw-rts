@@ -51,6 +51,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Settings panel behavior now has jsdom component tests for async
   settings load, debounced workspace validation, normalized exclude
   saves, panel close-on-success, and save failure feedback.
+- Wielder chat input now has jsdom component tests for click-send,
+  meta-enter send, inactive/observed-only disabled states, and
+  send-failure retry behavior.
 
 ## Adopt now
 
