@@ -109,9 +109,6 @@ export function KingdomHeader() {
           <TooltipContent>Kingdom — overview, settings, connection, demos</TooltipContent>
         </Tooltip>
       </Toolbar>
-      {/* Floating "close all" chip — visually separate (own pill) but
-       * absolutely positioned to the pill's right edge so it always
-       * sits next to it regardless of pill width. */}
       <CloseAllChip />
     </div>
   );

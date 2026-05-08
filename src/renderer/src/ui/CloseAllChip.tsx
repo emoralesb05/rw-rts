@@ -1,9 +1,8 @@
 /**
  * Floating "✕ N" chip that appears whenever 1+ floating surfaces are
- * open (panels + chat drawer). Rendered INSIDE KingdomHeader's pill
- * wrapper so its CSS can anchor it to the pill's right edge — it
- * floats next to the pill instead of under it. Click closes them all;
- * Cmd/Ctrl+Shift+W keyboard shortcut also bound here for global reach.
+ * open (panels + chat drawer). It renders as a compact danger action
+ * inside the KingdomHeader pill; click closes them all. Cmd/Ctrl+Shift+W
+ * keyboard shortcut also bound here for global reach.
  */
 import { useEffect } from "react";
 import { XSquare } from "lucide-react";
@@ -42,7 +41,7 @@ export function CloseAllChip() {
           type="button"
           variant="danger"
           size="md"
-          className="absolute left-[calc(100%+8px)] top-1/2 z-[70] size-7 -translate-y-1/2 rounded-pill border-danger/50 bg-danger/15 font-mono text-[11px] font-bold tracking-[0.4px] text-danger shadow-lg backdrop-blur-sm animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] hover:border-danger hover:bg-danger/25"
+          className="size-7 rounded-pill border-danger/50 bg-danger/15 font-mono text-[11px] font-bold tracking-[0.4px] text-danger shadow-lg backdrop-blur-sm animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] hover:border-danger hover:bg-danger/25"
           onClick={closeAll}
           aria-label={`Close all ${count} open panels`}
         >

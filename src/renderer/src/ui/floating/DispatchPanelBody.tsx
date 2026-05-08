@@ -78,6 +78,7 @@ export function DispatchPanelBody() {
       <Field label="Tool">
         <SegmentedControl
           aria-label="agent tool"
+          className="w-full"
           value={tool}
           onValueChange={(value) => setTool(value as Tool)}
           options={TOOL_OPTIONS}
@@ -141,7 +142,7 @@ export function DispatchPanelBody() {
         />
       </Field>
 
-      <div className="flex justify-end gap-2 border-t border-line pt-2">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-2">
         <Button
           type="button"
           onClick={() => closeKind("dispatch")}

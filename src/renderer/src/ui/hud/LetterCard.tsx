@@ -193,7 +193,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
       role={bodyClickable ? "button" : isPermissionLike ? "group" : undefined}
       tabIndex={bodyClickable || isPermissionLike ? 0 : undefined}
     >
-      <div className="flex items-center justify-between text-[9.5px] uppercase tracking-[0.6px]">
+      <div className="flex items-center justify-between gap-2 text-[9.5px] uppercase tracking-[0.6px]">
         <Badge
           tone={severityTone(letter.severity)}
           className="min-h-0 px-1.5 py-0.5 text-[9.5px]"
@@ -216,34 +216,34 @@ export function LetterCard({ letter }: { letter: Letter }) {
               : "LOW RISK"}
           </Badge>
         )}
-        <span className="font-mono text-muted">{timeAgo(letter.createdAt)}</span>
+        <span className="shrink-0 font-mono text-muted">{timeAgo(letter.createdAt)}</span>
       </div>
       {wielder && (
-        <div className="flex items-center gap-1.5 font-mono text-[10.5px] text-muted">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono text-[10.5px] text-muted">
           <span
             className="size-2.5 shrink-0 rounded-pill border border-black/40"
             style={{ background: ROLE_HEX[wielder.role] }}
             aria-hidden="true"
           />
-          <span className="font-ui font-semibold text-text">
+          <span className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-ui font-semibold text-text">
             {wielder.displayName}
           </span>
           {targetWorldId && worlds[targetWorldId] && (
             <>
-              <span className="text-muted/50">·</span>
-              <span className="text-accent">
+              <span className="shrink-0 text-muted/50">·</span>
+              <span className="min-w-0 max-w-[130px] overflow-hidden text-ellipsis whitespace-nowrap text-accent">
                 {worlds[targetWorldId].label}
               </span>
-              <span className="ml-0.5 text-[9.5px] text-muted/70">
+              <span className="min-w-0 max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-muted/70">
                 {themeLabel(themeFor(targetWorldId))}
               </span>
             </>
           )}
         </div>
       )}
-      <div className="text-[12.5px] font-semibold text-text">{letter.title}</div>
+      <div className="break-words text-[12.5px] font-semibold text-text">{letter.title}</div>
       {letter.body && (
-        <div className="text-[11px] leading-relaxed text-muted">{letter.body}</div>
+        <div className="break-words text-[11px] leading-relaxed text-muted">{letter.body}</div>
       )}
       {isPermissionLike && (
         <div className="mt-0.5 flex flex-wrap items-center gap-2">

@@ -97,41 +97,41 @@ export function HudWidget({
     >
       <header
         className={cn(
-          "flex items-center gap-1.5 border-b border-white/[0.06] bg-accent-alt/5 px-2.5 py-1.5",
+          "flex min-w-0 items-center gap-1.5 border-b border-white/[0.06] bg-accent-alt/5 px-2.5 py-1.5",
           tone === "alert" && "bg-warning/[0.06]",
           collapsed && "border-b-transparent py-1"
         )}
       >
         <button
           type="button"
-          className="flex flex-1 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-[inherit] text-inherit"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-[inherit] text-inherit"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
         >
           <span
             className={cn(
-              "text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt",
+              "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt",
               tone === "alert" && "text-warning"
             )}
           >
             {title}
           </span>
           {typeof count === "number" && (
-            <span className="font-mono text-[10px] tabular-nums text-muted">
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted">
               {count}
             </span>
           )}
         </button>
         {headerExtra && !collapsed && (
-          <span className="flex items-center gap-1">{headerExtra}</span>
+          <span className="flex shrink-0 items-center gap-1">{headerExtra}</span>
         )}
         {/* Chevron lives at the far right — past any action chip — so
          * the hierarchy reads title → count → action → toggle. Separate
          * button so headerExtra stays clickable in its own right. */}
         <button
           type="button"
-          className="inline-flex cursor-pointer items-center border-0 bg-transparent px-0.5 text-muted hover:text-accent-alt"
+          className="inline-flex shrink-0 cursor-pointer items-center border-0 bg-transparent px-0.5 text-muted hover:text-accent-alt"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}

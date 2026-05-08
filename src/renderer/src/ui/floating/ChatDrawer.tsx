@@ -392,7 +392,7 @@ export function ChatDrawer() {
                 </div>
               );
             })}
-            <div className="ml-auto flex shrink-0 items-stretch border-l border-line">
+            <div className="sticky right-0 z-[2] ml-auto flex shrink-0 items-stretch border-l border-line bg-surface-1/95 shadow-[-10px_0_14px_rgba(5,9,18,0.55)]">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconButton

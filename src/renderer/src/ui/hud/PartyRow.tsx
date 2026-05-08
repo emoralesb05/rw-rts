@@ -188,8 +188,8 @@ export function PartyRow({ unit }: { unit: UnitState }) {
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-center gap-1.5 overflow-hidden">
-          <span className="shrink-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-text">
+        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-text">
             {unit.displayName}
           </span>
           <AgentToolBadge tool={unit.tool} />

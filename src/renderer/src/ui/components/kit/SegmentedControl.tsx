@@ -39,7 +39,7 @@ export function SegmentedControl({
           value={option.value}
           disabled={option.disabled}
           className={cn(
-            "inline-flex items-center justify-center gap-1.5 border-0 bg-transparent",
+            "inline-flex flex-1 items-center justify-center gap-1.5 border-0 bg-transparent",
             "font-semibold uppercase text-muted transition-colors",
             "data-[state=checked]:bg-accent data-[state=checked]:text-bg",
             "hover:text-text focus:outline-none focus-visible:text-text",
