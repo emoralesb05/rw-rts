@@ -5,6 +5,7 @@
  * can't drive them.
  */
 import { useCallback, useState } from "react";
+import { Send } from "lucide-react";
 import type { UnitState } from "@shared/events";
 import { Button } from "../components/chrome/Button";
 import { Textarea } from "../components/chrome/Textarea";
@@ -45,9 +46,9 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   else placeholder = `Message ${unit.displayName}…  (⌘↵ to send)`;
 
   return (
-    <div className="wielder-chat-input">
+    <div className="flex flex-none gap-1.5 border-t border-line bg-black/20 px-2.5 py-2">
       <Textarea
-        className="wielder-chat-textarea font-mono"
+        className="min-h-9 max-h-[140px] flex-1 resize-y rounded-sm bg-surface-2/85 px-2.5 py-1.5 font-mono text-[11.5px] leading-[1.4]"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={onKeyDown}
@@ -59,11 +60,18 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
       <Button
         type="button"
         variant="primary"
-        className="wielder-chat-send"
+        className="self-end px-3 py-1.5 text-[11px]"
         onClick={send}
         disabled={disabled || !prompt.trim()}
+        aria-label={`Send message to ${unit.displayName}`}
       >
-        {busy ? "…" : "send"}
+        {busy ? (
+          "…"
+        ) : (
+          <>
+            <Send size={13} aria-hidden /> send
+          </>
+        )}
       </Button>
     </div>
   );

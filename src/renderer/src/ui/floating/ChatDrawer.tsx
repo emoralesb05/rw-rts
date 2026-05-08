@@ -22,6 +22,9 @@ import { useStore } from "../../store";
 import { ConversationStream } from "../ConversationStream";
 import { WielderChatInput } from "../WielderChatInput";
 import { ROLE_HEX } from "../../game/units";
+import { AgentToolBadge } from "../AgentToolBadge";
+import { EmptyState } from "../../components/chrome/EmptyState";
+import { IconButton } from "../../components/chrome/IconButton";
 import {
   Tabs,
   TabsContent,
@@ -33,14 +36,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../components/primitives/Tooltip";
+import { cn } from "@/lib/cn";
 import type { AgentTool, UnitState } from "@shared/events";
-
-const TOOL_GLYPH: Record<AgentTool, string> = {
-  claude: "C",
-  cursor: "▶",
-  codex: "◆",
-  gemini: "G",
-};
 
 const TOOL_LABEL: Record<AgentTool, string> = {
   claude: "Claude",
@@ -82,6 +79,35 @@ function statusForTab(
 }
 
 const MINIMIZED_WIDTH = 48;
+
+function drawerClass(minimized: boolean) {
+  return cn(
+    "fixed right-0 flex flex-col overflow-hidden font-ui backdrop-blur-md",
+    "bg-[rgba(12,18,32,0.96)]",
+    "shadow-[-16px_0_40px_rgba(0,0,0,0.5),-1px_0_0_rgba(255,216,107,0.05)]",
+    minimized
+      ? [
+          "bottom-auto right-3 top-[36vh] max-h-[26vh] origin-right",
+          "items-stretch gap-1 rounded-lg border border-line p-1.5",
+          "animate-[chat-drawer-pill-shrink-in_220ms_cubic-bezier(0.34,1.56,0.64,1)]",
+          "bg-[rgba(8,12,22,0.95)]",
+          "shadow-[0_12px_28px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,216,107,0.04)]",
+        ]
+      : [
+          "bottom-0 top-8 border-l border-accent-alt/[0.18]",
+          "animate-[chat-drawer-slide-in_220ms_cubic-bezier(0.2,0.8,0.3,1)]",
+        ]
+  );
+}
+
+function statusDotClass(status: Exclude<TabStatus, "none">) {
+  return cn(
+    "size-1.5 shrink-0 rounded-full",
+    status === "permission" &&
+      "animate-[chat-drawer-pulse_1.6s_ease-in-out_infinite] bg-[#ff5b5b] shadow-[0_0_6px_rgba(255,91,91,0.6)]",
+    status === "unread" && "bg-accent-alt"
+  );
+}
 
 export function ChatDrawer() {
   const drawer = usePanels((s) => s.drawer);
@@ -176,13 +202,13 @@ export function ChatDrawer() {
   if (minimized) {
     return (
       <div
-        className="chat-drawer chat-drawer-minimized"
+        className={drawerClass(true)}
         style={{ width: renderedWidth, zIndex: drawer.z }}
         role="complementary"
         aria-label="Wielder chats (minimized)"
         onPointerDown={() => focusDrawer()}
       >
-        <div className="chat-drawer-mini-tabs">
+        <div className="flex min-h-0 flex-1 flex-col items-stretch gap-0.5 overflow-y-auto">
           {drawer.openTabs.map((unitId) => {
             const unit = units[unitId];
             const isActive = drawer.activeTab === unitId;
@@ -204,11 +230,13 @@ export function ChatDrawer() {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className={
-                      "chat-drawer-mini-tab" +
-                      (isActive ? " active" : "") +
-                      ` status-${status}`
-                    }
+                    className={cn(
+                      "relative flex size-8 cursor-pointer items-center justify-center rounded-md border",
+                      "border-transparent bg-white/[0.03] font-ui text-[13px] font-bold text-muted transition-colors",
+                      "hover:bg-accent-alt/[0.08]",
+                      isActive &&
+                        "border-accent-alt/45 bg-accent-alt/[0.14]"
+                    )}
                     onClick={() => {
                       setDrawerActiveTab(unitId);
                       expandDrawer();
@@ -218,12 +246,15 @@ export function ChatDrawer() {
                   >
                     {/* Tab initial = wielder color tint so they're
                      * distinguishable at a glance. */}
-                    <span className="chat-drawer-mini-tab-letter">
+                    <span>
                       {name.slice(0, 1).toUpperCase()}
                     </span>
                     {status !== "none" && (
                       <span
-                        className={`chat-drawer-tab-dot dot-${status}`}
+                        className={cn(
+                          "absolute right-0.5 top-0.5",
+                          statusDotClass(status)
+                        )}
                         aria-hidden="true"
                       />
                     )}
@@ -238,7 +269,7 @@ export function ChatDrawer() {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="chat-drawer-mini-expand"
+              className="mt-0.5 inline-flex h-[26px] cursor-pointer items-center justify-center rounded-md border-0 border-t border-line bg-transparent pt-1 text-accent-alt transition-colors hover:bg-accent-alt/[0.08]"
               onClick={() => expandDrawer()}
               aria-label="Expand chat drawer"
             >
@@ -255,14 +286,14 @@ export function ChatDrawer() {
 
   return (
     <div
-      className="chat-drawer"
+      className={drawerClass(false)}
       style={{ width: renderedWidth, zIndex: drawer.z }}
       role="complementary"
       aria-label="Wielder chats"
       onPointerDown={() => focusDrawer()}
     >
       <div
-        className="chat-drawer-resize"
+        className="absolute bottom-0 left-[-3px] top-0 z-[1] w-2 cursor-ew-resize hover:bg-accent-alt/[0.14]"
         onPointerDown={onResizeDown}
         onPointerMove={onResizeMove}
         onPointerUp={onResizeUp}
@@ -275,7 +306,10 @@ export function ChatDrawer() {
           onValueChange={setDrawerActiveTab}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <TabsList className="chat-drawer-tabs" aria-label="Wielder chats">
+          <TabsList
+            className="min-h-8 flex-none items-stretch overflow-x-auto p-0 [scrollbar-width:thin]"
+            aria-label="Wielder chats"
+          >
             {drawer.openTabs.map((unitId) => {
               const unit = units[unitId];
               const isActive = drawer.activeTab === unitId;
@@ -292,30 +326,31 @@ export function ChatDrawer() {
               return (
                 <div
                   key={unitId}
-                  className={
-                    "chat-drawer-tab" +
-                    (isActive ? " active" : "") +
-                    ` status-${status}`
-                  }
+                  className={cn(
+                    "group relative inline-flex max-w-[200px] flex-none items-stretch border-r border-line bg-transparent transition-colors",
+                    "hover:bg-accent-alt/[0.04]",
+                    isActive &&
+                      "bg-accent-alt/10 after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-accent-alt after:shadow-[0_0_8px_rgba(255,216,107,0.45)]"
+                  )}
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value={unitId}
-                        className="chat-drawer-tab-main"
+                        className="flex-none gap-2 px-2 py-1.5 pl-2.5 text-[11px] normal-case tracking-[0.4px] data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
                       >
                         {tool && (
-                          <span
-                            className={`chat-drawer-tab-tool tool-${tool}`}
-                            style={unit ? { color: ROLE_HEX[unit.role] } : undefined}
-                          >
-                            {TOOL_GLYPH[tool]}
-                          </span>
+                          <AgentToolBadge
+                            tool={tool}
+                            className="h-[18px] shrink-0 px-1.5 text-[8.5px]"
+                          />
                         )}
-                        <span className="chat-drawer-tab-name">{name}</span>
+                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
+                          {name}
+                        </span>
                         {status !== "none" && (
                           <span
-                            className={`chat-drawer-tab-dot dot-${status}`}
+                            className={statusDotClass(status)}
                             aria-label={
                               status === "permission"
                                 ? "permission pending"
@@ -333,7 +368,7 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="chat-drawer-tab-close"
+                        className="my-auto ml-0.5 mr-1.5 inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-0 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-55"
                         onClick={(e) => {
                           e.stopPropagation();
                           closeDrawerTab(unitId);
@@ -348,18 +383,20 @@ export function ChatDrawer() {
                 </div>
               );
             })}
-            <div className="chat-drawer-tools">
+            <div className="ml-auto flex items-stretch border-l border-line">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <IconButton
                     type="button"
-                    className="chat-drawer-tool-btn"
+                    variant="ghost"
+                    size="lg"
+                    className="h-auto rounded-none border-0 px-3 text-muted hover:bg-accent-alt/[0.06] hover:text-accent-alt"
                     onClick={() => toggleDrawerMinimized()}
                     aria-label="Minimize drawer"
                   >
                     {/* Minimize collapses the drawer rightward into the pill. */}
                     <ChevronRight size={16} aria-hidden />
-                  </button>
+                  </IconButton>
                 </TooltipTrigger>
                 <TooltipContent>
                   Minimize drawer (collapses to a pill on the right)
@@ -367,20 +404,25 @@ export function ChatDrawer() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <IconButton
                     type="button"
-                    className="chat-drawer-tool-btn close"
+                    variant="ghost"
+                    size="lg"
+                    className="h-auto rounded-none border-0 px-3 text-muted hover:bg-[#ff7a7a]/[0.08] hover:text-[#ff7a7a]"
                     onClick={() => closeDrawer()}
                     aria-label="Close drawer"
                   >
                     <X size={16} aria-hidden />
-                  </button>
+                  </IconButton>
                 </TooltipTrigger>
                 <TooltipContent>Close drawer (clears all tabs)</TooltipContent>
               </Tooltip>
             </div>
           </TabsList>
-          <TabsContent value={activeUnit.id} className="chat-drawer-body">
+          <TabsContent
+            value={activeUnit.id}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
             <ConversationStream
               sessionId={activeUnit.id}
               scrollToTs={
@@ -398,9 +440,9 @@ export function ChatDrawer() {
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="chat-drawer-empty">
+        <EmptyState className="m-6 min-h-0 bg-transparent text-xs">
           This wielder is no longer active.
-        </div>
+        </EmptyState>
       )}
     </div>
   );

@@ -19,7 +19,9 @@ import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
+import { EmptyState } from "../components/chrome/EmptyState";
 import { TooltipHint } from "../components/chrome/TooltipHint";
+import { cn } from "@/lib/cn";
 import type { AgentEvent, UnitState } from "@shared/events";
 
 const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk };
@@ -111,7 +113,7 @@ function FilePathLink({
     <TooltipHint label={hint}>
       <button
         type="button"
-        className="chat-path-link"
+        className={pathLinkClass}
         onClick={onClick}
       >
         {display}
@@ -153,6 +155,44 @@ const PATH_TOOLS = new Set([
 // Tools whose input carries a file edit we can preview as a diff
 // (red old / green new lines under the tool row).
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write"]);
+
+const markerClass =
+  "my-1.5 flex items-center gap-2 text-[10px] uppercase tracking-[0.7px] text-muted";
+const markerLineClass =
+  "h-px flex-1 bg-[linear-gradient(90deg,transparent,var(--color-line),transparent)]";
+const markerTextClass = "px-1.5";
+const pathLinkClass =
+  "min-w-0 flex-auto cursor-pointer break-words border-0 bg-transparent p-0 text-left font-mono text-[11px] text-accent-alt underline decoration-accent-alt/35 underline-offset-2 hover:brightness-110 hover:decoration-accent-alt";
+const toolPillClass =
+  "inline-block rounded-sm border px-1.5 py-px font-mono text-[9.5px] font-semibold uppercase tracking-[0.5px]";
+
+function traceTagClass(kind: "user" | "assistant" | "result") {
+  return cn(
+    "w-14 shrink-0 pt-0.5 font-mono text-[8.5px] font-extrabold uppercase tracking-[1px]",
+    kind === "user" && "text-[#c9a4ff]",
+    kind === "assistant" && "text-accent",
+    kind === "result" && "text-success"
+  );
+}
+
+function toolResultClass(isError: boolean, isShell: boolean) {
+  return cn(
+    "mb-1 ml-[18px]",
+    isShell &&
+      "[&_pre]:border-[rgba(120,220,200,0.2)] [&_pre]:bg-[#050d22] [&_pre]:text-[#c8e8d8]",
+    isError &&
+      "[&_pre]:border-[rgba(255,120,80,0.4)] [&_pre]:bg-[rgba(40,8,6,0.65)] [&_pre]:text-[#ffd4cc]"
+  );
+}
+
+function toolExitClass(exitCode: number) {
+  return cn(
+    toolPillClass,
+    exitCode === 0
+      ? "border-[rgba(120,220,200,0.25)] bg-[rgba(120,220,200,0.12)] text-[#78dcc8]"
+      : "border-[rgba(255,120,80,0.4)] bg-[rgba(255,120,80,0.18)] text-[#ff8870]"
+  );
+}
 
 type EditHunk = { before: string; after: string; label?: string };
 
@@ -329,7 +369,7 @@ function DiffPreview({ hunks }: { hunks: EditHunk[] }) {
     })
     .join("\n\n");
   return (
-    <div className="chat-diff">
+    <div className="ml-[18px] mt-1.5 text-[11px] [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:text-[11px] [&_pre]:leading-normal">
       <Streamdown plugins={STREAMDOWN_PLUGINS}>{fenced}</Streamdown>
     </div>
   );
@@ -348,21 +388,23 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
     [name, ev.payload.input]
   );
   return (
-    <div className="chat-tool">
-      <div className="chat-tool-line">
-        <span className="chat-tool-icon">{icon}</span>
-        <span className="chat-tool-name">{name}</span>
+    <div className="ml-0.5 flex flex-col gap-1 text-[11.5px] text-muted">
+      <div className="flex flex-wrap items-baseline gap-1.5">
+        <span className="text-xs">{icon}</span>
+        <span className="font-semibold text-accent-alt">{name}</span>
         {summary &&
           (summaryIsPath ? (
             <FilePathLink path={summary} tool={ev.tool} />
           ) : (
-            <span className="chat-tool-arg">{summary}</span>
+            <span className="min-w-0 flex-auto break-words font-mono text-[11px] text-text opacity-85">
+              {summary}
+            </span>
           ))}
         {trace.length > 0 && (
           <TooltipHint label="show what led to this tool call">
             <button
               type="button"
-              className="chat-tool-why"
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-accent-alt/25 bg-transparent px-1.5 py-px font-mono text-[9.5px] tracking-[0.5px] text-muted hover:border-accent-alt/60 hover:text-accent-alt"
               onClick={() => setShowTrace((v) => !v)}
             >
               {showTrace ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} why
@@ -371,8 +413,10 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
         )}
       </div>
       {showTrace && trace.length > 0 && (
-        <div className="chat-tool-trace">
-          <div className="chat-tool-trace-label">what led to this</div>
+        <div className="mb-1.5 ml-[18px] mt-0.5 flex flex-col gap-1.5 rounded-r-md border-l-2 border-accent-alt/35 bg-accent-alt/[0.04] px-2.5 py-1.5">
+          <div className="font-mono text-[9px] font-extrabold uppercase tracking-[1.5px] text-accent-alt/70">
+            what led to this
+          </div>
           {trace.map((t, i) => (
             <WhyTraceRow key={i} ev={t} />
           ))}
@@ -388,9 +432,11 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     const text = String(ev.payload.text ?? "");
     const trimmed = text.length > 220 ? text.slice(0, 220) + "…" : text;
     return (
-      <div className="chat-trace-item chat-trace-user">
-        <span className="chat-trace-tag">USER</span>
-        <span className="chat-trace-body">{trimmed}</span>
+      <div className="flex items-start gap-1.5 text-[11px] leading-snug">
+        <span className={traceTagClass("user")}>USER</span>
+        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words text-text">
+          {trimmed}
+        </span>
       </div>
     );
   }
@@ -398,9 +444,11 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     const text = String(ev.payload.text ?? "");
     const trimmed = text.length > 280 ? text.slice(0, 280) + "…" : text;
     return (
-      <div className="chat-trace-item chat-trace-assistant">
-        <span className="chat-trace-tag">THINKING</span>
-        <span className="chat-trace-body">{trimmed}</span>
+      <div className="flex items-start gap-1.5 text-[11px] leading-snug">
+        <span className={traceTagClass("assistant")}>THINKING</span>
+        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words text-text">
+          {trimmed}
+        </span>
       </div>
     );
   }
@@ -408,9 +456,11 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     const text = renderText(ev.payload.output);
     const trimmed = text.length > 180 ? text.slice(0, 180) + "…" : text;
     return (
-      <div className="chat-trace-item chat-trace-result">
-        <span className="chat-trace-tag">RESULT</span>
-        <span className="chat-trace-body">{trimmed || "(empty)"}</span>
+      <div className="flex items-start gap-1.5 text-[11px] leading-snug">
+        <span className={traceTagClass("result")}>RESULT</span>
+        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words font-mono text-[10.5px] text-text opacity-85">
+          {trimmed || "(empty)"}
+        </span>
       </div>
     );
   }
@@ -543,20 +593,24 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   if (!text.trim()) {
     return (
       <div
-        className={
-          "chat-tool-result chat-tool-result-empty" +
-          (isError ? " errored" : "")
-        }
+        className={cn(
+          "inline-flex items-center gap-1.5 pl-[18px] text-[11px] text-muted",
+          isError && "text-[#ff8870]"
+        )}
       >
         {isError ? <><AlertTriangle size={11} aria-hidden /> failed</> : <><CornerDownRight size={11} aria-hidden /> done</>}
         {errorMessage && (
-          <span className="chat-tool-error-msg"> {errorMessage}</span>
+          <span className="font-mono text-[11px] text-[#ffb0a0] opacity-85">
+            {errorMessage}
+          </span>
         )}
         {typeof exitCode === "number" && exitCode !== 0 && (
-          <span className="chat-tool-exit"> exit {exitCode}</span>
+          <span className={toolExitClass(exitCode)}>exit {exitCode}</span>
         )}
         {durationLabel && (
-          <span className="chat-tool-duration"> {durationLabel}</span>
+          <span className={cn(toolPillClass, "border-white/15 bg-white/[0.08] text-muted")}>
+            {durationLabel}
+          </span>
         )}
       </div>
     );
@@ -573,20 +627,21 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
     );
     return (
       <div
-        className={
-          "chat-tool-result chat-tool-result-empty" +
-          (isError ? " errored" : "")
-        }
+        className={cn(
+          "inline-flex items-center gap-1.5 pl-[18px] text-[11px] text-muted",
+          isError && "text-[#ff8870]"
+        )}
       >
         {verb}
         {errorMessage && (
-          <span className="chat-tool-error-msg"> {errorMessage}</span>
+          <span className="font-mono text-[11px] text-[#ffb0a0] opacity-85">
+            {errorMessage}
+          </span>
         )}
         <button
           type="button"
-          className="chat-expand"
+          className="ml-2 cursor-pointer border-0 bg-transparent p-0 text-[10.5px] text-accent"
           onClick={() => setExpanded(true)}
-          style={{ marginLeft: 8 }}
         >
           show raw
         </button>
@@ -595,33 +650,33 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   }
   const trimmed = text.length > 220 ? text.slice(0, 220) + "…" : text;
   const showExpand = text.length > 220;
-  const cls =
-    "chat-tool-result" +
-    (isError ? " errored" : "") +
-    (isShell ? " shell" : "");
   return (
-    <div className={cls}>
+    <div className={toolResultClass(isError, isShell)}>
       {errorMessage && (
-        <div className="chat-tool-error-banner">
+        <div className="mb-1 whitespace-pre-wrap break-words rounded-sm border-l-[3px] border-l-[#ff6650] bg-[rgba(255,90,80,0.12)] px-2 py-1 font-mono text-[11px] text-[#ffb0a0]">
           <AlertTriangle size={12} aria-hidden /> {errorMessage}
         </div>
       )}
-      <pre className="chat-tool-result-body">{expanded ? text : trimmed}</pre>
-      <div className="chat-tool-result-foot">
+      <pre className="m-0 max-h-[180px] overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-[11px] text-muted">
+        {expanded ? text : trimmed}
+      </pre>
+      <div className="mt-1 flex items-center gap-2.5">
         {typeof exitCode === "number" && (
-          <span
-            className={
-              "chat-tool-exit" + (exitCode !== 0 ? " nonzero" : " ok")
-            }
-          >
+          <span className={toolExitClass(exitCode)}>
             exit {exitCode}
           </span>
         )}
         {durationLabel && (
-          <span className="chat-tool-duration">{durationLabel}</span>
+          <span className={cn(toolPillClass, "border-white/15 bg-white/[0.08] text-muted")}>
+            {durationLabel}
+          </span>
         )}
         {(showExpand || isTerse) && (
-          <button className="chat-expand" onClick={() => setExpanded(!expanded)}>
+          <button
+            type="button"
+            className="cursor-pointer border-0 bg-transparent p-0 text-[10.5px] text-accent"
+            onClick={() => setExpanded(!expanded)}
+          >
             {expanded
               ? "show less"
               : showExpand
@@ -636,8 +691,8 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
 
 function AssistantBubble({ text }: { text: string }) {
   return (
-    <div className="chat-bubble chat-assistant">
-      <div className="chat-bubble-body">
+    <div className="mt-1 flex">
+      <div className="max-w-[92%] whitespace-pre-wrap break-words rounded-lg rounded-bl-sm border border-line bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 text-text">
         <Streamdown plugins={STREAMDOWN_PLUGINS}>{text}</Streamdown>
       </div>
     </div>
@@ -646,10 +701,12 @@ function AssistantBubble({ text }: { text: string }) {
 
 function UserBubble({ text }: { text: string }) {
   return (
-    <div className="chat-bubble chat-user">
-      <div className="chat-bubble-body">
-        <span className="chat-sender-tag">King</span>
-        <div className="chat-bubble-text">
+    <div className="mt-1 flex justify-end">
+      <div className="max-w-[92%] break-words rounded-lg rounded-br-sm border border-accent-alt/40 border-r-[3px] border-r-accent bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 text-text shadow-[0_0_12px_rgba(255,216,107,0.08)]">
+        <span className="mr-1.5 inline-block rounded-sm bg-accent-alt/20 px-1.5 py-px align-middle text-[9px] font-bold uppercase tracking-[0.6px] text-accent">
+          King
+        </span>
+        <div className="inline align-middle [&_code]:rounded-sm [&_code]:bg-accent-alt/[0.12] [&_code]:px-1 [&_code]:text-accent [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:border [&_pre]:border-accent-alt/20 [&_pre]:bg-black/35 [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-[11px] [&>*+*]:mt-1.5 [&>*]:m-0">
           <Streamdown plugins={STREAMDOWN_PLUGINS}>{text}</Streamdown>
         </div>
       </div>
@@ -700,11 +757,11 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   };
   const inner = (
     <>
-      <span className="chat-marker-dot" />
-      <span className="chat-marker-text">
+      <span className={markerLineClass} />
+      <span className={markerTextClass}>
         permission requested
         {!isActive && requestId && (
-          <span className="chat-permission-resolved"> · resolved</span>
+          <span className="font-normal opacity-70"> · resolved</span>
         )}
       </span>
     </>
@@ -712,7 +769,10 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   if (!isActive) {
     return (
       <div
-        className="chat-marker chat-permission-request chat-permission-resolved-row"
+        className={cn(
+          markerClass,
+          "w-full cursor-default rounded-md border border-[#ffa850]/35 px-2 py-1 text-left text-text opacity-55"
+        )}
         aria-disabled="true"
       >
         {inner}
@@ -723,7 +783,10 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
     <TooltipHint label="click to spotlight the alert">
       <button
         type="button"
-        className="chat-marker chat-permission-request"
+        className={cn(
+          markerClass,
+          "w-full cursor-pointer rounded-md border border-[#ffa850]/35 bg-transparent px-2 py-1 text-left text-text transition-colors hover:border-[#ffa850]/55 hover:bg-[#ffa850]/[0.08] [&>span:last-child]:font-semibold [&>span:last-child]:text-[#ffb070]"
+        )}
         onClick={onClick}
       >
         {inner}
@@ -746,15 +809,15 @@ function SubagentSpawnRow({
   const child = childId ? units[childId] : undefined;
   const summary = String(ev.payload.text ?? ev.payload.input ?? "").slice(0, 200);
   return (
-    <div className="chat-marker chat-subagent-spawn">
-      <span className="chat-marker-dot" />
-      <span className="chat-marker-text">
+    <div className={cn(markerClass, "[&>span:last-child]:text-[#f8a8e8]")}>
+      <span className={markerLineClass} />
+      <span className={markerTextClass}>
         <CornerDownRight size={11} aria-hidden /> summoned subagent
         {child && (
-          <span className="chat-subagent-name"> · {child.displayName}</span>
+          <span className="font-semibold"> · {child.displayName}</span>
         )}
         {summary && (
-          <span className="chat-subagent-prompt">: {summary}</span>
+          <span className="italic opacity-75">: {summary}</span>
         )}
       </span>
     </div>
@@ -763,9 +826,9 @@ function SubagentSpawnRow({
 
 function SessionMarker({ ev }: { ev: AgentEvent }) {
   return (
-    <div className="chat-marker">
-      <span className="chat-marker-dot" />
-      <span className="chat-marker-text">
+    <div className={markerClass}>
+      <span className={markerLineClass} />
+      <span className={markerTextClass}>
         {ev.kind === "session_start" ? "session started" : "session ended"}
       </span>
     </div>
@@ -774,18 +837,24 @@ function SessionMarker({ ev }: { ev: AgentEvent }) {
 
 function ErrorRow({ ev }: { ev: AgentEvent }) {
   return (
-    <div className="chat-error">
-      ⚠ {String(ev.payload.error ?? "").slice(0, 280)}
+    <div className="flex items-start gap-1.5 rounded-md border border-danger bg-danger/[0.12] px-2 py-1.5 font-mono text-[11px] text-danger">
+      <AlertTriangle size={12} aria-hidden className="mt-0.5 shrink-0" />
+      <span className="min-w-0 break-words">
+        {String(ev.payload.error ?? "").slice(0, 280)}
+      </span>
     </div>
   );
 }
 
 function UnitBadge({ unit }: { unit: UnitState }) {
   return (
-    <div className="chat-unit-badge">
-      <span className="chat-unit-dot" style={{ background: ROLE_HEX[unit.role] }} />
-      <span className="chat-unit-name">{unit.displayName}</span>
-      <span className="chat-unit-tool">{unit.tool}</span>
+    <div className="mb-1 mt-2 flex items-center gap-1.5 border-b border-dashed border-line pb-1 text-[10px] uppercase tracking-[0.6px]">
+      <span
+        className="size-2 rounded-full"
+        style={{ background: ROLE_HEX[unit.role] }}
+      />
+      <span className="font-semibold text-text">{unit.displayName}</span>
+      <span className="ml-auto text-muted">{unit.tool}</span>
     </div>
   );
 }
@@ -909,11 +978,21 @@ export function ConversationStream({
     );
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.remove("event-pulse");
+    el.classList.remove(
+      "animate-[event-pulse_1.6s_ease-out]",
+      "bg-accent-alt/[0.12]"
+    );
     void el.offsetWidth;
-    el.classList.add("event-pulse");
+    el.classList.add(
+      "animate-[event-pulse_1.6s_ease-out]",
+      "bg-accent-alt/[0.12]"
+    );
     const handle = window.setTimeout(
-      () => el.classList.remove("event-pulse"),
+      () =>
+        el.classList.remove(
+          "animate-[event-pulse_1.6s_ease-out]",
+          "bg-accent-alt/[0.12]"
+        ),
       1600
     );
     return () => window.clearTimeout(handle);
@@ -922,16 +1001,21 @@ export function ConversationStream({
   const showBadges = !sessionId;
 
   return (
-    <div className="chat-stream" ref={containerRef}>
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-3.5 pb-4 pt-3 text-[12.5px] leading-normal"
+      ref={containerRef}
+    >
       {hiddenCount > 0 && (
-        <div className="chat-marker">
-          <span className="chat-marker-text">
+        <div className={markerClass}>
+          <span className={markerTextClass}>
             {hiddenCount} earlier events hidden
           </span>
         </div>
       )}
       {filtered.length === 0 && (
-        <div className="chat-empty">No conversation yet for this wielder.</div>
+        <EmptyState className="min-h-0 bg-transparent">
+          No conversation yet for this wielder.
+        </EmptyState>
       )}
       {filtered.map((e, i) => {
         const unit = units[e.sessionId];
@@ -981,9 +1065,11 @@ export function ConversationStream({
           <div
             key={i}
             data-event-ts={e.timestamp}
-            className={
-              "chat-event" + (isSubagent ? " chat-event-subagent" : "")
-            }
+            className={cn(
+              "relative rounded-sm transition-colors",
+              isSubagent &&
+                "ml-[22px] border-l-2 border-[#ff82dc]/35 pl-2"
+            )}
           >
             {badge}
             {subagentBadge}

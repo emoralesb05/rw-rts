@@ -14,16 +14,19 @@ remaining CSS migration work.
 
 - Baseline before this migration pass: `styles.css` ~3519 lines.
 - Current size after the Panel Shells slice: `styles.css` 1569 lines.
+- Current size after the Drawer + Conversation slice: `styles.css` 526 lines.
 - Migrated to owned components / Tailwind utilities:
   `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`,
   `PartyRow`, `LetterCard`, `WielderHUD`, `AlertsHUD`, and
   `LettersHUD`, plus `FloatingPanel`, `WielderPanelBody`,
-  `DispatchPanelBody`, `SettingsPanelBody`, and `KingdomPanelBody`.
+  `DispatchPanelBody`, `SettingsPanelBody`, `KingdomPanelBody`,
+  `ChatDrawer`, `ConversationStream`, `WielderChatInput`, and
+  `UnitInspector`.
 - App-specific chip styling now lives in `AgentToolBadge`,
   `ArchetypeChip`, and `RenownBadge` instead of shared global CSS.
 - CSS kept from these slices is limited to shared keyframes and surfaces
-  still awaiting migration, mainly drawer/conversation, decree, unit
-  tiles, and generated markdown/Streamdown styling.
+  still awaiting migration, mainly decree/command controls and generated
+  markdown/Streamdown styling.
 
 ## Migration Order
 
@@ -39,7 +42,7 @@ remaining CSS migration work.
 
 3. **Drawer + Conversation**
    `ChatDrawer`, `ConversationStream`, `WielderChatInput`, and
-   `UnitInspector`.
+   `UnitInspector`. **Done.**
 
 4. **Decree + Command Surfaces**
    `DecreeModal` and any remaining command/decree CSS that can now move

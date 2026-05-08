@@ -1,6 +1,10 @@
+import { Volume2, VolumeX } from "lucide-react";
 import { useStore } from "../store";
-import { ROLE_HEX, ROLE_PALETTE } from "../game/units";
+import { ROLE_HEX } from "../game/units";
+import { Bar } from "../components/chrome/Bar";
+import { IconButton } from "../components/chrome/IconButton";
 import { TooltipHint } from "../components/chrome/TooltipHint";
+import { cn } from "@/lib/cn";
 
 export function UnitInspector() {
   const selectedUnitId = useStore((s) => s.selectedUnitId);
@@ -16,40 +20,53 @@ export function UnitInspector() {
   const selected = selectedUnitId ? units[selectedUnitId] : null;
 
   return (
-    <div className="section">
-      <h3>Units</h3>
+    <div className="border-b border-line px-3.5 py-3">
+      <h3 className="mb-2 mt-0 text-[11px] uppercase tracking-[1px] text-muted">
+        Units
+      </h3>
       {list.length === 0 && (
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>no units yet</div>
+        <div className="text-xs text-muted">no units yet</div>
       )}
       {list.map((u) => {
-        const palette = ROLE_PALETTE[u.role];
-        void palette;
         const isSel = u.id === selectedUnitId;
         return (
           <div
             key={u.id}
-            className="unit-card"
+            className={cn(
+              "my-1.5 flex cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-2/45 px-2 py-1.5 text-[12px]",
+              isSel && "border-l-[3px] border-l-accent pl-2 opacity-100",
+              !isSel &&
+                (u.status === "complete" || u.status === "fallen") &&
+                "opacity-55"
+            )}
             onClick={() => selectUnit(isSel ? null : u.id)}
-            style={{
-              cursor: "pointer",
-              borderLeft: `3px solid ${isSel ? "var(--accent)" : "transparent"}`,
-              paddingLeft: 8,
-              opacity: isSel
-                ? 1
-                : u.status === "complete" || u.status === "fallen"
-                  ? 0.55
-                  : 1,
-            }}
           >
-            <span className="swatch" style={{ background: ROLE_HEX[u.role] }} />
-            <div style={{ flex: 1 }}>
-              <div className="name">
+            <span
+              className="size-3 shrink-0 rounded-full"
+              style={{ background: ROLE_HEX[u.role] }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">
                 {u.displayName}{" "}
-                <span className="meta">· {u.tool} · {u.status}</span>
+                <span className="text-[11px] text-muted">
+                  · {u.tool} · {u.status}
+                </span>
               </div>
-              <div className="meta">{u.cwd.split("/").slice(-2).join("/")}</div>
-              <div className="bar hp"><div style={{ width: `${u.hp}%` }} /></div>
-              <div className="bar mp"><div style={{ width: `${u.mp}%` }} /></div>
+              <div className="text-[11px] text-muted">
+                {u.cwd.split("/").slice(-2).join("/")}
+              </div>
+              <Bar
+                className="mt-1 h-2 rounded-sm border border-black/60 bg-black/55 shadow-inner"
+                tone="hp"
+                value={u.hp}
+                aria-label={`${u.displayName} HP`}
+              />
+              <Bar
+                className="mt-1 h-2 rounded-sm border border-black/60 bg-black/55 shadow-inner"
+                tone="mp"
+                value={u.mp}
+                aria-label={`${u.displayName} MP`}
+              />
             </div>
             <TooltipHint
               label={
@@ -58,21 +75,29 @@ export function UnitInspector() {
                   : "mute — hide events from this unit in the chat"
               }
             >
-              <button
-                className="unit-mute"
+              <IconButton
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="opacity-70 hover:opacity-100"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute(u.sessionId);
                 }}
+                aria-label={muted[u.sessionId] ? "Unmute unit" : "Mute unit"}
               >
-                {muted[u.sessionId] ? "🔇" : "🔊"}
-              </button>
+                {muted[u.sessionId] ? (
+                  <VolumeX size={14} aria-hidden />
+                ) : (
+                  <Volume2 size={14} aria-hidden />
+                )}
+              </IconButton>
             </TooltipHint>
           </div>
         );
       })}
       {selected && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "var(--muted)" }}>
+        <div className="mt-2.5 text-[11px] text-muted">
           last tool: {selected.lastTool ?? "—"}
         </div>
       )}
