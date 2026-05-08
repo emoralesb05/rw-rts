@@ -1,6 +1,6 @@
 # Plan: World aliveness — sprite behavior + canvas reactivity
 
-**Status**: planned, not started · **Owner**: TBD · **Phase**: Post-MVP polish (gameplay-feel)
+**Status**: in progress · **Owner**: Codex · **Phase**: Post-MVP polish (gameplay-feel)
 
 ## Goal
 
@@ -23,6 +23,16 @@ A lot of the foundation is there per [`../vision.md`](../vision.md) Visual direc
 - Composite-form banners (Pair / Royal Guard / Wayfinder Trio)
 
 That's the canvas-equivalent of "working chat panel + party list" — but the loop between agent activity and visible behavior is shallow. Most tool calls look similar; most idle moments look identical.
+
+## First slice implemented
+
+- **Per-tool activity families** are now classified through a small shared mapping (`shell`, `read`, `edit`, `search`, `web`, `permission`, `error`, `success`, `subagent`, `prompt`, `generic`) with tests.
+- **Canvas glyphs** appear above the acting wielder for tool calls and narrative events, using Phaser `Graphics` primitives instead of adding new asset-sheet scope yet.
+- **World breath / mood** now pulses each world based on alert level, active wielders, and recent activity color.
+- **Route lines** make related worlds feel connected, with brighter route pulses for web/subagent activity.
+- **World spacing** is tighter so the map reads more like one kingdom and less like disconnected islands.
+
+This intentionally does not close the full plan: archetype idle quirks, result-streak poses, richer heartless interaction, and authored sprite-sheet VFX are still available follow-up slices.
 
 ## Diagnosis — five places it feels bleak
 

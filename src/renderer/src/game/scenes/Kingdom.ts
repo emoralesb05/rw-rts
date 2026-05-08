@@ -45,6 +45,14 @@ import {
 } from "../sprite-assets";
 import { drawShadow, type HeartlessRef } from "../heartless";
 import { pickBarkLine, type BarkKind } from "../wielder-barks";
+import {
+  activityColorForTheme,
+  activityForEvent,
+  activityForToolName,
+  activityLabel,
+  type WorldActivityKind,
+} from "../world-aliveness";
+import { drawActivityGlyph } from "../world-aliveness-vfx";
 import type { Heartless } from "@shared/events";
 
 // Drive form aura colors — match the KH visual language.
@@ -147,6 +155,8 @@ const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
   cleared: 0xffd86b,
 };
 
+const ACTIVITY_MOOD_MS = 6000;
+
 type WielderRef = {
   unitId: string;
   role: UnitState["role"];
@@ -196,6 +206,8 @@ type WorldRef = {
   container: Phaser.GameObjects.Container;
   isoPlane: Phaser.GameObjects.Container;
   todOverlay: Phaser.GameObjects.Rectangle;
+  breathOverlay: Phaser.GameObjects.Rectangle;
+  eventOverlay: Phaser.GameObjects.Rectangle;
   alertRing: Phaser.GameObjects.Arc;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
@@ -216,6 +228,10 @@ type WorldRef = {
   // magic). Redrawn each frame from the theme's draw routine.
   atmospherics?: Phaser.GameObjects.Graphics;
   atmosPhase: number;
+  breathPhase: number;
+  lastActivityKind?: WorldActivityKind;
+  lastActivityAt: number;
+  lastActivityColor: number;
 };
 
 type ClusterRef = {
@@ -233,6 +249,7 @@ type StarRef = {
 export class KingdomScene extends Phaser.Scene {
   private worlds = new Map<string, WorldRef>();
   private clusters = new Map<string, ClusterRef>();
+  private routeGfx?: Phaser.GameObjects.Graphics;
   private layout = new Map<
     string,
     { x: number; y: number; clusterKey: string }
@@ -331,6 +348,7 @@ export class KingdomScene extends Phaser.Scene {
     // Sky + stars (viewport-locked so they don't pan with the world)
     this.drawSky();
     this.spawnStars(140);
+    this.routeGfx = this.add.graphics().setDepth(-45);
 
     // Scanline overlay — viewport-locked, depth above worlds
     this.ensureScanlineTexture();
@@ -360,14 +378,17 @@ export class KingdomScene extends Phaser.Scene {
       const now = performance.now();
       // Find the wielder by sessionId (across all worlds).
       let ref: WielderRef | undefined;
+      let worldRef: WorldRef | undefined;
       for (const w of this.worlds.values()) {
         const candidate = w.wielders.get(ev.sessionId);
         if (candidate) {
           ref = candidate;
+          worldRef = w;
           break;
         }
       }
       if (!ref) return;
+      if (worldRef) this.triggerWorldEventVfx(worldRef, ref, ev);
 
       // Voice bark — independent of sprite/anim timing. Bark on the
       // less-frequent narrative events; tool_use / tool_result skip
@@ -392,6 +413,7 @@ export class KingdomScene extends Phaser.Scene {
       let animKey: string | undefined;
       if (ev.kind === "tool_use") {
         const toolName = String(ev.payload.name ?? "");
+        if (worldRef) this.spawnToolVfx(worldRef, ref, toolName);
         // Bash / Edit-class tools = "cast" (magic). Read-class = "attack".
         animKey =
           toolName === "Bash" || toolName === "BashOutput"
@@ -422,6 +444,7 @@ export class KingdomScene extends Phaser.Scene {
       this.worlds.clear();
       this.stars = [];
       this.skyGfx = undefined;
+      this.routeGfx = undefined;
       this.scanline = undefined;
       this.lastWorldsKey = "";
       this.lastCameraTargetVersion = 0;
@@ -471,6 +494,7 @@ export class KingdomScene extends Phaser.Scene {
       this.tickWorldParticles(ref, delta);
       // Tier 2 — per-theme animated atmosphere (water, fire, magic).
       this.tickWorldAtmospherics(ref, delta);
+      this.updateWorldBreath(ref, w, units);
     }
 
     // Twinkle stars
@@ -552,6 +576,118 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
+  private triggerWorldEventVfx(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    event: AgentEvent
+  ) {
+    const kind = activityForEvent(event);
+    if (!kind) return;
+    const color = activityColorForTheme(worldRef.theme, kind);
+    worldRef.lastActivityKind = kind;
+    worldRef.lastActivityAt = this.time.now;
+    worldRef.lastActivityColor = color;
+
+    const overlayAlpha =
+      kind === "error" ? 0.34 : kind === "permission" ? 0.26 : 0.18;
+    this.tweens.killTweensOf(worldRef.eventOverlay);
+    worldRef.eventOverlay.setFillStyle(color, overlayAlpha).setAlpha(1);
+    this.tweens.add({
+      targets: worldRef.eventOverlay,
+      alpha: 0,
+      duration: kind === "permission" ? 1100 : 720,
+      ease: "Sine.easeOut",
+    });
+
+    this.tweens.killTweensOf(worldRef.alertRing);
+    this.tweens.add({
+      targets: worldRef.alertRing,
+      scale: { from: 1.09, to: 1 },
+      duration: 360,
+      ease: "Back.easeOut",
+    });
+
+    if (event.kind !== "tool_use") {
+      this.spawnActivityGlyph(worldRef, ref, kind, color);
+    }
+    if (kind === "subagent" || kind === "web") {
+      this.pulseRoutesFromWorld(worldRef, color);
+    }
+  }
+
+  private spawnToolVfx(worldRef: WorldRef, ref: WielderRef, toolName: string) {
+    const kind = activityForToolName(toolName);
+    const color = activityColorForTheme(worldRef.theme, kind);
+    this.spawnActivityGlyph(worldRef, ref, kind, color);
+    if (kind === "subagent" || kind === "web") {
+      this.pulseRoutesFromWorld(worldRef, color);
+    }
+  }
+
+  private spawnActivityGlyph(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    kind: WorldActivityKind,
+    color: number
+  ) {
+    const x = ref.container.x;
+    const y = ref.container.y - 52;
+    const g = this.add.graphics().setPosition(x, y).setDepth(70);
+    drawActivityGlyph(g, kind, color);
+    const label = this.add
+      .text(x, y + 16, activityLabel(kind).toUpperCase(), {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.72)",
+        padding: { x: 3, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(71);
+    worldRef.isoPlane.add([g, label]);
+    this.tweens.add({
+      targets: [g, label],
+      y: "-=26",
+      alpha: 0,
+      scale: 1.15,
+      duration: 820,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        label.destroy();
+      },
+    });
+  }
+
+  private pulseRoutesFromWorld(worldRef: WorldRef, color: number) {
+    const source = this.layout.get(worldRef.worldId);
+    if (!source) return;
+    const peers = [...this.worlds.values()]
+      .filter((peer) => {
+        if (peer.worldId === worldRef.worldId) return false;
+        const peerLayout = this.layout.get(peer.worldId);
+        return peerLayout?.clusterKey === source.clusterKey;
+      })
+      .slice(0, 4);
+    if (peers.length === 0) return;
+    const g = this.add.graphics().setDepth(-30);
+    g.lineStyle(2, color, 0.45);
+    for (const peer of peers) {
+      g.beginPath();
+      g.moveTo(worldRef.container.x, worldRef.container.y);
+      g.lineTo(peer.container.x, peer.container.y);
+      g.strokePath();
+    }
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      duration: 900,
+      ease: "Sine.easeOut",
+      onComplete: () => g.destroy(),
+    });
+  }
+
   /** Speech-bubble bark above a wielder for ~2.5s. Cooldown gated so
    * a burst of events doesn't spam multiple bubbles per wielder. */
   private showBark(ref: WielderRef, line: string) {
@@ -630,6 +766,7 @@ export class KingdomScene extends Phaser.Scene {
       if (this.worlds.has(id)) continue;
       this.worlds.set(id, this.spawnWorld(id, worlds[id]));
     }
+    this.drawWorldRoutes();
     // Auto-fit camera when the world set changes, unless the user has
     // touched the camera recently (manual control wins).
     const shouldAutoFit =
@@ -637,6 +774,62 @@ export class KingdomScene extends Phaser.Scene {
       this.worlds.size > 0 &&
       performance.now() - this.lastUserCamMs > 4000;
     if (shouldAutoFit) this.fitCameraToWorlds();
+  }
+
+  private drawWorldRoutes() {
+    const g = this.routeGfx;
+    if (!g) return;
+    g.clear();
+
+    const grouped = new Map<string, { id: string; x: number; y: number }[]>();
+    for (const [id, layout] of this.layout) {
+      const list = grouped.get(layout.clusterKey) ?? [];
+      list.push({ id, x: layout.x, y: layout.y });
+      grouped.set(layout.clusterKey, list);
+    }
+
+    const centroids: { key: string; x: number; y: number }[] = [];
+    for (const [key, members] of grouped) {
+      if (members.length === 0) continue;
+      members.sort((a, b) => a.id.localeCompare(b.id));
+      const centroid = members.reduce(
+        (acc, member) => ({ x: acc.x + member.x, y: acc.y + member.y }),
+        { x: 0, y: 0 }
+      );
+      centroid.x /= members.length;
+      centroid.y /= members.length;
+      centroids.push({ key, ...centroid });
+
+      if (members.length < 2) continue;
+      g.lineStyle(1.1, 0x6cc6ff, 0.16);
+      for (const member of members) {
+        g.beginPath();
+        g.moveTo(centroid.x, centroid.y);
+        g.lineTo(member.x, member.y);
+        g.strokePath();
+      }
+      g.lineStyle(1.4, 0xffd86b, 0.12);
+      for (let i = 0; i < members.length; i++) {
+        const a = members[i];
+        const b = members[(i + 1) % members.length];
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        g.strokePath();
+      }
+    }
+
+    if (centroids.length < 2) return;
+    centroids.sort((a, b) => a.key.localeCompare(b.key));
+    g.lineStyle(1, 0xc9a4ff, 0.08);
+    for (let i = 0; i < centroids.length - 1; i++) {
+      const a = centroids[i];
+      const b = centroids[i + 1];
+      g.beginPath();
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
+      g.strokePath();
+    }
   }
 
   /**
@@ -783,10 +976,20 @@ export class KingdomScene extends Phaser.Scene {
     const todOverlay = this.add
       .rectangle(0, 0, todSize, todSize, 0x000000, 0)
       .setOrigin(0.5);
+    const breathOverlay = this.add
+      .rectangle(0, 0, todSize, todSize, 0x6cc6ff, 0)
+      .setOrigin(0.5)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    const eventOverlay = this.add
+      .rectangle(0, 0, todSize, todSize, 0xffd86b, 0)
+      .setOrigin(0.5)
+      .setBlendMode(Phaser.BlendModes.ADD);
 
     container.add([
       isoPlane,
       todOverlay,
+      breathOverlay,
+      eventOverlay,
       alertRing,
       label,
       themeText,
@@ -820,6 +1023,8 @@ export class KingdomScene extends Phaser.Scene {
       container,
       isoPlane,
       todOverlay,
+      breathOverlay,
+      eventOverlay,
       alertRing,
       countText,
       countBg,
@@ -831,6 +1036,9 @@ export class KingdomScene extends Phaser.Scene {
       particles: this.spawnWorldParticles(isoPlane, theme),
       atmospherics,
       atmosPhase: Math.random() * Math.PI * 2,
+      breathPhase: Math.random() * Math.PI * 2,
+      lastActivityAt: 0,
+      lastActivityColor: ALERT_RING_COLOR[world.alertLevel],
     };
   }
 
@@ -900,6 +1108,51 @@ export class KingdomScene extends Phaser.Scene {
       g.fillStyle(0xe6d8ff, 0.6 * spark);
       g.fillCircle(0, cy, 2 + spark * 1.5);
     }
+  }
+
+  private updateWorldBreath(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ) {
+    const activeUnits = world.unitIds
+      .map((id) => units[id])
+      .filter(
+        (unit): unit is UnitState =>
+          !!unit && (unit.status === "working" || unit.status === "casting")
+      );
+    const recentMood =
+      this.time.now - worldRef.lastActivityAt < ACTIVITY_MOOD_MS;
+    const color = recentMood
+      ? worldRef.lastActivityColor
+      : ALERT_RING_COLOR[world.alertLevel];
+
+    const alertAlpha =
+      world.alertLevel === "danger"
+        ? 0.12
+        : world.alertLevel === "warning"
+          ? 0.09
+          : world.alertLevel === "active"
+            ? 0.06
+            : world.alertLevel === "cleared"
+              ? 0.05
+              : 0.025;
+    const workAlpha = activeUnits.length > 0 ? 0.06 : 0;
+    const moodAlpha = recentMood ? 0.08 : 0;
+    const speed =
+      world.alertLevel === "danger"
+        ? 5.4
+        : activeUnits.length > 0
+          ? 4.2
+          : recentMood
+            ? 3
+            : 1.2;
+    const wave = 0.5 + 0.5 * Math.sin(this.t * speed + worldRef.breathPhase);
+    const alpha = alertAlpha + workAlpha + moodAlpha * wave + 0.02 * wave;
+    worldRef.breathOverlay.setFillStyle(
+      color,
+      Phaser.Math.Clamp(alpha, 0, 0.22)
+    );
   }
 
   /**
@@ -1718,8 +1971,9 @@ function computeClusterLayout(
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
     const ch = hashString(key);
-    // Outer ring: cluster centroids at radius 600–1400 from origin.
-    const outerRadius = 600 + (Math.abs(ch) % 800);
+    // Outer ring: cluster centroids at a compact radius so the map
+    // reads like one kingdom instead of scattered islands.
+    const outerRadius = 420 + (Math.abs(ch) % 520);
     const outerAngle = ((Math.abs(ch >> 8) % 360) * Math.PI) / 180;
     const cx = Math.cos(outerAngle) * outerRadius;
     const cy = Math.sin(outerAngle) * outerRadius;
@@ -1729,10 +1983,9 @@ function computeClusterLayout(
       continue;
     }
 
-    // Inner ring: members spaced around the cluster centroid. Sized so
-    // a per-world iso plane (~230px) plus alert ring fits without
-    // overlapping its neighbor.
-    const innerRadius = 200 + members.length * 28;
+    // Inner ring: tighter than the original layout, with enough spacing
+    // for the per-world iso plane + alert ring to remain legible.
+    const innerRadius = Math.min(300, 150 + members.length * 22);
     members.forEach((w, i) => {
       const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
       out.set(w.id, {

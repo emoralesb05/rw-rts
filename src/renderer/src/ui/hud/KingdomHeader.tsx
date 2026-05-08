@@ -118,8 +118,8 @@ export function KingdomHeader() {
             Kingdom — overview, settings, connection, demos
           </TooltipContent>
         </Tooltip>
+        <CloseAllChip />
       </Toolbar>
-      <CloseAllChip />
     </div>
   );
 }

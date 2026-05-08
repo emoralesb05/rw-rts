@@ -1,8 +1,8 @@
 /**
  * Floating "✕ N" chip that appears whenever 1+ floating surfaces are
- * open (panels + chat drawer). It renders as a compact danger action
- * inside the KingdomHeader pill; click closes them all. Cmd/Ctrl+Shift+W
- * keyboard shortcut also bound here for global reach.
+ * open. It renders as a compact utility action inside the KingdomHeader
+ * pill; click closes them all. Cmd/Ctrl+Shift+W keyboard shortcut also
+ * bound here for global reach.
  */
 import { useEffect } from "react";
 import { XSquare } from "lucide-react";
@@ -33,24 +33,27 @@ export function CloseAllChip() {
     return () => window.removeEventListener("keydown", onKey);
   }, [closeAll]);
 
-  if (count === 0) return null;
+  const visible = count > 0;
+
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <IconButton
-          type="button"
-          variant="danger"
-          size="md"
-          className="rounded-pill border-danger/50 bg-danger/15 text-danger hover:border-danger hover:bg-danger/25 size-7 animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] font-mono text-[11px] font-bold tracking-[0.4px] shadow-lg backdrop-blur-sm"
-          onClick={closeAll}
-          aria-label={`Close all ${count} open panels`}
-        >
-          {/* Lucide XSquare reads as "close all in container" — sized to
-           * fit a 28px circular chip. */}
-          <XSquare size={16} strokeWidth={2.25} aria-hidden />
-        </IconButton>
-      </TooltipTrigger>
-      <TooltipContent>close all panels ({count}) — ⌘⇧W</TooltipContent>
-    </Tooltip>
+    <div className="relative size-6 shrink-0">
+      {visible && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted hover:border-danger/60 hover:bg-danger/10 hover:text-danger focus-visible:border-danger/60 focus-visible:text-danger active:border-danger/80 active:bg-danger/15 absolute inset-0 size-6 border-transparent bg-transparent transition-[border-color,background-color,color] duration-150"
+              onClick={closeAll}
+              aria-label={`Close all ${count} open panels`}
+            >
+              <XSquare size={14} strokeWidth={2.2} aria-hidden />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>close all panels ({count}) — ⌘⇧W</TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 }
