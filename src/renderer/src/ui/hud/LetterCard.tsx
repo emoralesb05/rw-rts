@@ -10,7 +10,9 @@ import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { Input } from "../../components/chrome/Input";
+import { Toolbar } from "../../components/chrome/Toolbar";
 import { TooltipHint } from "../../components/chrome/TooltipHint";
+import { useToast } from "../../components/chrome/ToastLayer";
 import type { Letter, LetterAction } from "@shared/events";
 
 function timeAgo(ts: number): string {
@@ -33,6 +35,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const units = useStore((s) => s.units);
   const worlds = useStore((s) => s.worlds);
   const selectWorld = useStore((s) => s.selectWorld);
+  const { notify } = useToast();
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
   const [copied, setCopied] = useState(false);
@@ -101,9 +104,15 @@ export function LetterCard({ letter }: { letter: Letter }) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      notify({ title: "Request copied", tone: "success" });
       window.setTimeout(() => setCopied(false), 1200);
     } catch {
       setCopied(false);
+      notify({
+        title: "Copy failed",
+        description: "Clipboard access was blocked by the renderer.",
+        tone: "danger",
+      });
     }
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -241,7 +250,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
           aria-label="Deny reason"
         />
       )}
-      <div className="throne-letter-actions">
+      <Toolbar className="throne-letter-actions" aria-label="Letter actions">
         {letter.actions.map((a, i) => (
           <button
             key={i}
@@ -262,7 +271,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
             {a.label}
           </button>
         ))}
-      </div>
+      </Toolbar>
     </div>
   );
 }

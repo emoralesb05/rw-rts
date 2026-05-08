@@ -5,6 +5,7 @@ import { Code } from "../../components/chrome/Code";
 import { Field } from "../../components/chrome/Field";
 import { Input } from "../../components/chrome/Input";
 import { Textarea } from "../../components/chrome/Textarea";
+import { useToast } from "../../components/chrome/ToastLayer";
 import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 
 const VALIDATION_REASON: Record<NonNullable<WorkspaceRootValidation["reason"]>, string> = {
@@ -25,6 +26,7 @@ export function SettingsPanelBody({ onSaved }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [validation, setValidation] = useState<WorkspaceRootValidation | null>(null);
+  const { notify } = useToast();
 
   useEffect(() => {
     void window.kh.getSettings().then((s: AppSettings) => {
@@ -50,12 +52,19 @@ export function SettingsPanelBody({ onSaved }: Props) {
         .map((line) => line.trim())
         .filter((line) => line.length > 0 && !line.startsWith("#"));
       await window.kh.saveSettings({ workspaceRoot, exclude });
+      notify({ title: "Settings saved", tone: "success" });
       onSaved?.();
       closeKind("settings");
+    } catch {
+      notify({
+        title: "Settings save failed",
+        description: "Keykeeper could not write the settings file.",
+        tone: "danger",
+      });
     } finally {
       setSaving(false);
     }
-  }, [workspaceRoot, excludeText, onSaved, closeKind]);
+  }, [workspaceRoot, excludeText, onSaved, closeKind, notify]);
 
   const canSave = loaded && !saving && validation?.valid === true;
 

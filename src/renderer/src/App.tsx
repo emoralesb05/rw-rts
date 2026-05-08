@@ -8,6 +8,7 @@ import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
 import { CommandPalette } from "./ui/CommandPalette";
 import { TooltipProvider } from "./components/primitives/Tooltip";
+import { AppToastProvider } from "./components/chrome/ToastLayer";
 
 /**
  * HUD-overlay layout (FFXIV-style, no chrome bars):
@@ -30,20 +31,22 @@ import { TooltipProvider } from "./components/primitives/Tooltip";
 export function App() {
   return (
     <TooltipProvider delayDuration={250}>
-      <div className="app">
-        <div className="window-drag-strip" />
-        <div className="stage">
-          <PhaserGame />
-          <KingdomHeader />
-          <WielderHUD />
-          <AlertsHUD />
-          <ActivityLog />
-          <LettersHUD />
+      <AppToastProvider>
+        <div className="app">
+          <div className="window-drag-strip" />
+          <div className="stage">
+            <PhaserGame />
+            <KingdomHeader />
+            <WielderHUD />
+            <AlertsHUD />
+            <ActivityLog />
+            <LettersHUD />
+          </div>
+          <DecreeModal />
+          <PanelLayer />
+          <CommandPalette />
         </div>
-        <DecreeModal />
-        <PanelLayer />
-        <CommandPalette />
-      </div>
+      </AppToastProvider>
     </TooltipProvider>
   );
 }

@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../../components/primitives/Tooltip";
+import { Toolbar } from "../../components/chrome/Toolbar";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));
@@ -66,7 +67,7 @@ export function KingdomHeader() {
       <span className="kingdom-header-meta">
         founded {fmtDays(persisted.kingdomFoundedAt)} ago
       </span>
-      <span className="kingdom-header-actions">
+      <Toolbar className="kingdom-header-actions" aria-label="Kingdom actions">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -95,7 +96,7 @@ export function KingdomHeader() {
           </TooltipTrigger>
           <TooltipContent>Kingdom — overview, settings, connection, demos</TooltipContent>
         </Tooltip>
-      </span>
+      </Toolbar>
       {/* Floating "close all" chip — visually separate (own pill) but
        * absolutely positioned to the pill's right edge so it always
        * sits next to it regardless of pill width. */}

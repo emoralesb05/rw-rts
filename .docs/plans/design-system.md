@@ -1,20 +1,19 @@
 # Plan: Design system — Radix + Tailwind, shadcn-style owned components
 
-**Status**: foundation complete; CSS migration ongoing · **Owner**: TBD · **Phase**: Radix/OSS UI foundation
+**Status**: complete · **Owner**: TBD · **Phase**: Radix/OSS UI foundation
 
 ## Goal
 
-**Fully migrate** keykeeper's UI to **Radix Primitives + Tailwind v4**,
-with a shadcn-style **owned** component library under
-`src/renderer/src/components/`. Vanilla CSS in `styles.css` shrinks to
-**only what's irreducible** — tokens, global resets, the Phaser canvas
-overlay, and any animation Tailwind genuinely can't express cleanly.
-Aesthetic stays KH-themed; the migration is structural. We are **not**
-installing the shadcn CLI — we own every component we ship.
+Complete keykeeper's **Radix Primitives + Tailwind v4** foundation with a
+shadcn-style **owned** component library under
+`src/renderer/src/components/`. Aesthetic stays KH-themed; the migration
+is structural. We are **not** installing the shadcn CLI — we own every
+component we ship.
 
-Target end-state: `styles.css` under ~400 lines (currently ~3500), and
-every JSX `className` is either a `components/`-exported component or a
-Tailwind utility string.
+The remaining large `styles.css` shrink is split into
+`.docs/plans/design-system-css-migration.md`; this plan is closed once
+the foundation components, behavior wrappers, and first real migrations
+are in place.
 
 ## Why this direction
 
@@ -48,8 +47,8 @@ is exactly right. We adopt the pattern, skip the package.
   CSS while new components use `bg-*`, `text-*`, `border-*`, radius, z,
   motion, and font tokens.
 - **Radix primitives are installed** for dialog, alert dialog, tabs,
-  tooltip, select, separator, popover, dropdown menu, scroll area,
-  label, switch, checkbox, and radio group.
+  tooltip, toast, select, separator, popover, dropdown menu, scroll
+  area, label, switch, checkbox, and radio group.
 - **cmdk is installed** and wrapped as an owned `Command` primitive for
   command-palette behavior.
 - **Owned component directories exist** under
@@ -130,6 +129,7 @@ src/renderer/src/components/
     AlertDialog.tsx              ← wraps @radix-ui/react-alert-dialog
     Tabs.tsx                     ← wraps @radix-ui/react-tabs
     Tooltip.tsx                  ← wraps @radix-ui/react-tooltip
+    Toast.tsx                    ← wraps @radix-ui/react-toast
     Separator.tsx                ← wraps @radix-ui/react-separator
     Popover.tsx
     Select.tsx
@@ -157,6 +157,8 @@ src/renderer/src/components/
     Kbd.tsx
     Skeleton.tsx
     TooltipHint.tsx
+    ToastLayer.tsx
+    Toolbar.tsx
 ```
 
 App-specific surfaces (HudWidget, ChatDrawer, FloatingPanel, the various
@@ -177,15 +179,16 @@ Shipped in the Radix/OSS foundation:
 | `Separator` | Radix wrapper | Command palette divider |
 | `Skeleton` | chrome | Hook bridge loading state |
 | `Bar` | chrome | Party-row HP/MP meters |
+| `Toast` / `ToastLayer` | Radix wrapper + chrome provider | Copy/save success and failure feedback |
+| `Toolbar` | chrome | Kingdom action cluster; letter action row |
 
-Pending components:
+No component blockers remain for this plan. Future product-triggered
+components:
 
 | Component | Type | Add When | Notes |
 |---|---|---|---|
-| `Toolbar` | chrome | Repeated HUD/panel icon-button clusters | Useful after `IconButton` migrations reveal common layout. |
 | `Progress` | Radix wrapper or chrome | Determinate progress with ARIA semantics | Keep `Bar` for HP/MP/FC visuals unless accessibility semantics matter. |
 | `Slider` | Radix wrapper | Volume, density, animation speed, zoom, future settings | Add with the first real slider setting. |
-| `Toast` | Radix wrapper or Sonner-style owned layer | Save success, copy-to-clipboard, hook install results, provider errors | Needs app-level provider/viewport; add with the first notification flow. |
 
 ### Component conventions (shadcn-style)
 
@@ -263,12 +266,13 @@ prove it.
    Style with Tailwind utilities only — no entries in `styles.css`.
    **Done, with `Select`, `Popover`, `DropdownMenu`, `ScrollArea`,
    `Label`, `Switch`, `Checkbox`, `RadioGroup`, `AlertDialog`,
-   `Separator`, and `Command` wrappers also scaffolded.**
+   `Separator`, `Toast`, and `Command` wrappers also scaffolded.**
 5. Build first chrome atoms for common app surfaces. **Done for
    `Button`, `Card`, `Pill`, `Chip`, `Bar`, `Input`, `Textarea`,
    `Field`, `IconButton`, `Badge`, `EmptyState`, and
    `SegmentedControl`, with `Code`, `Kbd`, `Skeleton`, and
-   `TooltipHint` added as later migration slices needed them.**
+   `TooltipHint`, `ToastLayer`, and `Toolbar` added as later migration
+   slices needed them.**
 
 ### Phase 3 — First migrations (1 day)
 
@@ -297,6 +301,10 @@ In this order (smallest blast radius first):
    Dialog; the old command-palette CSS block was deleted. **Done.**
 8. **Decree inline palettes → Command** — @file and /command suggestions
    use the same owned `Command` primitive. **Done.**
+9. **Toast feedback → Toast** — copy request and settings save/failure
+   feedback now use the app-level Radix Toast layer. **Done.**
+10. **Repeated action clusters → Toolbar** — kingdom header actions and
+    letter action rows use the owned `Toolbar` atom. **Done.**
 
 After each, delete the now-dead CSS from `styles.css`.
 
@@ -315,27 +323,25 @@ Add when the next surface needs them:
 - **AlertDialog** — destructive confirmation primitive. **Scaffolded and
   used for Reset Kingdom, Recall, and Standing Order confirmation.**
 - **Separator / Skeleton** — low-risk components. **Scaffolded and used.**
-- **Toolbar** — repeated icon-button clusters. **Pending; add after
-  `IconButton` has at least two migrated call sites.**
+- **Toolbar** — repeated icon-button clusters. **Scaffolded and used.**
 - **Progress / Slider** — accessible progress and numeric adjustment
-  controls. **Pending; add with the first real progress/slider surface.**
+  controls. **Future; add with the first real progress/slider surface.**
 - **Command** — cmdk-backed command primitive. **Scaffolded and used.**
-- **Toast** — higher-behavior primitive. **Pending; add only with its
-  owning notification flow.**
+- **Toast** — higher-behavior primitive. **Scaffolded and used.**
 
 ### Phase 5 — Chrome atoms (1 day)
 
 Build `Button`, `Card`, `Pill`, `Chip`, `Bar`, `Input`, `Textarea`,
 `Field`, `IconButton`, `Badge`, `EmptyState`, `SegmentedControl`,
-`Code`, `Kbd`, `Skeleton`, and `TooltipHint` in `components/chrome/`.
+`Code`, `Kbd`, `Skeleton`, `TooltipHint`, `ToastLayer`, and `Toolbar`
+in `components/chrome/`.
 **Scaffolded.**
 `SettingsPanelBody`, `DispatchPanelBody`, `WielderChatInput`,
 `CommandPalette`, `LetterCard`, `PartyRow`, `WielderHUD`, ActivityLog,
-ConversationStream, UnitInspector, and initial `KingdomPanelBody` controls
-now use these atoms. `PartyRow` uses `Bar` for HP/MP meters. Migrate the existing `.btn`,
-`.target-panel`, `.tool-pill`, `.hud-action-btn`, `.bar`, empty-state,
-form-control, and segmented button rules out of `styles.css`. These are
-touched by ~30 sites each — bulk find-replace.
+ConversationStream, UnitInspector, and initial `KingdomPanelBody`
+controls now use these atoms. `PartyRow` uses `Bar` for HP/MP meters.
+The remaining broad CSS migration is tracked in
+`.docs/plans/design-system-css-migration.md`.
 
 ### Phase 6 — Stop authoring vanilla CSS for new surfaces
 
@@ -349,74 +355,10 @@ Going forward, the rule is:
   Phaser canvas chrome, complex animations Tailwind can't express
   cleanly).
 
-### Phase 7 — Migrate the chrome HUDs (1–2 days)
+## Follow-Up CSS Migration
 
-`HudWidget`, `AlertsHUD`, `LettersHUD`, `WielderHUD`, `KingdomHeader`,
-`ActivityLog`, `LetterCard`, `PartyRow`, `CloseAllChip`. These are
-~1200 lines of `styles.css` between them. Migration:
-- Static layout / spacing / borders / colors → Tailwind utilities
-- Open/close height animation (`grid-template-rows: 1fr ↔ 0fr`) → keep
-  in `styles.css` as a **tagged-irreducible** rule, applied via a
-  Tailwind arbitrary class (`grid-rows-[var(--hud-rows)]`) toggled by
-  the collapsed state
-- Letter pulse, alert flash, focus z-stack → keep keyframes in CSS,
-  trigger via Tailwind `animate-letter-pulse` etc. (define in `@theme`
-  `--animate-*` tokens)
-
-### Phase 8 — Migrate FloatingPanel + ChatDrawer (1–2 days)
-
-The hard ones, last on purpose. ~600 lines of CSS between them.
-- All visual chrome → Tailwind
-- Drag-to-resize / drag-to-move logic stays in TS (it's not CSS)
-- Drawer minimize → expand transition stays as a tagged-irreducible
-  CSS rule + Tailwind arbitrary class hook
-- Per-tab status dot pulses → keyframe in CSS, animate-* in JSX
-
-### Phase 9 — Sweep what's left
-
-After phases 1–8, walk `styles.css` top-to-bottom. Every remaining
-rule must answer one of:
-- "this is a token / global reset / `@theme`" → keep
-- "this is a Phaser canvas overlay / world atmospheric" → keep, tag
-- "this is an animation Tailwind can't express" → keep, tag
-- "this is a markdown / Streamdown / KaTeX override on markup we
-  don't control" → keep, tag
-- otherwise → migrate or delete
-
-A rule with no tag and no Tailwind equivalent is a bug, not a
-feature.
-
-## What stays in vanilla CSS (the irreducible list)
-
-Everything else migrates to Tailwind. These specific things keep
-authored CSS, and each must carry a banner comment explaining why —
-so a future cleanup doesn't try to migrate them and a future audit
-can verify the list isn't growing:
-
-1. **The `@theme` block** — definitionally CSS. The token source of
-   truth.
-2. **Global resets, `body`, `#root`, `.window-drag-strip`, font-face
-   declarations** — runs once, no component layer.
-3. **Phaser canvas overlay positioning** — the canvas + HUD-z-stack
-   integration. Tailwind would fight the absolute positioning here.
-4. **Keyframe declarations** — `@keyframes letter-pulse`, `alert-
-   flash`, `hud-collapse`, `chat-drawer-minimize`, `event-pulse`. The
-   keyframes themselves stay; we trigger via Tailwind `animate-*`
-   classes registered as `@theme --animate-letter-pulse:`.
-5. **A small set of complex layout transitions** Tailwind utilities
-   can't express cleanly:
-   - HUD collapse: `grid-template-rows: 1fr ↔ 0fr` switch driven by
-     a state class. (Tailwind v4 *can* express via arbitrary value;
-     keep authored CSS only if the arbitrary form is unreadable —
-     decide per-rule at migration time.)
-   - Streamdown / markdown content overrides where we don't own the
-     markup.
-6. **Anything with deeply nested combinator selectors** that would
-   require pulling 5+ child components apart to migrate. Audit case-
-   by-case in Phase 9.
-
-Each survivor gets a `/* IRREDUCIBLE: <reason> */` comment so the
-list is greppable: `grep -n IRREDUCIBLE styles.css`.
+The remaining `styles.css` shrink is not a component-foundation blocker.
+It lives in `.docs/plans/design-system-css-migration.md`.
 
 ## What we explicitly do NOT do
 
@@ -440,25 +382,18 @@ list is greppable: `grep -n IRREDUCIBLE styles.css`.
   app-state vars.
 - `components/primitives/` has Dialog, Tabs, Tooltip, Select, Popover,
   DropdownMenu, ScrollArea, Label, Switch, Checkbox, RadioGroup,
-  AlertDialog, Separator, Command.
+  AlertDialog, Separator, Toast, Command.
 - `components/chrome/` has Button, Card, Pill, Chip, Bar, Input,
   Textarea, Field, IconButton, Badge, EmptyState, SegmentedControl,
-  Code, Kbd, Skeleton, TooltipHint.
+  Code, Kbd, Skeleton, TooltipHint, ToastLayer, Toolbar.
 - DecreeModal, DispatchPanelBody, KingdomPanelBody, ChatDrawer, and
   CommandPalette use primitives — manual modal / tab / select /
   command-list code deleted.
-- HudWidget, AlertsHUD, LettersHUD, WielderHUD, ActivityLog, LetterCard,
-  PartyRow, KingdomHeader, FloatingPanel, ChatDrawer all migrated —
-  their per-component CSS in `styles.css` deleted.
 - `title=` attributes on HUD surfaces replaced with `<Tooltip>`.
-- **`styles.css` ≤ ~400 lines**: tokens, global resets, Phaser overlay,
-  keyframes, and a handful of `IRREDUCIBLE`-tagged rules. Nothing else.
-- Every surviving rule in `styles.css` is either inside `@theme` or
-  carries a `/* IRREDUCIBLE: <reason> */` comment.
-- `grep -n IRREDUCIBLE styles.css` returns a short, human-readable
-  inventory — no surprises.
+- Toast feedback exists for copy/save flows.
+- No `forwardRef` usage in owned components.
 - New components reach for `components/` by default; PRs that add
-  bespoke CSS without an IRREDUCIBLE tag get pushed back.
+  bespoke CSS get pushed toward the follow-up CSS migration plan.
 
 ## Out of scope
 
@@ -470,8 +405,8 @@ list is greppable: `grep -n IRREDUCIBLE styles.css`.
 - Storybook — useful at ~30 components, we have ~12.
 - Phaser-canvas-side rendering (sprites, shaders, world atmospherics).
   That's a different system; this plan is the React DOM only.
-- Renaming `.wielder-panel-tab*` — those die in Phase 3 when
-  KingdomPanelBody migrates to the Tabs primitive.
+- Full `styles.css` shrink; see
+  `.docs/plans/design-system-css-migration.md`.
 
 ## Open questions
 
@@ -483,10 +418,5 @@ list is greppable: `grep -n IRREDUCIBLE styles.css`.
   with `clsx + tailwind-merge`, or inline a 5-line version? Lean:
   install `clsx` + `tailwind-merge` (combined ~3kb gzipped, both
   well-tested).
-- **Where does the chat-drawer's animated collapse live?** The grid-
-  template-rows trick is awkward in Tailwind. Lean: leave that one
-  rule in `styles.css` and tag the section as "intentionally not
-  utility-class" so future cleanups don't try to migrate it.
-- **Token doc location?** New `.docs/design/tokens.md` (this plan
-  assumes), or keep under `.docs/architecture/`? Lean: `.docs/design/`
-  if we expect more visual reference docs to follow.
+- **Progress / Slider?** No current product surface needs them. Add
+  with the first determinate progress or numeric setting flow.
