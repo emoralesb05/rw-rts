@@ -7,8 +7,8 @@
 import { useCallback, useState } from "react";
 import { Send } from "lucide-react";
 import type { UnitState } from "@shared/events";
-import { Button } from "../components/chrome/Button";
-import { Textarea } from "../components/chrome/Textarea";
+import { Button } from "../components/kit/Button";
+import { Textarea } from "../components/kit/Textarea";
 
 export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
@@ -46,9 +46,9 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   else placeholder = `Message ${unit.displayName}…  (⌘↵ to send)`;
 
   return (
-    <div className="flex flex-none gap-1.5 border-t border-line bg-black/20 px-2.5 py-2">
+    <div className="sticky bottom-0 z-[1] flex flex-none gap-2 border-t border-line bg-[rgba(5,9,18,0.92)] px-2.5 py-2 backdrop-blur-sm">
       <Textarea
-        className="min-h-9 max-h-[140px] flex-1 resize-y rounded-sm bg-surface-2/85 px-2.5 py-1.5 font-mono text-[11.5px] leading-[1.4]"
+        className="min-h-9 max-h-[140px] flex-1 resize-y rounded-sm bg-surface-2/90 px-2.5 py-1.5 font-mono text-[11.5px] leading-[1.4]"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={onKeyDown}
@@ -60,7 +60,7 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
       <Button
         type="button"
         variant="primary"
-        className="self-end px-3 py-1.5 text-[11px]"
+        className="w-24 self-end px-3 py-1.5 text-[11px]"
         onClick={send}
         disabled={disabled || !prompt.trim()}
         aria-label={`Send message to ${unit.displayName}`}

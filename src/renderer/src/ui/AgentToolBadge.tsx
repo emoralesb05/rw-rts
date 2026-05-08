@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { Badge } from "../components/chrome/Badge";
+import { Badge } from "../components/kit/Badge";
 import { cn } from "@/lib/cn";
 import type { AgentTool } from "@shared/events";
 

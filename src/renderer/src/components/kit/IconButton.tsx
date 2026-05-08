@@ -13,12 +13,14 @@ export function IconButton({
   className,
   variant = "default",
   size = "md",
+  type = "button",
   ...props
 }: IconButtonProps) {
   return (
     <button
+      type={type}
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-sm border",
+        "inline-flex shrink-0 select-none items-center justify-center rounded-sm border",
         "transition-colors focus:outline-none focus-visible:border-accent",
         "disabled:cursor-not-allowed disabled:opacity-45",
         size === "sm" && "size-6",

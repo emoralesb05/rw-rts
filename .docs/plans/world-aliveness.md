@@ -58,7 +58,7 @@ That's the canvas-equivalent of "working chat panel + party list" — but the lo
 
 4. **World breath** — slow ambient pulse on the per-world iso plane that intensifies when the wielder is mid-tool (`status: "working"`) and slows when idle. Already have the status field; needs a shader uniform tied to it.
 
-5. **Letter↔canvas coupling** — when a letter is generated for a wielder, briefly flash the world's atmosphere in the letter's tone color (red for critical, gold for important, cyan for notable). Currently letters are just chrome events; this makes them visible from peripheral vision.
+5. **Letter↔canvas coupling** — when a letter is generated for a wielder, briefly flash the world's atmosphere in the letter's tone color (red for critical, gold for important, cyan for notable). Currently letters are just HUD events; this makes them visible from peripheral vision.
 
 ### Tier B — Medium investment (½–1 day each, distinctive but more code)
 

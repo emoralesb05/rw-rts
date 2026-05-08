@@ -27,11 +27,11 @@ import {
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
-import { Badge } from "../../components/chrome/Badge";
-import { Bar } from "../../components/chrome/Bar";
-import { Button } from "../../components/chrome/Button";
-import { EmptyState } from "../../components/chrome/EmptyState";
-import { TooltipHint } from "../../components/chrome/TooltipHint";
+import { Badge } from "../../components/kit/Badge";
+import { Bar } from "../../components/kit/Bar";
+import { Button } from "../../components/kit/Button";
+import { EmptyState } from "../../components/kit/EmptyState";
+import { TooltipHint } from "../../components/kit/TooltipHint";
 import {
   AlertDialog,
   AlertDialogAction,

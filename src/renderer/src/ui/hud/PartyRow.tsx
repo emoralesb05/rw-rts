@@ -16,9 +16,9 @@ import {
 } from "../role-archetype";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
-import { Bar } from "../../components/chrome/Bar";
-import { IconButton } from "../../components/chrome/IconButton";
-import { TooltipHint } from "../../components/chrome/TooltipHint";
+import { Bar } from "../../components/kit/Bar";
+import { IconButton } from "../../components/kit/IconButton";
+import { TooltipHint } from "../../components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
 import type { UnitState } from "@shared/events";
 

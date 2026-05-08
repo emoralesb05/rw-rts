@@ -37,8 +37,8 @@ import {
   CommandItem,
   CommandList,
 } from "../components/primitives/Command";
-import { Button } from "../components/chrome/Button";
-import { Textarea } from "../components/chrome/Textarea";
+import { Button } from "../components/kit/Button";
+import { Textarea } from "../components/kit/Textarea";
 import { useStore } from "../store";
 import { cn } from "@/lib/cn";
 import type { AgentEvent } from "@shared/events";
@@ -207,7 +207,7 @@ export function DecreeModal() {
         </DialogHeader>
         {!unit.spawnedHere && (
           <div className="border-b border-[#ff5a3c]/30 bg-[#ff5a3c]/[0.12] px-4 py-2.5 text-xs text-[#ffb6a0]">
-            {unit.role} is observed-only — keykeeper didn't spawn this
+            {unit.displayName} is observed-only — keykeeper didn't spawn this
             wielder, so we can't send it commands.
           </div>
         )}
@@ -279,8 +279,8 @@ export function DecreeModal() {
           </span>
           <Button
             type="button"
-            variant="primary"
-            className="rounded-md border-accent-alt bg-accent-alt px-4 py-2 text-xs font-bold tracking-[0.5px] text-[#0a0518] hover:shadow-[0_0_12px_rgba(255,216,107,0.5)]"
+            variant="gold"
+            className="rounded-md px-4 py-2 text-xs font-bold tracking-[0.5px] hover:shadow-[0_0_12px_rgba(255,216,107,0.5)]"
             onClick={() => void send()}
             disabled={sendDisabled}
           >

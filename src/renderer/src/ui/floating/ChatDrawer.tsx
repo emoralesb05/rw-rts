@@ -23,8 +23,8 @@ import { ConversationStream } from "../ConversationStream";
 import { WielderChatInput } from "../WielderChatInput";
 import { ROLE_HEX } from "../../game/units";
 import { AgentToolBadge } from "../AgentToolBadge";
-import { EmptyState } from "../../components/chrome/EmptyState";
-import { IconButton } from "../../components/chrome/IconButton";
+import { EmptyState } from "../../components/kit/EmptyState";
+import { IconButton } from "../../components/kit/IconButton";
 import {
   Tabs,
   TabsContent,
@@ -307,7 +307,7 @@ export function ChatDrawer() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList
-            className="min-h-8 flex-none items-stretch overflow-x-auto p-0 [scrollbar-width:thin]"
+            className="min-h-9 flex-none items-stretch overflow-x-auto border-accent-alt/20 bg-surface-1/95 p-0 [scrollbar-width:thin]"
             aria-label="Wielder chats"
           >
             {drawer.openTabs.map((unitId) => {
@@ -327,7 +327,7 @@ export function ChatDrawer() {
                 <div
                   key={unitId}
                   className={cn(
-                    "group relative inline-flex max-w-[200px] flex-none items-stretch border-r border-line bg-transparent transition-colors",
+                    "group relative inline-flex max-w-[220px] flex-none items-stretch border-r border-line bg-transparent transition-colors",
                     "hover:bg-accent-alt/[0.04]",
                     isActive &&
                       "bg-accent-alt/10 after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-accent-alt after:shadow-[0_0_8px_rgba(255,216,107,0.45)]"
@@ -337,15 +337,15 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value={unitId}
-                        className="flex-none gap-2 px-2 py-1.5 pl-2.5 text-[11px] normal-case tracking-[0.4px] data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
+                        className="h-9 min-w-0 flex-none gap-2.5 px-3 py-2 text-[11px] normal-case tracking-[0.4px] data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
                       >
                         {tool && (
                           <AgentToolBadge
                             tool={tool}
-                            className="h-[18px] shrink-0 px-1.5 text-[8.5px]"
+                            className="h-5 shrink-0 px-2 text-[8.5px]"
                           />
                         )}
-                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
+                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold">
                           {name}
                         </span>
                         {status !== "none" && (
@@ -368,7 +368,7 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="my-auto ml-0.5 mr-1.5 inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-0 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-55"
+                        className="my-auto mr-1.5 inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-45 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           closeDrawerTab(unitId);
@@ -421,7 +421,7 @@ export function ChatDrawer() {
           </TabsList>
           <TabsContent
             value={activeUnit.id}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[rgba(7,12,24,0.42)]"
           >
             <ConversationStream
               sessionId={activeUnit.id}

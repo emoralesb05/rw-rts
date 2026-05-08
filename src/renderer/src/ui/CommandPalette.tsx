@@ -17,7 +17,7 @@ import {
 import { useStore } from "../store";
 import { usePanels } from "./floating/panel-store";
 import { summarizeEvent, shortAgo } from "./event-summary";
-import { Kbd } from "../components/chrome/Kbd";
+import { Kbd } from "../components/kit/Kbd";
 import {
   Dialog,
   DialogContent,

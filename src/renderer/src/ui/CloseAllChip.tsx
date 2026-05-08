@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../components/primitives/Tooltip";
-import { IconButton } from "../components/chrome/IconButton";
+import { IconButton } from "../components/kit/IconButton";
 
 export function CloseAllChip() {
   const closeAll = usePanels((s) => s.closeAll);

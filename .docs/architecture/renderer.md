@@ -36,7 +36,7 @@ The active scene is `KingdomScene` (`src/renderer/src/game/scenes/`). Per the Q4
 | `LettersHUD.tsx` | bottom-right | Notable / non-blocking letters |
 | `PartyRow.tsx` | inside WielderHUD | Per-wielder row in the roster |
 | `LetterCard.tsx` | shared | One letter card, used by both AlertsHUD and LettersHUD |
-| `HudWidget.tsx` | shared | Collapsible chrome (header + body, click to toggle) |
+| `HudWidget.tsx` | shared | Collapsible HUD shell (header + body, click to toggle) |
 | `hud-prefs.ts` | shared | `usePersistedBool` — collapse state persisted in localStorage |
 
 HUD widgets do NOT close on outside click — collapse only on header click. (Different from floating panels, which can be dismissed.)

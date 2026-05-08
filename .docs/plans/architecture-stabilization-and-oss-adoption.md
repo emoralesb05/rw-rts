@@ -29,7 +29,7 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
 - The Radix/Tailwind owned component foundation has landed; remaining UI cleanup is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
 - The completed `design-system.md` plan was removed; active UI cleanup now lives in the CSS migration plan.
-- The first CSS migration slice moved HUD/chrome styling for `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`, `PartyRow`, `LetterCard`, and HUD empty/action states into owned components/Tailwind, reducing `styles.css` from ~3519 to 2547 lines.
+- The first CSS migration slice moved HUD shell styling for `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`, `PartyRow`, `LetterCard`, and HUD empty/action states into owned components/Tailwind, reducing `styles.css` from ~3519 to 2547 lines.
 - The second CSS migration slice moved floating panel, settings, dispatch, kingdom, wielder detail, and shared tool/archetype/renown chip styling into owned React components, reducing `styles.css` to 1569 lines.
 - The third CSS migration slice moved the chat drawer, conversation stream, per-wielder chat input, and legacy unit inspector styling into owned React components/Tailwind, reducing `styles.css` to 526 lines.
 - The final CSS migration slice moved DecreeModal, the root app shell,
@@ -82,7 +82,7 @@ Acceptance:
 
 The owned Radix/Tailwind foundation has landed. New UI should keep using
 the owned wrappers under `src/renderer/src/components/primitives/` and
-chrome atoms under `src/renderer/src/components/chrome/`. The CSS
+kit components under `src/renderer/src/components/kit/`. The CSS
 migration plan is structurally complete; future UI work should avoid
 adding broad app-surface selectors back to `styles.css`.
 

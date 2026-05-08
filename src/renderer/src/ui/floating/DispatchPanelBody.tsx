@@ -7,11 +7,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
-import { Button } from "../../components/chrome/Button";
-import { Field } from "../../components/chrome/Field";
-import { Kbd } from "../../components/chrome/Kbd";
-import { SegmentedControl } from "../../components/chrome/SegmentedControl";
-import { Textarea } from "../../components/chrome/Textarea";
+import { Button } from "../../components/kit/Button";
+import { Field } from "../../components/kit/Field";
+import { Kbd } from "../../components/kit/Kbd";
+import { SegmentedControl } from "../../components/kit/SegmentedControl";
+import { Textarea } from "../../components/kit/Textarea";
 import {
   Select,
   SelectContent,

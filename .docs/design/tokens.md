@@ -7,6 +7,9 @@ should reference these tokens through Tailwind utilities such as
 `bg-panel`, `text-muted`, `border-line`, and arbitrary values backed by
 `var(--color-*)` only when a utility cannot express the exact value.
 
+For component layering and ownership rules, see
+[`components.md`](./components.md).
+
 ## Color
 
 | Token | Use |

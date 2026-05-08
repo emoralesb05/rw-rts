@@ -5,8 +5,8 @@
  */
 import { Trash2 } from "lucide-react";
 import { useStore } from "../../store";
-import { Button } from "../../components/chrome/Button";
-import { EmptyState } from "../../components/chrome/EmptyState";
+import { Button } from "../../components/kit/Button";
+import { EmptyState } from "../../components/kit/EmptyState";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
 import {

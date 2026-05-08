@@ -30,10 +30,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../components/primitives/AlertDialog";
-import { Button } from "../../components/chrome/Button";
-import { Code } from "../../components/chrome/Code";
-import { EmptyState } from "../../components/chrome/EmptyState";
-import { Skeleton } from "../../components/chrome/Skeleton";
+import { Button } from "../../components/kit/Button";
+import { Code } from "../../components/kit/Code";
+import { EmptyState } from "../../components/kit/EmptyState";
+import { Skeleton } from "../../components/kit/Skeleton";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
 import type { HooksStatus } from "@shared/schemas";

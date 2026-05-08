@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePanels } from "./panel-store";
-import { Button } from "../../components/chrome/Button";
-import { Code } from "../../components/chrome/Code";
-import { Field } from "../../components/chrome/Field";
-import { Input } from "../../components/chrome/Input";
-import { Textarea } from "../../components/chrome/Textarea";
-import { useToast } from "../../components/chrome/ToastLayer";
+import { Button } from "../../components/kit/Button";
+import { Code } from "../../components/kit/Code";
+import { Field } from "../../components/kit/Field";
+import { Input } from "../../components/kit/Input";
+import { Textarea } from "../../components/kit/Textarea";
+import { useToast } from "../../components/kit/ToastLayer";
 import { cn } from "@/lib/cn";
 import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 

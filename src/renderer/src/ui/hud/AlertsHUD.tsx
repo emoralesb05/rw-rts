@@ -15,7 +15,7 @@
 import { useEffect, useRef } from "react";
 import { useStore } from "../../store";
 import { usePanels } from "../floating/panel-store";
-import { EmptyState } from "../../components/chrome/EmptyState";
+import { EmptyState } from "../../components/kit/EmptyState";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
 
