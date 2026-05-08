@@ -2,9 +2,9 @@
  * KingdomScene — the unified Star Chart.
  *
  * Replaces the old 3-scene drill-down (Throne / Gummi / Arena) with a single
- * pan/zoom canvas where every world is visible simultaneously. Camera
- * controls: drag-pan with mouse, scroll-wheel zoom. Click a world to select
- * its first wielder + pan camera to it.
+ * pan/zoom canvas where a central base, every world, and active agents are
+ * visible simultaneously. Camera controls: drag-pan with mouse, scroll-wheel
+ * zoom. Click a world to select its first wielder + pan camera to it.
  *
  * Q40 architecture (vision.md):
  * - Q40.1 Throne fate: side overlay panel (React) — handled outside this scene.
@@ -73,6 +73,99 @@ const ISO_GRID = 6;
 // matching the cluster inner-ring spacing. Worlds are positioned by the
 // cluster layout; this scale just makes their internal renderings fit.
 const ISO_CONTAINER_SCALE = 0.55;
+
+// Central base geometry. Agents idle here between missions; worlds are treated
+// as destination nodes around the base instead of tiny maps that hold the full
+// party sprite population.
+const BASE_TILE_W = 72;
+const BASE_TILE_H = 36;
+const BASE_GRID_W = 10;
+const BASE_GRID_H = 8;
+const BASE_RADIUS = 260;
+const WIELDER_SPRITE_SCALE = 0.32;
+const WORLD_FOCUS_ZOOM = 1.05;
+const MISSION_DWELL_MS = 3500;
+const PERMISSION_DWELL_MS = 6500;
+const MISSION_PAD_COUNT = 6;
+const WORLD_REALM_PAD_X = 240;
+const WORLD_REALM_PAD_Y = 175;
+const ABSOLUTE_MIN_ZOOM = 0.18;
+const STRATEGY_ZOOM_EXTRA_ROOM = 0.92;
+const CAMERA_SAFE_LEFT_PX = 360;
+const CAMERA_SAFE_RIGHT_PX = 360;
+const CAMERA_SAFE_TOP_PX = 110;
+const CAMERA_SAFE_BOTTOM_PX = 270;
+const CAMERA_WORLD_PAD_X = 140;
+const CAMERA_WORLD_PAD_Y = 120;
+const ORDER_DASH = 14;
+const ORDER_GAP = 9;
+const HEARTLESS_ATTACK_COOLDOWN_MS = 1500;
+const HEARTLESS_ATTACK_RANGE = 34;
+const HEARTLESS_SPEED: Record<Heartless["type"], number> = {
+  shadow: 44,
+  soldier: 34,
+  large_body: 23,
+};
+
+const ORDER_LABELS: Record<WorldActivityKind, string> = {
+  shell: "FORGE",
+  read: "SCOUT",
+  edit: "BUILD",
+  search: "SCAN",
+  web: "PORTAL",
+  permission: "HOLD",
+  error: "DANGER",
+  success: "DONE",
+  subagent: "PARTY",
+  prompt: "ASK",
+  generic: "WORK",
+};
+
+type BiomePalette = {
+  ground: number;
+  accent: number;
+  lane: number;
+  shadow: number;
+};
+
+const THEME_BIOMES: Record<WorldTheme, BiomePalette> = {
+  disney: {
+    ground: 0x244d83,
+    accent: 0xffd86b,
+    lane: 0x9fd4ff,
+    shadow: 0x09152b,
+  },
+  hollow: {
+    ground: 0x251448,
+    accent: 0xc9a4ff,
+    lane: 0xffd86b,
+    shadow: 0x070718,
+  },
+  traverse: {
+    ground: 0x3c2831,
+    accent: 0xffb86c,
+    lane: 0xffd86b,
+    shadow: 0x120b17,
+  },
+  destiny: {
+    ground: 0x123b58,
+    accent: 0x6cc6ff,
+    lane: 0xf6d6a8,
+    shadow: 0x061522,
+  },
+  twilight: {
+    ground: 0x4a223a,
+    accent: 0xff9fb5,
+    lane: 0xffd86b,
+    shadow: 0x180a1c,
+  },
+  halloween: {
+    ground: 0x281239,
+    accent: 0xff7a4a,
+    lane: 0xc9a4ff,
+    shadow: 0x080712,
+  },
+};
 
 // Per-theme landmark: at the center of the iso plane. Texture key
 // matches the loader pattern landmark-${theme}.
@@ -172,6 +265,9 @@ type WielderRef = {
   hpBarFill: Phaser.GameObjects.Rectangle;
   mpBarBg: Phaser.GameObjects.Rectangle;
   mpBarFill: Phaser.GameObjects.Rectangle;
+  orderLine: Phaser.GameObjects.Graphics;
+  orderRing: Phaser.GameObjects.Arc;
+  orderLabel: Phaser.GameObjects.Text;
   // Bobbing "!" alert icon shown above the head when HP is critical
   // (or the wielder has just fallen). Hidden otherwise.
   criticalAlert: Phaser.GameObjects.Text;
@@ -180,11 +276,14 @@ type WielderRef = {
   barkText?: Phaser.GameObjects.Text;
   lastBarkAt: number;
   label: Phaser.GameObjects.Text;
-  homeTx: number;
-  homeTy: number;
+  homeIndex: number;
+  locationMode: "base" | "mission";
+  locationTargetKey?: string;
+  isTraveling: boolean;
+  missionHoldUntil: number;
   // Patrol state machine.
   patrolState: "scouting" | "walking" | "arrived";
-  patrolTarget?: { tx: number; ty: number };
+  patrolTarget?: { x: number; y: number };
   patrolNextSwitchAt: number;
   // Last-known status, for change detection (death/victory pose, etc).
   lastStatus: UnitState["status"];
@@ -193,7 +292,7 @@ type WielderRef = {
   // Per-wielder so we don't spam attack/cast frames during bursts.
   lastEventAnimAt: number;
   currentAnim?: string;
-  // Subagent tether to parent (rendered on the same isoPlane container).
+  // Subagent tether to parent (rendered on the scene-global agent layer).
   tether?: Phaser.GameObjects.Graphics;
   parentSessionId?: string;
   // Composite-form banner — shown on the parent when 1+ subagents are
@@ -205,9 +304,12 @@ type WorldRef = {
   worldId: string;
   container: Phaser.GameObjects.Container;
   isoPlane: Phaser.GameObjects.Container;
-  todOverlay: Phaser.GameObjects.Rectangle;
-  breathOverlay: Phaser.GameObjects.Rectangle;
-  eventOverlay: Phaser.GameObjects.Rectangle;
+  biome: Phaser.GameObjects.Graphics;
+  workGfx: Phaser.GameObjects.Graphics;
+  missionPads: Phaser.GameObjects.Arc[];
+  todOverlay: Phaser.GameObjects.Ellipse;
+  breathOverlay: Phaser.GameObjects.Ellipse;
+  eventOverlay: Phaser.GameObjects.Ellipse;
   alertRing: Phaser.GameObjects.Arc;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
@@ -232,12 +334,22 @@ type WorldRef = {
   lastActivityKind?: WorldActivityKind;
   lastActivityAt: number;
   lastActivityColor: number;
+  missionPadPhase: number;
 };
 
 type ClusterRef = {
   key: string;
   centroid: { x: number; y: number };
   label: Phaser.GameObjects.Text;
+};
+
+type BaseRef = {
+  container: Phaser.GameObjects.Container;
+  isoPlane: Phaser.GameObjects.Container;
+  commandGfx: Phaser.GameObjects.Graphics;
+  beacon: Phaser.GameObjects.Arc;
+  pads: Phaser.GameObjects.Arc[];
+  phase: number;
 };
 
 type StarRef = {
@@ -249,6 +361,9 @@ type StarRef = {
 export class KingdomScene extends Phaser.Scene {
   private worlds = new Map<string, WorldRef>();
   private clusters = new Map<string, ClusterRef>();
+  private base?: BaseRef;
+  private agentLayer?: Phaser.GameObjects.Container;
+  private realmGfx?: Phaser.GameObjects.Graphics;
   private routeGfx?: Phaser.GameObjects.Graphics;
   private layout = new Map<
     string,
@@ -348,7 +463,10 @@ export class KingdomScene extends Phaser.Scene {
     // Sky + stars (viewport-locked so they don't pan with the world)
     this.drawSky();
     this.spawnStars(140);
+    this.realmGfx = this.add.graphics().setDepth(-70);
     this.routeGfx = this.add.graphics().setDepth(-45);
+    this.base = this.spawnKingdomBase();
+    this.agentLayer = this.add.container(0, 0).setDepth(60);
 
     // Scanline overlay — viewport-locked, depth above worlds
     this.ensureScanlineTexture();
@@ -388,7 +506,10 @@ export class KingdomScene extends Phaser.Scene {
         }
       }
       if (!ref) return;
-      if (worldRef) this.triggerWorldEventVfx(worldRef, ref, ev);
+      if (worldRef) {
+        this.holdMissionForEvent(ref, ev);
+        this.triggerWorldEventVfx(worldRef, ref, ev);
+      }
 
       // Voice bark — independent of sprite/anim timing. Bark on the
       // less-frequent narrative events; tool_use / tool_result skip
@@ -443,6 +564,9 @@ export class KingdomScene extends Phaser.Scene {
       window.removeEventListener("kh:event", eventHandler as EventListener);
       this.worlds.clear();
       this.stars = [];
+      this.base = undefined;
+      this.agentLayer = undefined;
+      this.realmGfx = undefined;
       this.skyGfx = undefined;
       this.routeGfx = undefined;
       this.scanline = undefined;
@@ -453,6 +577,7 @@ export class KingdomScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     this.t += delta * 0.001;
+    this.updateViewportBackdrops();
 
     // Sync world planets
     const worlds = useStore.getState().worlds;
@@ -461,6 +586,7 @@ export class KingdomScene extends Phaser.Scene {
       this.syncWorlds(worlds);
       this.lastWorldsKey = key;
     }
+    this.enforceStrategyZoomFloor();
 
     // Update per-world live state (count, alert ring color, wielders)
     const units = useStore.getState().units;
@@ -488,6 +614,7 @@ export class KingdomScene extends Phaser.Scene {
       // Sync wielders + heartless for this world.
       this.syncWieldersFor(ref, w, units);
       this.syncHeartlessFor(ref, w);
+      this.tickHeartlessCombat(ref, w, units, delta);
       // Time-of-day tint per-world based on session age.
       this.updateTimeOfDay(ref);
       // Drift particles inside this world's iso footprint.
@@ -495,7 +622,11 @@ export class KingdomScene extends Phaser.Scene {
       // Tier 2 — per-theme animated atmosphere (water, fire, magic).
       this.tickWorldAtmospherics(ref, delta);
       this.updateWorldBreath(ref, w, units);
+      this.tickWorldBiome(ref, w, units, delta);
+      this.tickWorldWorkSites(ref, w, units);
     }
+
+    this.tickKingdomBase(delta, units);
 
     // Twinkle stars
     for (const s of this.stars) {
@@ -523,18 +654,14 @@ export class KingdomScene extends Phaser.Scene {
       if (target) {
         const ref = this.worlds.get(target);
         if (ref) {
-          this.cameras.main.pan(
-            ref.container.x,
-            ref.container.y,
-            400,
-            "Sine.easeInOut"
-          );
-          // Zoom in if currently far out, so the targeted world's iso
-          // plane and (later) wielders are actually legible. Don't
-          // override if user is already zoomed in close.
+          const focusX = Phaser.Math.Linear(0, ref.container.x, 0.6);
+          const focusY = Phaser.Math.Linear(0, ref.container.y, 0.6);
+          this.cameras.main.pan(focusX, focusY, 400, "Sine.easeInOut");
+          // Zoom in enough for the selected mission to be legible while
+          // keeping the central base in context.
           const cam = this.cameras.main;
-          if (cam.zoom < 1.2) {
-            cam.zoomTo(1.4, 400, "Sine.easeInOut");
+          if (cam.zoom < WORLD_FOCUS_ZOOM) {
+            cam.zoomTo(WORLD_FOCUS_ZOOM, 400, "Sine.easeInOut");
           }
         }
       }
@@ -608,7 +735,7 @@ export class KingdomScene extends Phaser.Scene {
     });
 
     if (event.kind !== "tool_use") {
-      this.spawnActivityGlyph(worldRef, ref, kind, color);
+      this.spawnActivityGlyph(ref, kind, color);
     }
     if (kind === "subagent" || kind === "web") {
       this.pulseRoutesFromWorld(worldRef, color);
@@ -618,14 +745,13 @@ export class KingdomScene extends Phaser.Scene {
   private spawnToolVfx(worldRef: WorldRef, ref: WielderRef, toolName: string) {
     const kind = activityForToolName(toolName);
     const color = activityColorForTheme(worldRef.theme, kind);
-    this.spawnActivityGlyph(worldRef, ref, kind, color);
+    this.spawnActivityGlyph(ref, kind, color);
     if (kind === "subagent" || kind === "web") {
       this.pulseRoutesFromWorld(worldRef, color);
     }
   }
 
   private spawnActivityGlyph(
-    worldRef: WorldRef,
     ref: WielderRef,
     kind: WorldActivityKind,
     color: number
@@ -645,7 +771,7 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(71);
-    worldRef.isoPlane.add([g, label]);
+    this.agentLayer?.add([g, label]);
     this.tweens.add({
       targets: [g, label],
       y: "-=26",
@@ -670,9 +796,12 @@ export class KingdomScene extends Phaser.Scene {
         return peerLayout?.clusterKey === source.clusterKey;
       })
       .slice(0, 4);
-    if (peers.length === 0) return;
     const g = this.add.graphics().setDepth(-30);
     g.lineStyle(2, color, 0.45);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(worldRef.container.x, worldRef.container.y);
+    g.strokePath();
     for (const peer of peers) {
       g.beginPath();
       g.moveTo(worldRef.container.x, worldRef.container.y);
@@ -745,6 +874,11 @@ export class KingdomScene extends Phaser.Scene {
 
     for (const [id, ref] of this.worlds) {
       if (!seen.has(id)) {
+        for (const wielder of ref.wielders.values()) {
+          wielder.tether?.destroy();
+          wielder.orderLine.destroy();
+          wielder.container.destroy(true);
+        }
         ref.container.destroy(true);
         this.worlds.delete(id);
       } else {
@@ -752,6 +886,9 @@ export class KingdomScene extends Phaser.Scene {
         // (e.g., a sibling repo was added). Reposition smoothly.
         const pos = this.layout.get(id);
         if (pos && (ref.container.x !== pos.x || ref.container.y !== pos.y)) {
+          for (const wielder of ref.wielders.values()) {
+            wielder.locationTargetKey = undefined;
+          }
           this.tweens.add({
             targets: ref.container,
             x: pos.x,
@@ -767,6 +904,7 @@ export class KingdomScene extends Phaser.Scene {
       this.worlds.set(id, this.spawnWorld(id, worlds[id]));
     }
     this.drawWorldRoutes();
+    this.drawRealmMap();
     // Auto-fit camera when the world set changes, unless the user has
     // touched the camera recently (manual control wins).
     const shouldAutoFit =
@@ -800,35 +938,251 @@ export class KingdomScene extends Phaser.Scene {
       centroid.y /= members.length;
       centroids.push({ key, ...centroid });
 
+      const theme = this.worlds.get(members[0].id)?.theme ?? "disney";
+      const palette = THEME_BIOMES[theme];
+      this.strokeGummiLane(g, 0, 0, centroid.x, centroid.y, palette.lane, 0.22);
+
       if (members.length < 2) continue;
-      g.lineStyle(1.1, 0x6cc6ff, 0.16);
       for (const member of members) {
-        g.beginPath();
-        g.moveTo(centroid.x, centroid.y);
-        g.lineTo(member.x, member.y);
-        g.strokePath();
+        const memberTheme = this.worlds.get(member.id)?.theme ?? theme;
+        this.strokeGummiLane(
+          g,
+          centroid.x,
+          centroid.y,
+          member.x,
+          member.y,
+          THEME_BIOMES[memberTheme].lane,
+          0.26
+        );
       }
-      g.lineStyle(1.4, 0xffd86b, 0.12);
       for (let i = 0; i < members.length; i++) {
         const a = members[i];
         const b = members[(i + 1) % members.length];
-        g.beginPath();
-        g.moveTo(a.x, a.y);
-        g.lineTo(b.x, b.y);
-        g.strokePath();
+        this.strokeGummiLane(g, a.x, a.y, b.x, b.y, 0x6cc6ff, 0.12, 1.2);
       }
     }
 
     if (centroids.length < 2) return;
     centroids.sort((a, b) => a.key.localeCompare(b.key));
-    g.lineStyle(1, 0xc9a4ff, 0.08);
     for (let i = 0; i < centroids.length - 1; i++) {
       const a = centroids[i];
       const b = centroids[i + 1];
-      g.beginPath();
-      g.moveTo(a.x, a.y);
-      g.lineTo(b.x, b.y);
-      g.strokePath();
+      this.strokeGummiLane(g, a.x, a.y, b.x, b.y, 0xc9a4ff, 0.1, 1);
+    }
+  }
+
+  private strokeGummiLane(
+    g: Phaser.GameObjects.Graphics,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    color: number,
+    alpha: number,
+    width = 1.8
+  ) {
+    g.lineStyle(width + 6, 0x020713, alpha * 0.72);
+    g.beginPath();
+    g.moveTo(x1, y1);
+    g.lineTo(x2, y2);
+    g.strokePath();
+    g.lineStyle(width, color, alpha);
+    g.beginPath();
+    g.moveTo(x1, y1);
+    g.lineTo(x2, y2);
+    g.strokePath();
+
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const pips = Phaser.Math.Clamp(Math.floor(dist / 180), 2, 7);
+    g.fillStyle(color, alpha * 1.25);
+    for (let i = 1; i <= pips; i++) {
+      const t = i / (pips + 1);
+      g.fillCircle(
+        Phaser.Math.Linear(x1, x2, t),
+        Phaser.Math.Linear(y1, y2, t),
+        2.1
+      );
+    }
+  }
+
+  private drawRealmMap() {
+    const g = this.realmGfx;
+    if (!g) return;
+    g.clear();
+
+    const worldRefs = [...this.worlds.values()];
+    const bounds = this.getRealmBounds(worldRefs);
+    const w = Math.max(bounds.maxX - bounds.minX + 520, 900);
+    const h = Math.max(bounds.maxY - bounds.minY + 420, 620);
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = (bounds.minY + bounds.maxY) / 2;
+    g.lineStyle(18, 0x07182f, 0.13);
+    g.strokeEllipse(cx, cy + 24, w * 0.98, h * 0.96);
+    g.lineStyle(2, 0x6cc6ff, 0.1);
+    g.strokeEllipse(cx, cy + 24, w * 0.94, h * 0.9);
+    g.lineStyle(1.2, 0xffd86b, 0.06);
+    g.strokeEllipse(cx, cy + 24, w * 0.76, h * 0.72);
+
+    this.drawBaseRealm(g);
+
+    const grouped = new Map<string, WorldRef[]>();
+    for (const ref of worldRefs) {
+      const key = this.layout.get(ref.worldId)?.clusterKey ?? ref.worldId;
+      const list = grouped.get(key) ?? [];
+      list.push(ref);
+      grouped.set(key, list);
+    }
+
+    for (const [clusterKey, refs] of grouped) {
+      if (refs.length === 0) continue;
+      let groupX = 0;
+      let groupY = 0;
+      for (const ref of refs) {
+        groupX += ref.container.x;
+        groupY += ref.container.y;
+      }
+      groupX /= refs.length;
+      groupY /= refs.length;
+      const radiusX =
+        Math.max(...refs.map((ref) => Math.abs(ref.container.x - groupX))) +
+        190;
+      const radiusY =
+        Math.max(...refs.map((ref) => Math.abs(ref.container.y - groupY))) +
+        150;
+      this.drawClusterBiome(
+        g,
+        groupX,
+        groupY,
+        Math.max(radiusX, 230),
+        Math.max(radiusY, 170),
+        refs[0].theme,
+        clusterKey
+      );
+    }
+  }
+
+  private getRealmBounds(worldRefs: WorldRef[]) {
+    let minX = -BASE_RADIUS * 1.05;
+    let minY = -BASE_RADIUS * 0.7;
+    let maxX = BASE_RADIUS * 1.05;
+    let maxY = BASE_RADIUS * 0.78;
+    for (const ref of worldRefs) {
+      minX = Math.min(minX, ref.container.x - WORLD_REALM_PAD_X);
+      minY = Math.min(minY, ref.container.y - WORLD_REALM_PAD_Y);
+      maxX = Math.max(maxX, ref.container.x + WORLD_REALM_PAD_X);
+      maxY = Math.max(maxY, ref.container.y + WORLD_REALM_PAD_Y);
+    }
+    return { minX, minY, maxX, maxY };
+  }
+
+  private drawBaseRealm(g: Phaser.GameObjects.Graphics) {
+    g.fillStyle(0x07101f, 0.78);
+    g.fillEllipse(0, 34, BASE_RADIUS * 1.7, BASE_RADIUS * 0.72);
+    g.lineStyle(2.4, 0xffd86b, 0.24);
+    g.strokeEllipse(0, 34, BASE_RADIUS * 1.48, BASE_RADIUS * 0.6);
+    g.lineStyle(1.2, 0x6cc6ff, 0.16);
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      g.lineBetween(
+        Math.cos(a) * BASE_RADIUS * 0.26,
+        34 + Math.sin(a) * BASE_RADIUS * 0.1,
+        Math.cos(a) * BASE_RADIUS * 0.66,
+        34 + Math.sin(a) * BASE_RADIUS * 0.26
+      );
+    }
+  }
+
+  private drawClusterBiome(
+    g: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    radiusX: number,
+    radiusY: number,
+    theme: WorldTheme,
+    clusterKey: string
+  ) {
+    const palette = THEME_BIOMES[theme];
+    g.fillStyle(palette.shadow, 0.55);
+    g.fillEllipse(cx, cy + 28, radiusX * 2.12, radiusY * 1.55);
+    g.fillStyle(palette.ground, 0.24);
+    g.fillEllipse(cx, cy, radiusX * 2, radiusY * 1.4);
+    g.lineStyle(2, palette.accent, 0.18);
+    g.strokeEllipse(cx, cy, radiusX * 1.96, radiusY * 1.36);
+    g.lineStyle(1.2, palette.lane, 0.14);
+    g.strokeEllipse(cx, cy, radiusX * 1.46, radiusY * 0.98);
+
+    const seed = Math.abs(hashString(clusterKey));
+    for (let i = 0; i < 9; i++) {
+      const angle = ((seed >> (i % 12)) % 360) * (Math.PI / 180) + i * 0.7;
+      const r = 0.18 + ((seed >> (i + 3)) % 50) / 100;
+      const x = cx + Math.cos(angle) * radiusX * r;
+      const y = cy + Math.sin(angle) * radiusY * r * 0.7;
+      g.fillStyle(palette.accent, 0.08 + (i % 3) * 0.02);
+      g.fillEllipse(x, y, 34 + (i % 4) * 12, 10 + (i % 3) * 5);
+    }
+
+    if (theme === "destiny") {
+      g.lineStyle(1.4, palette.accent, 0.2);
+      for (let band = 0; band < 4; band++) {
+        const yBase = cy + radiusY * (-0.34 + band * 0.2);
+        g.beginPath();
+        for (let x = cx - radiusX * 0.72; x <= cx + radiusX * 0.72; x += 20) {
+          const y = yBase + Math.sin((x + seed) * 0.035 + band) * 8;
+          if (x === cx - radiusX * 0.72) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.strokePath();
+      }
+    } else if (theme === "traverse") {
+      g.lineStyle(2, palette.accent, 0.16);
+      g.lineBetween(cx - radiusX * 0.66, cy, cx + radiusX * 0.66, cy);
+      g.lineBetween(cx, cy - radiusY * 0.42, cx, cy + radiusY * 0.42);
+      g.lineStyle(1, palette.lane, 0.12);
+      for (let i = -2; i <= 2; i++) {
+        g.lineBetween(
+          cx - radiusX * 0.5,
+          cy + i * 28,
+          cx + radiusX * 0.5,
+          cy + i * 28
+        );
+      }
+    } else if (theme === "hollow") {
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + seed * 0.001;
+        const x = cx + Math.cos(a) * radiusX * 0.46;
+        const y = cy + Math.sin(a) * radiusY * 0.34;
+        g.fillStyle(i % 2 === 0 ? palette.accent : palette.lane, 0.16);
+        g.fillTriangle(x, y - 22, x - 10, y + 14, x + 11, y + 10);
+      }
+    } else if (theme === "twilight") {
+      g.lineStyle(1.2, palette.accent, 0.18);
+      for (let i = 0; i < 3; i++) {
+        g.strokeCircle(cx, cy, 42 + i * 34);
+      }
+      g.lineStyle(2, palette.lane, 0.14);
+      g.lineBetween(cx, cy, cx + radiusX * 0.24, cy - radiusY * 0.22);
+      g.lineBetween(cx, cy, cx - radiusX * 0.15, cy + radiusY * 0.3);
+    } else if (theme === "halloween") {
+      g.lineStyle(1.6, palette.accent, 0.2);
+      for (let i = 0; i < 5; i++) {
+        const x = cx - radiusX * 0.55 + i * radiusX * 0.28;
+        g.beginPath();
+        g.moveTo(x, cy + radiusY * 0.36);
+        g.lineTo(x + 20, cy + radiusY * 0.12);
+        g.lineTo(x - 4, cy - radiusY * 0.12);
+        g.strokePath();
+      }
+    } else {
+      g.lineStyle(1.3, palette.accent, 0.18);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        g.lineBetween(
+          cx,
+          cy,
+          cx + Math.cos(a) * radiusX * 0.55,
+          cy + Math.sin(a) * radiusY * 0.35
+        );
+      }
     }
   }
 
@@ -892,29 +1246,458 @@ export class KingdomScene extends Phaser.Scene {
    * Used on first-spawn and on a future "recenter" verb.
    */
   private fitCameraToWorlds() {
-    if (this.worlds.size === 0) return;
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (const ref of this.worlds.values()) {
-      minX = Math.min(minX, ref.container.x);
-      minY = Math.min(minY, ref.container.y);
-      maxX = Math.max(maxX, ref.container.x);
-      maxY = Math.max(maxY, ref.container.y);
-    }
-    const padding = 160;
-    const w = maxX - minX + padding * 2;
-    const h = maxY - minY + padding * 2;
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
+    const metrics = this.realmCameraMetrics();
+    if (!metrics) return;
     const cam = this.cameras.main;
-    const targetZoom = Math.min(
-      cam.width / Math.max(w, 200),
-      cam.height / Math.max(h, 200)
+    cam.setZoom(Phaser.Math.Clamp(metrics.fitZoom, ABSOLUTE_MIN_ZOOM, 1.5));
+    cam.centerOn(metrics.centerX, metrics.centerY);
+  }
+
+  private realmCameraMetrics() {
+    if (this.worlds.size === 0) return undefined;
+    const { minX, minY, maxX, maxY } = this.getRealmBounds([
+      ...this.worlds.values(),
+    ]);
+    const cam = this.cameras.main;
+    if (cam.width <= 0 || cam.height <= 0) return undefined;
+    const safeLeft = Math.min(CAMERA_SAFE_LEFT_PX, cam.width * 0.34);
+    const safeRight = Math.min(CAMERA_SAFE_RIGHT_PX, cam.width * 0.3);
+    const safeTop = Math.min(CAMERA_SAFE_TOP_PX, cam.height * 0.18);
+    const safeBottom = Math.min(CAMERA_SAFE_BOTTOM_PX, cam.height * 0.32);
+    const safeW = Math.max(cam.width - safeLeft - safeRight, cam.width * 0.38);
+    const safeH = Math.max(
+      cam.height - safeTop - safeBottom,
+      cam.height * 0.42
     );
-    cam.zoom = Phaser.Math.Clamp(targetZoom, 0.3, 1.5);
-    cam.centerOn(cx, cy);
+    const w = maxX - minX + CAMERA_WORLD_PAD_X * 2;
+    const h = maxY - minY + CAMERA_WORLD_PAD_Y * 2;
+    const fitZoom = Math.max(
+      0.001,
+      Math.min(safeW / Math.max(w, 200), safeH / Math.max(h, 200))
+    );
+    return {
+      centerX: (minX + maxX) / 2 + (safeRight - safeLeft) / (2 * fitZoom),
+      centerY: (minY + maxY) / 2 + (safeBottom - safeTop) / (2 * fitZoom),
+      fitZoom,
+    };
+  }
+
+  private strategyMinZoom() {
+    const metrics = this.realmCameraMetrics();
+    if (!metrics) return 0.35;
+    return Phaser.Math.Clamp(
+      metrics.fitZoom * STRATEGY_ZOOM_EXTRA_ROOM,
+      ABSOLUTE_MIN_ZOOM,
+      0.75
+    );
+  }
+
+  private centerCameraOnRealm() {
+    const metrics = this.realmCameraMetrics();
+    if (!metrics) return;
+    this.cameras.main.centerOn(metrics.centerX, metrics.centerY);
+  }
+
+  private enforceStrategyZoomFloor() {
+    const cam = this.cameras.main;
+    const minZoom = this.strategyMinZoom();
+    if (cam.zoom >= minZoom) return;
+    cam.setZoom(minZoom);
+    this.centerCameraOnRealm();
+  }
+
+  private spawnKingdomBase(): BaseRef {
+    const container = this.add.container(0, 0).setDepth(-20);
+    const isoPlane = this.add.container(0, 0);
+
+    const shadow = this.add
+      .ellipse(0, 34, BASE_RADIUS * 1.2, BASE_RADIUS * 0.48, 0x000000, 0.28)
+      .setDepth(-25);
+    const aura = this.add
+      .ellipse(0, 18, BASE_RADIUS * 1.22, BASE_RADIUS * 0.52, 0x2f7dff, 0.1)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    container.add([shadow, aura]);
+
+    const haveTiles =
+      this.textures.exists("tile-iso-a") && this.textures.exists("tile-iso-b");
+    if (haveTiles) {
+      for (let x = 0; x < BASE_GRID_W; x++) {
+        for (let y = 0; y < BASE_GRID_H; y++) {
+          const c = this.baseIsoToLocal(x + 0.5, y + 0.5);
+          const tex = (x + y) % 2 === 0 ? "tile-iso-a" : "tile-iso-b";
+          const tile = this.add.image(c.x, c.y, tex);
+          tile.setOrigin(0.5, 0.5);
+          tile.setScale(BASE_TILE_W / ISO_TILE_W, BASE_TILE_H / ISO_TILE_H);
+          tile.setAlpha(1);
+          tile.setTint((x + y) % 2 === 0 ? 0x5f76c8 : 0x405aa6);
+          isoPlane.add(tile);
+        }
+      }
+    } else {
+      const g = this.add.graphics();
+      g.lineStyle(1, 0x334575, 0.42);
+      for (let x = 0; x < BASE_GRID_W; x++) {
+        for (let y = 0; y < BASE_GRID_H; y++) {
+          const a = this.baseIsoToLocal(x, y);
+          const b = this.baseIsoToLocal(x + 1, y);
+          const c = this.baseIsoToLocal(x + 1, y + 1);
+          const d = this.baseIsoToLocal(x, y + 1);
+          g.fillStyle((x + y) % 2 === 0 ? 0x101a3e : 0x14204a, 0.96);
+          g.fillPoints([a, b, c, d] as Phaser.Math.Vector2[], true);
+          g.strokePoints([a, b, c, d, a] as Phaser.Math.Vector2[]);
+        }
+      }
+      isoPlane.add(g);
+    }
+
+    const center = this.baseIsoToLocal(BASE_GRID_W / 2, BASE_GRID_H / 2);
+    const tex = LANDMARK_TEX("disney");
+    if (this.textures.exists(tex)) {
+      const castle = this.add.image(center.x, center.y - 8, tex);
+      castle.setOrigin(0.5, 1);
+      castle.setScale(2.65);
+      castle.setTint(0xfff8db);
+      isoPlane.add(castle);
+    }
+
+    const beacon = this.add
+      .circle(center.x, center.y - 62, 38, 0xffd86b, 0.18)
+      .setStrokeStyle(2.5, 0xffd86b, 0.75)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    isoPlane.add(beacon);
+
+    const commandGfx = this.add.graphics();
+    isoPlane.add(commandGfx);
+
+    const padTiles = [
+      [1.6, 5.8],
+      [3.2, 6.9],
+      [6.8, 6.9],
+      [8.4, 5.8],
+      [2.4, 2.5],
+      [7.6, 2.5],
+    ] as const;
+    const pads = padTiles.map(([tx, ty], i) => {
+      const p = this.baseIsoToLocal(tx, ty);
+      const pad = this.add
+        .circle(p.x, p.y, 20, i % 2 === 0 ? 0x6cc6ff : 0xffd86b, 0.22)
+        .setStrokeStyle(2.2, i % 2 === 0 ? 0x6cc6ff : 0xffd86b, 0.72)
+        .setScale(1, 0.42);
+      isoPlane.add(pad);
+      return pad;
+    });
+
+    const rim = this.add
+      .ellipse(0, 18, BASE_RADIUS * 1.08, BASE_RADIUS * 0.46, 0x000000, 0)
+      .setStrokeStyle(2.4, 0x6cc6ff, 0.42);
+    isoPlane.add(rim);
+    const label = this.add
+      .text(0, BASE_RADIUS * 0.32, "KINGDOM BASE", {
+        fontSize: "10px",
+        color: "#ffd86b",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        letterSpacing: 1,
+        backgroundColor: "rgba(6, 8, 18, 0.72)",
+        padding: { x: 5, y: 2 },
+      })
+      .setOrigin(0.5, 0);
+    isoPlane.add(label);
+
+    container.add(isoPlane);
+    return {
+      container,
+      isoPlane,
+      commandGfx,
+      beacon,
+      pads,
+      phase: Math.random() * Math.PI * 2,
+    };
+  }
+
+  private tickKingdomBase(delta: number, units: Record<string, UnitState>) {
+    const base = this.base;
+    if (!base) return;
+    base.phase += delta * 0.001;
+    const pulse = 0.5 + 0.5 * Math.sin(base.phase * 1.8);
+    base.beacon.setScale(0.92 + pulse * 0.18);
+    base.beacon.setAlpha(0.55 + pulse * 0.28);
+    const activeUnits = Object.values(units).filter(
+      (unit) => unit.status === "working" || unit.status === "casting"
+    );
+    for (let i = 0; i < base.pads.length; i++) {
+      const padPulse = 0.5 + 0.5 * Math.sin(base.phase * 2.1 + i * 0.7);
+      const active = activeUnits.length > 0 && i < activeUnits.length;
+      base.pads[i].setAlpha(
+        active ? 0.72 + padPulse * 0.22 : 0.42 + padPulse * 0.26
+      );
+      base.pads[i].setStrokeStyle(
+        active ? 2.8 : 2.2,
+        active ? 0xffd86b : i % 2 === 0 ? 0x6cc6ff : 0xffd86b,
+        active ? 0.88 : 0.64
+      );
+    }
+
+    const g = base.commandGfx;
+    g.clear();
+    const center = this.baseIsoToLocal(BASE_GRID_W / 2, BASE_GRID_H / 2);
+    g.lineStyle(1.2, 0x6cc6ff, 0.12 + pulse * 0.08);
+    for (let i = 0; i < 3; i++) {
+      const ringPulse = (base.phase * 18 + i * 28) % 34;
+      g.strokeEllipse(
+        center.x,
+        center.y - 12,
+        86 + i * 46 + ringPulse,
+        34 + i * 18 + ringPulse * 0.35
+      );
+    }
+
+    const pipCount = Phaser.Math.Clamp(activeUnits.length, 0, 8);
+    for (let i = 0; i < pipCount; i++) {
+      const a = base.phase * 1.15 + (i / Math.max(pipCount, 1)) * Math.PI * 2;
+      const rX = 78 + (i % 3) * 18;
+      const rY = 28 + (i % 3) * 7;
+      g.fillStyle(i % 2 === 0 ? 0xffd86b : 0x6cc6ff, 0.65);
+      g.fillCircle(
+        center.x + Math.cos(a) * rX,
+        center.y - 12 + Math.sin(a) * rY,
+        2.6 + pulse * 1.4
+      );
+    }
+  }
+
+  private baseIsoToLocal(tx: number, ty: number) {
+    const offsetY = -(BASE_GRID_H * BASE_TILE_H) / 2;
+    return {
+      x: (tx - ty) * (BASE_TILE_W / 2),
+      y: offsetY + (tx + ty) * (BASE_TILE_H / 2),
+    };
+  }
+
+  private baseSlotPosition(slot: number) {
+    const slots = [
+      [4.4, 5.5],
+      [5.4, 5.5],
+      [3.3, 5.2],
+      [6.5, 5.2],
+      [2.4, 4.3],
+      [7.5, 4.3],
+      [3.4, 3.2],
+      [6.4, 3.2],
+      [4.8, 4.2],
+      [3.1, 6.5],
+      [6.9, 6.5],
+      [8.2, 5.2],
+    ] as const;
+    const normalized = Number.isFinite(slot)
+      ? Math.abs(Math.floor(slot)) % slots.length
+      : 0;
+    const [tx, ty] = slots[normalized];
+    const p = this.baseIsoToLocal(tx, ty);
+    const h = hashString(String(slot));
+    return {
+      x: p.x + (((Math.abs(h) >> 2) % 9) - 4) * 1.8,
+      y: p.y + (((Math.abs(h) >> 7) % 7) - 3) * 1.4,
+    };
+  }
+
+  private basePatrolPosition(slot: number) {
+    const tx = 2 + Math.random() * 6;
+    const ty = 2.4 + Math.random() * 4.2;
+    const p = this.baseIsoToLocal(tx, ty);
+    const home = this.baseSlotPosition(slot);
+    return {
+      x: Phaser.Math.Linear(home.x, p.x, 0.72),
+      y: Phaser.Math.Linear(home.y, p.y, 0.72),
+    };
+  }
+
+  private missionSlotPosition(worldRef: WorldRef, slot: number) {
+    const radius = this.missionRingRadius();
+    const normalized = Number.isFinite(slot)
+      ? Math.abs(Math.floor(slot)) % MISSION_PAD_COUNT
+      : 0;
+    const angle =
+      -Math.PI / 2 + normalized * ((Math.PI * 2) / MISSION_PAD_COUNT);
+    return {
+      x: worldRef.container.x + Math.cos(angle) * radius,
+      y: worldRef.container.y + Math.sin(angle) * radius * 0.68,
+    };
+  }
+
+  private missionRingRadius() {
+    return (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 52;
+  }
+
+  private hasMissionStatus(unit: UnitState) {
+    return (
+      unit.status === "working" ||
+      unit.status === "casting" ||
+      unit.status === "fallen"
+    );
+  }
+
+  private shouldStandAtMission(unit: UnitState, ref?: WielderRef) {
+    return (
+      this.hasMissionStatus(unit) ||
+      (ref ? this.time.now < ref.missionHoldUntil : false)
+    );
+  }
+
+  private holdMissionForEvent(ref: WielderRef, event: AgentEvent) {
+    let holdMs = 0;
+    if (event.kind === "tool_use" || event.kind === "user_prompt") {
+      holdMs = MISSION_DWELL_MS;
+    } else if (event.kind === "permission_request") {
+      holdMs = PERMISSION_DWELL_MS;
+    } else if (event.kind === "subagent_spawn") {
+      holdMs = MISSION_DWELL_MS;
+    }
+    if (holdMs === 0) return;
+    ref.missionHoldUntil = Math.max(
+      ref.missionHoldUntil,
+      this.time.now + holdMs
+    );
+    ref.locationTargetKey = undefined;
+  }
+
+  private locationKeyFor(
+    mode: WielderRef["locationMode"],
+    worldId: string | undefined
+  ) {
+    return mode === "mission" && worldId ? `mission:${worldId}` : "base";
+  }
+
+  private ensureWielderLocation(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState,
+    now: number
+  ) {
+    const mode: WielderRef["locationMode"] = this.shouldStandAtMission(
+      unit,
+      ref
+    )
+      ? "mission"
+      : "base";
+    const key = this.locationKeyFor(mode, worldRef.worldId);
+    if (ref.locationTargetKey === key) return;
+
+    const target =
+      mode === "mission"
+        ? this.missionSlotPosition(worldRef, ref.homeIndex)
+        : this.baseSlotPosition(ref.homeIndex);
+    ref.locationTargetKey = key;
+    ref.locationMode = mode;
+    ref.isTraveling = true;
+    ref.patrolTarget = undefined;
+    ref.patrolState = "walking";
+    this.tweens.killTweensOf(ref.container);
+    if (unit.status !== "fallen") {
+      ref.container.setAngle(0);
+      ref.container.setAlpha(1);
+    }
+    const dist = Math.hypot(
+      target.x - ref.container.x,
+      target.y - ref.container.y
+    );
+    const duration = Phaser.Math.Clamp(dist * 4.2, 420, 1900);
+    if (dist > 72) {
+      const color =
+        mode === "mission"
+          ? THEME_BIOMES[worldRef.theme].accent
+          : THEME_BIOMES[worldRef.theme].lane;
+      this.spawnTravelPulse(
+        { x: ref.container.x, y: ref.container.y },
+        target,
+        color,
+        duration
+      );
+    }
+    this.playWalkAnimation(ref, unit.role);
+    this.tweens.add({
+      targets: ref.container,
+      x: target.x,
+      y: target.y,
+      duration,
+      ease: "Sine.easeInOut",
+      onComplete: () => {
+        ref.isTraveling = false;
+        ref.patrolState = "arrived";
+        ref.patrolNextSwitchAt = now + 900 + Math.random() * 1800;
+        if (unit.status !== "fallen") {
+          this.playIdleAnimation(ref, unit.role);
+        }
+      },
+    });
+  }
+
+  private playWalkAnimation(ref: WielderRef, role: UnitState["role"]) {
+    const walkAnim = ANIM.walkDown(role);
+    if (
+      this.anims.exists(walkAnim) &&
+      ref.sprite &&
+      ref.currentAnim !== walkAnim
+    ) {
+      ref.sprite.play(walkAnim);
+      ref.currentAnim = walkAnim;
+    }
+  }
+
+  private playIdleAnimation(ref: WielderRef, role: UnitState["role"]) {
+    const idle = getIdleAnimKey(role);
+    if (this.anims.exists(idle) && ref.sprite && ref.currentAnim !== idle) {
+      ref.sprite.play(idle);
+      ref.currentAnim = idle;
+    }
+  }
+
+  private spawnTravelPulse(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    color: number,
+    duration: number
+  ) {
+    const lane = this.add.graphics().setDepth(52);
+    lane.lineStyle(7, 0x020713, 0.5);
+    lane.beginPath();
+    lane.moveTo(from.x, from.y);
+    lane.lineTo(to.x, to.y);
+    lane.strokePath();
+    lane.lineStyle(2.2, color, 0.6);
+    lane.beginPath();
+    lane.moveTo(from.x, from.y);
+    lane.lineTo(to.x, to.y);
+    lane.strokePath();
+
+    const markerGlow = this.add.circle(0, 0, 12, color, 0.22);
+    const marker = this.add
+      .triangle(0, 0, 0, -9, 13, 9, -13, 9, color, 0.9)
+      .setStrokeStyle(1, 0xffffff, 0.45);
+    const markerContainer = this.add.container(from.x, from.y, [
+      markerGlow,
+      marker,
+    ]);
+    markerContainer.setDepth(61);
+    markerContainer.setRotation(
+      Phaser.Math.Angle.Between(from.x, from.y, to.x, to.y) + Math.PI / 2
+    );
+    this.agentLayer?.add([lane, markerContainer]);
+    this.tweens.add({
+      targets: markerContainer,
+      x: to.x,
+      y: to.y,
+      duration,
+      ease: "Sine.easeInOut",
+      onComplete: () => markerContainer.destroy(true),
+    });
+    this.tweens.add({
+      targets: lane,
+      alpha: 0,
+      duration: Math.max(360, duration * 0.9),
+      ease: "Sine.easeIn",
+      onComplete: () => lane.destroy(),
+    });
   }
 
   private spawnWorld(worldId: string, world: WorldState): WorldRef {
@@ -923,14 +1706,18 @@ export class KingdomScene extends Phaser.Scene {
     const container = this.add.container(pos.x, pos.y);
 
     // Iso plane container — scaled down to fit cluster spacing. Holds
-    // tiles + landmark + (later) wielder sprites + heartless. Anchored
-    // so the visual center sits at the world container's origin.
+    // tiles, landmark, atmospherics, and heartless. Wielders live on
+    // the scene-global agent layer and stage beside the world.
     const isoPlane = this.add.container(0, 0);
     isoPlane.setScale(ISO_CONTAINER_SCALE);
     this.buildIsoPlane(isoPlane, theme);
 
     // UI affordances at native scale (don't shrink with the iso plane).
     const ringRadius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 8;
+    const biome = this.add.graphics();
+    this.drawWorldBiomeBackdrop(biome, theme, ringRadius);
+    const workGfx = this.add.graphics();
+    const missionPads = this.spawnMissionPads(theme);
     const alertRing = this.add
       .circle(0, 0, ringRadius, 0x000000, 0)
       .setStrokeStyle(2.5, ALERT_RING_COLOR[world.alertLevel], 1);
@@ -970,22 +1757,26 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(world.unitIds.length > 0);
 
-    // Time-of-day overlay — sized to cover the iso plane footprint.
-    // Tinted by session age in update(); starts transparent.
-    const todSize = ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE * 1.1;
+    // Time-of-day / activity overlays follow the world's oval footprint.
+    // Rectangular overlays read like a map tile when zoomed out.
+    const overlayW = ringRadius * 2.26;
+    const overlayH = ringRadius * 1.16;
     const todOverlay = this.add
-      .rectangle(0, 0, todSize, todSize, 0x000000, 0)
+      .ellipse(0, 10, overlayW, overlayH, 0x000000, 0)
       .setOrigin(0.5);
     const breathOverlay = this.add
-      .rectangle(0, 0, todSize, todSize, 0x6cc6ff, 0)
+      .ellipse(0, 10, overlayW, overlayH, 0x6cc6ff, 0)
       .setOrigin(0.5)
       .setBlendMode(Phaser.BlendModes.ADD);
     const eventOverlay = this.add
-      .rectangle(0, 0, todSize, todSize, 0xffd86b, 0)
+      .ellipse(0, 10, overlayW, overlayH, 0xffd86b, 0)
       .setOrigin(0.5)
       .setBlendMode(Phaser.BlendModes.ADD);
 
     container.add([
+      biome,
+      workGfx,
+      ...missionPads,
       isoPlane,
       todOverlay,
       breathOverlay,
@@ -1022,6 +1813,9 @@ export class KingdomScene extends Phaser.Scene {
       worldId,
       container,
       isoPlane,
+      biome,
+      workGfx,
+      missionPads,
       todOverlay,
       breathOverlay,
       eventOverlay,
@@ -1039,7 +1833,217 @@ export class KingdomScene extends Phaser.Scene {
       breathPhase: Math.random() * Math.PI * 2,
       lastActivityAt: 0,
       lastActivityColor: ALERT_RING_COLOR[world.alertLevel],
+      missionPadPhase: Math.random() * Math.PI * 2,
     };
+  }
+
+  private drawWorldBiomeBackdrop(
+    g: Phaser.GameObjects.Graphics,
+    theme: WorldTheme,
+    ringRadius: number
+  ) {
+    const palette = THEME_BIOMES[theme];
+    g.clear();
+    g.fillStyle(palette.shadow, 0.78);
+    g.fillEllipse(0, 24, ringRadius * 2.38, ringRadius * 1.24);
+    g.fillStyle(palette.ground, 0.38);
+    g.fillEllipse(0, 10, ringRadius * 2.18, ringRadius * 1.1);
+    g.lineStyle(2, palette.accent, 0.32);
+    g.strokeEllipse(0, 10, ringRadius * 2.06, ringRadius);
+    g.lineStyle(1.2, palette.lane, 0.24);
+    g.strokeEllipse(0, 10, ringRadius * 1.56, ringRadius * 0.68);
+
+    if (theme === "destiny") {
+      g.lineStyle(1.2, palette.accent, 0.38);
+      for (let i = 0; i < 3; i++) {
+        const yBase = 25 + i * 8;
+        g.beginPath();
+        for (let x = -ringRadius * 0.82; x <= ringRadius * 0.82; x += 12) {
+          const y = yBase + Math.sin(x * 0.09 + i) * 3;
+          if (x === -ringRadius * 0.82) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.strokePath();
+      }
+    } else if (theme === "traverse") {
+      g.lineStyle(1.5, palette.accent, 0.28);
+      g.lineBetween(-ringRadius * 0.7, 8, ringRadius * 0.7, 8);
+      g.lineBetween(0, -ringRadius * 0.32, 0, ringRadius * 0.42);
+    } else if (theme === "hollow") {
+      g.fillStyle(palette.accent, 0.22);
+      g.fillTriangle(-42, 4, -28, -28, -12, 8);
+      g.fillTriangle(38, 8, 50, -20, 62, 12);
+    } else if (theme === "twilight") {
+      g.lineStyle(1.2, palette.accent, 0.24);
+      g.strokeCircle(0, 2, 44);
+      g.strokeCircle(0, 2, 62);
+      g.lineBetween(0, 2, 26, -24);
+      g.lineBetween(0, 2, -18, 30);
+    } else if (theme === "halloween") {
+      g.lineStyle(1.4, palette.accent, 0.32);
+      g.beginPath();
+      g.moveTo(-64, 28);
+      g.lineTo(-44, -12);
+      g.lineTo(-18, 20);
+      g.lineTo(8, -22);
+      g.lineTo(44, 22);
+      g.strokePath();
+    } else {
+      g.lineStyle(1.2, palette.accent, 0.22);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        g.lineBetween(
+          Math.cos(a) * 18,
+          10 + Math.sin(a) * 8,
+          Math.cos(a) * ringRadius * 0.74,
+          10 + Math.sin(a) * ringRadius * 0.34
+        );
+      }
+    }
+  }
+
+  private spawnMissionPads(theme: WorldTheme) {
+    const palette = THEME_BIOMES[theme];
+    const radius = this.missionRingRadius();
+    const pads: Phaser.GameObjects.Arc[] = [];
+    for (let i = 0; i < MISSION_PAD_COUNT; i++) {
+      const angle = -Math.PI / 2 + i * ((Math.PI * 2) / MISSION_PAD_COUNT);
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius * 0.68;
+      const pad = this.add
+        .circle(x, y, 14, palette.ground, 0.22)
+        .setStrokeStyle(1.6, palette.lane, 0.45)
+        .setScale(1, 0.46);
+      pads.push(pad);
+    }
+    return pads;
+  }
+
+  private tickWorldBiome(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>,
+    delta: number
+  ) {
+    worldRef.missionPadPhase += delta * 0.001;
+    const palette = THEME_BIOMES[worldRef.theme];
+    const activeSlots = new Set<number>();
+    for (const ref of worldRef.wielders.values()) {
+      if (
+        ref.locationMode === "mission" ||
+        this.time.now < ref.missionHoldUntil
+      ) {
+        activeSlots.add(Math.abs(ref.homeIndex) % MISSION_PAD_COUNT);
+      }
+    }
+
+    const hasWorkingUnit = world.unitIds.some((id) => {
+      const unit = units[id];
+      return unit?.status === "working" || unit?.status === "casting";
+    });
+    const mood =
+      world.alertLevel === "danger" || world.alertLevel === "warning"
+        ? 0.14
+        : hasWorkingUnit
+          ? 0.1
+          : 0.04;
+    const biomeWave = 0.5 + 0.5 * Math.sin(worldRef.missionPadPhase * 1.8);
+    worldRef.biome.setAlpha(0.78 + mood * biomeWave);
+
+    for (let i = 0; i < worldRef.missionPads.length; i++) {
+      const busy = activeSlots.has(i);
+      const wave =
+        0.5 + 0.5 * Math.sin(worldRef.missionPadPhase * 2.8 + i * 0.65);
+      const pad = worldRef.missionPads[i];
+      pad.setAlpha(busy ? 0.75 + wave * 0.22 : 0.32 + wave * 0.12);
+      pad.setFillStyle(
+        busy ? palette.accent : palette.ground,
+        busy ? 0.34 : 0.2
+      );
+      pad.setStrokeStyle(
+        busy ? 2.2 : 1.4,
+        busy ? palette.accent : palette.lane,
+        busy ? 0.78 : 0.42
+      );
+      const scale = busy ? 1.08 + wave * 0.08 : 1;
+      pad.setScale(scale, 0.46 * scale);
+    }
+  }
+
+  private tickWorldWorkSites(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ) {
+    const g = worldRef.workGfx;
+    g.clear();
+    const activeRefs = [...worldRef.wielders.values()]
+      .map((ref) => ({ ref, unit: units[ref.unitId] }))
+      .filter(
+        (entry): entry is { ref: WielderRef; unit: UnitState } =>
+          !!entry.unit &&
+          (entry.ref.locationMode === "mission" ||
+            this.time.now < entry.ref.missionHoldUntil ||
+            entry.unit.status === "working" ||
+            entry.unit.status === "casting")
+      );
+    const danger =
+      world.alertLevel === "danger" ||
+      world.alertLevel === "warning" ||
+      world.heartless.length > 0;
+    const worldPulse = 0.5 + 0.5 * Math.sin(this.t * (danger ? 4.4 : 2.2));
+    if (activeRefs.length > 0) {
+      g.lineStyle(1.2, 0xffd86b, 0.16 + worldPulse * 0.08);
+      g.strokeEllipse(0, 10, 212 + worldPulse * 16, 104 + worldPulse * 8);
+    }
+
+    for (const { ref, unit } of activeRefs.slice(0, MISSION_PAD_COUNT)) {
+      const p = this.missionSlotPosition(worldRef, ref.homeIndex);
+      const x = p.x - worldRef.container.x;
+      const y = p.y - worldRef.container.y;
+      const color = this.commandColorForUnit(worldRef, unit);
+      const slotPulse = 0.5 + 0.5 * Math.sin(this.t * 5.2 + ref.homeIndex);
+      g.lineStyle(6, 0x020713, 0.36);
+      g.lineBetween(x, y, 0, 6);
+      g.lineStyle(1.8, color, 0.42 + slotPulse * 0.24);
+      g.lineBetween(x, y, 0, 6);
+      g.fillStyle(color, 0.1 + slotPulse * 0.12);
+      g.fillEllipse(x, y + 4, 48 + slotPulse * 10, 18 + slotPulse * 4);
+      g.lineStyle(2, color, 0.5 + slotPulse * 0.28);
+      g.beginPath();
+      g.arc(
+        x,
+        y,
+        19 + slotPulse * 3,
+        -Math.PI / 2,
+        -Math.PI / 2 +
+          Math.PI * 2 * ((this.t * 0.18 + ref.homeIndex * 0.13) % 1)
+      );
+      g.strokePath();
+      g.fillStyle(color, 0.72);
+      g.fillCircle(
+        Phaser.Math.Linear(x, 0, 0.5 + slotPulse * 0.16),
+        Phaser.Math.Linear(y, 6, 0.5 + slotPulse * 0.16),
+        2.2
+      );
+    }
+
+    if (danger) {
+      g.lineStyle(1.4, 0xff5a3c, 0.16 + worldPulse * 0.18);
+      g.strokeEllipse(0, 12, 236 + worldPulse * 22, 116 + worldPulse * 10);
+      for (let i = 0; i < Math.min(world.heartless.length, 5); i++) {
+        const a = this.t * 1.4 + i * ((Math.PI * 2) / 5);
+        g.fillStyle(0xff5a3c, 0.3 + worldPulse * 0.2);
+        g.fillTriangle(
+          Math.cos(a) * 112,
+          10 + Math.sin(a) * 50 - 7,
+          Math.cos(a + 0.08) * 112,
+          10 + Math.sin(a + 0.08) * 50 + 7,
+          Math.cos(a - 0.08) * 112,
+          10 + Math.sin(a - 0.08) * 50 + 7
+        );
+      }
+    }
   }
 
   /**
@@ -1213,8 +2217,8 @@ export class KingdomScene extends Phaser.Scene {
 
   /**
    * Add/remove wielder sprites for a world based on its current unitIds.
-   * Wielders live inside the world's isoPlane container so they share its
-   * scaling.
+   * Wielders are scene-global actors: idle/complete units roam the base,
+   * active/fallen units stand at mission pads beside their world.
    */
   private syncWieldersFor(
     worldRef: WorldRef,
@@ -1226,6 +2230,7 @@ export class KingdomScene extends Phaser.Scene {
     for (const [id, w] of worldRef.wielders) {
       if (!seen.has(id)) {
         w.tether?.destroy();
+        w.orderLine.destroy();
         w.container.destroy(true);
         worldRef.wielders.delete(id);
       }
@@ -1322,11 +2327,21 @@ export class KingdomScene extends Phaser.Scene {
       ref.lastDriveForm = unit.driveForm;
     }
 
+    if (this.hasMissionStatus(unit)) {
+      ref.missionHoldUntil = Math.max(
+        ref.missionHoldUntil,
+        now + MISSION_DWELL_MS
+      );
+    }
+    this.ensureWielderLocation(worldRef, ref, unit, now);
+    this.updateWielderOrder(worldRef, ref, unit);
+
     // ── Status pose (death / victory) ───────────────────────────────
     if (unit.status !== ref.lastStatus) {
       if (unit.status === "fallen") {
-        // Tilt + fade slightly. Stop patrol.
-        this.tweens.killTweensOf(ref.container);
+        // Tilt + fade slightly. Movement is already owned by the
+        // base/mission location tween, so only animate pose properties.
+        ref.isTraveling = false;
         this.tweens.add({
           targets: ref.container,
           angle: 80,
@@ -1350,7 +2365,6 @@ export class KingdomScene extends Phaser.Scene {
         ref.label.setColor("#ffd86b");
       } else if (ref.lastStatus === "fallen" || ref.lastStatus === "complete") {
         // Recovered (rare — typically fixtures only).
-        this.tweens.killTweensOf(ref.container);
         ref.container.setAngle(0);
         ref.container.setAlpha(1);
         ref.sprite?.clearTint();
@@ -1360,52 +2374,36 @@ export class KingdomScene extends Phaser.Scene {
     }
 
     // ── Patrol behavior ─────────────────────────────────────────────
-    // Stop patrolling if not in a "free" status. Idle wielders patrol;
-    // working/casting/fallen/complete don't.
-    const canPatrol = unit.status === "idle" || unit.status === "moving";
+    // Stop patrolling if not in a "free" status. Idle/moving wielders
+    // roam the base; working/casting/fallen/complete units stay staged.
+    const canPatrol =
+      (unit.status === "idle" || unit.status === "moving") &&
+      ref.locationMode === "base" &&
+      !ref.isTraveling;
     if (canPatrol && now >= ref.patrolNextSwitchAt) {
-      // Pick a new target tile within the iso grid.
-      const tx = 1 + Math.floor(Math.random() * (ISO_GRID - 1));
-      const ty = 1 + Math.floor(Math.random() * (ISO_GRID - 1));
-      const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
-      const targetX = (tx - ty) * (ISO_TILE_W / 2);
-      const targetY = offsetY + (tx + ty) * (ISO_TILE_H / 2);
-      ref.patrolTarget = { tx, ty };
+      const target = this.basePatrolPosition(ref.homeIndex);
+      ref.patrolTarget = target;
       ref.patrolState = "walking";
       this.tweens.killTweensOf(ref.container);
       // Ensure no stale rotation/alpha from a fallen→recovered transition
       ref.container.setAngle(0);
       ref.container.setAlpha(1);
       const dist = Math.hypot(
-        targetX - ref.container.x,
-        targetY - ref.container.y
+        target.x - ref.container.x,
+        target.y - ref.container.y
       );
-      const duration = Math.max(800, dist * 12);
-      // Switch to walk animation while moving.
-      const walkAnim = ANIM.walkDown(unit.role);
-      if (
-        this.anims.exists(walkAnim) &&
-        ref.sprite &&
-        ref.currentAnim !== walkAnim
-      ) {
-        ref.sprite.play(walkAnim);
-        ref.currentAnim = walkAnim;
-      }
+      const duration = Math.max(900, dist * 9);
+      this.playWalkAnimation(ref, unit.role);
       this.tweens.add({
         targets: ref.container,
-        x: targetX,
-        y: targetY,
+        x: target.x,
+        y: target.y,
         duration,
         ease: "Sine.easeInOut",
         onComplete: () => {
           ref.patrolState = "arrived";
           ref.patrolNextSwitchAt = now + 1200 + Math.random() * 2400;
-          // Return to idle anim.
-          const idle = getIdleAnimKey(unit.role);
-          if (this.anims.exists(idle) && ref.sprite) {
-            ref.sprite.play(idle);
-            ref.currentAnim = idle;
-          }
+          this.playIdleAnimation(ref, unit.role);
         },
       });
     }
@@ -1419,7 +2417,7 @@ export class KingdomScene extends Phaser.Scene {
       if (parent) {
         if (!ref.tether) {
           ref.tether = this.add.graphics().setDepth(-5);
-          worldRef.isoPlane.add(ref.tether);
+          this.agentLayer?.add(ref.tether);
         }
         ref.tether.clear();
         ref.tether.lineStyle(1.5, 0xffd86b, 0.65);
@@ -1472,11 +2470,114 @@ export class KingdomScene extends Phaser.Scene {
     }
   }
 
+  private updateWielderOrder(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState
+  ) {
+    const color = this.commandColorForUnit(worldRef, unit);
+    const active =
+      ref.isTraveling ||
+      ref.locationMode === "mission" ||
+      unit.status === "working" ||
+      unit.status === "casting" ||
+      unit.status === "fallen" ||
+      unit.status === "complete";
+    const wave = 0.5 + 0.5 * Math.sin(this.t * 5 + ref.homeIndex);
+    ref.orderLine.clear();
+    ref.orderRing.setVisible(active);
+    ref.orderLabel.setVisible(active);
+    if (!active) return;
+
+    const target =
+      ref.locationMode === "mission"
+        ? this.missionSlotPosition(worldRef, ref.homeIndex)
+        : this.baseSlotPosition(ref.homeIndex);
+    const alpha = ref.isTraveling ? 0.58 : 0.28;
+    this.strokeDashedLine(
+      ref.orderLine,
+      ref.container.x,
+      ref.container.y,
+      target.x,
+      target.y,
+      color,
+      alpha,
+      ref.isTraveling ? 2.2 : 1.3
+    );
+    if (ref.locationMode === "mission") {
+      ref.orderLine.lineStyle(1.1, color, 0.2 + wave * 0.12);
+      ref.orderLine.lineBetween(
+        ref.container.x,
+        ref.container.y,
+        worldRef.container.x,
+        worldRef.container.y
+      );
+    }
+
+    ref.orderRing
+      .setStrokeStyle(ref.isTraveling ? 2.4 : 1.8, color, 0.58 + wave * 0.28)
+      .setScale(1.04 + wave * 0.12, 0.48 + wave * 0.05);
+    ref.orderLabel
+      .setText(this.commandLabelForUnit(unit))
+      .setColor(unit.status === "fallen" ? "#ff9b8a" : "#fff8e0");
+  }
+
+  private commandLabelForUnit(unit: UnitState) {
+    if (unit.status === "fallen") return "DOWN";
+    if (unit.status === "complete") return "DONE";
+    if (unit.status === "casting") return "CAST";
+    if (unit.lastTool) return ORDER_LABELS[activityForToolName(unit.lastTool)];
+    if (unit.status === "working") return "WORK";
+    if (unit.status === "moving") return "MOVE";
+    return "IDLE";
+  }
+
+  private commandColorForUnit(worldRef: WorldRef, unit: UnitState) {
+    if (unit.status === "fallen") return 0xff5a3c;
+    if (unit.status === "complete") return 0xffd86b;
+    if (unit.status === "casting") return 0xc9a4ff;
+    if (unit.lastTool) {
+      return activityColorForTheme(
+        worldRef.theme,
+        activityForToolName(unit.lastTool)
+      );
+    }
+    if (unit.status === "working") return THEME_BIOMES[worldRef.theme].accent;
+    if (unit.status === "moving") return THEME_BIOMES[worldRef.theme].lane;
+    return ROLE_PALETTE[unit.role].color;
+  }
+
+  private strokeDashedLine(
+    g: Phaser.GameObjects.Graphics,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    color: number,
+    alpha: number,
+    width: number
+  ) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 8) return;
+    const ux = dx / dist;
+    const uy = dy / dist;
+    g.lineStyle(width + 4, 0x020713, alpha * 0.55);
+    for (let d = 0; d < dist; d += ORDER_DASH + ORDER_GAP) {
+      const end = Math.min(d + ORDER_DASH, dist);
+      g.lineBetween(x1 + ux * d, y1 + uy * d, x1 + ux * end, y1 + uy * end);
+    }
+    g.lineStyle(width, color, alpha);
+    for (let d = 0; d < dist; d += ORDER_DASH + ORDER_GAP) {
+      const end = Math.min(d + ORDER_DASH, dist);
+      g.lineBetween(x1 + ux * d, y1 + uy * d, x1 + ux * end, y1 + uy * end);
+    }
+  }
+
   /**
-   * Build a wielder sprite container at the world's home tile for this
-   * unit's index. Uses the per-world iso coordinates so positions are
-   * relative to the iso plane container's origin (which is itself
-   * scaled by ISO_CONTAINER_SCALE inside the world container).
+   * Build a scene-global wielder sprite container. The unit starts at the
+   * central base unless it is already in an active/fallen mission state.
    */
   private spawnWielder(
     worldRef: WorldRef,
@@ -1484,17 +2585,16 @@ export class KingdomScene extends Phaser.Scene {
     index: number
   ): WielderRef {
     const palette = ROLE_PALETTE[unit.role];
-
-    // Home tile: spread wielders around the inner perimeter of the iso
-    // grid so they don't all stand on the central landmark. Ring layout
-    // mirrors the original WorldScene logic but at the smaller grid.
-    const ringSlots = 6;
-    const slot = index % ringSlots;
-    const homeTx = 1 + (slot % 3);
-    const homeTy = ISO_GRID - 1 - Math.floor(slot / 3);
-    const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
-    const x = (homeTx - homeTy) * (ISO_TILE_W / 2);
-    const y = offsetY + (homeTx + homeTy) * (ISO_TILE_H / 2);
+    const homeIndex = (Math.abs(hashString(unit.id)) + index) % 12;
+    const locationMode: WielderRef["locationMode"] = this.shouldStandAtMission(
+      unit
+    )
+      ? "mission"
+      : "base";
+    const start =
+      locationMode === "mission"
+        ? this.missionSlotPosition(worldRef, homeIndex)
+        : this.baseSlotPosition(homeIndex);
 
     const glow = this.add.circle(0, 6, 16, palette.color, 0.28);
 
@@ -1503,6 +2603,12 @@ export class KingdomScene extends Phaser.Scene {
     const driveAura = this.add
       .circle(0, 4, 30, 0xffffff, 0)
       .setStrokeStyle(2.5, 0xffffff, 0)
+      .setVisible(false);
+    const orderLine = this.add.graphics().setDepth(48);
+    const orderRing = this.add
+      .circle(0, 7, 24, 0x000000, 0)
+      .setStrokeStyle(1.8, palette.color, 0.65)
+      .setScale(1, 0.46)
       .setVisible(false);
 
     // FF14 nameplate-style HP/MP bars — sit at the wielder's feet,
@@ -1551,12 +2657,24 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setVisible(false);
+    const orderLabel = this.add
+      .text(0, 24, "", {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.78)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
 
     // Layer order matters: drive aura behind, body in middle, bars
     // on top so they read against the painterly hi-res sprite. The
     // critical "!" alert sits above everything so it always reads.
-    const container = this.add.container(x, y, [
+    const container = this.add.container(start.x, start.y, [
       driveAura,
+      orderRing,
       glow,
       body,
       hpBarBg,
@@ -1565,6 +2683,7 @@ export class KingdomScene extends Phaser.Scene {
       mpBarFill,
       label,
       criticalAlert,
+      orderLabel,
     ]);
     container.setData("unitId", unit.id);
 
@@ -1577,7 +2696,7 @@ export class KingdomScene extends Phaser.Scene {
       duration: 1200 + Math.random() * 400,
     });
 
-    worldRef.isoPlane.add(container);
+    this.agentLayer?.add([orderLine, container]);
 
     return {
       unitId: unit.id,
@@ -1591,11 +2710,18 @@ export class KingdomScene extends Phaser.Scene {
       hpBarFill,
       mpBarBg,
       mpBarFill,
+      orderLine,
+      orderRing,
+      orderLabel,
       label,
       criticalAlert,
       lastBarkAt: 0,
-      homeTx,
-      homeTy,
+      homeIndex,
+      locationMode,
+      locationTargetKey: this.locationKeyFor(locationMode, worldRef.worldId),
+      isTraveling: false,
+      missionHoldUntil:
+        locationMode === "mission" ? this.time.now + MISSION_DWELL_MS : 0,
       patrolState: "scouting",
       patrolNextSwitchAt: this.time.now + 600 + Math.random() * 1800,
       lastStatus: unit.status,
@@ -1624,6 +2750,146 @@ export class KingdomScene extends Phaser.Scene {
         worldRef.heartless.delete(id);
       }
     }
+  }
+
+  private tickHeartlessCombat(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>,
+    delta: number
+  ) {
+    const dt = delta / 1000;
+    for (const heartless of worldRef.heartless.values()) {
+      heartless.bobOffset += delta * 0.004;
+      heartless.shadow.setAlpha(0.42 + 0.18 * Math.sin(heartless.bobOffset));
+      const target = this.pickHeartlessTarget(
+        worldRef,
+        world,
+        heartless,
+        units
+      );
+      if (!target) {
+        this.nudgeHeartlessToward(
+          heartless,
+          Math.sin(heartless.bobOffset * 0.4) * 28,
+          Math.cos(heartless.bobOffset * 0.35) * 18,
+          HEARTLESS_SPEED[heartless.type] * 0.45 * dt
+        );
+        continue;
+      }
+
+      const targetX =
+        (target.ref.container.x - worldRef.container.x) / ISO_CONTAINER_SCALE;
+      const targetY =
+        (target.ref.container.y - worldRef.container.y) / ISO_CONTAINER_SCALE;
+      const dist = this.nudgeHeartlessToward(
+        heartless,
+        targetX,
+        targetY,
+        HEARTLESS_SPEED[heartless.type] * dt
+      );
+      heartless.body.setScale(targetX < heartless.container.x ? -1 : 1, 1);
+
+      if (
+        dist < HEARTLESS_ATTACK_RANGE &&
+        this.time.now - heartless.lastLungeAt > HEARTLESS_ATTACK_COOLDOWN_MS
+      ) {
+        heartless.lastLungeAt = this.time.now;
+        this.tweens.add({
+          targets: heartless.body,
+          x: { from: 0, to: (targetX - heartless.container.x) * 0.18 },
+          y: { from: 0, to: (targetY - heartless.container.y) * 0.18 },
+          yoyo: true,
+          duration: 180,
+          ease: "Sine.easeOut",
+        });
+        this.spawnCombatClash(
+          target.ref.container.x,
+          target.ref.container.y - 16,
+          0xff5a3c
+        );
+        if (target.unit.status !== "fallen") {
+          const attackAnim = ANIM.attack(target.unit.role);
+          if (
+            target.ref.sprite &&
+            this.anims.exists(attackAnim) &&
+            target.ref.currentAnim !== attackAnim
+          ) {
+            target.ref.sprite.play(attackAnim);
+            target.ref.currentAnim = attackAnim;
+            this.time.delayedCall(520, () => {
+              if (!target.ref.sprite?.scene) return;
+              this.playIdleAnimation(target.ref, target.unit.role);
+            });
+          }
+        }
+      }
+    }
+  }
+
+  private pickHeartlessTarget(
+    worldRef: WorldRef,
+    world: WorldState,
+    heartless: HeartlessRef,
+    units: Record<string, UnitState>
+  ) {
+    const preferredId = heartless.targetUnitId;
+    const preferredRef = preferredId
+      ? worldRef.wielders.get(preferredId)
+      : undefined;
+    const preferredUnit = preferredId ? units[preferredId] : undefined;
+    if (preferredRef && preferredUnit && preferredUnit.status !== "fallen") {
+      return { ref: preferredRef, unit: preferredUnit };
+    }
+
+    for (const id of world.unitIds) {
+      const unit = units[id];
+      const ref = worldRef.wielders.get(id);
+      if (!unit || !ref || unit.status === "fallen") continue;
+      if (ref.locationMode === "mission" || this.hasMissionStatus(unit)) {
+        return { ref, unit };
+      }
+    }
+    return undefined;
+  }
+
+  private nudgeHeartlessToward(
+    heartless: HeartlessRef,
+    targetX: number,
+    targetY: number,
+    maxStep: number
+  ) {
+    const dx = targetX - heartless.container.x;
+    const dy = targetY - heartless.container.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 1) {
+      const step = Math.min(dist, maxStep);
+      heartless.container.x += (dx / dist) * step;
+      heartless.container.y += (dy / dist) * step;
+    }
+    return dist;
+  }
+
+  private spawnCombatClash(x: number, y: number, color: number) {
+    const g = this.add.graphics().setPosition(x, y).setDepth(72);
+    g.lineStyle(2.4, color, 0.95);
+    g.beginPath();
+    g.moveTo(-13, -5);
+    g.lineTo(13, 5);
+    g.moveTo(-8, 9);
+    g.lineTo(9, -10);
+    g.strokePath();
+    g.fillStyle(0xfff4c7, 0.82);
+    g.fillCircle(0, 0, 3);
+    this.agentLayer?.add(g);
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      scale: 1.65,
+      duration: 360,
+      ease: "Cubic.easeOut",
+      onComplete: () => g.destroy(),
+    });
   }
 
   private spawnHeartlessIn(worldRef: WorldRef, h: Heartless): HeartlessRef {
@@ -1735,7 +3001,7 @@ export class KingdomScene extends Phaser.Scene {
   /**
    * Add the wielder's visual into the body container. Order:
    * sheet (animated) → still image → drawn fallback.
-   * Sized for the per-world iso scale; bottom-center anchored so the
+   * Sized for the scene-global agent layer; bottom-center anchored so the
    * sprite's feet land on the container origin.
    */
   private populateWielderBody(
@@ -1745,10 +3011,7 @@ export class KingdomScene extends Phaser.Scene {
     const sheet = getSpritesheetConfig(role, this.textures);
     if (sheet) {
       const spr = this.add.sprite(0, 0, sheet.textureKey, 0);
-      // ~290×200 source; scale 0.55 brings it to ~160×110, which inside
-      // the 0.55-scaled isoPlane shows ~88×60 on canvas at 1× zoom —
-      // legible at zoom 1.4 (the click-target zoom).
-      spr.setScale(0.55);
+      spr.setScale(WIELDER_SPRITE_SCALE);
       spr.setOrigin(0.5, 1);
       spr.y = 8;
       const idle = getIdleAnimKey(role);
@@ -1763,7 +3026,7 @@ export class KingdomScene extends Phaser.Scene {
         : null;
     if (stillKey) {
       const img = this.add.image(0, 0, stillKey);
-      img.setScale(0.55);
+      img.setScale(WIELDER_SPRITE_SCALE);
       img.setOrigin(0.5, 1);
       img.y = 8;
       body.add(img);
@@ -1874,7 +3137,12 @@ export class KingdomScene extends Phaser.Scene {
       (_p: Phaser.Input.Pointer, _g: unknown, _dx: number, dy: number) => {
         const cam = this.cameras.main;
         const factor = dy > 0 ? 1 / 1.1 : 1.1;
-        cam.zoom = Phaser.Math.Clamp(cam.zoom * factor, 0.3, 2.5);
+        const minZoom = this.strategyMinZoom();
+        const nextZoom = Phaser.Math.Clamp(cam.zoom * factor, minZoom, 2.5);
+        cam.setZoom(nextZoom);
+        if (nextZoom <= minZoom + 0.001) {
+          this.centerCameraOnRealm();
+        }
         this.lastUserCamMs = performance.now();
       }
     );
@@ -1887,9 +3155,59 @@ export class KingdomScene extends Phaser.Scene {
 
   private repaintSky() {
     if (!this.skyGfx) return;
-    this.skyGfx.clear();
-    this.skyGfx.fillGradientStyle(0x0a0518, 0x0a0518, 0x1a0a30, 0x0a0518, 1);
-    this.skyGfx.fillRect(0, 0, this.scale.width, this.scale.height);
+    const g = this.skyGfx;
+    const w = this.scale.width;
+    const h = this.scale.height;
+    g.clear();
+
+    g.lineStyle(2, 0x6cc6ff, 0.08);
+    g.beginPath();
+    g.moveTo(-w * 0.1, h * 0.72);
+    g.lineTo(w * 0.3, h * 0.48);
+    g.lineTo(w * 0.72, h * 0.58);
+    g.lineTo(w * 1.1, h * 0.36);
+    g.strokePath();
+
+    g.lineStyle(1.4, 0xffd86b, 0.06);
+    g.beginPath();
+    g.moveTo(w * 0.02, h * 0.18);
+    g.lineTo(w * 0.38, h * 0.32);
+    g.lineTo(w * 0.72, h * 0.18);
+    g.lineTo(w * 1.04, h * 0.26);
+    g.strokePath();
+
+    g.lineStyle(1, 0xffd86b, 0.045);
+    for (let i = 0; i < 7; i++) {
+      const y = h * (0.16 + i * 0.105);
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(w, y + Math.sin(i * 1.7) * 36);
+      g.strokePath();
+    }
+    g.lineStyle(1, 0x6cc6ff, 0.035);
+    for (let i = 0; i < 6; i++) {
+      const x = w * (0.08 + i * 0.18);
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x + Math.sin(i * 1.2) * 48, h);
+      g.strokePath();
+    }
+    this.updateViewportBackdrops();
+  }
+
+  private updateViewportBackdrops() {
+    const cam = this.cameras.main;
+    const scale = Math.max(1, 1 / Math.max(cam.zoom, 0.01));
+    const minZoom = this.strategyMinZoom();
+    const skyAlpha =
+      cam.zoom < 0.72
+        ? Phaser.Math.Clamp((cam.zoom - minZoom) / (0.72 - minZoom), 0, 1)
+        : 1;
+    this.skyGfx?.setScale(scale).setAlpha(skyAlpha);
+    if (this.scanline) {
+      this.scanline.setScale(scale);
+      this.scanline.setAlpha(cam.zoom < 0.72 ? 0 : 0.4);
+    }
   }
 
   private spawnStars(n: number) {
@@ -1971,9 +3289,10 @@ function computeClusterLayout(
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
     const ch = hashString(key);
-    // Outer ring: cluster centroids at a compact radius so the map
-    // reads like one kingdom instead of scattered islands.
-    const outerRadius = 420 + (Math.abs(ch) % 520);
+    // Outer ring: cluster centroids orbit the central base. Keep the
+    // radius compact enough to read as one kingdom, but outside the
+    // base footprint so missions feel like destinations.
+    const outerRadius = 520 + (Math.abs(ch) % 320);
     const outerAngle = ((Math.abs(ch >> 8) % 360) * Math.PI) / 180;
     const cx = Math.cos(outerAngle) * outerRadius;
     const cy = Math.sin(outerAngle) * outerRadius;
@@ -1985,7 +3304,7 @@ function computeClusterLayout(
 
     // Inner ring: tighter than the original layout, with enough spacing
     // for the per-world iso plane + alert ring to remain legible.
-    const innerRadius = Math.min(300, 150 + members.length * 22);
+    const innerRadius = Math.min(280, 145 + members.length * 20);
     members.forEach((w, i) => {
       const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
       out.set(w.id, {

@@ -2,6 +2,11 @@ import { useEffect, useRef } from "react";
 import * as Phaser from "phaser";
 import { KingdomScene } from "./scenes/Kingdom";
 
+type PhaserDevWindow = Window & {
+  __phaser?: Phaser.Game;
+  __keykeeperPhaser?: Phaser.Game;
+};
+
 /**
  * Single Phaser game hosting the unified KingdomScene (per Q40 — see
  * .docs/plans/vision.md). Replaces the previous Throne/Gummi/Arena
@@ -18,6 +23,14 @@ export function PhaserGame() {
   useEffect(() => {
     if (!hostRef.current || gameRef.current) return;
     const host = hostRef.current;
+    const devWindow = window as PhaserDevWindow;
+    if (import.meta.env.DEV) {
+      devWindow.__keykeeperPhaser?.destroy(true);
+      devWindow.__keykeeperPhaser = undefined;
+      devWindow.__phaser = undefined;
+    }
+    host.replaceChildren();
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
@@ -33,7 +46,8 @@ export function PhaserGame() {
     });
     gameRef.current = game;
     if (import.meta.env.DEV) {
-      (window as unknown as { __phaser: Phaser.Game }).__phaser = game;
+      devWindow.__phaser = game;
+      devWindow.__keykeeperPhaser = game;
     }
 
     // Phaser RESIZE mode only watches window.resize. Our stage size shifts
@@ -49,6 +63,10 @@ export function PhaserGame() {
 
     return () => {
       ro.disconnect();
+      if (import.meta.env.DEV && devWindow.__keykeeperPhaser === game) {
+        devWindow.__keykeeperPhaser = undefined;
+        devWindow.__phaser = undefined;
+      }
       game.destroy(true);
       gameRef.current = null;
     };

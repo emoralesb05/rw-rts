@@ -32,6 +32,34 @@ That's the canvas-equivalent of "working chat panel + party list" — but the lo
 - **Route lines** make related worlds feel connected, with brighter route pulses for web/subagent activity.
 - **World spacing** is tighter so the map reads more like one kingdom and less like disconnected islands.
 
+## Second slice implemented
+
+- **Central base** now anchors the canvas as the agents' home state, with a larger iso platform, beacon, and dock pads.
+- **Scene-global agents** no longer live inside tiny world iso planes. Idle/complete agents stand by or roam around the base; working/casting/fallen agents travel to mission pads beside their world.
+- **Base-to-world routes** connect the kingdom hub to world clusters, and activity route pulses now include the base route even when there are no sibling worlds.
+- **Agent overlays and subagent tethers** now render in scene coordinates, so glyphs and tethers stay aligned with global agent movement.
+- **World focus zoom** is lower so selecting a world keeps more of the base/mission context visible instead of cropping the larger map.
+
+## Third slice implemented
+
+- **RTS-style realm layer** now sits behind the base/worlds, with soft territorial regions, theme-colored cluster biomes, stronger gummi lanes, and a non-rectangular whole-map silhouette.
+- **World presentation** now uses themed biome pads and mission docks around each world instead of floating world tokens in empty space.
+- **Mission docks pulse** when an agent is working at that world, which makes active locations readable from zoom-out.
+- **Travel pulses** draw a brief gummi marker and lane whenever an agent moves between the base and a mission world.
+- **Zoom-out fit** now includes the realm terrain around worlds, not only the world center points, and the minimum zoom supports seeing the full board.
+- **Strategy zoom floor** is now computed from the current realm bounds, so wheel-out stops at the whole-board view instead of shrinking the kingdom into a tiny square-like patch.
+- **Camera safe-fit** accounts for the HUD panels, keeping the full map in the playable viewport rather than hidden under side/bottom chrome.
+- **Square map artifacts removed** by replacing per-world rectangular time/activity overlays with elliptical overlays that match the world footprint.
+- **Viewport-locked sky/scanline layers fade at strategy zoom**, so decorative screen-space textures cannot read as a rectangular map edge.
+
+## Fourth slice implemented
+
+- **RTS order language** now appears on the canvas: active units get command rings, small order labels, and dashed intent paths to their mission/base targets.
+- **World work sites** now react to active agents with beams, progress arcs, and pulsing mission pads, so a world reads as "being worked" rather than just occupied.
+- **Kingdom base command motion** now shows live radar rings and orbiting pips based on active workers, giving the base a command-center feel.
+- **Heartless encounters** now have visible behavior: Heartless drift toward mission units, lunge when close, and trigger clash sparks plus wielder attack responses.
+- **Safe cleanup** was added for scene-global order/tether objects when worlds or units disappear.
+
 This intentionally does not close the full plan: archetype idle quirks, result-streak poses, richer heartless interaction, and authored sprite-sheet VFX are still available follow-up slices.
 
 ## Diagnosis — five places it feels bleak
