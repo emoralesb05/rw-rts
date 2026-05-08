@@ -81,15 +81,15 @@ Acceptance:
 ### Radix UI primitives
 
 The owned Radix/Tailwind foundation has landed. New UI should keep using
-the owned wrappers under `src/renderer/src/components/primitives/` and
-kit components under `src/renderer/src/components/kit/`. The CSS
+the owned wrappers under `src/renderer/src/ui/components/primitives/` and
+kit components under `src/renderer/src/ui/components/kit/`. The CSS
 migration plan is structurally complete; future UI work should avoid
 adding broad app-surface selectors back to `styles.css`.
 
 First slice:
 
 1. Install dialog, tabs, tooltip, select, popover, dropdown menu, and scroll area primitives. **Done.**
-2. Add owned wrappers under `src/renderer/src/components/primitives/`. **Done.**
+2. Add owned wrappers under `src/renderer/src/ui/components/primitives/`. **Done.**
 3. Convert `DecreeModal` first because focus trapping and modal semantics matter there. **Done.**
 
 Acceptance:

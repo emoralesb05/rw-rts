@@ -18,7 +18,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "../../components/primitives/Tabs";
+} from "../components/primitives/Tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,11 +29,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../../components/primitives/AlertDialog";
-import { Button } from "../../components/kit/Button";
-import { Code } from "../../components/kit/Code";
-import { EmptyState } from "../../components/kit/EmptyState";
-import { Skeleton } from "../../components/kit/Skeleton";
+} from "../components/primitives/AlertDialog";
+import { Button } from "../components/kit/Button";
+import { Code } from "../components/kit/Code";
+import { EmptyState } from "../components/kit/EmptyState";
+import { Skeleton } from "../components/kit/Skeleton";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
 import type { HooksStatus } from "@shared/schemas";

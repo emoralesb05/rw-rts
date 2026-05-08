@@ -7,8 +7,8 @@
 import { useCallback, useState } from "react";
 import { Send } from "lucide-react";
 import type { UnitState } from "@shared/events";
-import { Button } from "../components/kit/Button";
-import { Textarea } from "../components/kit/Textarea";
+import { Button } from "./components/kit/Button";
+import { Textarea } from "./components/kit/Textarea";
 
 export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
@@ -45,6 +45,8 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
     placeholder = `${unit.displayName} is observed-only — can't be commanded.`;
   else placeholder = `Message ${unit.displayName}…  (⌘↵ to send)`;
 
+  const canSend = !disabled && !!prompt.trim();
+
   return (
     <div className="sticky bottom-0 z-[1] flex flex-none gap-2 border-t border-line bg-[rgba(5,9,18,0.92)] px-2.5 py-2 backdrop-blur-sm">
       <Textarea
@@ -59,10 +61,10 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
       />
       <Button
         type="button"
-        variant="primary"
+        variant={canSend ? "primary" : "default"}
         className="w-24 self-end px-3 py-1.5 text-[11px]"
         onClick={send}
-        disabled={disabled || !prompt.trim()}
+        disabled={!canSend}
         aria-label={`Send message to ${unit.displayName}`}
       >
         {busy ? (

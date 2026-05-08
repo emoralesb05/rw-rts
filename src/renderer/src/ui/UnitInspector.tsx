@@ -1,9 +1,9 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
-import { Bar } from "../components/kit/Bar";
-import { IconButton } from "../components/kit/IconButton";
-import { TooltipHint } from "../components/kit/TooltipHint";
+import { Bar } from "./components/kit/Bar";
+import { IconButton } from "./components/kit/IconButton";
+import { TooltipHint } from "./components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
 
 export function UnitInspector() {

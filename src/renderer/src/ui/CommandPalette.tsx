@@ -17,21 +17,21 @@ import {
 import { useStore } from "../store";
 import { usePanels } from "./floating/panel-store";
 import { summarizeEvent, shortAgo } from "./event-summary";
-import { Kbd } from "../components/kit/Kbd";
+import { Kbd } from "./components/kit/Kbd";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "../components/primitives/Dialog";
+} from "./components/primitives/Dialog";
 import {
   Command,
   CommandEmpty,
   CommandInput,
   CommandItem,
   CommandList,
-} from "../components/primitives/Command";
-import { Separator } from "../components/primitives/Separator";
+} from "./components/primitives/Command";
+import { Separator } from "./components/primitives/Separator";
 import type { AgentEvent, UnitState, WorldState } from "@shared/events";
 
 type CommandItem = {

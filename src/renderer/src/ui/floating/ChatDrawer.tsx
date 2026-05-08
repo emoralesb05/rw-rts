@@ -23,19 +23,19 @@ import { ConversationStream } from "../ConversationStream";
 import { WielderChatInput } from "../WielderChatInput";
 import { ROLE_HEX } from "../../game/units";
 import { AgentToolBadge } from "../AgentToolBadge";
-import { EmptyState } from "../../components/kit/EmptyState";
-import { IconButton } from "../../components/kit/IconButton";
+import { EmptyState } from "../components/kit/EmptyState";
+import { IconButton } from "../components/kit/IconButton";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "../../components/primitives/Tabs";
+} from "../components/primitives/Tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../../components/primitives/Tooltip";
+} from "../components/primitives/Tooltip";
 import { cn } from "@/lib/cn";
 import type { AgentTool, UnitState } from "@shared/events";
 

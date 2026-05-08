@@ -8,9 +8,9 @@ import { HudWidget } from "./HudWidget";
 import { PartyRow } from "./PartyRow";
 import { usePersistedBool } from "./hud-prefs";
 import { usePanels } from "../floating/panel-store";
-import { Button } from "../../components/kit/Button";
-import { EmptyState } from "../../components/kit/EmptyState";
-import { TooltipHint } from "../../components/kit/TooltipHint";
+import { Button } from "../components/kit/Button";
+import { EmptyState } from "../components/kit/EmptyState";
+import { TooltipHint } from "../components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
 
 export function WielderHUD() {

@@ -27,11 +27,11 @@ import {
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
-import { Badge } from "../../components/kit/Badge";
-import { Bar } from "../../components/kit/Bar";
-import { Button } from "../../components/kit/Button";
-import { EmptyState } from "../../components/kit/EmptyState";
-import { TooltipHint } from "../../components/kit/TooltipHint";
+import { Badge } from "../components/kit/Badge";
+import { Bar } from "../components/kit/Bar";
+import { Button } from "../components/kit/Button";
+import { EmptyState } from "../components/kit/EmptyState";
+import { TooltipHint } from "../components/kit/TooltipHint";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../../components/primitives/AlertDialog";
+} from "../components/primitives/AlertDialog";
 import { cn } from "@/lib/cn";
 import type { UnitState, WielderStats } from "@shared/events";
 

@@ -1,7 +1,8 @@
 # Renderer Components
 
 This directory is the reusable design-system layer for the renderer.
-Domain/product surfaces live in `../ui`.
+It lives under `ui` because these are renderer UI components, not shared
+domain modules. Domain/product surfaces live in the parent `ui/` folder.
 
 ## Layers
 
@@ -14,7 +15,8 @@ Domain/product surfaces live in `../ui`.
 ## Rules
 
 - Import concrete files directly. Do not add barrel re-exports.
-- Put provider/game/HUD-specific components in `ui/`, not here.
+- Put provider/game/HUD-specific components in the parent `ui/` folder,
+  not here.
 - Prefer `kit/` components before writing repeated inline Tailwind.
 - Prefer `primitives/` when the hard part is focus management,
   keyboard behavior, portals, overlays, or ARIA semantics.

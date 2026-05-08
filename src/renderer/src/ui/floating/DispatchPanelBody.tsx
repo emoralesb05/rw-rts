@@ -7,18 +7,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { usePanels } from "./panel-store";
-import { Button } from "../../components/kit/Button";
-import { Field } from "../../components/kit/Field";
-import { Kbd } from "../../components/kit/Kbd";
-import { SegmentedControl } from "../../components/kit/SegmentedControl";
-import { Textarea } from "../../components/kit/Textarea";
+import { Button } from "../components/kit/Button";
+import { Field } from "../components/kit/Field";
+import { Kbd } from "../components/kit/Kbd";
+import { SegmentedControl } from "../components/kit/SegmentedControl";
+import { Textarea } from "../components/kit/Textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/primitives/Select";
+} from "../components/primitives/Select";
 import type { WorkspaceRepoEntry } from "@shared/schemas";
 
 type Tool = "claude" | "cursor" | "codex" | "gemini";

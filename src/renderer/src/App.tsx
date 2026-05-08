@@ -7,8 +7,8 @@ import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
 import { CommandPalette } from "./ui/CommandPalette";
-import { TooltipProvider } from "./components/primitives/Tooltip";
-import { AppToastProvider } from "./components/kit/ToastLayer";
+import { TooltipProvider } from "./ui/components/primitives/Tooltip";
+import { AppToastProvider } from "./ui/components/kit/ToastLayer";
 
 /**
  * HUD-overlay layout (FFXIV-style, no chrome bars):

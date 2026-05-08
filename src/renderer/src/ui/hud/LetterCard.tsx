@@ -9,12 +9,12 @@ import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
-import { Badge } from "../../components/kit/Badge";
-import { Button } from "../../components/kit/Button";
-import { Input } from "../../components/kit/Input";
-import { Toolbar } from "../../components/kit/Toolbar";
-import { TooltipHint } from "../../components/kit/TooltipHint";
-import { useToast } from "../../components/kit/ToastLayer";
+import { Badge } from "../components/kit/Badge";
+import { Button } from "../components/kit/Button";
+import { Input } from "../components/kit/Input";
+import { Toolbar } from "../components/kit/Toolbar";
+import { TooltipHint } from "../components/kit/TooltipHint";
+import { useToast } from "../components/kit/ToastLayer";
 import { cn } from "@/lib/cn";
 import type { Letter, LetterAction } from "@shared/events";
 

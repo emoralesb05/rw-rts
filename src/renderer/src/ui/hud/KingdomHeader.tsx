@@ -16,9 +16,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../../components/primitives/Tooltip";
-import { IconButton } from "../../components/kit/IconButton";
-import { Toolbar } from "../../components/kit/Toolbar";
+} from "../components/primitives/Tooltip";
+import { IconButton } from "../components/kit/IconButton";
+import { Toolbar } from "../components/kit/Toolbar";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));

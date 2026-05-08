@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogIconClose,
   DialogTitle,
-} from "../components/primitives/Dialog";
+} from "./components/primitives/Dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,14 +31,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../components/primitives/AlertDialog";
+} from "./components/primitives/AlertDialog";
 import {
   Command,
   CommandItem,
   CommandList,
-} from "../components/primitives/Command";
-import { Button } from "../components/kit/Button";
-import { Textarea } from "../components/kit/Textarea";
+} from "./components/primitives/Command";
+import { Button } from "./components/kit/Button";
+import { Textarea } from "./components/kit/Textarea";
 import { useStore } from "../store";
 import { cn } from "@/lib/cn";
 import type { AgentEvent } from "@shared/events";
@@ -279,8 +279,11 @@ export function DecreeModal() {
           </span>
           <Button
             type="button"
-            variant="gold"
-            className="rounded-md px-4 py-2 text-xs font-bold tracking-[0.5px] hover:shadow-[0_0_12px_rgba(255,216,107,0.5)]"
+            variant={sendDisabled ? "default" : "gold"}
+            className={cn(
+              "rounded-md px-4 py-2 text-xs font-bold tracking-[0.5px]",
+              !sendDisabled && "hover:shadow-[0_0_12px_rgba(255,216,107,0.5)]"
+            )}
             onClick={() => void send()}
             disabled={sendDisabled}
           >

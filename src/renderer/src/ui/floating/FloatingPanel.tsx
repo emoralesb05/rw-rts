@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { usePanels, type Panel } from "./panel-store";
-import { IconButton } from "../../components/kit/IconButton";
+import { IconButton } from "../components/kit/IconButton";
 import { cn } from "@/lib/cn";
 
 type Props = {

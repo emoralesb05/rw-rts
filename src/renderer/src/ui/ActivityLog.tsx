@@ -19,7 +19,7 @@ import { ROLE_HEX } from "../game/units";
 import { usePanels } from "./floating/panel-store";
 import { usePersistedBool } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
-import { TooltipHint } from "../components/kit/TooltipHint";
+import { TooltipHint } from "./components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
 import { pulseLetterElement } from "./hud/letter-highlight";
 import type { AgentEvent } from "@shared/events";

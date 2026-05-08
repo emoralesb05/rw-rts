@@ -34,7 +34,7 @@ design-system primitives and Tailwind classes.
 
 ## Migration Order
 
-1. **Chrome HUDs**
+1. **HUD Surfaces**
    `HudWidget`, `AlertsHUD`, `LettersHUD`, `WielderHUD`,
    `KingdomHeader`, `ActivityLog`, `LetterCard`, `PartyRow`, and
    `CloseAllChip`. **Done.**
@@ -69,7 +69,8 @@ design-system primitives and Tailwind classes.
 ## Success Criteria
 
 - `styles.css` is under ~400 lines. **Done: 167 lines.**
-- New component styling uses `components/` or Tailwind utility classes.
+- New component styling uses `src/renderer/src/ui/components/` or
+  Tailwind utility classes.
 - No broad app surface depends on legacy bespoke CSS when an owned atom
   or primitive exists.
 - `rg "(className=\"app|className=\"stage|window-drag-strip|world-nav|md-|\\.letter-pulse)" src/renderer/src`

@@ -5,15 +5,15 @@
  */
 import { Trash2 } from "lucide-react";
 import { useStore } from "../../store";
-import { Button } from "../../components/kit/Button";
-import { EmptyState } from "../../components/kit/EmptyState";
+import { Button } from "../components/kit/Button";
+import { EmptyState } from "../components/kit/EmptyState";
 import { HudWidget } from "./HudWidget";
 import { LetterCard, isPermissionLetter } from "./LetterCard";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../../components/primitives/Tooltip";
+} from "../components/primitives/Tooltip";
 
 export function LettersHUD() {
   const letters = useStore((s) => s.letters);

@@ -12,8 +12,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "../components/primitives/Tooltip";
-import { IconButton } from "../components/kit/IconButton";
+} from "./components/primitives/Tooltip";
+import { IconButton } from "./components/kit/IconButton";
 
 export function CloseAllChip() {
   const closeAll = usePanels((s) => s.closeAll);
