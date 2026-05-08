@@ -48,6 +48,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Radix-backed `DecreeModal` now has jsdom component tests for one-off
   decrees, recent-file command palette insertion, standing-order
   confirmation, and observed-only disabled state.
+- Settings panel behavior now has jsdom component tests for async
+  settings load, debounced workspace validation, normalized exclude
+  saves, panel close-on-success, and save failure feedback.
 
 ## Adopt now
 
@@ -86,6 +89,8 @@ Acceptance:
 
 - Invalid IPC payloads fail with clear errors before touching side effects.
 - Corrupt settings/persisted files degrade through the existing fallback path.
+- Renderer settings UI tests cover the Zod-shaped settings payload that
+  crosses the `saveSettings` IPC boundary. **Done for `SettingsPanelBody`.**
 
 ### Radix UI primitives
 
