@@ -4,7 +4,10 @@ Point-in-time review of the current codebase after the Gemini provider work. Sco
 
 This is not a security audit. It is a backlog-quality architecture pass: what looks solid, what is drifting, what should be fixed soon, and which external libraries are worth adopting or evaluating.
 
-Follow-up work is tracked in [`../plans/architecture-stabilization-and-oss-adoption.md`](../plans/architecture-stabilization-and-oss-adoption.md). The first stabilization pass has already actioned the seal identity fix, shared transcript-watcher cleanup, stale standing-order comments, Cursor spawned trust-mode documentation, and the first Vitest-backed unit-identity regression test.
+Follow-up work from this review has been completed and the stabilization plan
+was removed after landing the Vitest/Zod/Radix/React Testing Library adoption
+work, CSS/design-system migration, provider tests, and renderer store reducer
+extraction.
 
 ## Current Shape
 
