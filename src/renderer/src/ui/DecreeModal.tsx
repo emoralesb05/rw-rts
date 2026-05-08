@@ -37,8 +37,10 @@ import {
   CommandItem,
   CommandList,
 } from "../components/primitives/Command";
+import { Button } from "../components/chrome/Button";
 import { Textarea } from "../components/chrome/Textarea";
 import { useStore } from "../store";
+import { cn } from "@/lib/cn";
 import type { AgentEvent } from "@shared/events";
 
 const COMMON_COMMANDS = [
@@ -188,32 +190,40 @@ export function DecreeModal() {
           inputRef.current?.focus();
         }}
       >
-        <DialogHeader className="decree-header">
-          <span className="decree-sigil">⚜</span>
+        <DialogHeader className="border-b border-accent-alt/25 bg-[linear-gradient(180deg,rgba(214,64,64,0.18),transparent)] px-4 py-3">
+          <span className="text-xl text-accent-alt">⚜</span>
           <DialogTitle asChild>
-            <span className="decree-title">DECREE</span>
+            <span className="font-mono text-sm font-extrabold uppercase tracking-[3px] text-accent-alt">
+              DECREE
+            </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
             Compose and send a decree to {unit.displayName}.
           </DialogDescription>
-          <span className="decree-target">to {unit.displayName}</span>
-          <DialogIconClose className="decree-close" aria-label="close" />
+          <span className="flex-1 text-xs text-muted">
+            to {unit.displayName}
+          </span>
+          <DialogIconClose className="ml-auto" aria-label="close" />
         </DialogHeader>
         {!unit.spawnedHere && (
-          <div className="decree-warn">
+          <div className="border-b border-[#ff5a3c]/30 bg-[#ff5a3c]/[0.12] px-4 py-2.5 text-xs text-[#ffb6a0]">
             {unit.role} is observed-only — keykeeper didn't spawn this
             wielder, so we can't send it commands.
           </div>
         )}
-        <div className="decree-composer">
+        <div className="relative min-h-0 flex-1 p-4">
           <Textarea
             ref={inputRef}
-            className="decree-textarea"
+            className="min-h-[100px] resize-y rounded-md bg-[rgba(10,5,24,0.6)] px-3 py-2.5 font-ui text-[13px] focus-visible:border-accent-alt/60"
             placeholder="Issue your command. Type @ for files, / for commands."
             value={text}
             onChange={(e) => handleChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !sendDisabled) {
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                !sendDisabled
+              ) {
                 e.preventDefault();
                 void send();
               }
@@ -236,37 +246,46 @@ export function DecreeModal() {
             />
           )}
           {mode.kind === "files" && fileSuggestions.length === 0 && (
-            <div className="decree-empty">
+            <div className="mt-2 px-2.5 py-2 text-[11px] italic text-muted">
               no recent files for {unit.displayName}
             </div>
           )}
         </div>
-        <div className="decree-interval">
-          <span className="decree-interval-label">repeat</span>
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] px-4 py-2">
+          <span className="mr-1 font-mono text-[10px] font-bold uppercase tracking-[1.2px] text-muted">
+            repeat
+          </span>
           {INTERVALS.map((i) => (
-            <button
+            <Button
               key={i.label}
               type="button"
-              className={
-                "decree-interval-btn" + (i.ms === intervalMs ? " active" : "")
-              }
+              variant="ghost"
+              className={cn(
+                "min-h-0 rounded-sm px-2.5 py-1 font-mono text-[11px]",
+                i.ms === intervalMs
+                  ? "border-accent-alt bg-accent-alt/[0.08] text-accent-alt"
+                  : "border-line text-muted hover:border-accent-alt/50 hover:text-text"
+              )}
               onClick={() => setIntervalMs(i.ms)}
               disabled={busy || !unit.spawnedHere}
             >
               {i.label}
-            </button>
+            </Button>
           ))}
         </div>
-        <footer className="decree-footer">
-          <span className="decree-hint">⌘↩ to send · esc to cancel</span>
-          <button
+        <footer className="flex items-center justify-between border-t border-accent-alt/25 bg-[rgba(10,5,24,0.4)] px-4 py-3">
+          <span className="font-mono text-[11px] text-muted">
+            ⌘↩ to send · esc to cancel
+          </span>
+          <Button
             type="button"
-            className="decree-send"
+            variant="primary"
+            className="rounded-md border-accent-alt bg-accent-alt px-4 py-2 text-xs font-bold tracking-[0.5px] text-[#0a0518] hover:shadow-[0_0_12px_rgba(255,216,107,0.5)]"
             onClick={() => void send()}
             disabled={sendDisabled}
           >
             {intervalMs === null ? "⚜ Issue Decree" : "⚜ Issue Standing Order"}
-          </button>
+          </Button>
         </footer>
       </DialogContent>
       <AlertDialog
@@ -317,17 +336,19 @@ function Palette({
 }) {
   return (
     <Command
-      className="decree-palette"
+      className="absolute bottom-[-4px] left-4 right-4 z-[1] max-h-[240px] overflow-y-auto rounded-md border border-accent-alt/45 bg-panel-2/[0.98] p-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.5)]"
       label={label}
       shouldFilter={false}
       loop
     >
-      <div className="decree-palette-label">{label}</div>
+      <div className="px-1.5 pb-1.5 pt-1 font-mono text-[9px] font-bold uppercase tracking-[1.5px] text-muted">
+        {label}
+      </div>
       <CommandList className="max-h-none overflow-visible p-0">
         {items.map((item) => (
           <CommandItem
             key={item}
-            className="decree-palette-item data-[selected=true]:bg-accent-alt/10 data-[selected=true]:text-accent-alt"
+            className="block min-h-0 w-full cursor-pointer rounded-sm px-2 py-1.5 font-mono text-xs hover:bg-accent-alt/[0.12] hover:text-accent-alt data-[selected=true]:bg-accent-alt/10 data-[selected=true]:text-accent-alt"
             value={item}
             onSelect={() => onPick(item)}
           >

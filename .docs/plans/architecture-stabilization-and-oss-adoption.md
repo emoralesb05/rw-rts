@@ -32,6 +32,13 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - The first CSS migration slice moved HUD/chrome styling for `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`, `PartyRow`, `LetterCard`, and HUD empty/action states into owned components/Tailwind, reducing `styles.css` from ~3519 to 2547 lines.
 - The second CSS migration slice moved floating panel, settings, dispatch, kingdom, wielder detail, and shared tool/archetype/renown chip styling into owned React components, reducing `styles.css` to 1569 lines.
 - The third CSS migration slice moved the chat drawer, conversation stream, per-wielder chat input, and legacy unit inspector styling into owned React components/Tailwind, reducing `styles.css` to 526 lines.
+- The final CSS migration slice moved DecreeModal, the root app shell,
+  Electron drag strip, Phaser stage host, legacy markdown styling, and
+  alert-card pulse hooks into owned React/Tailwind code, reducing
+  `styles.css` to 167 lines.
+- Streamdown is now used with local component mappings in
+  `ConversationStream`, so markdown styling no longer needs global
+  `.md*` CSS.
 
 ## Adopt now
 
@@ -75,8 +82,9 @@ Acceptance:
 
 The owned Radix/Tailwind foundation has landed. New UI should keep using
 the owned wrappers under `src/renderer/src/components/primitives/` and
-chrome atoms under `src/renderer/src/components/chrome/`; remaining CSS
-reduction is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
+chrome atoms under `src/renderer/src/components/chrome/`. The CSS
+migration plan is structurally complete; future UI work should avoid
+adding broad app-surface selectors back to `styles.css`.
 
 First slice:
 
@@ -158,6 +166,7 @@ Defer until provider process lifecycle complexity proves it needs a formal state
 6. Continue extracting the large store event reducer. **Store letter-action shell coverage is now in place.**
 7. Start Radix-owned component wrappers and convert `DecreeModal`. **Done.**
 8. Add Playwright Electron smoke tests after fixture-driven UI flows have stable selectors.
+9. Replace the remaining manual Electron smoke workflow with automated app-level checks once selectors are stable.
 
 ## Source links
 

@@ -21,6 +21,7 @@ import { usePersistedBool } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
 import { TooltipHint } from "../components/chrome/TooltipHint";
 import { cn } from "@/lib/cn";
+import { pulseLetterElement } from "./hud/letter-highlight";
 import type { AgentEvent } from "@shared/events";
 
 const VISIBLE = 60;
@@ -61,10 +62,7 @@ function highlightAlert(requestId: string) {
     );
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    el.classList.remove("letter-pulse");
-    void el.offsetWidth;
-    el.classList.add("letter-pulse");
-    window.setTimeout(() => el.classList.remove("letter-pulse"), 3600);
+    pulseLetterElement(el);
   };
   // First try synchronously (already-expanded case), then fall back to
   // next animation frame to give the React re-render after expand a

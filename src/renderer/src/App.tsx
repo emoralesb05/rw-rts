@@ -32,9 +32,9 @@ export function App() {
   return (
     <TooltipProvider delayDuration={250}>
       <AppToastProvider>
-        <div className="app">
-          <div className="window-drag-strip" />
-          <div className="stage">
+        <div className="grid h-screen grid-cols-1 grid-rows-1">
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-8 [-webkit-app-region:drag]" />
+          <div className="relative block min-h-0 min-w-0 overflow-hidden bg-[#04060d] [&_canvas]:block">
             <PhaserGame />
             <KingdomHeader />
             <WielderHUD />

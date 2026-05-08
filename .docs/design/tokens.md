@@ -2,9 +2,10 @@
 
 Keykeeper's React DOM design tokens live in
 `src/renderer/src/styles.css` inside Tailwind v4's `@theme` block.
-Existing vanilla CSS still reads the legacy variables in `:root`; those
-variables are now aliases to the theme tokens so old and new styling can
-coexist during the migration.
+The legacy `:root` alias bridge has been removed; component styling
+should reference these tokens through Tailwind utilities such as
+`bg-panel`, `text-muted`, `border-line`, and arbitrary values backed by
+`var(--color-*)` only when a utility cannot express the exact value.
 
 ## Color
 
@@ -32,7 +33,6 @@ coexist during the migration.
 ## Migration Rule
 
 New React components should use Tailwind utilities backed by these
-tokens. Existing CSS can keep legacy names while it is being migrated,
-but new bespoke CSS should only be added for global concerns, Phaser
-canvas integration, Streamdown/KaTeX markup we do not own, or explicitly
-tagged irreducible animation/layout rules.
+tokens. New bespoke CSS should only be added for actual global concerns:
+Tailwind theme/source declarations, third-party CSS imports, or named
+keyframes consumed by Tailwind animation utilities.

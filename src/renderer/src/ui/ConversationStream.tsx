@@ -12,7 +12,7 @@ import {
   ChevronUp,
   CornerDownRight,
 } from "lucide-react";
-import { Streamdown } from "streamdown";
+import { Streamdown, type Components } from "streamdown";
 import { code } from "@streamdown/code";
 import { mermaid } from "@streamdown/mermaid";
 import { math } from "@streamdown/math";
@@ -22,9 +22,123 @@ import { ROLE_HEX } from "../game/units";
 import { EmptyState } from "../components/chrome/EmptyState";
 import { TooltipHint } from "../components/chrome/TooltipHint";
 import { cn } from "@/lib/cn";
+import { pulseLetterElement } from "./hud/letter-highlight";
 import type { AgentEvent, UnitState } from "@shared/events";
 
 const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk };
+
+const markdownComponents: Components = {
+  p({ className, ...props }) {
+    return (
+      <p
+        className={cn("my-1.5 whitespace-pre-wrap break-words", className)}
+        {...props}
+      />
+    );
+  },
+  h1({ className, ...props }) {
+    return (
+      <h1
+        className={cn(
+          "mb-1 mt-2.5 text-sm font-bold text-accent-alt",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  h2({ className, ...props }) {
+    return (
+      <h2
+        className={cn(
+          "mb-1 mt-2.5 text-[13px] font-bold text-accent-alt",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  h3({ className, ...props }) {
+    return (
+      <h3
+        className={cn(
+          "mb-1 mt-2.5 text-[12.5px] font-bold uppercase tracking-[0.6px] text-accent",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  a({ className, ...props }) {
+    return (
+      <a
+        className={cn(
+          "break-all text-accent underline decoration-current underline-offset-2 hover:text-accent-alt",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  inlineCode({ className, ...props }) {
+    return (
+      <code
+        className={cn(
+          "rounded-sm bg-accent/[0.12] px-1.5 py-px font-mono text-[11.5px] text-accent",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  pre({ className, ...props }) {
+    return (
+      <pre
+        className={cn(
+          "my-1.5 max-h-[240px] overflow-x-auto overflow-y-auto rounded-md border border-line bg-[#04060d] px-2.5 py-2 font-mono text-[11px] text-[#cfe1ff]",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  ul({ className, ...props }) {
+    return <ul className={cn("my-1 list-disc pl-5", className)} {...props} />;
+  },
+  ol({ className, ...props }) {
+    return <ol className={cn("my-1 list-decimal pl-5", className)} {...props} />;
+  },
+  li({ className, ...props }) {
+    return <li className={cn("my-0.5", className)} {...props} />;
+  },
+  blockquote({ className, ...props }) {
+    return (
+      <blockquote
+        className={cn(
+          "my-1.5 border-l-[3px] border-accent pl-2.5 italic text-muted",
+          className
+        )}
+        {...props}
+      />
+    );
+  },
+  hr({ className, ...props }) {
+    return (
+      <hr
+        className={cn("my-2.5 border-0 border-t border-line", className)}
+        {...props}
+      />
+    );
+  },
+};
+
+function MarkdownStream({ children }: { children: string }) {
+  return (
+    <Streamdown plugins={STREAMDOWN_PLUGINS} components={markdownComponents}>
+      {children}
+    </Streamdown>
+  );
+}
 
 const TOOL_ICON: Record<string, string> = {
   Read: "📖", Grep: "🔍", Glob: "🔍",
@@ -370,7 +484,7 @@ function DiffPreview({ hunks }: { hunks: EditHunk[] }) {
     .join("\n\n");
   return (
     <div className="ml-[18px] mt-1.5 text-[11px] [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:text-[11px] [&_pre]:leading-normal">
-      <Streamdown plugins={STREAMDOWN_PLUGINS}>{fenced}</Streamdown>
+      <MarkdownStream>{fenced}</MarkdownStream>
     </div>
   );
 }
@@ -693,7 +807,7 @@ function AssistantBubble({ text }: { text: string }) {
   return (
     <div className="mt-1 flex">
       <div className="max-w-[92%] whitespace-pre-wrap break-words rounded-lg rounded-bl-sm border border-line bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 text-text">
-        <Streamdown plugins={STREAMDOWN_PLUGINS}>{text}</Streamdown>
+        <MarkdownStream>{text}</MarkdownStream>
       </div>
     </div>
   );
@@ -707,7 +821,7 @@ function UserBubble({ text }: { text: string }) {
           King
         </span>
         <div className="inline align-middle [&_code]:rounded-sm [&_code]:bg-accent-alt/[0.12] [&_code]:px-1 [&_code]:text-accent [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:border [&_pre]:border-accent-alt/20 [&_pre]:bg-black/35 [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-[11px] [&>*+*]:mt-1.5 [&>*]:m-0">
-          <Streamdown plugins={STREAMDOWN_PLUGINS}>{text}</Streamdown>
+          <MarkdownStream>{text}</MarkdownStream>
         </div>
       </div>
     </div>
@@ -749,10 +863,7 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
       );
       if (!el) return;
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      el.classList.remove("letter-pulse");
-      void el.offsetWidth;
-      el.classList.add("letter-pulse");
-      window.setTimeout(() => el.classList.remove("letter-pulse"), 3600);
+      pulseLetterElement(el);
     }));
   };
   const inner = (

@@ -58,7 +58,9 @@ type Panel = {
 };
 ```
 
-- `zCounter: 10_000` (high to clear Mermaid's overlay z-index)
+- `zCounter: 10_000` (high to clear Mermaid's overlay z-index);
+  `--z-modal` and `--z-popover` intentionally sit above that range so
+  Radix dialogs, alert dialogs, menus, and tooltips clear open panels.
 - Singletons (settings, kingdom, dispatch) only ever have one open instance
 - Wielder panels keyed by `unit.id` — opening the same wielder twice raises the existing one
 - `setSize(id, {width, height})` lets a body call up and resize itself
@@ -86,7 +88,7 @@ The chat stream renders `AgentEvent`s into one of:
 - **Subagent spawn marker** — indented child events
 - **Error banner** — red tint, exit code chip
 
-Streamdown plugins enabled: `code` (Shiki), `mermaid`, `math` (KaTeX), `cjk`. Mermaid's overlay leaks z-index; floating-panel zCounter starts at 10000 to clear it.
+Streamdown plugins enabled: `code` (Shiki), `mermaid`, `math` (KaTeX), `cjk`. Markdown element styling is owned through `ConversationStream` component mappings instead of global `.md*` CSS. Mermaid's overlay leaks z-index; floating-panel zCounter starts at 10000 to clear it.
 
 ## Activity log (`src/renderer/src/ui/ActivityLog.tsx`)
 
