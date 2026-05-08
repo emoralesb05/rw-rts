@@ -2,6 +2,38 @@
 
 All notable changes to keykeeper. Format follows [Keep a Changelog](https://keepachangelog.com/) section names and [Conventional Commits](https://www.conventionalcommits.org/) `type(scope): subject` bullets. Hashes link to the commit on GitHub.
 
+## [0.6.0] (2026-05-08)
+
+This release stabilizes keykeeper's internal foundation after the Gemini provider work: runtime validation now uses shared Zod schemas, provider events flow through a normalized hook bridge, the renderer has a Radix/Tailwind design-system base, and the repo has first-class lint, format, style, typecheck, and unit-test coverage.
+
+### Features
+
+- **validation:** shared Zod schemas now cover settings, IPC payloads, provider events, permissions, installers, persisted state, transcripts, and renderer storage, with TypeScript types inferred from the schemas where useful ([9b8620e](https://github.com/emoralesb05/kh-rts/commit/9b8620e), [1cd0ff4](https://github.com/emoralesb05/kh-rts/commit/1cd0ff4), [a6fcf91](https://github.com/emoralesb05/kh-rts/commit/a6fcf91), [11c43a4](https://github.com/emoralesb05/kh-rts/commit/11c43a4))
+- **tests:** Vitest coverage now exercises schema parsing, settings persistence, IPC validation, hook installers, hook dedupe, hook bridge behavior, transcript adapters, desktop notifications, unit identity, role archetypes, and store-domain reducers ([dc21c0c](https://github.com/emoralesb05/kh-rts/commit/dc21c0c), [3f5c9da](https://github.com/emoralesb05/kh-rts/commit/3f5c9da), [a6fcf91](https://github.com/emoralesb05/kh-rts/commit/a6fcf91))
+- **design-system:** Radix primitives and owned UI kit components now live under `src/renderer/src/ui/components/`, including dialog, alert dialog, dropdown, popover, select, tabs, toast, tooltip, command, checkbox, radio group, switch, scroll area, and reusable kit pieces ([75fcd42](https://github.com/emoralesb05/kh-rts/commit/75fcd42), [ae1faa0](https://github.com/emoralesb05/kh-rts/commit/ae1faa0), [6e5356f](https://github.com/emoralesb05/kh-rts/commit/6e5356f), [eef7e09](https://github.com/emoralesb05/kh-rts/commit/eef7e09), [86db4e3](https://github.com/emoralesb05/kh-rts/commit/86db4e3), [00c97d8](https://github.com/emoralesb05/kh-rts/commit/00c97d8), [366d5fd](https://github.com/emoralesb05/kh-rts/commit/366d5fd))
+- **permissions:** IPC payload validation and permission helpers were tightened so provider permission events have one typed shape across main, preload, renderer, and tests ([11c43a4](https://github.com/emoralesb05/kh-rts/commit/11c43a4))
+
+### Bug Fixes
+
+- **ui:** polished chat drawer, HUD, tab, button, spacing, wrapping, and panel layouts after the CSS migration so the new component foundation preserves the expected sticky and responsive behavior ([0fb2098](https://github.com/emoralesb05/kh-rts/commit/0fb2098), [c48b773](https://github.com/emoralesb05/kh-rts/commit/c48b773))
+
+### Refactor
+
+- **hook-bridge:** provider event parsing now runs through normalized hook and transcript schemas, reducing provider-specific branching and making Claude, Codex, Cursor, and Gemini streams easier to validate consistently ([1cd0ff4](https://github.com/emoralesb05/kh-rts/commit/1cd0ff4), [a6fcf91](https://github.com/emoralesb05/kh-rts/commit/a6fcf91))
+- **css:** large bespoke stylesheet rules were migrated into Tailwind utilities, tokens, and design-system components; `styles.css` is now focused on theme tokens, keyframes, Tailwind sources, and remaining global behavior ([a498cc0](https://github.com/emoralesb05/kh-rts/commit/a498cc0), [c772ce6](https://github.com/emoralesb05/kh-rts/commit/c772ce6), [15187cf](https://github.com/emoralesb05/kh-rts/commit/15187cf), [dadc20f](https://github.com/emoralesb05/kh-rts/commit/dadc20f))
+- **renderer:** UI components were reorganized under `src/renderer/src/ui/`, with primitives and kit components separated by responsibility while preserving direct imports instead of barrel re-exports ([40b8c4c](https://github.com/emoralesb05/kh-rts/commit/40b8c4c))
+
+### Documentation
+
+- **architecture:** architecture docs now include the current Gemini support, IPC/state/schema direction, renderer organization, and OSS-adoption review notes ([045dba4](https://github.com/emoralesb05/kh-rts/commit/045dba4), [7805a6e](https://github.com/emoralesb05/kh-rts/commit/7805a6e))
+- **design:** design-system planning was replaced by concrete design docs for components and tokens after the Radix/Tailwind foundation landed ([80d53b6](https://github.com/emoralesb05/kh-rts/commit/80d53b6), [dadc20f](https://github.com/emoralesb05/kh-rts/commit/dadc20f))
+
+### Chores
+
+- **lint:** added ESLint flat config, Prettier with `prettier-plugin-tailwindcss`, Stylelint, strict lint scripts, format checks, and VS Code CSS settings for Tailwind v4 at-rules ([cb25501](https://github.com/emoralesb05/kh-rts/commit/cb25501), [4c0ff7f](https://github.com/emoralesb05/kh-rts/commit/4c0ff7f))
+
+---
+
 ## [0.5.0] (2026-05-06)
 
 Gemini lands as keykeeper's fourth provider. The app can now observe external Gemini CLI sessions, spawn Gemini turns through `stream-json`, route Gemini tool and response events through the shared bridge, and own Gemini tool approvals with a fail-closed `BeforeTool` gate plus managed native policy. This release also adds the Command Palette and documents the next permission-model upgrade.
