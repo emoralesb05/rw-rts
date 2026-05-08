@@ -1113,7 +1113,7 @@ export function ConversationStream({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-3.5 pb-4 pt-3 text-[12.5px] leading-normal"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-5 pt-3.5 text-[12.5px] leading-normal"
       ref={containerRef}
     >
       {hiddenCount > 0 && (

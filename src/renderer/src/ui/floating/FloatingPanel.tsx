@@ -93,7 +93,7 @@ export function FloatingPanel({ panel, children }: Props) {
   return (
     <div
       className={cn(
-        "fixed flex origin-center flex-col overflow-hidden rounded-lg",
+        "fixed flex origin-center flex-col overflow-hidden rounded-md",
         "border border-accent bg-[linear-gradient(180deg,#0f1635_0%,#0a1130_100%)]",
         "shadow-[0_30px_80px_rgba(0,0,0,0.65),0_8px_24px_rgba(0,0,0,0.50),0_0_0_1px_rgba(255,216,107,0.18)]",
         "animate-[floating-panel-rise_200ms_cubic-bezier(0.2,0.8,0.3,1)]"
@@ -110,7 +110,7 @@ export function FloatingPanel({ panel, children }: Props) {
       aria-label={panel.title}
     >
       <div
-        className="flex cursor-grab select-none items-center gap-2 border-b border-line bg-accent-alt/[0.06] px-2 py-1.5 pl-2.5 font-ui active:cursor-grabbing"
+        className="flex min-h-8 cursor-grab select-none items-center gap-2 border-b border-line bg-accent-alt/[0.06] px-2 py-1.5 pl-2.5 font-ui active:cursor-grabbing"
         onPointerDown={onHeaderPointerDown}
         onPointerMove={onHeaderPointerMove}
         onPointerUp={onHeaderPointerUp}
@@ -136,7 +136,7 @@ export function FloatingPanel({ panel, children }: Props) {
           <X size={14} aria-hidden />
         </IconButton>
       </div>
-      <div className="max-h-[calc(100vh-80px)] overflow-y-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </div>
   );
 }

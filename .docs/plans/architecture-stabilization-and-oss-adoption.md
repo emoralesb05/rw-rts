@@ -27,8 +27,8 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Store letter-action shell behavior now has tests for permission allow/deny, observation-only acknowledgements, dispatch selection, and recalls.
 - Provider hook installers now have idempotency tests against mocked home-directory config files.
 - Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
-- The Radix/Tailwind owned component foundation has landed; remaining UI cleanup is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
-- The completed `design-system.md` plan was removed; active UI cleanup now lives in the CSS migration plan.
+- The Radix/Tailwind owned component foundation has landed, and the completed CSS migration plan was removed.
+- The completed `design-system.md` plan was removed; ongoing UI guidance now lives in `.docs/design/`.
 - The first CSS migration slice moved HUD shell styling for `HudWidget`, `ActivityLog`, `KingdomHeader`, `CloseAllChip`, `PartyRow`, `LetterCard`, and HUD empty/action states into owned components/Tailwind, reducing `styles.css` from ~3519 to 2547 lines.
 - The second CSS migration slice moved floating panel, settings, dispatch, kingdom, wielder detail, and shared tool/archetype/renown chip styling into owned React components, reducing `styles.css` to 1569 lines.
 - The third CSS migration slice moved the chat drawer, conversation stream, per-wielder chat input, and legacy unit inspector styling into owned React components/Tailwind, reducing `styles.css` to 526 lines.
@@ -171,7 +171,6 @@ Defer until provider process lifecycle complexity proves it needs a formal state
 ## Source links
 
 - Architecture review: [`../reviews/architecture-review-2026-05-06.md`](../reviews/architecture-review-2026-05-06.md)
-- Design-system CSS migration: [`design-system-css-migration.md`](./design-system-css-migration.md)
 - Multi-choice permissions plan: [`multi-choice-permissions.md`](./multi-choice-permissions.md)
 - Electron security checklist: https://www.electronjs.org/docs/latest/tutorial/security
 - Vitest guide: https://vitest.dev/guide/

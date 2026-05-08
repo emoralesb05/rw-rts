@@ -48,9 +48,9 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   const canSend = !disabled && !!prompt.trim();
 
   return (
-    <div className="sticky bottom-0 z-[1] flex flex-none gap-2 border-t border-line bg-[rgba(5,9,18,0.92)] px-2.5 py-2 backdrop-blur-sm">
+    <div className="sticky bottom-0 z-[1] flex flex-none items-end gap-2.5 border-t border-line bg-[rgba(5,9,18,0.94)] px-3 py-2.5 shadow-[0_-10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm">
       <Textarea
-        className="min-h-9 max-h-[140px] flex-1 resize-y rounded-sm bg-surface-2/90 px-2.5 py-1.5 font-mono text-[11.5px] leading-[1.4]"
+        className="min-h-10 max-h-[150px] flex-1 resize-y rounded-sm bg-surface-2/90 px-2.5 py-1.5 font-mono text-[12px] leading-[1.4]"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={onKeyDown}
@@ -62,7 +62,7 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
       <Button
         type="button"
         variant={canSend ? "primary" : "default"}
-        className="w-24 self-end px-3 py-1.5 text-[11px]"
+        className="h-9 min-h-9 w-24 px-3 py-1.5 text-[11px]"
         onClick={send}
         disabled={!canSend}
         aria-label={`Send message to ${unit.displayName}`}

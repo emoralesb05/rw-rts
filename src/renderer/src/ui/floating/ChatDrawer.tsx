@@ -307,7 +307,7 @@ export function ChatDrawer() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList
-            className="min-h-9 flex-none items-stretch overflow-x-auto border-accent-alt/20 bg-surface-1/95 p-0 [scrollbar-width:thin]"
+            className="min-h-10 flex-none items-stretch overflow-x-auto border-accent-alt/20 bg-surface-1/95 p-0 pr-1 [scrollbar-width:thin]"
             aria-label="Wielder chats"
           >
             {drawer.openTabs.map((unitId) => {
@@ -327,7 +327,7 @@ export function ChatDrawer() {
                 <div
                   key={unitId}
                   className={cn(
-                    "group relative inline-flex max-w-[220px] flex-none items-stretch border-r border-line bg-transparent transition-colors",
+                    "group relative grid min-w-[164px] max-w-[260px] flex-none grid-cols-[minmax(0,1fr)_26px] items-stretch overflow-hidden border-r border-line/90 bg-transparent transition-colors",
                     "hover:bg-accent-alt/[0.04]",
                     isActive &&
                       "bg-accent-alt/10 after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-accent-alt after:shadow-[0_0_8px_rgba(255,216,107,0.45)]"
@@ -337,16 +337,25 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value={unitId}
-                        className="h-9 min-w-0 flex-none gap-2.5 px-3 py-2 text-[11px] normal-case tracking-[0.4px] data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
+                        className="h-10 w-full min-w-0 flex-none justify-start gap-2 px-3.5 py-2 text-[11px] normal-case tracking-normal data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
                       >
-                        {tool && (
-                          <AgentToolBadge
-                            tool={tool}
-                            className="h-5 shrink-0 px-2 text-[8.5px]"
-                          />
-                        )}
-                        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold">
-                          {name}
+                        <span
+                          className={cn(
+                            "grid min-w-0 items-center gap-2.5",
+                            tool
+                              ? "grid-cols-[auto_minmax(0,1fr)]"
+                              : "grid-cols-[minmax(0,1fr)]"
+                          )}
+                        >
+                          {tool && (
+                            <AgentToolBadge
+                              tool={tool}
+                              className="h-[18px] min-w-[54px] justify-center px-1.5 text-[8px]"
+                            />
+                          )}
+                          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold">
+                            {name}
+                          </span>
                         </span>
                         {status !== "none" && (
                           <span
@@ -368,7 +377,7 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="my-auto mr-1.5 inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-45 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-100"
+                        className="m-auto inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-45 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           closeDrawerTab(unitId);
@@ -383,7 +392,7 @@ export function ChatDrawer() {
                 </div>
               );
             })}
-            <div className="ml-auto flex items-stretch border-l border-line">
+            <div className="ml-auto flex shrink-0 items-stretch border-l border-line">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconButton
@@ -421,7 +430,7 @@ export function ChatDrawer() {
           </TabsList>
           <TabsContent
             value={activeUnit.id}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[rgba(7,12,24,0.42)]"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-white/[0.03] bg-[rgba(7,12,24,0.42)]"
           >
             <ConversationStream
               sessionId={activeUnit.id}
