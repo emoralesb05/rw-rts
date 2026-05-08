@@ -54,6 +54,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Wielder chat input now has jsdom component tests for click-send,
   meta-enter send, inactive/observed-only disabled states, and
   send-failure retry behavior.
+- Zustand-backed floating panel state now has unit coverage for panel
+  dedupe/data merging, chat drawer preservation, drawer tab fallback,
+  drawer width persistence/clamping, and alert z-index focus.
 
 ## Adopt now
 
@@ -150,6 +153,8 @@ Evaluate `subscribeWithSelector` and `immer` after store reducers are extracted.
 - `subscribeWithSelector` may reduce broad UI rerenders and standing-order runner churn.
 - `immer` may simplify nested reducer updates, but only if tests protect behavior first.
 - Do not move durable app persistence to Zustand `persist` unless main-owned persistence becomes a real problem.
+- The floating panel store now has direct behavior tests, giving us a
+  baseline before any middleware experiment. **Done for `panel-store`.**
 
 ### Execa
 
