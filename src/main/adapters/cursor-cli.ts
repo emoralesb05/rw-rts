@@ -85,7 +85,12 @@ export function spawnCursorAgent(opts: SpawnCursorOptions): SpawnedCursorAgent {
     source: "spawned",
   });
 
-  attachStream(proc, () => sessionId, () => {}, opts.cwd);
+  attachStream(
+    proc,
+    () => sessionId,
+    () => {},
+    opts.cwd
+  );
   proc.on("exit", () => agents.delete(unitId));
 
   const agent: SpawnedCursorAgent = {
@@ -104,7 +109,12 @@ export function spawnCursorAgent(opts: SpawnCursorOptions): SpawnedCursorAgent {
         source: "spawned",
       });
       const followUp = spawnCursorProcess(prompt, opts.cwd, sessionId);
-      attachStream(followUp, () => sessionId, () => {}, opts.cwd);
+      attachStream(
+        followUp,
+        () => sessionId,
+        () => {},
+        opts.cwd
+      );
     },
     kill() {
       proc.kill("SIGTERM");
@@ -181,19 +191,31 @@ export function normalizeCursorStreamMessage(
   // that map cleanly to AgentEvent kinds; thinking deltas, tool_call started,
   // partial-output deltas, system init, and user echoes are ignored.
   const ts = Date.now();
-  const base = { sessionId, tool: "cursor" as const, cwd, source: "spawned" as const };
+  const base = {
+    sessionId,
+    tool: "cursor" as const,
+    cwd,
+    source: "spawned" as const,
+  };
   const out: AgentEvent[] = [];
 
   // Drop anything labelled as a delta or partial; we only render whole messages.
-  if (msg.subtype === "delta" || msg.type === "thinking" || msg.type === "system") {
+  if (
+    msg.subtype === "delta" ||
+    msg.type === "thinking" ||
+    msg.type === "system"
+  ) {
     return out;
   }
 
   if (msg.type === "tool_call") {
     if (msg.subtype === "completed") {
-      const tc = (msg as { tool_call?: Record<string, unknown> }).tool_call ?? {};
+      const tc =
+        (msg as { tool_call?: Record<string, unknown> }).tool_call ?? {};
       const firstKey = Object.keys(tc)[0];
-      const inner = (tc as Record<string, unknown>)[firstKey] as Record<string, unknown> | undefined;
+      const inner = (tc as Record<string, unknown>)[firstKey] as
+        | Record<string, unknown>
+        | undefined;
       const name = firstKey?.replace(/ToolCall$/, "") ?? "tool";
       out.push({
         ...base,
@@ -217,7 +239,12 @@ export function normalizeCursorStreamMessage(
     if (Array.isArray(content)) {
       for (const block of content as Record<string, unknown>[]) {
         if (block.type === "text" && typeof block.text === "string") {
-          out.push({ ...base, timestamp: ts, kind: "assistant_text", payload: { text: block.text } });
+          out.push({
+            ...base,
+            timestamp: ts,
+            kind: "assistant_text",
+            payload: { text: block.text },
+          });
         } else if (block.type === "tool_use") {
           out.push({
             ...base,
@@ -234,7 +261,12 @@ export function normalizeCursorStreamMessage(
     if (Array.isArray(content)) {
       for (const block of content as Record<string, unknown>[]) {
         if (block.type === "tool_result") {
-          out.push({ ...base, timestamp: ts, kind: "tool_result", payload: { output: block.content } });
+          out.push({
+            ...base,
+            timestamp: ts,
+            kind: "tool_result",
+            payload: { output: block.content },
+          });
         }
       }
     }
@@ -243,14 +275,21 @@ export function normalizeCursorStreamMessage(
       ...base,
       timestamp: ts,
       kind: "session_end",
-      payload: { text: typeof msg.result === "string" ? msg.result : "", output: msg.usage },
+      payload: {
+        text: typeof msg.result === "string" ? msg.result : "",
+        output: msg.usage,
+      },
     });
   } else if (msg.type === "error" || msg.is_error) {
     out.push({
       ...base,
       timestamp: ts,
       kind: "error",
-      payload: { error: String(msg.message ?? msg.error ?? msg.result ?? "unknown error") },
+      payload: {
+        error: String(
+          msg.message ?? msg.error ?? msg.result ?? "unknown error"
+        ),
+      },
     });
   }
   return out;

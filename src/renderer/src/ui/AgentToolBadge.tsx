@@ -11,14 +11,10 @@ export const AGENT_TOOL_LABEL: Record<AgentTool, string> = {
 };
 
 const TOOL_BADGE_CLASS: Record<AgentTool, string> = {
-  claude:
-    "border-accent-alt/55 bg-accent-alt/[0.12] text-accent-alt",
-  cursor:
-    "border-[#9d6bff]/50 bg-[#9d6bff]/[0.14] text-[#c9a4ff]",
-  codex:
-    "border-success/50 bg-success/[0.12] text-success",
-  gemini:
-    "border-accent/50 bg-accent/[0.13] text-accent",
+  claude: "border-accent-alt/55 bg-accent-alt/[0.12] text-accent-alt",
+  cursor: "border-[#9d6bff]/50 bg-[#9d6bff]/[0.14] text-[#c9a4ff]",
+  codex: "border-success/50 bg-success/[0.12] text-success",
+  gemini: "border-accent/50 bg-accent/[0.13] text-accent",
 };
 
 export type AgentToolBadgeProps = ComponentProps<"span"> & {

@@ -43,33 +43,37 @@ export function KingdomHeader() {
   );
   const totalMunny = Math.max(persisted.totalMunnyEver, sessionMunny);
   return (
-    <div className="absolute left-1/2 top-[38px] z-[51] flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap rounded-pill border border-accent-alt/20 bg-[#0a1130]/55 px-[18px] py-2 font-ui text-xs text-text shadow-2xl backdrop-blur-md">
-      <span className="text-[11px] font-bold uppercase tracking-[1.2px] text-accent-alt">
+    <div className="rounded-pill border-accent-alt/20 font-ui text-text absolute top-[38px] left-1/2 z-[51] flex -translate-x-1/2 items-center gap-2.5 border bg-[#0a1130]/55 px-[18px] py-2 text-xs whitespace-nowrap shadow-2xl backdrop-blur-md">
+      <span className="text-accent-alt text-[11px] font-bold tracking-[1.2px] uppercase">
         ⌬ Keykeeper
       </span>
       <span className="text-muted opacity-50">·</span>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="tabular-nums text-text">✦ {sealedLifetime} sealed</span>
+          <span className="text-text tabular-nums">
+            ✦ {sealedLifetime} sealed
+          </span>
         </TooltipTrigger>
         <TooltipContent>sealed keyholes (lifetime)</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="tabular-nums text-text">⚔ {liveWielders} wielders</span>
+          <span className="text-text tabular-nums">
+            ⚔ {liveWielders} wielders
+          </span>
         </TooltipTrigger>
         <TooltipContent>active wielders</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="tabular-nums text-text">
+          <span className="text-text tabular-nums">
             µ {totalMunny.toLocaleString()}
           </span>
         </TooltipTrigger>
         <TooltipContent>total munny earned</TooltipContent>
       </Tooltip>
       <span className="text-muted opacity-50">·</span>
-      <span className="text-[11px] italic text-muted">
+      <span className="text-muted text-[11px] italic">
         founded {fmtDays(persisted.kingdomFoundedAt)} ago
       </span>
       <Toolbar
@@ -82,11 +86,15 @@ export function KingdomHeader() {
               type="button"
               variant="ghost"
               size="sm"
-              className="size-6 text-text hover:border-accent-alt/40 hover:bg-accent-alt/10 hover:text-accent-alt"
+              className="text-text hover:border-accent-alt/40 hover:bg-accent-alt/10 hover:text-accent-alt size-6"
               onClick={() => setMuted(toggleMuted())}
               aria-label={muted ? "unmute" : "mute"}
             >
-              {muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
+              {muted ? (
+                <VolumeX size={14} aria-hidden />
+              ) : (
+                <Volume2 size={14} aria-hidden />
+              )}
             </IconButton>
           </TooltipTrigger>
           <TooltipContent>{muted ? "unmute" : "mute"}</TooltipContent>
@@ -97,7 +105,7 @@ export function KingdomHeader() {
               type="button"
               variant="ghost"
               size="sm"
-              className="size-6 text-text hover:border-accent-alt/40 hover:bg-accent-alt/10 hover:text-accent-alt"
+              className="text-text hover:border-accent-alt/40 hover:bg-accent-alt/10 hover:text-accent-alt size-6"
               onClick={() =>
                 openPanel({ kind: "kingdom", title: "Kingdom", width: 520 })
               }
@@ -106,7 +114,9 @@ export function KingdomHeader() {
               <Settings size={14} aria-hidden />
             </IconButton>
           </TooltipTrigger>
-          <TooltipContent>Kingdom — overview, settings, connection, demos</TooltipContent>
+          <TooltipContent>
+            Kingdom — overview, settings, connection, demos
+          </TooltipContent>
         </Tooltip>
       </Toolbar>
       <CloseAllChip />

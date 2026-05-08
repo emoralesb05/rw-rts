@@ -12,9 +12,9 @@ export function SwitchControl({
     <SwitchPrimitive.Root
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center",
-        "rounded-pill border border-line bg-surface-2 transition-colors",
+        "rounded-pill border-line bg-surface-2 border transition-colors",
         "data-[state=checked]:border-accent data-[state=checked]:bg-accent/35",
-        "focus:outline-none focus-visible:border-accent",
+        "focus-visible:border-accent focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
@@ -22,7 +22,7 @@ export function SwitchControl({
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "block size-4 rounded-pill bg-text shadow transition-transform",
+          "rounded-pill bg-text block size-4 shadow transition-transform",
           "data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0.5"
         )}
       />

@@ -32,7 +32,9 @@ export function DispatchPanelBody() {
   const [spawnPath, setSpawnPath] = useState<string>("");
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
-  const [discoveredRepos, setDiscoveredRepos] = useState<WorkspaceRepoEntry[]>([]);
+  const [discoveredRepos, setDiscoveredRepos] = useState<WorkspaceRepoEntry[]>(
+    []
+  );
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function DispatchPanelBody() {
   const canSpawn = !busy && !!prompt.trim();
 
   return (
-    <div className="flex flex-col gap-3 px-4 py-3.5 font-ui">
+    <div className="font-ui flex flex-col gap-3 px-4 py-3.5">
       <Field label="Tool">
         <SegmentedControl
           aria-label="agent tool"
@@ -85,10 +87,7 @@ export function DispatchPanelBody() {
         />
       </Field>
 
-      <Field
-        htmlFor="dispatch-target"
-        label="Target"
-      >
+      <Field htmlFor="dispatch-target" label="Target">
         <Select
           value={spawnPath || CURRENT_REPO_VALUE}
           onValueChange={(value) =>
@@ -96,10 +95,7 @@ export function DispatchPanelBody() {
           }
           disabled={busy}
         >
-          <SelectTrigger
-            id="dispatch-target"
-            className="w-full max-w-none"
-          >
+          <SelectTrigger id="dispatch-target" className="w-full max-w-none">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -142,7 +138,7 @@ export function DispatchPanelBody() {
         />
       </Field>
 
-      <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-2">
+      <div className="border-line flex flex-wrap justify-end gap-2 border-t pt-2">
         <Button
           type="button"
           onClick={() => closeKind("dispatch")}
@@ -156,7 +152,13 @@ export function DispatchPanelBody() {
           onClick={send}
           disabled={!canSpawn}
         >
-          {busy ? "Spawning…" : (<><Play size={12} aria-hidden /> Spawn {tool}</>)}
+          {busy ? (
+            "Spawning…"
+          ) : (
+            <>
+              <Play size={12} aria-hidden /> Spawn {tool}
+            </>
+          )}
         </Button>
       </div>
     </div>

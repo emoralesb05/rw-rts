@@ -26,7 +26,10 @@ export function Bar({
   const percent = max === min ? 0 : ((clamped - min) / (max - min)) * 100;
   return (
     <div
-      className={cn("h-1.5 overflow-hidden rounded-pill bg-black/30", className)}
+      className={cn(
+        "rounded-pill h-1.5 overflow-hidden bg-black/30",
+        className
+      )}
       role={role ?? "meter"}
       aria-valuemax={ariaValueMax ?? max}
       aria-valuemin={ariaValueMin ?? min}
@@ -35,7 +38,7 @@ export function Bar({
     >
       <div
         className={cn(
-          "h-full rounded-pill transition-[width]",
+          "rounded-pill h-full transition-[width]",
           tone === "hp" && "bg-success",
           tone === "mp" && "bg-accent",
           tone === "focus" && "bg-accent-alt",

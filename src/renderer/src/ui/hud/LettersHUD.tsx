@@ -28,13 +28,15 @@ export function LettersHUD() {
           <Button
             type="button"
             variant="danger"
-            className="min-h-6 px-2 py-0.5 text-[10px] uppercase tracking-[0.5px]"
+            className="min-h-6 px-2 py-0.5 text-[10px] tracking-[0.5px] uppercase"
             onClick={dismissInformationalLetters}
           >
             <Trash2 size={11} aria-hidden /> clear
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Dismiss every letter — permission alerts are kept</TooltipContent>
+        <TooltipContent>
+          Dismiss every letter — permission alerts are kept
+        </TooltipContent>
       </Tooltip>
     ) : null;
   return (

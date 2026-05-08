@@ -20,10 +20,7 @@ import { usePanels } from "./panel-store";
 import { useStore, unitIdentityForUnit } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
-import {
-  classifyArchetype,
-  ARCHETYPE_TITLE,
-} from "../role-archetype";
+import { classifyArchetype, ARCHETYPE_TITLE } from "../role-archetype";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
@@ -123,8 +120,7 @@ export function WielderPanelBody({ unitId }: Props) {
   const mpPct = Math.max(0, Math.min(100, unit.mp));
   const focusPct = unit.driveForm ? 100 : 35;
   const ghosted = unit.status === "complete" || unit.status === "fallen";
-  const canComfort =
-    !ghosted && unit.hp < 100 && (world?.munny ?? 0) >= 50;
+  const canComfort = !ghosted && unit.hp < 100 && (world?.munny ?? 0) >= 50;
 
   return (
     <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
@@ -146,7 +142,7 @@ export function WielderPanelBody({ unitId }: Props) {
         </TooltipHint>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-bold tracking-[0.3px] text-text">
+            <span className="text-text text-sm font-bold tracking-[0.3px]">
               {unit.displayName}
             </span>
             <AgentToolBadge tool={unit.tool} className="self-start" />
@@ -162,15 +158,15 @@ export function WielderPanelBody({ unitId }: Props) {
                   "h-4 min-h-0 self-start px-1 text-[8px]",
                   unit.spawnedHere
                     ? "border-accent/40 bg-accent/10 text-accent"
-                    : "border-white/10 bg-white/[0.04] text-muted"
+                    : "text-muted border-white/10 bg-white/[0.04]"
                 )}
               >
                 {unit.spawnedHere ? "spawned" : "observed"}
               </Badge>
             </TooltipHint>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted">
-            <span className="font-mono uppercase tracking-[0.6px]">
+          <div className="text-muted flex flex-wrap items-center gap-2 text-[10px]">
+            <span className="font-mono tracking-[0.6px] uppercase">
               {moodFor(unit)}
             </span>
             <TooltipHint label={ARCHETYPE_TITLE[archetype]}>
@@ -182,10 +178,11 @@ export function WielderPanelBody({ unitId }: Props) {
             <TooltipHint label="dive into this world">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 border-0 bg-transparent p-0 font-mono text-[10.5px] text-accent hover:underline"
+                className="text-accent inline-flex items-center gap-1 border-0 bg-transparent p-0 font-mono text-[10.5px] hover:underline"
                 onClick={() => selectWorld(unit.worldId)}
               >
-                <ChevronRight size={11} aria-hidden /> {worldLabel} · {themeName}
+                <ChevronRight size={11} aria-hidden /> {worldLabel} ·{" "}
+                {themeName}
               </button>
             </TooltipHint>
           </div>
@@ -200,54 +197,56 @@ export function WielderPanelBody({ unitId }: Props) {
             >
               <button
                 type="button"
-                className="inline-flex items-center gap-1 rounded-sm border border-accent-alt/45 bg-accent-alt/[0.08] px-2 py-1 text-left font-mono text-[10px] font-semibold text-accent-alt hover:border-[#ff5a3c]/60 hover:bg-accent-alt/[0.18] hover:text-[#ff5a3c]"
+                className="border-accent-alt/45 bg-accent-alt/[0.08] text-accent-alt hover:bg-accent-alt/[0.18] inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-left font-mono text-[10px] font-semibold hover:border-[#ff5a3c]/60 hover:text-[#ff5a3c]"
                 onClick={() => haltStandingOrder(o.id)}
               >
-                <RotateCw size={11} aria-hidden /> {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/{o.maxIterations} · halt
+                <RotateCw size={11} aria-hidden />{" "}
+                {Math.round(o.intervalMs / 60_000)}m · {o.iterationsRun}/
+                {o.maxIterations} · halt
               </button>
             </TooltipHint>
           ))}
         </div>
       )}
-      <div className="grid grid-cols-[18px_1fr_28px] gap-x-1.5 gap-y-1 font-mono text-[9.5px] text-muted">
+      <div className="text-muted grid grid-cols-[18px_1fr_28px] gap-x-1.5 gap-y-1 font-mono text-[9.5px]">
         <div className="contents">
-          <span className="uppercase tracking-[0.5px]">HP</span>
+          <span className="tracking-[0.5px] uppercase">HP</span>
           <Bar
             className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
             tone="hp"
             value={hpPct}
             aria-label={`${unit.displayName} HP`}
           />
-          <span className="text-right tabular-nums text-text">
+          <span className="text-text text-right tabular-nums">
             {Math.round(hpPct)}
           </span>
         </div>
         <div className="contents">
-          <span className="uppercase tracking-[0.5px]">MP</span>
+          <span className="tracking-[0.5px] uppercase">MP</span>
           <Bar
             className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
             tone="mp"
             value={mpPct}
             aria-label={`${unit.displayName} MP`}
           />
-          <span className="text-right tabular-nums text-text">
+          <span className="text-text text-right tabular-nums">
             {Math.round(mpPct)}
           </span>
         </div>
         <div className="contents">
-          <span className="uppercase tracking-[0.5px]">FC</span>
+          <span className="tracking-[0.5px] uppercase">FC</span>
           <Bar
             className="mt-0.5 h-1.5 rounded-sm border border-black/50 bg-black/45 shadow-inner"
             tone="focus"
             value={focusPct}
             aria-label={`${unit.displayName} focus`}
           />
-          <span className="text-right tabular-nums text-text">
+          <span className="text-text text-right tabular-nums">
             {unit.driveForm ?? "—"}
           </span>
         </div>
       </div>
-      <div className="flex items-center justify-between border-t border-white/[0.07] pt-1.5 font-mono text-[10px] text-muted">
+      <div className="text-muted flex items-center justify-between border-t border-white/[0.07] pt-1.5 font-mono text-[10px]">
         <span>{timeAgo(unit.lastActivity)}</span>
         {unit.lastTool && (
           <TooltipHint label="last tool call">
@@ -292,7 +291,7 @@ export function WielderPanelBody({ unitId }: Props) {
           <span className="inline-flex w-full">
             <Button
               type="button"
-              className="h-6 min-h-0 w-full gap-1 rounded-sm border-accent-alt/45 bg-accent-alt/[0.06] px-1 py-0 text-[10px] font-semibold text-accent-alt hover:border-accent-alt/70 hover:bg-accent-alt/[0.14]"
+              className="border-accent-alt/45 bg-accent-alt/[0.06] text-accent-alt hover:border-accent-alt/70 hover:bg-accent-alt/[0.14] h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px] font-semibold"
               disabled={ghosted || !unit.spawnedHere}
               onClick={() => useStore.getState().openDecreeFor(unit.id)}
             >
@@ -306,10 +305,10 @@ export function WielderPanelBody({ unitId }: Props) {
             canComfort
               ? "restore +30 HP for 50µ"
               : ghosted
-              ? "this wielder is no longer active"
-              : unit.hp >= 100
-              ? "already at full HP"
-              : "not enough munny in this world (need 50µ)"
+                ? "this wielder is no longer active"
+                : unit.hp >= 100
+                  ? "already at full HP"
+                  : "not enough munny in this world (need 50µ)"
           }
         >
           <span className="inline-flex w-full">
@@ -359,7 +358,9 @@ export function WielderPanelBody({ unitId }: Props) {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => void window.kh.killAgent(unit.id).catch(() => {})}
+                onClick={() =>
+                  void window.kh.killAgent(unit.id).catch(() => {})
+                }
               >
                 Recall
               </AlertDialogAction>

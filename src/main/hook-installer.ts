@@ -1,9 +1,20 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync, copyFileSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  chmodSync,
+  copyFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { app } from "electron";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
-import { ClaudeSettingsSchema, type ClaudeSettings } from "@shared/schemas";
+import {
+  ClaudeSettingsSchema,
+  type ClaudeSettings,
+  type JsonHookEntry,
+} from "@shared/schemas";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const HOOK_MARKER = "keykeeper-managed";
@@ -61,7 +72,6 @@ export function syncHookScript(): void {
       chmodSync(INSTALLED_SCRIPT_PATH, 0o755);
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.warn("[keykeeper] failed to sync hook script:", err);
   }
 }
@@ -95,13 +105,17 @@ function saveSettings(settings: ClaudeSettings) {
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+function hasManagedHook(entry: JsonHookEntry): boolean {
+  return (entry.hooks ?? []).some((hook) =>
+    hook.command?.includes(HOOK_MARKER)
+  );
+}
+
 export function isInstalled(): boolean {
   const s = loadSettings();
   const hooks = s?.hooks ?? {};
   return HOOK_EVENTS.every((evt) =>
-    (hooks[evt] ?? []).some((entry: any) =>
-      (entry.hooks ?? []).some((h: any) => h.command?.includes(HOOK_MARKER))
-    )
+    (hooks[evt] ?? []).some((entry) => hasManagedHook(entry))
   );
 }
 
@@ -114,8 +128,8 @@ export function installHooks() {
   settings.hooks = settings.hooks ?? {};
 
   for (const evt of HOOK_EVENTS) {
-    settings.hooks[evt] = (settings.hooks[evt] ?? []).filter((entry) =>
-      !(entry.hooks ?? []).some((h: any) => h.command?.includes(HOOK_MARKER))
+    settings.hooks[evt] = (settings.hooks[evt] ?? []).filter(
+      (entry) => !hasManagedHook(entry)
     );
     settings.hooks[evt].push({
       matcher: "*",
@@ -131,8 +145,8 @@ export function uninstallHooks() {
   if (!settings.hooks) return;
   for (const evt of HOOK_EVENTS) {
     if (!settings.hooks[evt]) continue;
-    settings.hooks[evt] = settings.hooks[evt].filter((entry: any) =>
-      !(entry.hooks ?? []).some((h: any) => h.command?.includes(HOOK_MARKER))
+    settings.hooks[evt] = settings.hooks[evt].filter(
+      (entry) => !hasManagedHook(entry)
     );
     if (settings.hooks[evt].length === 0) delete settings.hooks[evt];
   }

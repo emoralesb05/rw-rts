@@ -41,7 +41,11 @@ export function unregisterSpawnedSession(sessionId: string) {
   spawnedSessionIds.delete(sessionId);
 }
 
-function attachStdoutStream(proc: ChildProcess, sessionId: string, cwd: string) {
+function attachStdoutStream(
+  proc: ChildProcess,
+  sessionId: string,
+  cwd: string
+) {
   let buf = "";
   proc.stdout?.on("data", (chunk: Buffer) => {
     buf += chunk.toString("utf8");
@@ -80,14 +84,13 @@ function attachStdoutStream(proc: ChildProcess, sessionId: string, cwd: string) 
   });
 }
 
-function spawnOneShot(prompt: string, sessionId: string, cwd: string, resume: boolean) {
-  const args = [
-    "-p",
-    prompt,
-    "--output-format",
-    "stream-json",
-    "--verbose",
-  ];
+function spawnOneShot(
+  prompt: string,
+  sessionId: string,
+  cwd: string,
+  resume: boolean
+) {
+  const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
   if (resume) args.push("--resume", sessionId);
   else args.push("--session-id", sessionId);
   return spawn("claude", args, {
@@ -178,7 +181,12 @@ export function normalizeStreamMessage(
   sessionId: string,
   cwd: string
 ): AgentEvent[] {
-  const base = { sessionId, tool: "claude" as const, cwd, source: "spawned" as const };
+  const base = {
+    sessionId,
+    tool: "claude" as const,
+    cwd,
+    source: "spawned" as const,
+  };
   const ts = Date.now();
   const out: AgentEvent[] = [];
 

@@ -8,7 +8,12 @@
  *                content the standalone Settings panel had)
  *   Connection — hook bridge install/uninstall + socket path
  */
-import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
 import { usePanels } from "./panel-store";
@@ -106,13 +111,13 @@ function KingdomSection({
     >
       <h3
         className={cn(
-          "m-0 text-[11px] font-bold uppercase tracking-[0.8px]",
+          "m-0 text-[11px] font-bold tracking-[0.8px] uppercase",
           danger ? "text-[#ff7a3c]" : "text-accent"
         )}
       >
         {title}
         {typeof count === "number" && (
-          <span className="ml-1.5 text-[10px] font-medium tracking-normal text-muted">
+          <span className="text-muted ml-1.5 text-[10px] font-medium tracking-normal">
             {count}
           </span>
         )}
@@ -134,14 +139,11 @@ function KingdomEmpty({
   );
 }
 
-function KingdomFooterNote({
-  className,
-  ...props
-}: ComponentProps<"p">) {
+function KingdomFooterNote({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
       className={cn(
-        "mb-0 mt-1.5 text-[10.5px] italic leading-[1.4] text-muted",
+        "text-muted mt-1.5 mb-0 text-[10.5px] leading-[1.4] italic",
         className
       )}
       {...props}
@@ -158,21 +160,21 @@ function KingdomKv({
 }) {
   return (
     <div className="grid grid-cols-[80px_1fr] items-baseline gap-2.5 py-1 text-[11px]">
-      <span className="text-[10px] uppercase tracking-[0.5px] text-muted">
+      <span className="text-muted text-[10px] tracking-[0.5px] uppercase">
         {label}
       </span>
-      <div className="min-w-0 break-words text-text">{children}</div>
+      <div className="text-text min-w-0 break-words">{children}</div>
     </div>
   );
 }
 
 function KingdomStat({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-0.5 rounded-md border border-white/[0.06] bg-surface-2/55 px-2.5 py-2">
-      <span className="text-lg font-bold leading-[1.1] text-accent-alt tabular-nums">
+    <div className="bg-surface-2/55 flex flex-col items-start gap-0.5 rounded-md border border-white/[0.06] px-2.5 py-2">
+      <span className="text-accent-alt text-lg leading-[1.1] font-bold tabular-nums">
         {value}
       </span>
-      <span className="text-[10px] uppercase tracking-[0.5px] text-muted">
+      <span className="text-muted text-[10px] tracking-[0.5px] uppercase">
         {label}
       </span>
     </div>
@@ -224,13 +226,20 @@ function OverviewTab() {
         score >= 24
           ? "Hero"
           : score >= 12
-          ? "Veteran"
-          : score >= 4
-          ? "Apprentice"
-          : "New";
+            ? "Veteran"
+            : score >= 4
+              ? "Apprentice"
+              : "New";
       const stars =
         score >= 24 ? "★★★" : score >= 12 ? "★★" : score >= 4 ? "★" : "";
-      return { identity, tool: w.tool, repoRoot: w.repoRoot, score, tier, stars };
+      return {
+        identity,
+        tool: w.tool,
+        repoRoot: w.repoRoot,
+        score,
+        tier,
+        stars,
+      };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
@@ -329,7 +338,8 @@ function OverviewTab() {
           </AlertDialogContent>
         </AlertDialog>
         <KingdomFooterNote>
-          Drops persisted state in <Code>~/Library/Application Support/keykeeper/state.json</Code>.
+          Drops persisted state in{" "}
+          <Code>~/Library/Application Support/keykeeper/state.json</Code>.
           Active sessions stay running.
         </KingdomFooterNote>
       </KingdomSection>
@@ -393,8 +403,8 @@ function HookBridgeSection(props: HookBridgeProps) {
         {busy
           ? "Working…"
           : status.installed
-          ? "Uninstall hooks"
-          : "Install hooks"}
+            ? "Uninstall hooks"
+            : "Install hooks"}
       </Button>
       <KingdomFooterNote>{description}</KingdomFooterNote>
     </KingdomSection>
@@ -516,8 +526,8 @@ function ConnectionTab() {
           description={
             <>
               Forwards Claude Code tool-call events and gates permission
-              requests for any session running on this machine. Entries live
-              in <Code>~/.claude/settings.json</Code>.
+              requests for any session running on this machine. Entries live in{" "}
+              <Code>~/.claude/settings.json</Code>.
             </>
           }
         />
@@ -534,9 +544,9 @@ function ConnectionTab() {
           description={
             <>
               Forwards Cursor agent activity for any chat on this machine.
-              Permissions are observation-only — Cursor's allowlist
-              approvalMode requires the King to confirm in Cursor's inline
-              UI. Entries live in <Code>~/.cursor/hooks.json</Code>.
+              Permissions are observation-only — Cursor's allowlist approvalMode
+              requires the King to confirm in Cursor's inline UI. Entries live
+              in <Code>~/.cursor/hooks.json</Code>.
             </>
           }
         />
@@ -552,11 +562,10 @@ function ConnectionTab() {
           configPathLabel="~/.codex/config.toml"
           description={
             <>
-              Forwards Codex CLI events and gates permission requests for
-              any session on this machine — same architecture as Claude.
-              Managed in a marker block at the end of{" "}
-              <Code>~/.codex/config.toml</Code>; the rest of the file is
-              left untouched.
+              Forwards Codex CLI events and gates permission requests for any
+              session on this machine — same architecture as Claude. Managed in
+              a marker block at the end of <Code>~/.codex/config.toml</Code>;
+              the rest of the file is left untouched.
             </>
           }
         />
@@ -573,10 +582,10 @@ function ConnectionTab() {
           description={
             <>
               Forwards Gemini CLI session, prompt, tool, result, and response
-              events for any session on this machine. Keykeeper owns Gemini
-              tool approvals via a fail-closed BeforeTool hook and a managed
-              user policy that suppresses Gemini's native prompt. Entries live
-              in <Code>~/.gemini/settings.json</Code> and{" "}
+              events for any session on this machine. Keykeeper owns Gemini tool
+              approvals via a fail-closed BeforeTool hook and a managed user
+              policy that suppresses Gemini's native prompt. Entries live in{" "}
+              <Code>~/.gemini/settings.json</Code> and{" "}
               <Code>~/.gemini/policies/keykeeper-managed.toml</Code>.
             </>
           }
@@ -610,8 +619,8 @@ function DemosTab() {
   return (
     <KingdomTab>
       <KingdomFooterNote className="mt-0">
-        Scripted demos for visual + chat + combat iteration. None of these
-        burn API tokens — they emit synthetic events.
+        Scripted demos for visual + chat + combat iteration. None of these burn
+        API tokens — they emit synthetic events.
       </KingdomFooterNote>
       {DEMO_FIXTURES.map((group) => (
         <KingdomSection key={group.label} title={group.label}>
@@ -642,7 +651,7 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as TabKey)}
-      className="flex flex-col font-ui"
+      className="font-ui flex flex-col"
     >
       <TabsList aria-label="kingdom panel">
         <TabsTrigger value="overview">Overview</TabsTrigger>

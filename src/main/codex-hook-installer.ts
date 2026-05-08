@@ -24,10 +24,14 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
-import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
+import {
+  getHookScriptPath,
+  ensureHookScriptExecutable,
+} from "./hook-installer";
 
 const CODEX_CONFIG_PATH = join(homedir(), ".codex", "config.toml");
-const BLOCK_START = "# keykeeper-hooks-start (managed by keykeeper — do not edit)";
+const BLOCK_START =
+  "# keykeeper-hooks-start (managed by keykeeper — do not edit)";
 const BLOCK_END = "# keykeeper-hooks-end";
 
 function loadConfigFile(): string {

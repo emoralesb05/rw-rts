@@ -73,9 +73,10 @@ function listJsonlFiles(): string[] {
 export function threadIdFromFilename(path: string): string {
   // rollout-2026-04-26T17-15-03-019dcc4a-2230-7953-b4fc-4f2eb06b0d49.jsonl
   const base = path.split("/").pop() ?? "";
-  const m = /rollout-.*?-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(
-    base
-  );
+  const m =
+    /rollout-.*?-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/.exec(
+      base
+    );
   return m ? m[1] : base;
 }
 
@@ -122,7 +123,9 @@ function emitAssistantText(state: FileState, text: string, id?: string) {
   });
 }
 
-export function parseCodexTranscriptLine(line: string):
+export function parseCodexTranscriptLine(
+  line: string
+):
   | { type: "cwd"; cwd: string }
   | { type: "assistant_text"; text: string; id?: string }
   | null {
@@ -215,13 +218,12 @@ function pollOnce() {
 export function startCodexTranscriptWatcher(intervalMs = 2000) {
   if (pollTimer) return;
   if (!existsSync(SESSIONS_ROOT)) {
-    // eslint-disable-next-line no-console
     console.log(
       `[keykeeper/codex-transcript] no sessions dir at ${SESSIONS_ROOT}; watcher disabled`
     );
     return;
   }
-  // eslint-disable-next-line no-console
+
   console.log(
     `[keykeeper/codex-transcript] watcher started, polling every ${intervalMs}ms`
   );

@@ -1,0 +1,9 @@
+assets
+build
+dist
+node_modules
+out
+.agents
+.docs
+dev.log
+bun.lock

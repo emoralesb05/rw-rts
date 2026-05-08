@@ -218,7 +218,10 @@ describe("permission letter domain helpers", () => {
     expect(
       isPermissionLetter(
         letter("perm", [
-          { label: "allow", action: { kind: "permission-allow", requestId: "r1" } },
+          {
+            label: "allow",
+            action: { kind: "permission-allow", requestId: "r1" },
+          },
         ])
       )
     ).toBe(true);
@@ -226,7 +229,10 @@ describe("permission letter domain helpers", () => {
     expect(
       isPermissionLetter(
         letter("observe", [
-          { label: "ack", action: { kind: "permission-observe", requestId: "r1" } },
+          {
+            label: "ack",
+            action: { kind: "permission-observe", requestId: "r1" },
+          },
         ])
       )
     ).toBe(false);
@@ -240,7 +246,9 @@ describe("permission letter domain helpers", () => {
       { label: "dismiss", action: { kind: "dismiss" } },
     ]);
 
-    expect(dismissInformationalLetters([permission, info])).toEqual([permission]);
+    expect(dismissInformationalLetters([permission, info])).toEqual([
+      permission,
+    ]);
   });
 
   it("builds IPC permission resolution payloads from letter actions", () => {
@@ -327,20 +335,38 @@ describe("permission letter domain helpers", () => {
   });
 
   it("summarizes permission inputs in human-readable priority order", () => {
-    expect(summarizePermissionInput({ command: "x".repeat(250) })).toHaveLength(200);
-    expect(summarizePermissionInput({ file_path: "/repo/file.ts" })).toBe("/repo/file.ts");
+    expect(summarizePermissionInput({ command: "x".repeat(250) })).toHaveLength(
+      200
+    );
+    expect(summarizePermissionInput({ file_path: "/repo/file.ts" })).toBe(
+      "/repo/file.ts"
+    );
     expect(summarizePermissionInput({ path: "/repo" })).toBe("/repo");
-    expect(summarizePermissionInput({ url: "https://example.com/" + "a".repeat(250) })).toHaveLength(200);
+    expect(
+      summarizePermissionInput({
+        url: "https://example.com/" + "a".repeat(250),
+      })
+    ).toHaveLength(200);
     expect(summarizePermissionInput({ pattern: "*.ts" })).toBe("*.ts");
     expect(summarizePermissionInput({ other: true })).toBe("");
   });
 
   it("classifies permission risk from tool and input shape", () => {
-    expect(classifyPermissionRisk("Read", { path: "/repo/file.ts" })).toBe("low");
-    expect(classifyPermissionRisk("Bash", { command: "npm test" })).toBe("elevated");
-    expect(classifyPermissionRisk("Bash", { command: "sudo rm -rf /tmp/x" })).toBe("high");
-    expect(classifyPermissionRisk("Write", { file_path: "/etc/hosts" })).toBe("high");
-    expect(classifyPermissionRisk("Edit", { file_path: "/repo/app.ts" })).toBe("elevated");
+    expect(classifyPermissionRisk("Read", { path: "/repo/file.ts" })).toBe(
+      "low"
+    );
+    expect(classifyPermissionRisk("Bash", { command: "npm test" })).toBe(
+      "elevated"
+    );
+    expect(
+      classifyPermissionRisk("Bash", { command: "sudo rm -rf /tmp/x" })
+    ).toBe("high");
+    expect(classifyPermissionRisk("Write", { file_path: "/etc/hosts" })).toBe(
+      "high"
+    );
+    expect(classifyPermissionRisk("Edit", { file_path: "/repo/app.ts" })).toBe(
+      "elevated"
+    );
   });
 
   it("marks Cursor permission requests as observation-only", () => {
@@ -392,11 +418,17 @@ describe("permission letter domain helpers", () => {
   });
 
   it("builds stable tool input keys", () => {
-    expect(argKeyForToolInput({ file_path: "/repo/file.ts" })).toBe("file:/repo/file.ts");
+    expect(argKeyForToolInput({ file_path: "/repo/file.ts" })).toBe(
+      "file:/repo/file.ts"
+    );
     expect(argKeyForToolInput({ path: "/repo" })).toBe("file:/repo");
-    expect(argKeyForToolInput({ command: "x".repeat(100) })).toBe(`cmd:${"x".repeat(80)}`);
+    expect(argKeyForToolInput({ command: "x".repeat(100) })).toBe(
+      `cmd:${"x".repeat(80)}`
+    );
     expect(argKeyForToolInput({ pattern: "*.ts" })).toBe("glob:*.ts");
-    expect(argKeyForToolInput({ url: "https://example.com/" })).toBe("url:https://example.com/");
+    expect(argKeyForToolInput({ url: "https://example.com/" })).toBe(
+      "url:https://example.com/"
+    );
     expect(argKeyForToolInput(null)).toBe("*");
   });
 });
@@ -445,22 +477,33 @@ describe("world and combat domain helpers", () => {
     };
 
     expect(computeAlertLevel(world, { u1: baseUnit })).toBe("idle");
-    expect(computeAlertLevel(world, { u1: { ...baseUnit, status: "working" } })).toBe("active");
-    expect(computeAlertLevel(world, { u1: { ...baseUnit, hp: 50 } })).toBe("warning");
-    expect(computeAlertLevel(world, { u1: { ...baseUnit, hp: 20 } })).toBe("danger");
+    expect(
+      computeAlertLevel(world, { u1: { ...baseUnit, status: "working" } })
+    ).toBe("active");
+    expect(computeAlertLevel(world, { u1: { ...baseUnit, hp: 50 } })).toBe(
+      "warning"
+    );
+    expect(computeAlertLevel(world, { u1: { ...baseUnit, hp: 20 } })).toBe(
+      "danger"
+    );
     expect(
       computeAlertLevel(
-        { ...world, heartless: Array.from({ length: 6 }, (_, i) => ({
-          id: `h${i}`,
-          type: "shadow",
-          worldId: "world",
-          hp: 1,
-          spawnedAt: 1,
-        })) },
+        {
+          ...world,
+          heartless: Array.from({ length: 6 }, (_, i) => ({
+            id: `h${i}`,
+            type: "shadow",
+            worldId: "world",
+            hp: 1,
+            spawnedAt: 1,
+          })),
+        },
         { u1: baseUnit }
       )
     ).toBe("danger");
-    expect(computeAlertLevel(world, { u1: { ...baseUnit, status: "complete" } })).toBe("cleared");
+    expect(
+      computeAlertLevel(world, { u1: { ...baseUnit, status: "complete" } })
+    ).toBe("cleared");
   });
 
   it("computes MP cost for tool usage and heavy outputs", () => {

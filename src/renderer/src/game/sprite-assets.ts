@@ -20,7 +20,7 @@
  * (`<role>.png`), and finally to drawn primitives.
  */
 
-import * as Phaser from "phaser";
+import type * as Phaser from "phaser";
 import type { UnitRole } from "@shared/events";
 import { UNIT_ROLES, SPRITE_URL } from "./draw";
 
@@ -90,7 +90,13 @@ export const ANIM = {
 } as const;
 
 // Frame ranges within a 32-frame sheet.
-const RANGES: { key: keyof typeof ANIM; from: number; to: number; loop: boolean; rate: number }[] = [
+const RANGES: {
+  key: keyof typeof ANIM;
+  from: number;
+  to: number;
+  loop: boolean;
+  rate: number;
+}[] = [
   { key: "idleFront", from: 0, to: 3, loop: true, rate: 4 },
   { key: "idleBack", from: 4, to: 7, loop: true, rate: 4 },
   { key: "idleSide", from: 8, to: 11, loop: true, rate: 4 },
@@ -107,10 +113,14 @@ export function registerSpritesheetPreload(scene: Phaser.Scene) {
   // probed at module load. getSpritesheetConfig prefers override → default.
   for (const role of UNIT_ROLES) {
     const dims = FRAME_DIMS[role];
-    scene.load.spritesheet(SHEET_DEFAULT_TEXTURE(role), SHEET_DEFAULT_URL(role), {
-      frameWidth: dims.width,
-      frameHeight: dims.height,
-    });
+    scene.load.spritesheet(
+      SHEET_DEFAULT_TEXTURE(role),
+      SHEET_DEFAULT_URL(role),
+      {
+        frameWidth: dims.width,
+        frameHeight: dims.height,
+      }
+    );
     if (hasOverride(role)) {
       scene.load.spritesheet(SHEET_TEXTURE(role), SHEET_URL(role), {
         frameWidth: dims.width,
@@ -135,14 +145,26 @@ export function getSpritesheetConfig(
   const dims = FRAME_DIMS[role];
   if (textures) {
     if (textures.exists(overrideKey)) {
-      return { textureKey: overrideKey, frameWidth: dims.width, frameHeight: dims.height };
+      return {
+        textureKey: overrideKey,
+        frameWidth: dims.width,
+        frameHeight: dims.height,
+      };
     }
     if (textures.exists(defaultKey)) {
-      return { textureKey: defaultKey, frameWidth: dims.width, frameHeight: dims.height };
+      return {
+        textureKey: defaultKey,
+        frameWidth: dims.width,
+        frameHeight: dims.height,
+      };
     }
     return null;
   }
-  return { textureKey: overrideKey, frameWidth: dims.width, frameHeight: dims.height };
+  return {
+    textureKey: overrideKey,
+    frameWidth: dims.width,
+    frameHeight: dims.height,
+  };
 }
 
 export function createRoleAnimations(
@@ -165,7 +187,10 @@ export function createRoleAnimations(
         if (anims.exists(animKey)) anims.remove(animKey);
         anims.create({
           key: animKey,
-          frames: anims.generateFrameNumbers(cfg.textureKey, { start: r.from, end: r.to }),
+          frames: anims.generateFrameNumbers(cfg.textureKey, {
+            start: r.from,
+            end: r.to,
+          }),
           frameRate: r.rate,
           repeat: r.loop ? -1 : 0,
         });
@@ -178,7 +203,10 @@ export function createRoleAnimations(
       if (anims.exists(animKey)) anims.remove(animKey);
       anims.create({
         key: animKey,
-        frames: anims.generateFrameNumbers(cfg.textureKey, { start: 0, end: frameCount - 1 }),
+        frames: anims.generateFrameNumbers(cfg.textureKey, {
+          start: 0,
+          end: frameCount - 1,
+        }),
         frameRate: 6,
         repeat: -1,
       });

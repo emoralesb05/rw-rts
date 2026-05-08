@@ -10,10 +10,7 @@ import { MessageSquare } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
-import {
-  classifyArchetype,
-  ARCHETYPE_TITLE,
-} from "../role-archetype";
+import { classifyArchetype, ARCHETYPE_TITLE } from "../role-archetype";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
 import { Bar } from "../components/kit/Bar";
@@ -58,9 +55,9 @@ function CastBar({ unit }: { unit: UnitState }) {
   const label = `${unit.lastTool ?? unit.status} · ${elapsedSec}s`;
   return (
     <TooltipHint label={label}>
-      <div className="relative mt-0.5 flex h-2 items-center overflow-hidden rounded-sm border border-black/50 bg-black/45 font-mono text-[7.5px] leading-none text-text">
-        <div className="absolute inset-0 animate-[cast-sweep_0.9s_linear_infinite] bg-[length:24px_24px] bg-[repeating-linear-gradient(-45deg,rgba(201,164,255,0.45)_0,rgba(201,164,255,0.45)_6px,rgba(157,107,255,0.20)_6px,rgba(157,107,255,0.20)_12px)]" />
-        <span className="relative z-[1] overflow-hidden text-ellipsis whitespace-nowrap px-1 tracking-[0.2px] [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+      <div className="text-text relative mt-0.5 flex h-2 items-center overflow-hidden rounded-sm border border-black/50 bg-black/45 font-mono text-[7.5px] leading-none">
+        <div className="absolute inset-0 animate-[cast-sweep_0.9s_linear_infinite] bg-[repeating-linear-gradient(-45deg,rgba(201,164,255,0.45)_0,rgba(201,164,255,0.45)_6px,rgba(157,107,255,0.20)_6px,rgba(157,107,255,0.20)_12px)] bg-[length:24px_24px]" />
+        <span className="relative z-[1] overflow-hidden px-1 tracking-[0.2px] text-ellipsis whitespace-nowrap [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
           {label}
         </span>
       </div>
@@ -69,8 +66,15 @@ function CastBar({ unit }: { unit: UnitState }) {
 }
 
 /** Status icons row — small chips for "what is this wielder doing right now." */
-function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean }) {
-  const icons: { key: string; glyph: string; title: string; cls: string }[] = [];
+function StatusIcons({
+  unit,
+  hasOrder,
+}: {
+  unit: UnitState;
+  hasOrder: boolean;
+}) {
+  const icons: { key: string; glyph: string; title: string; cls: string }[] =
+    [];
   if (unit.driveForm) {
     icons.push({
       key: "drive",
@@ -78,8 +82,8 @@ function StatusIcons({ unit, hasOrder }: { unit: UnitState; hasOrder: boolean })
         unit.driveForm === "valor"
           ? "⚡"
           : unit.driveForm === "wisdom"
-          ? "✦"
-          : "★",
+            ? "✦"
+            : "★",
       title: `${unit.driveForm} form active`,
       cls: `drive-${unit.driveForm}`,
     });
@@ -160,7 +164,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       className={cn(
         "flex w-full cursor-pointer items-center gap-2 rounded-md border border-white/[0.06]",
         "bg-[#0a1130]/55 px-2 py-1.5 text-left font-[inherit] text-inherit",
-        "transition-colors hover:border-accent-alt/30 hover:bg-[#0a1130]/80",
+        "hover:border-accent-alt/30 transition-colors hover:bg-[#0a1130]/80",
         ghosted && "opacity-40",
         hasPanelOpen &&
           "border-accent-alt bg-accent-alt/10 shadow-[inset_2px_0_0_var(--color-accent-alt)]"
@@ -189,7 +193,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-text">
+          <span className="text-text min-w-0 overflow-hidden text-xs font-semibold text-ellipsis whitespace-nowrap">
             {unit.displayName}
           </span>
           <AgentToolBadge tool={unit.tool} />
@@ -223,7 +227,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
           type="button"
           variant="ghost"
           size="md"
-          className="ml-1 self-center text-muted hover:border-accent-alt hover:bg-accent-alt/10 hover:text-accent-alt"
+          className="text-muted hover:border-accent-alt hover:bg-accent-alt/10 hover:text-accent-alt ml-1 self-center"
           onClick={(e) => {
             e.stopPropagation();
             openChat();

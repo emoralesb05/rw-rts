@@ -28,7 +28,10 @@ describe("hook dedupe", () => {
     expect(dedupe.isDuplicate(base, "PostToolUse", 1000)).toBe(false);
     expect(
       dedupe.isDuplicate(
-        { ...base, tool_response: "different response still same upstream fire" },
+        {
+          ...base,
+          tool_response: "different response still same upstream fire",
+        },
         "PostToolUse",
         1200
       )

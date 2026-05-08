@@ -62,14 +62,16 @@ export function AlertsHUD() {
         key === "a"
           ? "permission-allow"
           : key === "d"
-          ? "permission-deny"
-          : key === "enter"
-          ? "permission-observe"
-          : null;
+            ? "permission-deny"
+            : key === "enter"
+              ? "permission-observe"
+              : null;
       if (!kind) return;
 
       for (const letter of alerts) {
-        const action = letter.actions.find((a) => a.action.kind === kind)?.action;
+        const action = letter.actions.find(
+          (a) => a.action.kind === kind
+        )?.action;
         if (action) {
           e.preventDefault();
           applyLetterAction(letter, action);

@@ -41,7 +41,7 @@ export function CloseAllChip() {
           type="button"
           variant="danger"
           size="md"
-          className="size-7 rounded-pill border-danger/50 bg-danger/15 font-mono text-[11px] font-bold tracking-[0.4px] text-danger shadow-lg backdrop-blur-sm animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] hover:border-danger hover:bg-danger/25"
+          className="rounded-pill border-danger/50 bg-danger/15 text-danger hover:border-danger hover:bg-danger/25 size-7 animate-[close-all-chip-pop_180ms_cubic-bezier(0.34,1.56,0.64,1)] font-mono text-[11px] font-bold tracking-[0.4px] shadow-lg backdrop-blur-sm"
           onClick={closeAll}
           aria-label={`Close all ${count} open panels`}
         >

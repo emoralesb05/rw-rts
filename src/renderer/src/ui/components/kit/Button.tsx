@@ -18,8 +18,8 @@ export function Button({
       type={type}
       className={cn(
         "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-sm",
-        "select-none border px-3 py-1.5 text-xs font-semibold transition-colors",
-        "focus:outline-none focus-visible:border-accent",
+        "border px-3 py-1.5 text-xs font-semibold transition-colors select-none",
+        "focus-visible:border-accent focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100",
         variant === "default" &&
           "border-line bg-surface-2 text-text hover:border-accent",
@@ -28,7 +28,7 @@ export function Button({
         variant === "gold" &&
           "border-accent-alt bg-accent-alt text-bg hover:brightness-110",
         variant === "ghost" &&
-          "border-transparent bg-transparent text-muted hover:border-line hover:text-text",
+          "text-muted hover:border-line hover:text-text border-transparent bg-transparent",
         variant === "danger" &&
           "border-danger/60 bg-danger/15 text-danger hover:border-danger",
         className

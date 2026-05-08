@@ -27,11 +27,11 @@ export function Field({
           {label && (
             <Label htmlFor={htmlFor}>
               {label}
-              {required && <span className="ml-1 text-danger">*</span>}
+              {required && <span className="text-danger ml-1">*</span>}
             </Label>
           )}
           {description && (
-            <div className="text-[11px] leading-snug text-muted">
+            <div className="text-muted text-[11px] leading-snug">
               {description}
             </div>
           )}
@@ -39,7 +39,7 @@ export function Field({
       )}
       {children}
       {error && (
-        <div role="alert" className="text-[11px] leading-snug text-danger">
+        <div role="alert" className="text-danger text-[11px] leading-snug">
           {error}
         </div>
       )}

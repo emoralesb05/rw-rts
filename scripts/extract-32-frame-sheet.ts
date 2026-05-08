@@ -65,15 +65,31 @@ function parseArgs() {
 function sampleBackdrop(ctx: SKRSContext2D): [number, number, number, number] {
   const img = ctx.getImageData(0, 0, 8, 8);
   const d = img.data;
-  let r = 0, g = 0, b = 0, a = 0, n = 0;
+  let r = 0,
+    g = 0,
+    b = 0,
+    a = 0,
+    n = 0;
   for (let i = 0; i < d.length; i += 4) {
-    r += d[i]; g += d[i + 1]; b += d[i + 2]; a += d[i + 3]; n++;
+    r += d[i];
+    g += d[i + 1];
+    b += d[i + 2];
+    a += d[i + 3];
+    n++;
   }
-  return [Math.round(r / n), Math.round(g / n), Math.round(b / n), Math.round(a / n)];
+  return [
+    Math.round(r / n),
+    Math.round(g / n),
+    Math.round(b / n),
+    Math.round(a / n),
+  ];
 }
 
 function isBackdrop(
-  r: number, g: number, b: number, a: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
   bd: [number, number, number, number],
   tol: number
 ): boolean {
@@ -90,8 +106,11 @@ function isBackdrop(
 // Detect rows of content. Scan vertically, count non-bg pixels per row.
 // Group consecutive rows with content > threshold into bands.
 function detectContentRows(
-  ctx: SKRSContext2D, W: number, H: number,
-  bd: [number, number, number, number], tol: number
+  ctx: SKRSContext2D,
+  W: number,
+  H: number,
+  bd: [number, number, number, number],
+  tol: number
 ): { y: number; h: number }[] {
   const rowFill = new Float32Array(H);
   const img = ctx.getImageData(0, 0, W, H);
@@ -130,12 +149,20 @@ function detectContentRows(
 // Within a horizontal slab, slice into N evenly-spaced columns and
 // trim each to its content bounding box.
 function trimBox(
-  ctx: SKRSContext2D, x: number, y: number, w: number, h: number,
-  bd: [number, number, number, number], tol: number
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  bd: [number, number, number, number],
+  tol: number
 ): { x: number; y: number; w: number; h: number } | null {
   const img = ctx.getImageData(x, y, w, h);
   const d = img.data;
-  let minX = w, minY = h, maxX = -1, maxY = -1;
+  let minX = w,
+    minY = h,
+    maxX = -1,
+    maxY = -1;
   for (let py = 0; py < h; py++) {
     for (let px = 0; px < w; px++) {
       const i = (py * w + px) * 4;
@@ -162,15 +189,22 @@ function trimBox(
 // reliable than feet detection (a hanging keyblade or chain dips below
 // feet level and skews a feet-only center).
 type CharFrame = {
-  sx: number; sy: number; sw: number; sh: number;
+  sx: number;
+  sy: number;
+  sw: number;
+  sh: number;
   ax: number;
 };
 const LABEL_GAP_ROWS = 4;
 const BODY_TOP_PCT = 0.5;
 function trimToCharacter(
   ctx: SKRSContext2D,
-  cellX: number, cellY: number, cellW: number, cellH: number,
-  bd: [number, number, number, number], tol: number
+  cellX: number,
+  cellY: number,
+  cellW: number,
+  cellH: number,
+  bd: [number, number, number, number],
+  tol: number
 ): CharFrame | null {
   const full = trimBox(ctx, cellX, cellY, cellW, cellH, bd, tol);
   if (!full) return null;
@@ -198,7 +232,10 @@ function trimToCharacter(
       if (runEmpty >= LABEL_GAP_ROWS) {
         let resumes = false;
         for (let py2 = py + 1; py2 < full.h; py2++) {
-          if (rowFill[py2] > 0) { resumes = true; break; }
+          if (rowFill[py2] > 0) {
+            resumes = true;
+            break;
+          }
         }
         if (resumes) {
           cutAt = runStart;
@@ -218,7 +255,8 @@ function trimToCharacter(
   const upperH = Math.max(2, Math.floor(reBox.h * BODY_TOP_PCT));
   const upperImg = ctx.getImageData(reBox.x, reBox.y, reBox.w, upperH);
   const ud = upperImg.data;
-  let sumX = 0, count = 0;
+  let sumX = 0,
+    count = 0;
   for (let py = 0; py < upperH; py++) {
     for (let px = 0; px < reBox.w; px++) {
       const i = (py * reBox.w + px) * 4;
@@ -250,8 +288,12 @@ function trimToCharacter(
 const MIN_FRAME_GAP_COLS = 2;
 const MIN_FRAME_WIDTH = 30;
 function detectFrameBounds(
-  ctx: SKRSContext2D, W: number, band: { y: number; h: number },
-  bd: [number, number, number, number], tol: number, expected: number
+  ctx: SKRSContext2D,
+  W: number,
+  band: { y: number; h: number },
+  bd: [number, number, number, number],
+  tol: number,
+  expected: number
 ): { x: number; w: number }[] {
   const img = ctx.getImageData(0, band.y, W, band.h);
   const d = img.data;
@@ -265,10 +307,15 @@ function detectFrameBounds(
     colFill[x] = c;
   }
   const raw: { x: number; w: number }[] = [];
-  let inF = false, fs = 0, gap = 0;
+  let inF = false,
+    fs = 0,
+    gap = 0;
   for (let x = 0; x < W; x++) {
     if (colFill[x] > 0) {
-      if (!inF) { inF = true; fs = x; }
+      if (!inF) {
+        inF = true;
+        fs = x;
+      }
       gap = 0;
     } else if (inF) {
       gap++;
@@ -298,7 +345,8 @@ function detectFrameBounds(
     if (frames.length < expected) {
       // Split widest at its inner column-fill minimum.
       const idx = frames.reduce(
-        (best, f, i) => (f.w > frames[best].w ? i : best), 0
+        (best, f, i) => (f.w > frames[best].w ? i : best),
+        0
       );
       const f = frames[idx];
       const margin = Math.max(2, Math.floor(f.w * 0.25));
@@ -327,11 +375,7 @@ function detectFrameBounds(
       const a = frames[best];
       const b = frames[best + 1];
       const combined = { x: a.x, w: b.x + b.w - a.x };
-      frames = [
-        ...frames.slice(0, best),
-        combined,
-        ...frames.slice(best + 2),
-      ];
+      frames = [...frames.slice(0, best), combined, ...frames.slice(best + 2)];
     }
   }
   return frames;
@@ -347,7 +391,9 @@ async function main() {
   const sctx = src.getContext("2d") as unknown as SKRSContext2D;
   sctx.imageSmoothingEnabled = false;
   sctx.drawImage(
-    img as unknown as Parameters<SKRSContext2D["drawImage"]>[0], 0, 0
+    img as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
+    0,
+    0
   );
 
   const bd = sampleBackdrop(sctx);
@@ -355,9 +401,7 @@ async function main() {
 
   const bands = detectContentRows(sctx, W, H, bd, args.bgTol);
   console.log(`detected ${bands.length} content rows:`);
-  bands.forEach((b, i) =>
-    console.log(`  row ${i}: y=${b.y} h=${b.h}`)
-  );
+  bands.forEach((b, i) => console.log(`  row ${i}: y=${b.y} h=${b.h}`));
 
   if (bands.length !== args.rows.length) {
     console.error(
@@ -376,7 +420,15 @@ async function main() {
     const bounds = detectFrameBounds(sctx, W, band, bd, args.bgTol, expected);
     console.log(`  row ${r}: ${bounds.length} frames (expected ${expected})`);
     for (const fb of bounds) {
-      const cf = trimToCharacter(sctx, fb.x, band.y, fb.w, band.h, bd, args.bgTol);
+      const cf = trimToCharacter(
+        sctx,
+        fb.x,
+        band.y,
+        fb.w,
+        band.h,
+        bd,
+        args.bgTol
+      );
       if (cf) frames.push(cf);
     }
   }
@@ -407,8 +459,14 @@ async function main() {
     const dy = frameH - f.sh;
     octx.drawImage(
       img as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
-      f.sx, f.sy, f.sw, f.sh,
-      dx, dy, f.sw, f.sh
+      f.sx,
+      f.sy,
+      f.sw,
+      f.sh,
+      dx,
+      dy,
+      f.sw,
+      f.sh
     );
   }
   args.frameW = frameW;
@@ -434,11 +492,18 @@ async function main() {
   stCtx.imageSmoothingEnabled = false;
   stCtx.drawImage(
     out as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
-    0, 0, args.frameW, args.frameH,
-    0, 0, args.frameW, args.frameH
+    0,
+    0,
+    args.frameW,
+    args.frameH,
+    0,
+    0,
+    args.frameW,
+    args.frameH
   );
   writeFileSync(
-    resolve(args.outDir, `${args.role}.png`), still.toBuffer("image/png")
+    resolve(args.outDir, `${args.role}.png`),
+    still.toBuffer("image/png")
   );
 
   console.log(`✓ ${sheetPath} (${outW}×${args.frameH})`);

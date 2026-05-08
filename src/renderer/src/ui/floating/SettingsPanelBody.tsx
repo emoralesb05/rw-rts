@@ -9,7 +9,10 @@ import { useToast } from "../components/kit/ToastLayer";
 import { cn } from "@/lib/cn";
 import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 
-const VALIDATION_REASON: Record<NonNullable<WorkspaceRootValidation["reason"]>, string> = {
+const VALIDATION_REASON: Record<
+  NonNullable<WorkspaceRootValidation["reason"]>,
+  string
+> = {
   empty: "type a path",
   "not-found": "directory doesn't exist",
   "not-a-directory": "this path is not a directory",
@@ -26,7 +29,9 @@ export function SettingsPanelBody({ onSaved }: Props) {
   const [excludeText, setExcludeText] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [validation, setValidation] = useState<WorkspaceRootValidation | null>(null);
+  const [validation, setValidation] = useState<WorkspaceRootValidation | null>(
+    null
+  );
   const { notify } = useToast();
 
   useEffect(() => {
@@ -70,11 +75,8 @@ export function SettingsPanelBody({ onSaved }: Props) {
   const canSave = loaded && !saving && validation?.valid === true;
 
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto p-[18px] font-ui">
-      <Field
-        htmlFor="settings-workspace-root"
-        label="Workspace root"
-      >
+    <div className="font-ui flex flex-col gap-4 overflow-y-auto p-[18px]">
+      <Field htmlFor="settings-workspace-root" label="Workspace root">
         <Input
           id="settings-workspace-root"
           type="text"
@@ -98,8 +100,8 @@ export function SettingsPanelBody({ onSaved }: Props) {
           {!validation
             ? "checking…"
             : validation.valid
-            ? `✓ resolves to ${validation.expanded}`
-            : `⚠ ${VALIDATION_REASON[validation.reason ?? "empty"]}`}
+              ? `✓ resolves to ${validation.expanded}`
+              : `⚠ ${VALIDATION_REASON[validation.reason ?? "empty"]}`}
         </span>
       </Field>
 
@@ -120,12 +122,12 @@ export function SettingsPanelBody({ onSaved }: Props) {
         />
       </Field>
 
-      <p className="m-0 text-[10.5px] italic text-muted">
-        Edits also persist to <Code>~/.keykeeper.json</Code>; you can hand-edit that file
-        and the next dropdown render will pick it up.
+      <p className="text-muted m-0 text-[10.5px] italic">
+        Edits also persist to <Code>~/.keykeeper.json</Code>; you can hand-edit
+        that file and the next dropdown render will pick it up.
       </p>
 
-      <div className="-mx-[18px] -mb-[18px] flex justify-end gap-2 border-t border-line bg-black/25 px-[18px] py-3">
+      <div className="border-line -mx-[18px] -mb-[18px] flex justify-end gap-2 border-t bg-black/25 px-[18px] py-3">
         <Button
           type="button"
           onClick={() => closeKind("settings")}

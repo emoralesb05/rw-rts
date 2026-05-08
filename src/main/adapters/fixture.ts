@@ -10,7 +10,12 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { bus } from "../event-bus";
-import { archetypeFor, type AgentEvent, type AgentTool, type UnitRole } from "@shared/events";
+import {
+  archetypeFor,
+  type AgentEvent,
+  type AgentTool,
+  type UnitRole,
+} from "@shared/events";
 
 type ScriptedEvent = {
   delayMs: number;
@@ -71,7 +76,12 @@ function claudeStarter(cwd: string): FakeUnit {
     cwd,
     events: [
       { delayMs: 100, kind: "session_start", text: "look around the repo" },
-      { delayMs: 600, kind: "tool_use", toolName: "Read", input: { file_path: `${cwd}/package.json` } },
+      {
+        delayMs: 600,
+        kind: "tool_use",
+        toolName: "Read",
+        input: { file_path: `${cwd}/package.json` },
+      },
       {
         delayMs: 700,
         kind: "tool_result",
@@ -80,16 +90,19 @@ function claudeStarter(cwd: string): FakeUnit {
       {
         delayMs: 900,
         kind: "assistant_text",
-        text:
-          "It's an Electron desktop app called **keykeeper**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
+        text: "It's an Electron desktop app called **keykeeper**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
       },
-      { delayMs: 800, kind: "tool_use", toolName: "Glob", input: { pattern: "src/**/*.ts" } },
+      {
+        delayMs: 800,
+        kind: "tool_use",
+        toolName: "Glob",
+        input: { pattern: "src/**/*.ts" },
+      },
       { delayMs: 600, kind: "tool_result", output: "31 files" },
       {
         delayMs: 1100,
         kind: "assistant_text",
-        text:
-          "31 source files across `main/`, `renderer/`, `preload/`, `shared/`. Multi-tool agent visualizer. Want me to dig into a specific area?",
+        text: "31 source files across `main/`, `renderer/`, `preload/`, `shared/`. Multi-tool agent visualizer. Want me to dig into a specific area?",
       },
       { delayMs: 600, kind: "session_end", text: "exit 0" },
     ],
@@ -104,17 +117,31 @@ function cursorTurn(cwd: string): FakeUnit {
     events: [
       { delayMs: 200, kind: "session_start", text: "Cursor demo turn" },
       { delayMs: 500, kind: "user_prompt", text: "rename App to KhApp" },
-      { delayMs: 700, kind: "tool_use", toolName: "read_file_v2", input: { file_path: "src/renderer/src/App.tsx" } },
+      {
+        delayMs: 700,
+        kind: "tool_use",
+        toolName: "read_file_v2",
+        input: { file_path: "src/renderer/src/App.tsx" },
+      },
       { delayMs: 400, kind: "tool_result", output: "(file contents)" },
-      { delayMs: 600, kind: "tool_use", toolName: "edit_file", input: { file_path: "src/renderer/src/App.tsx", change: "rename" } },
+      {
+        delayMs: 600,
+        kind: "tool_use",
+        toolName: "edit_file",
+        input: { file_path: "src/renderer/src/App.tsx", change: "rename" },
+      },
       { delayMs: 400, kind: "tool_result", output: "applied" },
-      { delayMs: 800, kind: "tool_use", toolName: "run_terminal_command_v2", input: { command: "bun run typecheck" } },
+      {
+        delayMs: 800,
+        kind: "tool_use",
+        toolName: "run_terminal_command_v2",
+        input: { command: "bun run typecheck" },
+      },
       { delayMs: 1200, kind: "tool_result", output: "✓ typecheck passed" },
       {
         delayMs: 900,
         kind: "assistant_text",
-        text:
-          "Renamed `App` → `KhApp` in `src/renderer/src/App.tsx`, updated the export, and re-ran typecheck — clean.",
+        text: "Renamed `App` → `KhApp` in `src/renderer/src/App.tsx`, updated the export, and re-ran typecheck — clean.",
       },
       { delayMs: 500, kind: "session_end", text: "exit 0" },
     ],
@@ -129,8 +156,17 @@ function codexShell(cwd: string): FakeUnit {
     events: [
       { delayMs: 100, kind: "session_start", text: "codex shell demo" },
       { delayMs: 400, kind: "user_prompt", text: "list TS files" },
-      { delayMs: 600, kind: "tool_use", toolName: "shell", input: { command: "find src -name '*.ts' | wc -l" } },
-      { delayMs: 700, kind: "tool_result", output: { exit_code: 0, stdout: "31\n" } },
+      {
+        delayMs: 600,
+        kind: "tool_use",
+        toolName: "shell",
+        input: { command: "find src -name '*.ts' | wc -l" },
+      },
+      {
+        delayMs: 700,
+        kind: "tool_result",
+        output: { exit_code: 0, stdout: "31\n" },
+      },
       {
         delayMs: 800,
         kind: "assistant_text",
@@ -159,7 +195,11 @@ function geminiTurn(cwd: string): FakeUnit {
         toolName: "Grep",
         input: { pattern: "gemini", path: ".docs" },
       },
-      { delayMs: 450, kind: "tool_result", output: ".docs/providers/gemini.md" },
+      {
+        delayMs: 450,
+        kind: "tool_result",
+        output: ".docs/providers/gemini.md",
+      },
       {
         delayMs: 700,
         kind: "tool_use",
@@ -170,8 +210,7 @@ function geminiTurn(cwd: string): FakeUnit {
       {
         delayMs: 850,
         kind: "assistant_text",
-        text:
-          "Gemini provider check complete: hook bridge, active spawn, and UI routing are wired. I wrote a short follow-up note.",
+        text: "Gemini provider check complete: hook bridge, active spawn, and UI routing are wired. I wrote a short follow-up note.",
       },
       { delayMs: 500, kind: "session_end", text: "exit 0" },
     ],
@@ -188,9 +227,18 @@ function subagentSummon(cwd: string): FakeUnit[] {
       cwd,
       events: [
         { delayMs: 100, kind: "session_start", text: "subagent demo" },
-        { delayMs: 500, kind: "tool_use", toolName: "Task", input: { description: "research the repo" } },
+        {
+          delayMs: 500,
+          kind: "tool_use",
+          toolName: "Task",
+          input: { description: "research the repo" },
+        },
         { delayMs: 6000, kind: "tool_result", output: "child finished" },
-        { delayMs: 400, kind: "assistant_text", text: "Subagent reported back. Summarizing." },
+        {
+          delayMs: 400,
+          kind: "assistant_text",
+          text: "Subagent reported back. Summarizing.",
+        },
         { delayMs: 500, kind: "session_end", text: "exit 0" },
       ],
     },
@@ -199,12 +247,31 @@ function subagentSummon(cwd: string): FakeUnit[] {
       tool: "claude",
       cwd,
       events: [
-        { delayMs: 800, kind: "session_start", text: "child agent", parentSessionId: parentId },
-        { delayMs: 400, kind: "tool_use", toolName: "Glob", input: { pattern: "**/*.md" } },
+        {
+          delayMs: 800,
+          kind: "session_start",
+          text: "child agent",
+          parentSessionId: parentId,
+        },
+        {
+          delayMs: 400,
+          kind: "tool_use",
+          toolName: "Glob",
+          input: { pattern: "**/*.md" },
+        },
         { delayMs: 500, kind: "tool_result", output: "0 files" },
-        { delayMs: 600, kind: "tool_use", toolName: "Read", input: { file_path: "package.json" } },
+        {
+          delayMs: 600,
+          kind: "tool_use",
+          toolName: "Read",
+          input: { file_path: "package.json" },
+        },
         { delayMs: 400, kind: "tool_result", output: "..." },
-        { delayMs: 700, kind: "assistant_text", text: "Surveyed the repo: no markdown docs, manifest is keykeeper." },
+        {
+          delayMs: 700,
+          kind: "assistant_text",
+          text: "Surveyed the repo: no markdown docs, manifest is keykeeper.",
+        },
         { delayMs: 400, kind: "session_end", text: "exit 0" },
       ],
     },
@@ -221,21 +288,51 @@ function heartlessRaid(cwd: string): FakeUnit {
     cwd,
     events: [
       { delayMs: 200, kind: "session_start", text: "running tests..." },
-      { delayMs: 800, kind: "tool_use", toolName: "Bash", input: { command: "bun test" } },
+      {
+        delayMs: 800,
+        kind: "tool_use",
+        toolName: "Bash",
+        input: { command: "bun test" },
+      },
       { delayMs: 600, kind: "tool_result", output: "FAIL src/foo.test.ts" },
       { delayMs: 200, kind: "error", text: "1 test failed" },
       { delayMs: 1200, kind: "error", text: "type error in src/foo.ts" },
       { delayMs: 1500, kind: "error", text: "lint warnings" },
-      { delayMs: 900, kind: "tool_use", toolName: "Read", input: { file_path: "src/foo.ts" } },
+      {
+        delayMs: 900,
+        kind: "tool_use",
+        toolName: "Read",
+        input: { file_path: "src/foo.ts" },
+      },
       { delayMs: 500, kind: "tool_result", output: "..." },
-      { delayMs: 800, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      {
+        delayMs: 800,
+        kind: "tool_use",
+        toolName: "Edit",
+        input: { file_path: "src/foo.ts" },
+      },
       { delayMs: 500, kind: "tool_result", output: "applied" },
-      { delayMs: 600, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      {
+        delayMs: 600,
+        kind: "tool_use",
+        toolName: "Edit",
+        input: { file_path: "src/foo.ts" },
+      },
       { delayMs: 500, kind: "tool_result", output: "applied" },
       { delayMs: 700, kind: "error", text: "still failing" },
-      { delayMs: 1000, kind: "tool_use", toolName: "Bash", input: { command: "bun test" } },
+      {
+        delayMs: 1000,
+        kind: "tool_use",
+        toolName: "Bash",
+        input: { command: "bun test" },
+      },
       { delayMs: 900, kind: "tool_result", output: "PASS" },
-      { delayMs: 600, kind: "tool_use", toolName: "Edit", input: { file_path: "src/foo.ts" } },
+      {
+        delayMs: 600,
+        kind: "tool_use",
+        toolName: "Edit",
+        input: { file_path: "src/foo.ts" },
+      },
       { delayMs: 500, kind: "tool_result", output: "applied" },
       {
         delayMs: 700,
@@ -273,10 +370,20 @@ function summonWielder(target: UnitRole): FakeUnit {
     cwd,
     events: [
       { delayMs: 200, kind: "session_start", text: "awakening..." },
-      { delayMs: 1200, kind: "tool_use", toolName: "Read", input: { file_path: "README.md" } },
+      {
+        delayMs: 1200,
+        kind: "tool_use",
+        toolName: "Read",
+        input: { file_path: "README.md" },
+      },
       { delayMs: 900, kind: "tool_result", output: "(file contents)" },
       { delayMs: 1100, kind: "assistant_text", text: "Surveying the world." },
-      { delayMs: 1400, kind: "tool_use", toolName: "Glob", input: { pattern: "**/*.ts" } },
+      {
+        delayMs: 1400,
+        kind: "tool_use",
+        toolName: "Glob",
+        input: { pattern: "**/*.ts" },
+      },
       { delayMs: 800, kind: "tool_result", output: "ok" },
       { delayMs: 4000, kind: "session_end", text: "exit 0" },
     ],
@@ -297,10 +404,19 @@ function stressBurst(cwd: string): FakeUnit {
     { delayMs: 50, kind: "session_start", text: "stress test" },
   ];
   for (let i = 0; i < 30; i++) {
-    events.push({ delayMs: 60, kind: "tool_use", toolName: "Read", input: { file_path: `f${i}.ts` } });
+    events.push({
+      delayMs: 60,
+      kind: "tool_use",
+      toolName: "Read",
+      input: { file_path: `f${i}.ts` },
+    });
     events.push({ delayMs: 30, kind: "tool_result", output: "ok" });
   }
-  events.push({ delayMs: 200, kind: "assistant_text", text: "Touched 30 files in a burst." });
+  events.push({
+    delayMs: 200,
+    kind: "assistant_text",
+    text: "Touched 30 files in a burst.",
+  });
   events.push({ delayMs: 100, kind: "session_end", text: "exit 0" });
   return { sessionId: `stress-${randomUUID()}`, tool: "claude", cwd, events };
 }

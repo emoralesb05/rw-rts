@@ -21,7 +21,10 @@ import {
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
-import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
+import {
+  getHookScriptPath,
+  ensureHookScriptExecutable,
+} from "./hook-installer";
 import {
   GeminiSettingsSchema,
   type GeminiSettings,

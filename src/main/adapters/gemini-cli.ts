@@ -10,11 +10,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { bus } from "../event-bus";
-import {
-  registerSpawnedSession,
-  unregisterSpawnedSession,
-} from "./claude-cli";
-import type { AgentEvent } from "@shared/events";
+import { registerSpawnedSession, unregisterSpawnedSession } from "./claude-cli";
 import {
   GeminiInitMessageSchema,
   parseProviderStreamMessage,
@@ -152,7 +148,10 @@ export async function spawnGeminiAgent(
   return agent;
 }
 
-function waitForSessionId(proc: ChildProcess, timeoutMs: number): Promise<string> {
+function waitForSessionId(
+  proc: ChildProcess,
+  timeoutMs: number
+): Promise<string> {
   return new Promise((resolve, reject) => {
     let buf = "";
     let settled = false;
@@ -261,7 +260,8 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
           case "tool_use": {
             flushAssistant();
             const name = canonicalToolName(msg.tool_name);
-            if (typeof msg.tool_id === "string") toolNameById.set(msg.tool_id, name);
+            if (typeof msg.tool_id === "string")
+              toolNameById.set(msg.tool_id, name);
             bus.emitAgentEvent({
               ...base,
               timestamp: ts,

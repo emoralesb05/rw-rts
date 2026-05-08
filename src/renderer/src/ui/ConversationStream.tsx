@@ -31,7 +31,7 @@ const markdownComponents: Components = {
   p({ className, ...props }) {
     return (
       <p
-        className={cn("my-1.5 whitespace-pre-wrap break-words", className)}
+        className={cn("my-1.5 break-words whitespace-pre-wrap", className)}
         {...props}
       />
     );
@@ -40,7 +40,7 @@ const markdownComponents: Components = {
     return (
       <h1
         className={cn(
-          "mb-1 mt-2.5 text-sm font-bold text-accent-alt",
+          "text-accent-alt mt-2.5 mb-1 text-sm font-bold",
           className
         )}
         {...props}
@@ -51,7 +51,7 @@ const markdownComponents: Components = {
     return (
       <h2
         className={cn(
-          "mb-1 mt-2.5 text-[13px] font-bold text-accent-alt",
+          "text-accent-alt mt-2.5 mb-1 text-[13px] font-bold",
           className
         )}
         {...props}
@@ -62,7 +62,7 @@ const markdownComponents: Components = {
     return (
       <h3
         className={cn(
-          "mb-1 mt-2.5 text-[12.5px] font-bold uppercase tracking-[0.6px] text-accent",
+          "text-accent mt-2.5 mb-1 text-[12.5px] font-bold tracking-[0.6px] uppercase",
           className
         )}
         {...props}
@@ -73,7 +73,7 @@ const markdownComponents: Components = {
     return (
       <a
         className={cn(
-          "break-all text-accent underline decoration-current underline-offset-2 hover:text-accent-alt",
+          "text-accent hover:text-accent-alt break-all underline decoration-current underline-offset-2",
           className
         )}
         {...props}
@@ -84,7 +84,7 @@ const markdownComponents: Components = {
     return (
       <code
         className={cn(
-          "rounded-sm bg-accent/[0.12] px-1.5 py-px font-mono text-[11.5px] text-accent",
+          "bg-accent/[0.12] text-accent rounded-sm px-1.5 py-px font-mono text-[11.5px]",
           className
         )}
         {...props}
@@ -95,7 +95,7 @@ const markdownComponents: Components = {
     return (
       <pre
         className={cn(
-          "my-1.5 max-h-[240px] overflow-x-auto overflow-y-auto rounded-md border border-line bg-[#04060d] px-2.5 py-2 font-mono text-[11px] text-[#cfe1ff]",
+          "border-line my-1.5 max-h-[240px] overflow-x-auto overflow-y-auto rounded-md border bg-[#04060d] px-2.5 py-2 font-mono text-[11px] text-[#cfe1ff]",
           className
         )}
         {...props}
@@ -106,7 +106,9 @@ const markdownComponents: Components = {
     return <ul className={cn("my-1 list-disc pl-5", className)} {...props} />;
   },
   ol({ className, ...props }) {
-    return <ol className={cn("my-1 list-decimal pl-5", className)} {...props} />;
+    return (
+      <ol className={cn("my-1 list-decimal pl-5", className)} {...props} />
+    );
   },
   li({ className, ...props }) {
     return <li className={cn("my-0.5", className)} {...props} />;
@@ -115,7 +117,7 @@ const markdownComponents: Components = {
     return (
       <blockquote
         className={cn(
-          "my-1.5 border-l-[3px] border-accent pl-2.5 italic text-muted",
+          "border-accent text-muted my-1.5 border-l-[3px] pl-2.5 italic",
           className
         )}
         {...props}
@@ -125,7 +127,7 @@ const markdownComponents: Components = {
   hr({ className, ...props }) {
     return (
       <hr
-        className={cn("my-2.5 border-0 border-t border-line", className)}
+        className={cn("border-line my-2.5 border-0 border-t", className)}
         {...props}
       />
     );
@@ -141,12 +143,20 @@ function MarkdownStream({ children }: { children: string }) {
 }
 
 const TOOL_ICON: Record<string, string> = {
-  Read: "📖", Grep: "🔍", Glob: "🔍",
-  Edit: "✏️", Write: "✏️", MultiEdit: "✏️",
-  Bash: "⚡", BashOutput: "⚡",
-  WebFetch: "🌐", WebSearch: "🌐",
-  Task: "✨", Agent: "✨",
-  TodoWrite: "✓", TaskCreate: "✓",
+  Read: "📖",
+  Grep: "🔍",
+  Glob: "🔍",
+  Edit: "✏️",
+  Write: "✏️",
+  MultiEdit: "✏️",
+  Bash: "⚡",
+  BashOutput: "⚡",
+  WebFetch: "🌐",
+  WebSearch: "🌐",
+  Task: "✨",
+  Agent: "✨",
+  TodoWrite: "✓",
+  TaskCreate: "✓",
 };
 
 function renderText(value: unknown): string {
@@ -184,7 +194,11 @@ function summarizeToolInput(name: string | undefined, input: unknown): string {
   if (!input || typeof input !== "object") return "";
   const i = input as Record<string, unknown>;
   switch (name) {
-    case "Read": case "Edit": case "Write": case "MultiEdit": case "NotebookEdit":
+    case "Read":
+    case "Edit":
+    case "Write":
+    case "MultiEdit":
+    case "NotebookEdit":
       return inputFilePath(input);
     case "Bash":
       return String(i.command ?? "").slice(0, 240);
@@ -192,9 +206,11 @@ function summarizeToolInput(name: string | undefined, input: unknown): string {
       return `${i.pattern ?? i.query ?? ""}${i.path ? ` in ${i.path}` : ""}`;
     case "Glob":
       return String(i.pattern ?? i.target_directories ?? "");
-    case "WebFetch": case "WebSearch":
+    case "WebFetch":
+    case "WebSearch":
       return String(i.url ?? i.query ?? "");
-    case "Task": case "Agent":
+    case "Task":
+    case "Agent":
       return String(i.description ?? i.prompt ?? "");
     default:
       return JSON.stringify(input).slice(0, 160);
@@ -219,24 +235,20 @@ function FilePathLink({
     e.stopPropagation();
     void window.kh.openPath(path, { tool }).catch(() => {});
   };
-  const hint =
-    tool === "cursor"
-      ? `open ${path} in Cursor`
-      : `open ${path}`;
+  const hint = tool === "cursor" ? `open ${path} in Cursor` : `open ${path}`;
   return (
     <TooltipHint label={hint}>
-      <button
-        type="button"
-        className={pathLinkClass}
-        onClick={onClick}
-      >
+      <button type="button" className={pathLinkClass} onClick={onClick}>
         {display}
       </button>
     </TooltipHint>
   );
 }
 
-function extractWhyTrace(events: AgentEvent[], target: AgentEvent): AgentEvent[] {
+function extractWhyTrace(
+  events: AgentEvent[],
+  target: AgentEvent
+): AgentEvent[] {
   const idx = events.indexOf(target);
   if (idx < 0) return [];
   const trace: AgentEvent[] = [];
@@ -338,20 +350,19 @@ function extractEditHunks(name: string, input: unknown): EditHunk[] {
   if (name === "MultiEdit") {
     const edits = Array.isArray(i.edits) ? i.edits : [];
     return edits
-      .map((e: any, idx: number): EditHunk | null => {
+      .map((e: unknown, idx: number): EditHunk | null => {
         if (!e || typeof e !== "object") return null;
+        const edit = e as Record<string, unknown>;
         return {
-          before: String(e.old_string ?? ""),
-          after: String(e.new_string ?? ""),
+          before: String(edit.old_string ?? ""),
+          after: String(edit.new_string ?? ""),
           label: `hunk ${idx + 1}`,
         };
       })
       .filter((h): h is EditHunk => !!h);
   }
   if (name === "Write") {
-    return [
-      { before: "", after: String(i.content ?? ""), label: "new file" },
-    ];
+    return [{ before: "", after: String(i.content ?? ""), label: "new file" }];
   }
   return [];
 }
@@ -386,7 +397,8 @@ function diffLines(before: string[], after: string[]): DiffOp[] {
   );
   for (let i = 1; i <= a; i++) {
     for (let j = 1; j <= b; j++) {
-      if (midBefore[i - 1] === midAfter[j - 1]) lcs[i][j] = lcs[i - 1][j - 1] + 1;
+      if (midBefore[i - 1] === midAfter[j - 1])
+        lcs[i][j] = lcs[i - 1][j - 1] + 1;
       else lcs[i][j] = Math.max(lcs[i - 1][j], lcs[i][j - 1]);
     }
   }
@@ -449,7 +461,9 @@ function formatUnifiedDiff(ops: DiffOp[], context = 3): string {
     }
     for (let k = c.start; k <= c.end; k++) {
       const op = ops[k];
-      out.push((op.kind === "add" ? "+" : op.kind === "del" ? "-" : " ") + op.text);
+      out.push(
+        (op.kind === "add" ? "+" : op.kind === "del" ? "-" : " ") + op.text
+      );
     }
     cursor = c.end + 1;
   }
@@ -462,7 +476,7 @@ function formatUnifiedDiff(ops: DiffOp[], context = 3): string {
 
 function DiffPreview({ hunks }: { hunks: EditHunk[] }) {
   if (hunks.length === 0) return null;
-  const blocks = hunks.map((h, idx) => {
+  const blocks = hunks.map((h) => {
     const beforeLines = h.before ? h.before.split("\n") : [];
     const afterLines = h.after ? h.after.split("\n") : [];
     // Write ("new file") has no before — show the after as all-additions
@@ -483,7 +497,7 @@ function DiffPreview({ hunks }: { hunks: EditHunk[] }) {
     })
     .join("\n\n");
   return (
-    <div className="ml-[18px] mt-1.5 text-[11px] [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:text-[11px] [&_pre]:leading-normal">
+    <div className="mt-1.5 ml-[18px] text-[11px] [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:text-[11px] [&_pre]:leading-normal">
       <MarkdownStream>{fenced}</MarkdownStream>
     </div>
   );
@@ -502,15 +516,15 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
     [name, ev.payload.input]
   );
   return (
-    <div className="ml-0.5 flex flex-col gap-1 text-[11.5px] text-muted">
+    <div className="text-muted ml-0.5 flex flex-col gap-1 text-[11.5px]">
       <div className="flex flex-wrap items-baseline gap-1.5">
         <span className="text-xs">{icon}</span>
-        <span className="font-semibold text-accent-alt">{name}</span>
+        <span className="text-accent-alt font-semibold">{name}</span>
         {summary &&
           (summaryIsPath ? (
             <FilePathLink path={summary} tool={ev.tool} />
           ) : (
-            <span className="min-w-0 flex-auto break-words font-mono text-[11px] text-text opacity-85">
+            <span className="text-text min-w-0 flex-auto font-mono text-[11px] break-words opacity-85">
               {summary}
             </span>
           ))}
@@ -518,17 +532,22 @@ function ToolUseRow({ ev, events }: { ev: AgentEvent; events: AgentEvent[] }) {
           <TooltipHint label="show what led to this tool call">
             <button
               type="button"
-              className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-accent-alt/25 bg-transparent px-1.5 py-px font-mono text-[9.5px] tracking-[0.5px] text-muted hover:border-accent-alt/60 hover:text-accent-alt"
+              className="border-accent-alt/25 text-muted hover:border-accent-alt/60 hover:text-accent-alt inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border bg-transparent px-1.5 py-px font-mono text-[9.5px] tracking-[0.5px]"
               onClick={() => setShowTrace((v) => !v)}
             >
-              {showTrace ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} why
+              {showTrace ? (
+                <ChevronUp size={11} aria-hidden />
+              ) : (
+                <ChevronDown size={11} aria-hidden />
+              )}{" "}
+              why
             </button>
           </TooltipHint>
         )}
       </div>
       {showTrace && trace.length > 0 && (
-        <div className="mb-1.5 ml-[18px] mt-0.5 flex flex-col gap-1.5 rounded-r-md border-l-2 border-accent-alt/35 bg-accent-alt/[0.04] px-2.5 py-1.5">
-          <div className="font-mono text-[9px] font-extrabold uppercase tracking-[1.5px] text-accent-alt/70">
+        <div className="border-accent-alt/35 bg-accent-alt/[0.04] mt-0.5 mb-1.5 ml-[18px] flex flex-col gap-1.5 rounded-r-md border-l-2 px-2.5 py-1.5">
+          <div className="text-accent-alt/70 font-mono text-[9px] font-extrabold tracking-[1.5px] uppercase">
             what led to this
           </div>
           {trace.map((t, i) => (
@@ -548,7 +567,7 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     return (
       <div className="flex items-start gap-1.5 text-[11px] leading-snug">
         <span className={traceTagClass("user")}>USER</span>
-        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words text-text">
+        <span className="text-text min-w-0 flex-auto break-words whitespace-pre-wrap">
           {trimmed}
         </span>
       </div>
@@ -560,7 +579,7 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     return (
       <div className="flex items-start gap-1.5 text-[11px] leading-snug">
         <span className={traceTagClass("assistant")}>THINKING</span>
-        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words text-text">
+        <span className="text-text min-w-0 flex-auto break-words whitespace-pre-wrap">
           {trimmed}
         </span>
       </div>
@@ -572,7 +591,7 @@ function WhyTraceRow({ ev }: { ev: AgentEvent }) {
     return (
       <div className="flex items-start gap-1.5 text-[11px] leading-snug">
         <span className={traceTagClass("result")}>RESULT</span>
-        <span className="min-w-0 flex-auto whitespace-pre-wrap break-words font-mono text-[10.5px] text-text opacity-85">
+        <span className="text-text min-w-0 flex-auto font-mono text-[10.5px] break-words whitespace-pre-wrap opacity-85">
           {trimmed || "(empty)"}
         </span>
       </div>
@@ -637,16 +656,16 @@ function unpackToolResult(output: unknown): {
     typeof o.exitCode === "number"
       ? o.exitCode
       : typeof o.exit_code === "number"
-      ? o.exit_code
-      : undefined;
+        ? o.exit_code
+        : undefined;
   const stdout = typeof o.stdout === "string" ? o.stdout : "";
   const stderr = typeof o.stderr === "string" ? o.stderr : "";
   const errStr =
     typeof o.error === "string" && o.error
       ? o.error
       : typeof o.message === "string" && o.success === false
-      ? o.message
-      : "";
+        ? o.message
+        : "";
   // Cursor/Codex shell `{ output | aggregated_output }`, Claude
   // `{ stdout, stderr }`, plus Cursor non-shell `{ success: false }`
   // collapse here. Pick the first non-empty text source.
@@ -708,11 +727,19 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-1.5 pl-[18px] text-[11px] text-muted",
+          "text-muted inline-flex items-center gap-1.5 pl-[18px] text-[11px]",
           isError && "text-[#ff8870]"
         )}
       >
-        {isError ? <><AlertTriangle size={11} aria-hidden /> failed</> : <><CornerDownRight size={11} aria-hidden /> done</>}
+        {isError ? (
+          <>
+            <AlertTriangle size={11} aria-hidden /> failed
+          </>
+        ) : (
+          <>
+            <CornerDownRight size={11} aria-hidden /> done
+          </>
+        )}
         {errorMessage && (
           <span className="font-mono text-[11px] text-[#ffb0a0] opacity-85">
             {errorMessage}
@@ -722,7 +749,12 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
           <span className={toolExitClass(exitCode)}>exit {exitCode}</span>
         )}
         {durationLabel && (
-          <span className={cn(toolPillClass, "border-white/15 bg-white/[0.08] text-muted")}>
+          <span
+            className={cn(
+              toolPillClass,
+              "text-muted border-white/15 bg-white/[0.08]"
+            )}
+          >
             {durationLabel}
           </span>
         )}
@@ -731,18 +763,27 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   }
   if (isTerse && !expanded) {
     const verb = isError ? (
-      <><AlertTriangle size={11} aria-hidden /> failed</>
+      <>
+        <AlertTriangle size={11} aria-hidden /> failed
+      </>
     ) : isEditFamily ? (
-      <><CornerDownRight size={11} aria-hidden /> applied</>
+      <>
+        <CornerDownRight size={11} aria-hidden /> applied
+      </>
     ) : name === "Read" && typeof lineCount === "number" ? (
-      <><CornerDownRight size={11} aria-hidden /> read {lineCount} line{lineCount === 1 ? "" : "s"}</>
+      <>
+        <CornerDownRight size={11} aria-hidden /> read {lineCount} line
+        {lineCount === 1 ? "" : "s"}
+      </>
     ) : (
-      <><CornerDownRight size={11} aria-hidden /> done</>
+      <>
+        <CornerDownRight size={11} aria-hidden /> done
+      </>
     );
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-1.5 pl-[18px] text-[11px] text-muted",
+          "text-muted inline-flex items-center gap-1.5 pl-[18px] text-[11px]",
           isError && "text-[#ff8870]"
         )}
       >
@@ -754,7 +795,7 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
         )}
         <button
           type="button"
-          className="ml-2 cursor-pointer border-0 bg-transparent p-0 text-[10.5px] text-accent"
+          className="text-accent ml-2 cursor-pointer border-0 bg-transparent p-0 text-[10.5px]"
           onClick={() => setExpanded(true)}
         >
           show raw
@@ -767,35 +808,38 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
   return (
     <div className={toolResultClass(isError, isShell)}>
       {errorMessage && (
-        <div className="mb-1 whitespace-pre-wrap break-words rounded-sm border-l-[3px] border-l-[#ff6650] bg-[rgba(255,90,80,0.12)] px-2 py-1 font-mono text-[11px] text-[#ffb0a0]">
+        <div className="mb-1 rounded-sm border-l-[3px] border-l-[#ff6650] bg-[rgba(255,90,80,0.12)] px-2 py-1 font-mono text-[11px] break-words whitespace-pre-wrap text-[#ffb0a0]">
           <AlertTriangle size={12} aria-hidden /> {errorMessage}
         </div>
       )}
-      <pre className="m-0 max-h-[180px] overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-line bg-surface-2 px-2.5 py-1.5 font-mono text-[11px] text-muted">
+      <pre className="border-line bg-surface-2 text-muted m-0 max-h-[180px] overflow-y-auto rounded-md border px-2.5 py-1.5 font-mono text-[11px] break-words whitespace-pre-wrap">
         {expanded ? text : trimmed}
       </pre>
       <div className="mt-1 flex items-center gap-2.5">
         {typeof exitCode === "number" && (
-          <span className={toolExitClass(exitCode)}>
-            exit {exitCode}
-          </span>
+          <span className={toolExitClass(exitCode)}>exit {exitCode}</span>
         )}
         {durationLabel && (
-          <span className={cn(toolPillClass, "border-white/15 bg-white/[0.08] text-muted")}>
+          <span
+            className={cn(
+              toolPillClass,
+              "text-muted border-white/15 bg-white/[0.08]"
+            )}
+          >
             {durationLabel}
           </span>
         )}
         {(showExpand || isTerse) && (
           <button
             type="button"
-            className="cursor-pointer border-0 bg-transparent p-0 text-[10.5px] text-accent"
+            className="text-accent cursor-pointer border-0 bg-transparent p-0 text-[10.5px]"
             onClick={() => setExpanded(!expanded)}
           >
             {expanded
               ? "show less"
               : showExpand
-              ? `show all (${text.length} chars)`
-              : "show raw"}
+                ? `show all (${text.length} chars)`
+                : "show raw"}
           </button>
         )}
       </div>
@@ -806,7 +850,7 @@ function ToolResultRow({ ev }: { ev: AgentEvent }) {
 function AssistantBubble({ text }: { text: string }) {
   return (
     <div className="mt-1 flex">
-      <div className="max-w-[92%] whitespace-pre-wrap break-words rounded-lg rounded-bl-sm border border-line bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 text-text">
+      <div className="border-line text-text max-w-[92%] rounded-lg rounded-bl-sm border bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 break-words whitespace-pre-wrap">
         <MarkdownStream>{text}</MarkdownStream>
       </div>
     </div>
@@ -816,11 +860,11 @@ function AssistantBubble({ text }: { text: string }) {
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="mt-1 flex justify-end">
-      <div className="max-w-[92%] break-words rounded-lg rounded-br-sm border border-accent-alt/40 border-r-[3px] border-r-accent bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 text-text shadow-[0_0_12px_rgba(255,216,107,0.08)]">
-        <span className="mr-1.5 inline-block rounded-sm bg-accent-alt/20 px-1.5 py-px align-middle text-[9px] font-bold uppercase tracking-[0.6px] text-accent">
+      <div className="border-accent-alt/40 border-r-accent text-text max-w-[92%] rounded-lg rounded-br-sm border border-r-[3px] bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 break-words shadow-[0_0_12px_rgba(255,216,107,0.08)]">
+        <span className="bg-accent-alt/20 text-accent mr-1.5 inline-block rounded-sm px-1.5 py-px align-middle text-[9px] font-bold tracking-[0.6px] uppercase">
           King
         </span>
-        <div className="inline align-middle [&_code]:rounded-sm [&_code]:bg-accent-alt/[0.12] [&_code]:px-1 [&_code]:text-accent [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:border [&_pre]:border-accent-alt/20 [&_pre]:bg-black/35 [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-[11px] [&>*+*]:mt-1.5 [&>*]:m-0">
+        <div className="[&_code]:bg-accent-alt/[0.12] [&_code]:text-accent [&_pre]:border-accent-alt/20 inline align-middle [&_code]:rounded-sm [&_code]:px-1 [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:border [&_pre]:bg-black/35 [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-[11px] [&>*]:m-0 [&>*+*]:mt-1.5">
           <MarkdownStream>{text}</MarkdownStream>
         </div>
       </div>
@@ -857,14 +901,16 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
     window.dispatchEvent(
       new CustomEvent("kh:expand-hud", { detail: { title: "Alerts" } })
     );
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLElement>(
-        `.hud-top-right [data-letter-request-id="${requestId}"]`
-      );
-      if (!el) return;
-      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      pulseLetterElement(el);
-    }));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(
+          `.hud-top-right [data-letter-request-id="${requestId}"]`
+        );
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        pulseLetterElement(el);
+      })
+    );
   };
   const inner = (
     <>
@@ -882,7 +928,7 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
       <div
         className={cn(
           markerClass,
-          "w-full cursor-default rounded-md border border-[#ffa850]/35 px-2 py-1 text-left text-text opacity-55"
+          "text-text w-full cursor-default rounded-md border border-[#ffa850]/35 px-2 py-1 text-left opacity-55"
         )}
         aria-disabled="true"
       >
@@ -896,7 +942,7 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
         type="button"
         className={cn(
           markerClass,
-          "w-full cursor-pointer rounded-md border border-[#ffa850]/35 bg-transparent px-2 py-1 text-left text-text transition-colors hover:border-[#ffa850]/55 hover:bg-[#ffa850]/[0.08] [&>span:last-child]:font-semibold [&>span:last-child]:text-[#ffb070]"
+          "text-text w-full cursor-pointer rounded-md border border-[#ffa850]/35 bg-transparent px-2 py-1 text-left transition-colors hover:border-[#ffa850]/55 hover:bg-[#ffa850]/[0.08] [&>span:last-child]:font-semibold [&>span:last-child]:text-[#ffb070]"
         )}
         onClick={onClick}
       >
@@ -918,18 +964,17 @@ function SubagentSpawnRow({
   // spawned wielder's display name once we know it.
   const childId = String(ev.payload.parentSessionId ?? "");
   const child = childId ? units[childId] : undefined;
-  const summary = String(ev.payload.text ?? ev.payload.input ?? "").slice(0, 200);
+  const summary = String(ev.payload.text ?? ev.payload.input ?? "").slice(
+    0,
+    200
+  );
   return (
     <div className={cn(markerClass, "[&>span:last-child]:text-[#f8a8e8]")}>
       <span className={markerLineClass} />
       <span className={markerTextClass}>
         <CornerDownRight size={11} aria-hidden /> summoned subagent
-        {child && (
-          <span className="font-semibold"> · {child.displayName}</span>
-        )}
-        {summary && (
-          <span className="italic opacity-75">: {summary}</span>
-        )}
+        {child && <span className="font-semibold"> · {child.displayName}</span>}
+        {summary && <span className="italic opacity-75">: {summary}</span>}
       </span>
     </div>
   );
@@ -948,7 +993,7 @@ function SessionMarker({ ev }: { ev: AgentEvent }) {
 
 function ErrorRow({ ev }: { ev: AgentEvent }) {
   return (
-    <div className="flex items-start gap-1.5 rounded-md border border-danger bg-danger/[0.12] px-2 py-1.5 font-mono text-[11px] text-danger">
+    <div className="border-danger bg-danger/[0.12] text-danger flex items-start gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[11px]">
       <AlertTriangle size={12} aria-hidden className="mt-0.5 shrink-0" />
       <span className="min-w-0 break-words">
         {String(ev.payload.error ?? "").slice(0, 280)}
@@ -959,13 +1004,13 @@ function ErrorRow({ ev }: { ev: AgentEvent }) {
 
 function UnitBadge({ unit }: { unit: UnitState }) {
   return (
-    <div className="mb-1 mt-2 flex items-center gap-1.5 border-b border-dashed border-line pb-1 text-[10px] uppercase tracking-[0.6px]">
+    <div className="border-line mt-2 mb-1 flex items-center gap-1.5 border-b border-dashed pb-1 text-[10px] tracking-[0.6px] uppercase">
       <span
         className="size-2 rounded-full"
         style={{ background: ROLE_HEX[unit.role] }}
       />
-      <span className="font-semibold text-text">{unit.displayName}</span>
-      <span className="ml-auto text-muted">{unit.tool}</span>
+      <span className="text-text font-semibold">{unit.displayName}</span>
+      <span className="text-muted ml-auto">{unit.tool}</span>
     </div>
   );
 }
@@ -1023,9 +1068,7 @@ export function ConversationStream({
   const interruptedPromptIds = useMemo(() => {
     if (!sessionId) return new Set<string>();
     const same = events
-      .filter(
-        (e) => e.sessionId === sessionId || subagentIds.has(e.sessionId)
-      )
+      .filter((e) => e.sessionId === sessionId || subagentIds.has(e.sessionId))
       .slice()
       .reverse(); // oldest-first for forward scan
     const interrupted = new Set<string>();
@@ -1113,7 +1156,7 @@ export function ConversationStream({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-5 pt-3.5 text-[12.5px] leading-normal"
+      className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pt-3.5 pb-5 text-[12.5px] leading-normal"
       ref={containerRef}
     >
       {hiddenCount > 0 && (
@@ -1133,15 +1176,17 @@ export function ConversationStream({
         const prev = filtered[i - 1];
         const sameUnitAsPrev = prev && prev.sessionId === e.sessionId;
         const badge =
-          showBadges && unit && !sameUnitAsPrev ? <UnitBadge unit={unit} /> : null;
+          showBadges && unit && !sameUnitAsPrev ? (
+            <UnitBadge unit={unit} />
+          ) : null;
         // Subagent rows: drawn from a session whose parent is the
         // wielder we're viewing. Always show the badge so the King
         // can tell whose action is whose; indent for visual nesting.
-        const isSubagent = sessionId
-          ? subagentIds.has(e.sessionId)
-          : false;
+        const isSubagent = sessionId ? subagentIds.has(e.sessionId) : false;
         const subagentBadge =
-          isSubagent && unit && !sameUnitAsPrev ? <UnitBadge unit={unit} /> : null;
+          isSubagent && unit && !sameUnitAsPrev ? (
+            <UnitBadge unit={unit} />
+          ) : null;
         let body: React.ReactNode = null;
         switch (e.kind) {
           case "session_start":
@@ -1178,8 +1223,7 @@ export function ConversationStream({
             data-event-ts={e.timestamp}
             className={cn(
               "relative rounded-sm transition-colors",
-              isSubagent &&
-                "ml-[22px] border-l-2 border-[#ff82dc]/35 pl-2"
+              isSubagent && "ml-[22px] border-l-2 border-[#ff82dc]/35 pl-2"
             )}
           >
             {badge}

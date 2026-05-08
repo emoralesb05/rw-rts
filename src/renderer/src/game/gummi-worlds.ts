@@ -7,7 +7,7 @@
  * alert ring, count text, label, heartless badge, and cleared star around it.
  */
 
-import * as Phaser from "phaser";
+import type * as Phaser from "phaser";
 
 export const WORLD_THEMES = [
   "disney",
@@ -126,7 +126,19 @@ function drawDisney(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
     repeat: -1,
     duration: 700,
   });
-  c.add([wall, door, towerL, towerR, peakL, peakR, peakC, ear1, earH, ear2, lamp]);
+  c.add([
+    wall,
+    door,
+    towerL,
+    towerR,
+    peakL,
+    peakR,
+    peakC,
+    ear1,
+    earH,
+    ear2,
+    lamp,
+  ]);
 }
 
 function drawHollow(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
@@ -159,7 +171,18 @@ function drawHollow(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
     repeat: -1,
     duration: 900,
   });
-  c.add([wall, towerL, towerR, peakL, peakR, tallSpire, tallPeak, keyholeRing, keyholeStem, lamp]);
+  c.add([
+    wall,
+    towerL,
+    towerR,
+    peakL,
+    peakR,
+    tallSpire,
+    tallPeak,
+    keyholeRing,
+    keyholeStem,
+    lamp,
+  ]);
 }
 
 function drawTraverse(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {

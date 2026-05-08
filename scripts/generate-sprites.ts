@@ -18,16 +18,44 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 type Role =
-  | "sora" | "riku" | "kairi" | "donald" | "goofy" | "mickey"
-  | "ventus" | "aqua" | "terra" | "roxas" | "namine"
-  | "cloud" | "leon" | "tifa" | "aerith" | "yuffie"
-  | "organization" | "unversed";
+  | "sora"
+  | "riku"
+  | "kairi"
+  | "donald"
+  | "goofy"
+  | "mickey"
+  | "ventus"
+  | "aqua"
+  | "terra"
+  | "roxas"
+  | "namine"
+  | "cloud"
+  | "leon"
+  | "tifa"
+  | "aerith"
+  | "yuffie"
+  | "organization"
+  | "unversed";
 
 const ROLES: Role[] = [
-  "sora", "riku", "kairi", "donald", "goofy", "mickey",
-  "ventus", "aqua", "terra", "roxas", "namine",
-  "cloud", "leon", "tifa", "aerith", "yuffie",
-  "organization", "unversed",
+  "sora",
+  "riku",
+  "kairi",
+  "donald",
+  "goofy",
+  "mickey",
+  "ventus",
+  "aqua",
+  "terra",
+  "roxas",
+  "namine",
+  "cloud",
+  "leon",
+  "tifa",
+  "aerith",
+  "yuffie",
+  "organization",
+  "unversed",
 ];
 
 // Logical drawing area is 24×32 (matches src/renderer/src/game/draw.ts
@@ -65,7 +93,12 @@ function applyStroke(ctx: SKRSContext2D, s?: Stroke) {
 
 // Cell-shaded fill: paints the base color, then a darker shadow on the bottom-
 // right ~40%. Implemented via a clipped second pass.
-function shadedFill(ctx: SKRSContext2D, drawShape: () => void, base: string, shaded = true) {
+function shadedFill(
+  ctx: SKRSContext2D,
+  drawShape: () => void,
+  base: string,
+  shaded = true
+) {
   drawShape();
   ctx.fillStyle = base;
   ctx.fill();
@@ -84,44 +117,101 @@ function shadedFill(ctx: SKRSContext2D, drawShape: () => void, base: string, sha
   ctx.restore();
 }
 
-function rect(ctx: SKRSContext2D, x: number, y: number, w: number, h: number, fill: string, stroke?: Stroke, shaded = true) {
-  shadedFill(ctx, () => {
-    ctx.beginPath();
-    ctx.rect(x - w / 2, y - h / 2, w, h);
-  }, fill, shaded);
+function rect(
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: string,
+  stroke?: Stroke,
+  shaded = true
+) {
+  shadedFill(
+    ctx,
+    () => {
+      ctx.beginPath();
+      ctx.rect(x - w / 2, y - h / 2, w, h);
+    },
+    fill,
+    shaded
+  );
   ctx.beginPath();
   ctx.rect(x - w / 2, y - h / 2, w, h);
   applyStroke(ctx, stroke);
 }
 
-function circle(ctx: SKRSContext2D, x: number, y: number, r: number, fill: string, stroke?: Stroke, shaded = true) {
-  shadedFill(ctx, () => {
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-  }, fill, shaded);
+function circle(
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  r: number,
+  fill: string,
+  stroke?: Stroke,
+  shaded = true
+) {
+  shadedFill(
+    ctx,
+    () => {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    },
+    fill,
+    shaded
+  );
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   applyStroke(ctx, stroke);
 }
 
-function ellipse(ctx: SKRSContext2D, x: number, y: number, w: number, h: number, fill: string, stroke?: Stroke, shaded = true) {
-  shadedFill(ctx, () => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
-  }, fill, shaded);
+function ellipse(
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: string,
+  stroke?: Stroke,
+  shaded = true
+) {
+  shadedFill(
+    ctx,
+    () => {
+      ctx.beginPath();
+      ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
+    },
+    fill,
+    shaded
+  );
   ctx.beginPath();
   ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
   applyStroke(ctx, stroke);
 }
 
-function tri(ctx: SKRSContext2D, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, fill: string, stroke?: Stroke, shaded = true) {
-  shadedFill(ctx, () => {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.lineTo(x3, y3);
-    ctx.closePath();
-  }, fill, shaded);
+function tri(
+  ctx: SKRSContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  fill: string,
+  stroke?: Stroke,
+  shaded = true
+) {
+  shadedFill(
+    ctx,
+    () => {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.closePath();
+    },
+    fill,
+    shaded
+  );
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
@@ -130,19 +220,43 @@ function tri(ctx: SKRSContext2D, x1: number, y1: number, x2: number, y2: number,
   applyStroke(ctx, stroke);
 }
 
-function poly(ctx: SKRSContext2D, points: [number, number][], fill: string, stroke?: Stroke, shaded = true) {
-  shadedFill(ctx, () => {
-    ctx.beginPath();
-    points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-    ctx.closePath();
-  }, fill, shaded);
+function poly(
+  ctx: SKRSContext2D,
+  points: [number, number][],
+  fill: string,
+  stroke?: Stroke,
+  shaded = true
+) {
+  shadedFill(
+    ctx,
+    () => {
+      ctx.beginPath();
+      points.forEach(([x, y], i) =>
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+      );
+      ctx.closePath();
+    },
+    fill,
+    shaded
+  );
   ctx.beginPath();
-  points.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+  points.forEach(([x, y], i) =>
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+  );
   ctx.closePath();
   applyStroke(ctx, stroke);
 }
 
-function star(ctx: SKRSContext2D, cx: number, cy: number, points: number, inner: number, outer: number, fill: string, stroke?: Stroke) {
+function star(
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  points: number,
+  inner: number,
+  outer: number,
+  fill: string,
+  stroke?: Stroke
+) {
   const pts: [number, number][] = [];
   const step = Math.PI / points;
   for (let i = 0; i < points * 2; i++) {
@@ -153,11 +267,24 @@ function star(ctx: SKRSContext2D, cx: number, cy: number, points: number, inner:
   poly(ctx, pts, fill, stroke, false);
 }
 
-const OUTLINE = (alpha = 0.9): Stroke => ({ color: "#000000", width: 0.6, alpha });
+const OUTLINE = (alpha = 0.9): Stroke => ({
+  color: "#000000",
+  width: 0.6,
+  alpha,
+});
 
 // Eye with highlight — chibi convention.
 function eye(ctx: SKRSContext2D, x: number, y: number, pupil: string) {
-  ellipse(ctx, x, y, 2.6, 3.4, "#ffffff", { color: "#000000", width: 0.4 }, false);
+  ellipse(
+    ctx,
+    x,
+    y,
+    2.6,
+    3.4,
+    "#ffffff",
+    { color: "#000000", width: 0.4 },
+    false
+  );
   circle(ctx, x, y + 0.3, 1.1, pupil, undefined, false);
   // small white highlight
   circle(ctx, x - 0.6, y - 0.7, 0.5, "#ffffff", undefined, false);
@@ -174,12 +301,30 @@ function drawSora(ctx: SKRSContext2D) {
   star(ctx, 0, -3, 5, 1.2, 2.6, "#ffd86b", OUTLINE(0.6));
   circle(ctx, 0, -12, 11, SKIN, { color: "#3a2010", width: 0.6 });
   ellipse(ctx, 0, -16, 18, 6, "#6b4423", undefined, false);
-  tri(ctx, -13, -14, -7, -28, -2, -15, "#6b4423", { color: "#3d2814", width: 0.5 });
-  tri(ctx, -8, -14, -2, -32, 4, -15, "#6b4423", { color: "#3d2814", width: 0.5 });
-  tri(ctx, -2, -15, 4, -28, 8, -15, "#6b4423", { color: "#3d2814", width: 0.5 });
-  tri(ctx, 4, -15, 12, -27, 12, -15, "#6b4423", { color: "#3d2814", width: 0.5 });
-  tri(ctx, -13, -11, -8, -18, -4, -11, "#6b4423", { color: "#3d2814", width: 0.5 });
-  tri(ctx, 10, -11, 13, -18, 8, -11, "#6b4423", { color: "#3d2814", width: 0.5 });
+  tri(ctx, -13, -14, -7, -28, -2, -15, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
+  tri(ctx, -8, -14, -2, -32, 4, -15, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
+  tri(ctx, -2, -15, 4, -28, 8, -15, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
+  tri(ctx, 4, -15, 12, -27, 12, -15, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
+  tri(ctx, -13, -11, -8, -18, -4, -11, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
+  tri(ctx, 10, -11, 13, -18, 8, -11, "#6b4423", {
+    color: "#3d2814",
+    width: 0.5,
+  });
   eye(ctx, -3.5, -11, "#2c5e8a");
   eye(ctx, 3.5, -11, "#2c5e8a");
 }
@@ -219,9 +364,21 @@ function drawDonald(ctx: SKRSContext2D) {
   rect(ctx, 0, -2, 6, 3, "#ffd86b", undefined, false);
   circle(ctx, 0, -12, 12, SKIN_DUCK, { color: "#000000", width: 0.5 });
   rect(ctx, 0, -22, 24, 5, "#4d7eff", { color: "#ffffff", width: 0.5 });
-  tri(ctx, -11, -22, 0, -30, 11, -22, "#4d7eff", { color: "#ffffff", width: 0.5 });
+  tri(ctx, -11, -22, 0, -30, 11, -22, "#4d7eff", {
+    color: "#ffffff",
+    width: 0.5,
+  });
   circle(ctx, 0, -30, 2.4, "#ff3a3a", undefined, false);
-  poly(ctx, [[-6, -10], [6, -10], [0, -4]], "#ffb733", { color: "#804010", width: 0.4 });
+  poly(
+    ctx,
+    [
+      [-6, -10],
+      [6, -10],
+      [0, -4],
+    ],
+    "#ffb733",
+    { color: "#804010", width: 0.4 }
+  );
   eye(ctx, -4, -15, "#000000");
   eye(ctx, 4, -15, "#000000");
 }
@@ -259,9 +416,18 @@ function drawVentus(ctx: SKRSContext2D) {
   rect(ctx, 0, 4, 1.4, 14, "#808080", undefined, false);
   circle(ctx, 0, -12, 11, SKIN, { color: "#3a2010", width: 0.5 });
   ellipse(ctx, 0, -15, 22, 6, "#e9d24a", undefined, false);
-  tri(ctx, -12, -14, -3, -28, -2, -15, "#e9d24a", { color: "#a78a26", width: 0.5 });
-  tri(ctx, -5, -14, 2, -28, 6, -15, "#e9d24a", { color: "#a78a26", width: 0.5 });
-  tri(ctx, 3, -14, 12, -26, 11, -15, "#e9d24a", { color: "#a78a26", width: 0.5 });
+  tri(ctx, -12, -14, -3, -28, -2, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.5,
+  });
+  tri(ctx, -5, -14, 2, -28, 6, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.5,
+  });
+  tri(ctx, 3, -14, 12, -26, 11, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.5,
+  });
   eye(ctx, -3.5, -11, "#4ec9ff");
   eye(ctx, 3.5, -11, "#4ec9ff");
 }
@@ -295,9 +461,18 @@ function drawRoxas(ctx: SKRSContext2D) {
   rect(ctx, 0, 4, 1.6, 14, "#ffd86b", undefined, false);
   circle(ctx, 0, -12, 11, SKIN, { color: "#3a2010", width: 0.5 });
   ellipse(ctx, 0, -15, 22, 6, "#eae0a8", undefined, false);
-  tri(ctx, -12, -14, -3, -30, -2, -15, "#eae0a8", { color: "#b4a55a", width: 0.5 });
-  tri(ctx, -5, -14, 2, -32, 6, -15, "#eae0a8", { color: "#b4a55a", width: 0.5 });
-  tri(ctx, 3, -14, 12, -28, 11, -15, "#eae0a8", { color: "#b4a55a", width: 0.5 });
+  tri(ctx, -12, -14, -3, -30, -2, -15, "#eae0a8", {
+    color: "#b4a55a",
+    width: 0.5,
+  });
+  tri(ctx, -5, -14, 2, -32, 6, -15, "#eae0a8", {
+    color: "#b4a55a",
+    width: 0.5,
+  });
+  tri(ctx, 3, -14, 12, -28, 11, -15, "#eae0a8", {
+    color: "#b4a55a",
+    width: 0.5,
+  });
   eye(ctx, -3.5, -11, "#4ec9ff");
   eye(ctx, 3.5, -11, "#4ec9ff");
 }
@@ -319,10 +494,22 @@ function drawCloud(ctx: SKRSContext2D) {
   rect(ctx, -9, 4, 4, 14, "#4a5a7e", undefined, false);
   circle(ctx, 0, -12, 11, SKIN, { color: "#3a2010", width: 0.5 });
   ellipse(ctx, 0, -16, 24, 6, "#e9d24a", undefined, false);
-  tri(ctx, -13, -14, -4, -34, -2, -15, "#e9d24a", { color: "#a78a26", width: 0.6 });
-  tri(ctx, -6, -14, 0, -36, 6, -15, "#e9d24a", { color: "#a78a26", width: 0.6 });
-  tri(ctx, 2, -14, 8, -34, 12, -15, "#e9d24a", { color: "#a78a26", width: 0.6 });
-  tri(ctx, 8, -16, 14, -30, 12, -15, "#e9d24a", { color: "#a78a26", width: 0.6 });
+  tri(ctx, -13, -14, -4, -34, -2, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.6,
+  });
+  tri(ctx, -6, -14, 0, -36, 6, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.6,
+  });
+  tri(ctx, 2, -14, 8, -34, 12, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.6,
+  });
+  tri(ctx, 8, -16, 14, -30, 12, -15, "#e9d24a", {
+    color: "#a78a26",
+    width: 0.6,
+  });
   eye(ctx, -3.5, -11, "#4ec9ff");
   eye(ctx, 3.5, -11, "#4ec9ff");
 }
@@ -384,7 +571,16 @@ function drawYuffie(ctx: SKRSContext2D) {
 }
 
 function drawOrganization(ctx: SKRSContext2D) {
-  poly(ctx, [[-13, 14], [13, 14], [0, -22]], "#0a0a14", { color: "#4d7eff", width: 0.6, alpha: 0.6 });
+  poly(
+    ctx,
+    [
+      [-13, 14],
+      [13, 14],
+      [0, -22],
+    ],
+    "#0a0a14",
+    { color: "#4d7eff", width: 0.6, alpha: 0.6 }
+  );
   ellipse(ctx, 0, -8, 14, 10, "#000000", undefined, false);
   circle(ctx, 0, -8, 2.5, "#ff3060", undefined, false);
   circle(ctx, -0.6, -8.6, 0.6, "#ffffff", undefined, false);
@@ -392,28 +588,46 @@ function drawOrganization(ctx: SKRSContext2D) {
 }
 
 function drawUnversed(ctx: SKRSContext2D) {
-  poly(ctx, [
-    [0, -22],
-    [9, -14],
-    [12, -2],
-    [10, 10],
-    [6, 20],
-    [-6, 20],
-    [-10, 10],
-    [-12, -2],
-    [-9, -14],
-  ], "#4d2cc6", { color: "#ff3060", width: 0.7 });
+  poly(
+    ctx,
+    [
+      [0, -22],
+      [9, -14],
+      [12, -2],
+      [10, 10],
+      [6, 20],
+      [-6, 20],
+      [-10, 10],
+      [-12, -2],
+      [-9, -14],
+    ],
+    "#4d2cc6",
+    { color: "#ff3060", width: 0.7 }
+  );
   circle(ctx, 0, -4, 3.5, "#ffd86b", undefined, false);
   circle(ctx, 0, -4, 1.5, "#ff3060", undefined, false);
   star(ctx, 0, 10, 5, 1.4, 3.4, "#ff3060");
 }
 
 const DRAWERS: Record<Role, (ctx: SKRSContext2D) => void> = {
-  sora: drawSora, riku: drawRiku, kairi: drawKairi, donald: drawDonald,
-  goofy: drawGoofy, mickey: drawMickey, ventus: drawVentus, aqua: drawAqua,
-  terra: drawTerra, roxas: drawRoxas, namine: drawNamine, cloud: drawCloud,
-  leon: drawLeon, tifa: drawTifa, aerith: drawAerith, yuffie: drawYuffie,
-  organization: drawOrganization, unversed: drawUnversed,
+  sora: drawSora,
+  riku: drawRiku,
+  kairi: drawKairi,
+  donald: drawDonald,
+  goofy: drawGoofy,
+  mickey: drawMickey,
+  ventus: drawVentus,
+  aqua: drawAqua,
+  terra: drawTerra,
+  roxas: drawRoxas,
+  namine: drawNamine,
+  cloud: drawCloud,
+  leon: drawLeon,
+  tifa: drawTifa,
+  aerith: drawAerith,
+  yuffie: drawYuffie,
+  organization: drawOrganization,
+  unversed: drawUnversed,
 };
 
 // ----- shared chrome (shadow under feet) -------------------------------------
@@ -478,7 +692,13 @@ function renderFrameAt(
   ctx.restore();
 }
 
-const OUT_DIR = resolve(import.meta.dirname, "..", "assets", "sprites", "kh-default");
+const OUT_DIR = resolve(
+  import.meta.dirname,
+  "..",
+  "assets",
+  "sprites",
+  "kh-default"
+);
 
 function main() {
   mkdirSync(OUT_DIR, { recursive: true });
@@ -500,7 +720,9 @@ function main() {
     }
     console.log(`✓ ${role}`);
   }
-  console.log(`\nFrame size: ${FRAME_W}×${FRAME_H} · ${FRAMES} frames per sheet`);
+  console.log(
+    `\nFrame size: ${FRAME_W}×${FRAME_H} · ${FRAMES} frames per sheet`
+  );
 }
 
 main();

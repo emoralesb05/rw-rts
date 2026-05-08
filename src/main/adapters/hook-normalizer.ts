@@ -69,7 +69,8 @@ function geminiParentSessionFromTranscriptPath(
   const parentDir = basename(containingDir);
   const grandparentDir = basename(dirname(containingDir));
   if (grandparentDir !== "chats") return undefined;
-  if (!parentDir || parentDir === "." || parentDir === "chats") return undefined;
+  if (!parentDir || parentDir === "." || parentDir === "chats")
+    return undefined;
   if (parentDir === sessionId) return undefined;
   // Gemini subagent transcripts live under .../chats/<parentSessionId>/<child>.jsonl.
   return parentDir;
@@ -89,7 +90,11 @@ export function normalizeHookPayload(p: HookPayload): AgentEvent | null {
   }
   const tool = (p?.__kh_tool as string | undefined) ?? "claude";
   if (tool === "gemini") return normalizeGeminiPayload(p, eventName);
-  return normalizeClaudePayload(p, eventName, tool === "codex" ? "codex" : "claude");
+  return normalizeClaudePayload(
+    p,
+    eventName,
+    tool === "codex" ? "codex" : "claude"
+  );
 }
 
 // Wrappers Claude Code's runtime uses to inject system-generated text
@@ -216,13 +221,12 @@ function normalizeClaudePayload(
         typeof p.prompt === "string"
           ? p.prompt
           : typeof p.user_prompt === "string"
-          ? p.user_prompt
-          : undefined,
+            ? p.user_prompt
+            : undefined,
       // Claude's PostToolUse carries duration_ms (verified empirically);
       // pass through so the renderer can chip slow tools without the
       // computed-from-timestamp fallback.
-      durationMs:
-        typeof p.duration_ms === "number" ? p.duration_ms : undefined,
+      durationMs: typeof p.duration_ms === "number" ? p.duration_ms : undefined,
     },
   };
 }
@@ -374,7 +378,8 @@ function normalizeCursorPayload(
     tool: "cursor" as const,
     cwd:
       (p.cwd as string) ??
-      (Array.isArray(p.workspace_roots) && typeof p.workspace_roots[0] === "string"
+      (Array.isArray(p.workspace_roots) &&
+      typeof p.workspace_roots[0] === "string"
         ? p.workspace_roots[0]
         : process.cwd()),
     source: "hook" as const,
@@ -432,8 +437,8 @@ function normalizeCursorPayload(
             typeof p.duration === "number"
               ? p.duration
               : typeof p.duration_ms === "number"
-              ? p.duration_ms
-              : undefined,
+                ? p.duration_ms
+                : undefined,
         },
       };
     case "afterAgentResponse":

@@ -78,7 +78,10 @@ function inQuietHours(now: Date, settings: NotifSettings): boolean {
   return start > end ? h >= start || h < end : h >= start && h < end;
 }
 
-function shouldFireFor(severity: LetterSeverity, settings: NotifSettings): boolean {
+function shouldFireFor(
+  severity: LetterSeverity,
+  settings: NotifSettings
+): boolean {
   if (!settings.enabled) return false;
   if (severity === "critical") return settings.fireCritical;
   if (severity === "important") return settings.fireImportant;

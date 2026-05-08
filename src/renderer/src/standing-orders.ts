@@ -27,7 +27,12 @@ export function attachStandingOrderRunner(): () => void {
     // when a matching session shows up.
     if (!order.unitId) return;
     const unit = useStore.getState().units[order.unitId];
-    if (!unit || !unit.spawnedHere || unit.status === "fallen" || unit.status === "complete") {
+    if (
+      !unit ||
+      !unit.spawnedHere ||
+      unit.status === "fallen" ||
+      unit.status === "complete"
+    ) {
       // Wielder is gone or in a state where commands won't land — halt.
       useStore.getState().haltStandingOrder(orderId);
       return;

@@ -22,12 +22,23 @@ type ChordSpec = {
 
 // Frequencies (equal-temperament, A4=440).
 const F = {
-  A2: 110,    A3: 220,    A4: 440,
-  C3: 130.81, C4: 261.63, C5: 523.25,
-  E3: 164.81, E4: 329.63, E5: 659.25,
-  F3: 174.61, F4: 349.23, F5: 698.46,
-  G3: 196,    G4: 392,    G5: 783.99,
-  D4: 293.66, D5: 587.33,
+  A2: 110,
+  A3: 220,
+  A4: 440,
+  C3: 130.81,
+  C4: 261.63,
+  C5: 523.25,
+  E3: 164.81,
+  E4: 329.63,
+  E5: 659.25,
+  F3: 174.61,
+  F4: 349.23,
+  F5: 698.46,
+  G3: 196,
+  G4: 392,
+  G5: 783.99,
+  D4: 293.66,
+  D5: 587.33,
   B4: 493.88,
 };
 
@@ -43,16 +54,16 @@ const PROGRESSION: ChordSpec[] = [
   { bass: F.G3, arp: [F.G4, F.B4, F.D5, F.B4], pad: [F.G3, F.B4, F.D4] },
 ];
 
-const BAR_SECONDS = 2.4;            // slow ballad pulse, ~100 BPM
-const NOTES_PER_BAR = 4;            // arpeggio = 4 eighth-notes per chord
-const SCHEDULE_AHEAD_S = 1.5;       // schedule 1.5s ahead, tick every 0.5s
+const BAR_SECONDS = 2.4; // slow ballad pulse, ~100 BPM
+const NOTES_PER_BAR = 4; // arpeggio = 4 eighth-notes per chord
+const SCHEDULE_AHEAD_S = 1.5; // schedule 1.5s ahead, tick every 0.5s
 const TICK_MS = 500;
-const MASTER_GAIN = 0.055;          // ambient — sits well under SFX
+const MASTER_GAIN = 0.055; // ambient — sits well under SFX
 
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
-let nextBarTime = 0;                // audio-context time for next bar onset
-let chordIndex = 0;                 // current position in PROGRESSION
+let nextBarTime = 0; // audio-context time for next bar onset
+let chordIndex = 0; // current position in PROGRESSION
 let tickHandle: ReturnType<typeof setInterval> | null = null;
 let started = false;
 
@@ -60,7 +71,10 @@ function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
     try {
-      const C = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const C =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       if (!C) return null;
       ctx = new C();
       masterGain = ctx.createGain();
@@ -101,7 +115,13 @@ function scheduleNote(
 function scheduleBar(chord: ChordSpec, barStart: number) {
   // Bass on beats 1 and 3.
   scheduleNote(chord.bass, barStart, BAR_SECONDS / 2 - 0.05, "triangle", 0.55);
-  scheduleNote(chord.bass, barStart + BAR_SECONDS / 2, BAR_SECONDS / 2 - 0.05, "triangle", 0.5);
+  scheduleNote(
+    chord.bass,
+    barStart + BAR_SECONDS / 2,
+    BAR_SECONDS / 2 - 0.05,
+    "triangle",
+    0.5
+  );
   // Arpeggio across the bar.
   const noteDur = BAR_SECONDS / NOTES_PER_BAR - 0.04;
   for (let i = 0; i < NOTES_PER_BAR; i++) {

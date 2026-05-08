@@ -83,7 +83,9 @@ export function permissionOptionsForTool(tool: AgentTool): PermissionOption[] {
   }));
 }
 
-export function parsePermissionOptions(value: unknown): PermissionOption[] | null {
+export function parsePermissionOptions(
+  value: unknown
+): PermissionOption[] | null {
   const parsed = PermissionOptionSchema.array().safeParse(value);
   if (!parsed.success) return null;
   return parsed.data;

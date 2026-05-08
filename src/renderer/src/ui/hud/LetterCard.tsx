@@ -179,13 +179,13 @@ export function LetterCard({ letter }: { letter: Letter }) {
   return (
     <div
       className={cn(
-        "throne-letter flex flex-col gap-1 rounded-md border border-l-[3px] border-line",
+        "throne-letter border-line flex flex-col gap-1 rounded-md border border-l-[3px]",
         "bg-panel-2/65 px-2.5 py-2 text-left",
         severityClass(letter.severity),
         bodyClickable &&
-          "cursor-pointer transition-colors hover:border-accent-alt/30 hover:bg-panel-2/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-alt",
+          "hover:border-accent-alt/30 hover:bg-panel-2/85 focus-visible:outline-accent-alt cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1",
         isPermissionLike &&
-          "border-warning/40 bg-[#231830]/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning/85"
+          "border-warning/40 focus-visible:outline-warning/85 bg-[#231830]/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       )}
       data-letter-request-id={reqIdAttr}
       onClick={onBodyClick}
@@ -193,7 +193,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
       role={bodyClickable ? "button" : isPermissionLike ? "group" : undefined}
       tabIndex={bodyClickable || isPermissionLike ? 0 : undefined}
     >
-      <div className="flex items-center justify-between gap-2 text-[9.5px] uppercase tracking-[0.6px]">
+      <div className="flex items-center justify-between gap-2 text-[9.5px] tracking-[0.6px] uppercase">
         <Badge
           tone={severityTone(letter.severity)}
           className="min-h-0 px-1.5 py-0.5 text-[9.5px]"
@@ -212,60 +212,72 @@ export function LetterCard({ letter }: { letter: Letter }) {
             {letter.risk === "high"
               ? "HIGH RISK"
               : letter.risk === "elevated"
-              ? "ELEVATED"
-              : "LOW RISK"}
+                ? "ELEVATED"
+                : "LOW RISK"}
           </Badge>
         )}
-        <span className="shrink-0 font-mono text-muted">{timeAgo(letter.createdAt)}</span>
+        <span className="text-muted shrink-0 font-mono">
+          {timeAgo(letter.createdAt)}
+        </span>
       </div>
       {wielder && (
-        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono text-[10.5px] text-muted">
+        <div className="text-muted flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono text-[10.5px]">
           <span
-            className="size-2.5 shrink-0 rounded-pill border border-black/40"
+            className="rounded-pill size-2.5 shrink-0 border border-black/40"
             style={{ background: ROLE_HEX[wielder.role] }}
             aria-hidden="true"
           />
-          <span className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-ui font-semibold text-text">
+          <span className="font-ui text-text max-w-full min-w-0 overflow-hidden font-semibold text-ellipsis whitespace-nowrap">
             {wielder.displayName}
           </span>
           {targetWorldId && worlds[targetWorldId] && (
             <>
-              <span className="shrink-0 text-muted/50">·</span>
-              <span className="min-w-0 max-w-[130px] overflow-hidden text-ellipsis whitespace-nowrap text-accent">
+              <span className="text-muted/50 shrink-0">·</span>
+              <span className="text-accent max-w-[130px] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 {worlds[targetWorldId].label}
               </span>
-              <span className="min-w-0 max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-muted/70">
+              <span className="text-muted/70 max-w-[120px] min-w-0 overflow-hidden text-[9.5px] text-ellipsis whitespace-nowrap">
                 {themeLabel(themeFor(targetWorldId))}
               </span>
             </>
           )}
         </div>
       )}
-      <div className="break-words text-[12.5px] font-semibold text-text">{letter.title}</div>
+      <div className="text-text text-[12.5px] font-semibold break-words">
+        {letter.title}
+      </div>
       {letter.body && (
-        <div className="break-words text-[11px] leading-relaxed text-muted">{letter.body}</div>
+        <div className="text-muted text-[11px] leading-relaxed break-words">
+          {letter.body}
+        </div>
       )}
       {isPermissionLike && (
         <div className="mt-0.5 flex flex-wrap items-center gap-2">
           <TooltipHint label="copy permission request context">
             <Button
               type="button"
-              className="min-h-0 border-warning/30 bg-warning/10 px-1.5 py-0.5 font-mono text-[9.5px] text-warning hover:border-warning/60 hover:bg-warning/15"
+              className="border-warning/30 bg-warning/10 text-warning hover:border-warning/60 hover:bg-warning/15 min-h-0 px-1.5 py-0.5 font-mono text-[9.5px]"
               onClick={(e) => {
                 e.stopPropagation();
                 void copyRequest();
               }}
             >
-              {copied ? <Check size={11} aria-hidden /> : <Copy size={11} aria-hidden />}
+              {copied ? (
+                <Check size={11} aria-hidden />
+              ) : (
+                <Copy size={11} aria-hidden />
+              )}
               {copied ? "copied" : "copy request"}
             </Button>
           </TooltipHint>
-          <span className="font-mono text-[9.5px] text-text/50">
+          <span className="text-text/50 font-mono text-[9.5px]">
             {allowAction && `A ${allowShortcut}`}
             {allowAction && denyAction && " · "}
             {denyAction && `D ${denyShortcut}`}
             {observeAction && "Enter ack"}
-            {dismissAction && (allowAction || denyAction || observeAction) && " · "}
+            {dismissAction &&
+              (allowAction || denyAction || observeAction) &&
+              " · "}
             {dismissAction && "Esc dismiss"}
           </span>
         </div>
@@ -275,17 +287,22 @@ export function LetterCard({ letter }: { letter: Letter }) {
           <TooltipHint label="show what the wielder was thinking right before this ask">
             <Button
               type="button"
-              className="min-h-0 border-accent/40 bg-transparent px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.5px] text-accent hover:bg-accent/10"
+              className="border-accent/40 text-accent hover:bg-accent/10 min-h-0 bg-transparent px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.5px]"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowReasoning((v) => !v);
               }}
             >
-              {showReasoning ? <ChevronUp size={11} aria-hidden /> : <ChevronDown size={11} aria-hidden />} thinking
+              {showReasoning ? (
+                <ChevronUp size={11} aria-hidden />
+              ) : (
+                <ChevronDown size={11} aria-hidden />
+              )}{" "}
+              thinking
             </Button>
           </TooltipHint>
           {showReasoning && (
-            <div className="mt-1 rounded-r-sm border-l-2 border-accent/40 bg-accent/[0.06] px-2 py-1.5 text-[10.5px] italic leading-relaxed text-text whitespace-pre-wrap">
+            <div className="border-accent/40 bg-accent/[0.06] text-text mt-1 rounded-r-sm border-l-2 px-2 py-1.5 text-[10.5px] leading-relaxed whitespace-pre-wrap italic">
               {letter.reasoning}
             </div>
           )}
@@ -311,8 +328,8 @@ export function LetterCard({ letter }: { letter: Letter }) {
               a.action.kind === "seal"
                 ? "primary"
                 : a.action.kind === "dismiss"
-                ? "ghost"
-                : "default"
+                  ? "ghost"
+                  : "default"
             }
             className="min-h-0 px-2 py-1 text-[10.5px]"
             onClick={(e) => {

@@ -49,7 +49,9 @@ function loadDrawerWidth(): number {
     const raw = window.localStorage.getItem(DRAWER_WIDTH_KEY);
     if (raw == null) return DRAWER_DEFAULT_WIDTH();
     const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) && n >= DRAWER_MIN_WIDTH ? n : DRAWER_DEFAULT_WIDTH();
+    return Number.isFinite(n) && n >= DRAWER_MIN_WIDTH
+      ? n
+      : DRAWER_DEFAULT_WIDTH();
   } catch {
     return DRAWER_DEFAULT_WIDTH();
   }
@@ -142,7 +144,10 @@ function makeId(kind: PanelKind, key?: string): string {
 
 /** Roughly center the first panel; cascade subsequent ones down-right
  * so they don't perfectly overlap. Uses viewport size as a hint. */
-function nextPosition(existingCount: number, width: number): { x: number; y: number } {
+function nextPosition(
+  existingCount: number,
+  width: number
+): { x: number; y: number } {
   const w = typeof window !== "undefined" ? window.innerWidth : 1280;
   const h = typeof window !== "undefined" ? window.innerHeight : 800;
   const baseX = Math.max(40, Math.round((w - width) / 2));
@@ -183,7 +188,10 @@ export const usePanels = create<State>((set, get) => ({
     const pos = nextPosition(get().panels.length, width);
     set((s) => ({
       zCounter: z,
-      panels: [...s.panels, { id, kind, key, title, x: pos.x, y: pos.y, width, z, data }],
+      panels: [
+        ...s.panels,
+        { id, kind, key, title, x: pos.x, y: pos.y, width, z, data },
+      ],
     }));
     return id;
   },
@@ -289,7 +297,10 @@ export const usePanels = create<State>((set, get) => ({
       typeof window !== "undefined"
         ? Math.max(
             DRAWER_MIN_WIDTH,
-            Math.min(Math.round(window.innerWidth * DRAWER_MAX_WIDTH_RATIO), Math.round(width))
+            Math.min(
+              Math.round(window.innerWidth * DRAWER_MAX_WIDTH_RATIO),
+              Math.round(width)
+            )
           )
         : Math.max(DRAWER_MIN_WIDTH, Math.round(width));
     persistDrawerWidth(w);
@@ -306,11 +317,15 @@ export const usePanels = create<State>((set, get) => ({
     set({ drawer: null });
   },
   toggleDrawerMinimized() {
-    set((s) => (s.drawer ? { drawer: { ...s.drawer, minimized: !s.drawer.minimized } } : s));
+    set((s) =>
+      s.drawer ? { drawer: { ...s.drawer, minimized: !s.drawer.minimized } } : s
+    );
   },
   expandDrawer() {
     set((s) =>
-      s.drawer && s.drawer.minimized ? { drawer: { ...s.drawer, minimized: false } } : s
+      s.drawer && s.drawer.minimized
+        ? { drawer: { ...s.drawer, minimized: false } }
+        : s
     );
   },
   focusAlerts() {

@@ -82,10 +82,11 @@ export function HudWidget({
         "hud",
         `hud-${anchor}`,
         `hud-tone-${tone}`,
-        "absolute z-hud flex max-h-[calc(50vh-24px)] w-[340px] flex-col overflow-hidden",
-        "rounded-md border border-accent-alt/20 bg-[#0a1130]/60 font-ui shadow-2xl backdrop-blur-md",
-        "transition-[width] duration-base ease-out",
-        tone === "alert" && "border-warning/45 shadow-[0_0_0_1px_rgba(255,122,60,0.10),0_16px_40px_rgba(0,0,0,0.45)]",
+        "z-hud absolute flex max-h-[calc(50vh-24px)] w-[340px] flex-col overflow-hidden",
+        "border-accent-alt/20 font-ui rounded-md border bg-[#0a1130]/60 shadow-2xl backdrop-blur-md",
+        "duration-base transition-[width] ease-out",
+        tone === "alert" &&
+          "border-warning/45 shadow-[0_0_0_1px_rgba(255,122,60,0.10),0_16px_40px_rgba(0,0,0,0.45)]",
         tone === "info" && "border-accent/30",
         collapsed && "hud-collapsed max-h-none w-[180px]",
         anchorClass[anchor],
@@ -97,7 +98,7 @@ export function HudWidget({
     >
       <header
         className={cn(
-          "flex min-w-0 items-center gap-1.5 border-b border-white/[0.06] bg-accent-alt/5 px-2.5 py-1.5",
+          "bg-accent-alt/5 flex min-w-0 items-center gap-1.5 border-b border-white/[0.06] px-2.5 py-1.5",
           tone === "alert" && "bg-warning/[0.06]",
           collapsed && "border-b-transparent py-1"
         )}
@@ -111,27 +112,29 @@ export function HudWidget({
         >
           <span
             className={cn(
-              "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt",
+              "text-accent-alt min-w-0 overflow-hidden text-[10px] font-bold tracking-[0.8px] text-ellipsis whitespace-nowrap uppercase",
               tone === "alert" && "text-warning"
             )}
           >
             {title}
           </span>
           {typeof count === "number" && (
-            <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted">
+            <span className="text-muted shrink-0 font-mono text-[10px] tabular-nums">
               {count}
             </span>
           )}
         </button>
         {headerExtra && !collapsed && (
-          <span className="flex shrink-0 items-center gap-1">{headerExtra}</span>
+          <span className="flex shrink-0 items-center gap-1">
+            {headerExtra}
+          </span>
         )}
         {/* Chevron lives at the far right — past any action chip — so
          * the hierarchy reads title → count → action → toggle. Separate
          * button so headerExtra stays clickable in its own right. */}
         <button
           type="button"
-          className="inline-flex shrink-0 cursor-pointer items-center border-0 bg-transparent px-0.5 text-muted hover:text-accent-alt"
+          className="text-muted hover:text-accent-alt inline-flex shrink-0 cursor-pointer items-center border-0 bg-transparent px-0.5"
           onClick={() => setCollapsed((v) => !v)}
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
@@ -147,9 +150,7 @@ export function HudWidget({
         )}
         aria-hidden={collapsed}
       >
-        <div
-          className={cn("min-h-0 overflow-y-auto p-2", collapsed && "p-0")}
-        >
+        <div className={cn("min-h-0 overflow-y-auto p-2", collapsed && "p-0")}>
           {children}
         </div>
       </div>

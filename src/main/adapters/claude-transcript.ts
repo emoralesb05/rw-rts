@@ -117,9 +117,9 @@ function readNewLines(state: FileState): string[] {
   }
 }
 
-export function parseClaudeAssistantTranscriptLine(line: string):
-  | { id?: string; text: string; timestamp: number }
-  | null {
+export function parseClaudeAssistantTranscriptLine(
+  line: string
+): { id?: string; text: string; timestamp: number } | null {
   if (!line.trim()) return null;
   let raw: unknown;
   try {
@@ -145,14 +145,14 @@ export function parseClaudeAssistantTranscriptLine(line: string):
     typeof tsRaw === "string"
       ? Date.parse(tsRaw)
       : typeof tsRaw === "number"
-      ? tsRaw
-      : NaN;
+        ? tsRaw
+        : NaN;
   const id =
     typeof msg.uuid === "string"
       ? msg.uuid
       : typeof msg.requestId === "string"
-      ? msg.requestId
-      : undefined;
+        ? msg.requestId
+        : undefined;
   return {
     id,
     text: texts.join("\n\n"),
@@ -206,13 +206,12 @@ function pollOnce() {
 export function startClaudeTranscriptWatcher(intervalMs = 2000) {
   if (pollTimer) return;
   if (!existsSync(PROJECTS_ROOT)) {
-    // eslint-disable-next-line no-console
     console.log(
       `[keykeeper/claude-transcript] no projects dir at ${PROJECTS_ROOT}; watcher disabled`
     );
     return;
   }
-  // eslint-disable-next-line no-console
+
   console.log(
     `[keykeeper/claude-transcript] watcher started, polling every ${intervalMs}ms`
   );

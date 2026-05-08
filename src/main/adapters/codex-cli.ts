@@ -19,10 +19,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { bus } from "../event-bus";
-import {
-  registerSpawnedSession,
-  unregisterSpawnedSession,
-} from "./claude-cli";
+import { registerSpawnedSession, unregisterSpawnedSession } from "./claude-cli";
 import type { AgentEvent } from "@shared/events";
 import {
   CodexThreadStartedSchema,
@@ -55,10 +52,23 @@ export function getCodexAgent(unitId: string): SpawnedCodexAgent | undefined {
 }
 
 function buildArgs(prompt: string, resumeId?: string): string[] {
-  const args: string[] = ["exec", "--json", "--skip-git-repo-check", "--full-auto"];
+  const args: string[] = [
+    "exec",
+    "--json",
+    "--skip-git-repo-check",
+    "--full-auto",
+  ];
   if (resumeId) args.unshift(...[]); // `exec resume` is a subcommand
   if (resumeId) {
-    return ["exec", "resume", resumeId, "--json", "--skip-git-repo-check", "--full-auto", prompt];
+    return [
+      "exec",
+      "resume",
+      resumeId,
+      "--json",
+      "--skip-git-repo-check",
+      "--full-auto",
+      prompt,
+    ];
   }
   args.push(prompt);
   return args;
@@ -72,7 +82,9 @@ function spawnCodexProcess(prompt: string, cwd: string, resumeId?: string) {
   });
 }
 
-export async function spawnCodexAgent(opts: SpawnCodexOptions): Promise<SpawnedCodexAgent> {
+export async function spawnCodexAgent(
+  opts: SpawnCodexOptions
+): Promise<SpawnedCodexAgent> {
   const proc = spawnCodexProcess(opts.prompt, opts.cwd);
   let sessionId: string;
   try {
@@ -138,7 +150,10 @@ export async function spawnCodexAgent(opts: SpawnCodexOptions): Promise<SpawnedC
   return agent;
 }
 
-function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string> {
+function waitForThreadId(
+  proc: ChildProcess,
+  timeoutMs: number
+): Promise<string> {
   return new Promise((resolve, reject) => {
     let buf = "";
     let settled = false;
@@ -155,7 +170,9 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
       fn();
     };
     const timer = setTimeout(() => {
-      settle(() => reject(new Error("codex exec did not emit thread.started in time")));
+      settle(() =>
+        reject(new Error("codex exec did not emit thread.started in time"))
+      );
     }, timeoutMs);
     const onData = (chunk: Buffer) => {
       buf += chunk.toString("utf8");
@@ -185,7 +202,9 @@ function waitForThreadId(proc: ChildProcess, timeoutMs: number): Promise<string>
       }
     };
     const onExit = () => {
-      settle(() => reject(new Error("codex exec exited before emitting thread.started")));
+      settle(() =>
+        reject(new Error("codex exec exited before emitting thread.started"))
+      );
     };
     const onError = (err: Error) => {
       settle(() => reject(err));
@@ -213,7 +232,8 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
   });
   proc.stderr?.on("data", (chunk: Buffer) => {
     const text = chunk.toString("utf8");
-    if (/^\s*$/.test(text) || /failed to record rollout items/.test(text)) return;
+    if (/^\s*$/.test(text) || /failed to record rollout items/.test(text))
+      return;
     bus.emitAgentEvent({
       sessionId,
       tool: "codex",
@@ -243,14 +263,24 @@ export function normalizeCodexStreamMessage(
   cwd: string
 ): AgentEvent[] {
   const ts = Date.now();
-  const base = { sessionId, tool: "codex" as const, cwd, source: "spawned" as const };
+  const base = {
+    sessionId,
+    tool: "codex" as const,
+    cwd,
+    source: "spawned" as const,
+  };
   const out: AgentEvent[] = [];
 
   if (msg.type === "item.completed") {
     const item = (msg as { item?: Record<string, unknown> }).item ?? {};
     const itemType = String(item.type ?? "");
     if (itemType === "agent_message" && typeof item.text === "string") {
-      out.push({ ...base, timestamp: ts, kind: "assistant_text", payload: { text: item.text } });
+      out.push({
+        ...base,
+        timestamp: ts,
+        kind: "assistant_text",
+        payload: { text: item.text },
+      });
     } else if (itemType === "command_execution") {
       const cmd = String(item.command ?? "");
       const result = item.aggregated_output ?? item.output ?? item.exit_code;
@@ -274,7 +304,10 @@ export function normalizeCodexStreamMessage(
         ...base,
         timestamp: ts,
         kind: "tool_use",
-        payload: { name: "Edit", input: { file_path: path, change: item.change } },
+        payload: {
+          name: "Edit",
+          input: { file_path: path, change: item.change },
+        },
       });
     }
     // 'reasoning' items skipped — they're verbose and not user-facing

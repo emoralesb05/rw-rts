@@ -48,9 +48,9 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   const canSend = !disabled && !!prompt.trim();
 
   return (
-    <div className="sticky bottom-0 z-[1] flex flex-none items-end gap-2.5 border-t border-line bg-[rgba(5,9,18,0.94)] px-3 py-2.5 shadow-[0_-10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm">
+    <div className="border-line sticky bottom-0 z-[1] flex flex-none items-end gap-2.5 border-t bg-[rgba(5,9,18,0.94)] px-3 py-2.5 shadow-[0_-10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm">
       <Textarea
-        className="min-h-10 max-h-[150px] flex-1 resize-y rounded-sm bg-surface-2/90 px-2.5 py-1.5 font-mono text-[12px] leading-[1.4]"
+        className="bg-surface-2/90 max-h-[150px] min-h-10 flex-1 resize-y rounded-sm px-2.5 py-1.5 font-mono text-[12px] leading-[1.4]"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         onKeyDown={onKeyDown}

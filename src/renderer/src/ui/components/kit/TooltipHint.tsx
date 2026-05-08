@@ -1,9 +1,5 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "../primitives/Tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../primitives/Tooltip";
 
 type TooltipHintProps = Pick<
   ComponentProps<typeof TooltipContent>,

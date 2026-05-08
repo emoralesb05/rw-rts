@@ -59,7 +59,10 @@ export function FloatingPanel({ panel, children }: Props) {
       const margin = 24;
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const x = Math.max(-panel.width + 80, Math.min(w - 80, drag.panelStart.x + dx));
+      const x = Math.max(
+        -panel.width + 80,
+        Math.min(w - 80, drag.panelStart.x + dx)
+      );
       const y = Math.max(0, Math.min(h - margin, drag.panelStart.y + dy));
       moveTo(panel.id, x, y);
     },
@@ -94,7 +97,7 @@ export function FloatingPanel({ panel, children }: Props) {
     <div
       className={cn(
         "fixed flex origin-center flex-col overflow-hidden rounded-md",
-        "border border-accent bg-[linear-gradient(180deg,#0f1635_0%,#0a1130_100%)]",
+        "border-accent border bg-[linear-gradient(180deg,#0f1635_0%,#0a1130_100%)]",
         "shadow-[0_30px_80px_rgba(0,0,0,0.65),0_8px_24px_rgba(0,0,0,0.50),0_0_0_1px_rgba(255,216,107,0.18)]",
         "animate-[floating-panel-rise_200ms_cubic-bezier(0.2,0.8,0.3,1)]"
       )}
@@ -110,26 +113,26 @@ export function FloatingPanel({ panel, children }: Props) {
       aria-label={panel.title}
     >
       <div
-        className="flex min-h-8 cursor-grab select-none items-center gap-2 border-b border-line bg-accent-alt/[0.06] px-2 py-1.5 pl-2.5 font-ui active:cursor-grabbing"
+        className="border-line bg-accent-alt/[0.06] font-ui flex min-h-8 cursor-grab items-center gap-2 border-b px-2 py-1.5 pl-2.5 select-none active:cursor-grabbing"
         onPointerDown={onHeaderPointerDown}
         onPointerMove={onHeaderPointerMove}
         onPointerUp={onHeaderPointerUp}
         onPointerCancel={onHeaderPointerUp}
       >
         <span
-          className="text-xs tracking-[-1px] text-muted opacity-60"
+          className="text-muted text-xs tracking-[-1px] opacity-60"
           aria-hidden="true"
         >
           ⋮⋮
         </span>
-        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.8px] text-accent-alt">
+        <span className="text-accent-alt min-w-0 flex-1 overflow-hidden text-[11px] font-bold tracking-[0.8px] text-ellipsis whitespace-nowrap uppercase">
           {panel.title}
         </span>
         <IconButton
           type="button"
           variant="ghost"
           size="sm"
-          className="text-muted hover:bg-white/[0.06] hover:text-text"
+          className="text-muted hover:text-text hover:bg-white/[0.06]"
           onClick={() => closePanel(panel.id)}
           aria-label={`Close ${panel.title}`}
         >

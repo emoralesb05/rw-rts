@@ -40,14 +40,16 @@ import {
   worldLabelForEvent,
   worldPathForEvent,
 } from "./store-domain/worlds";
-import {
-  unitIdentityFor,
-  unitIdentityForUnit,
-} from "./unit-identity";
+import { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
 
 export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
 
-export type ComfortReceipt = "ok" | "no-munny" | "cooldown" | "full-hp" | "fallen";
+export type ComfortReceipt =
+  | "ok"
+  | "no-munny"
+  | "cooldown"
+  | "full-hp"
+  | "fallen";
 
 type Store = {
   events: AgentEvent[];
@@ -81,7 +83,12 @@ type Store = {
   setCameraTarget(worldId: string | null): void;
   openDecreeFor(unitId: string): void;
   closeDecree(): void;
-  startStandingOrder(unitId: string, prompt: string, intervalMs: number, maxIterations?: number): string;
+  startStandingOrder(
+    unitId: string,
+    prompt: string,
+    intervalMs: number,
+    maxIterations?: number
+  ): string;
   recordOrderTick(orderId: string, ok: boolean): void;
   haltStandingOrder(orderId: string): void;
   toggleMute(sessionId: string): void;
@@ -154,7 +161,14 @@ function pickHeartlessType(
   for (let i = 0; i < worldId.length; i++) {
     h = (Math.imul(31, h) + worldId.charCodeAt(i)) | 0;
   }
-  const themes = ["disney", "hollow", "traverse", "destiny", "twilight", "halloween"];
+  const themes = [
+    "disney",
+    "hollow",
+    "traverse",
+    "destiny",
+    "twilight",
+    "halloween",
+  ];
   const theme = themes[Math.abs(h) % themes.length];
   const mix = HEARTLESS_MIX_BY_THEME[theme] ?? HEARTLESS_MIX_BY_THEME.disney;
 
@@ -252,27 +266,40 @@ const STUCK_LETTER_COOLDOWN_MS = 90_000;
  * crossed the threshold, return a description for the stuck-loop
  * letter. Otherwise null.
  */
-function detectStuckLoop(sessionId: string): { reason: string; toolName: string } | null {
+function detectStuckLoop(
+  sessionId: string
+): { reason: string; toolName: string } | null {
   const list = _recentTools.get(sessionId) ?? [];
   // Same (tool, arg) repeat detection
-  const counts = new Map<string, { count: number; toolName: string; argKey: string }>();
+  const counts = new Map<
+    string,
+    { count: number; toolName: string; argKey: string }
+  >();
   for (const e of list) {
     const k = `${e.toolName}|${e.argKey}`;
-    const cur = counts.get(k) ?? { count: 0, toolName: e.toolName, argKey: e.argKey };
+    const cur = counts.get(k) ?? {
+      count: 0,
+      toolName: e.toolName,
+      argKey: e.argKey,
+    };
     cur.count += 1;
     counts.set(k, cur);
   }
-  let topPair: { count: number; toolName: string; argKey: string } | null = null;
+  let topPair: { count: number; toolName: string; argKey: string } | null =
+    null;
   for (const v of counts.values()) {
     if (!topPair || v.count > topPair.count) topPair = v;
   }
   if (topPair && topPair.count >= STUCK_THRESHOLD) {
-    const argHuman =
-      topPair.argKey.startsWith("file:") ? "`" + topPair.argKey.slice(5) + "`" :
-      topPair.argKey.startsWith("cmd:") ? "command `" + topPair.argKey.slice(4) + "`" :
-      topPair.argKey.startsWith("glob:") ? "pattern `" + topPair.argKey.slice(5) + "`" :
-      topPair.argKey.startsWith("url:") ? "URL `" + topPair.argKey.slice(4) + "`" :
-      "the same input";
+    const argHuman = topPair.argKey.startsWith("file:")
+      ? "`" + topPair.argKey.slice(5) + "`"
+      : topPair.argKey.startsWith("cmd:")
+        ? "command `" + topPair.argKey.slice(4) + "`"
+        : topPair.argKey.startsWith("glob:")
+          ? "pattern `" + topPair.argKey.slice(5) + "`"
+          : topPair.argKey.startsWith("url:")
+            ? "URL `" + topPair.argKey.slice(4) + "`"
+            : "the same input";
     return {
       reason: `tried \`${topPair.toolName}\` on ${argHuman} ${topPair.count}× in ~1m`,
       toolName: topPair.toolName,
@@ -313,9 +340,7 @@ function pushLetter(state: Store, letter: Letter): Letter[] {
   let next = state.letters;
   if (!isPermissionLetter(letter) && letter.sessionId) {
     const sid = letter.sessionId;
-    next = next.filter(
-      (l) => l.sessionId !== sid || isPermissionLetter(l)
-    );
+    next = next.filter((l) => l.sessionId !== sid || isPermissionLetter(l));
   }
   return [letter, ...next].slice(0, MAX_LETTERS);
 }
@@ -449,11 +474,14 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   const eventCount = state.eventCount + 1;
   const existing = state.units[id];
   const lastToolName =
-    event.kind === "tool_use" ? (event.payload.name as string | undefined) : existing?.lastTool;
+    event.kind === "tool_use"
+      ? (event.payload.name as string | undefined)
+      : existing?.lastTool;
   // Wielder identity = (tool, repoRoot) — drives both archetype + name.
   const repoRootStable = event.repoRoot ?? event.cwd;
   const role = roleFor(event.tool, repoRootStable, existing?.role);
-  const displayName = existing?.displayName ?? nameFor(role, event.tool, repoRootStable);
+  const displayName =
+    existing?.displayName ?? nameFor(role, event.tool, repoRootStable);
   const unit: UnitState = existing
     ? { ...existing, repoRoot: existing.repoRoot ?? repoRootStable }
     : {
@@ -576,7 +604,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
       break;
     case "tool_use": {
       unit.status = event.payload.name === "Bash" ? "casting" : "working";
-      unit.mp = Math.max(0, unit.mp - mpCostForToolUse(String(event.payload.name ?? "")));
+      unit.mp = Math.max(
+        0,
+        unit.mp - mpCostForToolUse(String(event.payload.name ?? ""))
+      );
       // Track for stuck-loop detection (Q10 + #13a).
       const now = event.timestamp;
       const list = _recentTools.get(id) ?? [];
@@ -720,7 +751,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         sessionId: id,
         worldId,
         actions: [
-          { label: "♥ comfort (50µ)", action: { kind: "comfort", sessionId: id } },
+          {
+            label: "♥ comfort (50µ)",
+            action: { kind: "comfort", sessionId: id },
+          },
           { label: "dismiss", action: { kind: "dismiss" } },
         ],
       })
@@ -785,7 +819,6 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
   // sub-feature). The hook socket waits until the user answers or the
   // provider/app closes the request.
   if (event.kind === "permission_request" && event.payload.requestId) {
-    const reqId = event.payload.requestId;
     const toolName = String(event.payload.name ?? "tool");
     const inputSummary = summarizePermissionInput(event.payload.input);
     const risk = classifyPermissionRisk(toolName, event.payload.input);
@@ -804,8 +837,8 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
         ? `${toolName}: ${inputSummary} · approve in ${providerLabel}'s UI`
         : `Wielder is asking ${providerLabel} for permission to use ${toolName}. Decide in ${providerLabel}'s native yes/no.`
       : inputSummary
-      ? `${toolName}: ${inputSummary}`
-      : `Wielder is requesting permission to use ${toolName}.`;
+        ? `${toolName}: ${inputSummary}`
+        : `Wielder is requesting permission to use ${toolName}.`;
     const actions: Letter["actions"] = observeOnlyProvider
       ? permissionActionsForEvent(event)
       : [
@@ -897,7 +930,10 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
           sessionId: id,
           worldId,
           actions: [
-            { label: "send hint", action: { kind: "send-word", sessionId: id } },
+            {
+              label: "send hint",
+              action: { kind: "send-word", sessionId: id },
+            },
             { label: "dismiss", action: { kind: "dismiss" } },
           ],
         })
@@ -910,11 +946,15 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     play("drive");
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
-      makeLetter("notable", `${palette} entered ${unit.driveForm.toUpperCase()} FORM`, {
-        sessionId: id,
-        worldId,
-        actions: [{ label: "dismiss", action: { kind: "dismiss" } }],
-      })
+      makeLetter(
+        "notable",
+        `${palette} entered ${unit.driveForm.toUpperCase()} FORM`,
+        {
+          sessionId: id,
+          worldId,
+          actions: [{ label: "dismiss", action: { kind: "dismiss" } }],
+        }
+      )
     );
   }
 
@@ -932,7 +972,6 @@ function applyOneEvent(state: Store, event: AgentEvent): Partial<Store> {
     standingOrders: nextOrders,
   };
 }
-
 
 export const useStore = create<Store>((set) => ({
   events: [],
@@ -979,7 +1018,9 @@ export const useStore = create<Store>((set) => ({
     set((s) => ({
       activeWorldId: id,
       cameraTarget: id,
-      cameraTargetVersion: id ? s.cameraTargetVersion + 1 : s.cameraTargetVersion,
+      cameraTargetVersion: id
+        ? s.cameraTargetVersion + 1
+        : s.cameraTargetVersion,
     }));
   },
   setCameraTarget(worldId) {
@@ -1068,7 +1109,9 @@ export const useStore = create<Store>((set) => ({
     // let applyOneEvent bind them when a wielder with matching identity
     // appears. Only "active" orders survive (halted/exhausted/failed
     // were terminal states).
-    const standingOrders = hydrateStandingOrders(persisted.standingOrders ?? []);
+    const standingOrders = hydrateStandingOrders(
+      persisted.standingOrders ?? []
+    );
     set({ persisted, standingOrders });
   },
   comfort(sessionId) {

@@ -54,7 +54,10 @@ const COMMON_COMMANDS = [
   "ls -la",
 ];
 
-type Mode = { kind: "idle" } | { kind: "files"; query: string } | { kind: "commands"; query: string };
+type Mode =
+  | { kind: "idle" }
+  | { kind: "files"; query: string }
+  | { kind: "commands"; query: string };
 type PendingOrder = {
   intervalLabel: string;
   intervalMs: number;
@@ -111,7 +114,10 @@ export function DecreeModal() {
   const commandSuggestions = useMemo(() => {
     if (mode.kind !== "commands") return [];
     const q = mode.query.toLowerCase();
-    return COMMON_COMMANDS.filter((c) => c.toLowerCase().includes(q)).slice(0, 8);
+    return COMMON_COMMANDS.filter((c) => c.toLowerCase().includes(q)).slice(
+      0,
+      8
+    );
   }, [mode]);
 
   if (!unit) return null;
@@ -126,15 +132,19 @@ export function DecreeModal() {
     }
     const trigger = m[1];
     const query = m[2] ?? "";
-    setMode(trigger === "@" ? { kind: "files", query } : { kind: "commands", query });
+    setMode(
+      trigger === "@" ? { kind: "files", query } : { kind: "commands", query }
+    );
   }
 
   function applySuggestion(s: string) {
     // Replace the trailing token (the @foo or /foo) with the formatted insert.
     const insert =
-      mode.kind === "files" ? `\`${s}\`` :
-      mode.kind === "commands" ? `\`${s}\`` :
-      s;
+      mode.kind === "files"
+        ? `\`${s}\``
+        : mode.kind === "commands"
+          ? `\`${s}\``
+          : s;
     const replaced = text.replace(/(?:[@/])([^\s@/]*)$/, insert + " ");
     setText(replaced);
     setMode({ kind: "idle" });
@@ -146,7 +156,8 @@ export function DecreeModal() {
     if (!unit.spawnedHere) return;
     const trimmed = text.trim();
     if (intervalMs !== null) {
-      const intervalLabel = INTERVALS.find((i) => i.ms === intervalMs)?.label ?? "interval";
+      const intervalLabel =
+        INTERVALS.find((i) => i.ms === intervalMs)?.label ?? "interval";
       setPendingOrder({ intervalLabel, intervalMs, text: trimmed });
       return;
     }
@@ -166,7 +177,11 @@ export function DecreeModal() {
     try {
       useStore
         .getState()
-        .startStandingOrder(unit.id, pendingOrder.text, pendingOrder.intervalMs);
+        .startStandingOrder(
+          unit.id,
+          pendingOrder.text,
+          pendingOrder.intervalMs
+        );
       setPendingOrder(null);
       closeDecree();
     } finally {
@@ -184,23 +199,23 @@ export function DecreeModal() {
       }}
     >
       <DialogContent
-        className="flex w-[min(620px,calc(100vw-48px))] max-h-[80vh] flex-col overflow-hidden rounded-[10px] border-accent-alt/40 bg-[linear-gradient(180deg,#1a1340_0%,#0a0518_100%)] p-0 shadow-[0_12px_60px_rgba(0,0,0,0.7),0_0_24px_rgba(255,216,107,0.18)]"
+        className="border-accent-alt/40 flex max-h-[80vh] w-[min(620px,calc(100vw-48px))] flex-col overflow-hidden rounded-[10px] bg-[linear-gradient(180deg,#1a1340_0%,#0a0518_100%)] p-0 shadow-[0_12px_60px_rgba(0,0,0,0.7),0_0_24px_rgba(255,216,107,0.18)]"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           inputRef.current?.focus();
         }}
       >
-        <DialogHeader className="border-b border-accent-alt/25 bg-[linear-gradient(180deg,rgba(214,64,64,0.18),transparent)] px-4 py-3">
-          <span className="text-xl text-accent-alt">⚜</span>
+        <DialogHeader className="border-accent-alt/25 border-b bg-[linear-gradient(180deg,rgba(214,64,64,0.18),transparent)] px-4 py-3">
+          <span className="text-accent-alt text-xl">⚜</span>
           <DialogTitle asChild>
-            <span className="font-mono text-sm font-extrabold uppercase tracking-[3px] text-accent-alt">
+            <span className="text-accent-alt font-mono text-sm font-extrabold tracking-[3px] uppercase">
               DECREE
             </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
             Compose and send a decree to {unit.displayName}.
           </DialogDescription>
-          <span className="flex-1 text-xs text-muted">
+          <span className="text-muted flex-1 text-xs">
             to {unit.displayName}
           </span>
           <DialogIconClose className="ml-auto" aria-label="close" />
@@ -214,7 +229,7 @@ export function DecreeModal() {
         <div className="relative min-h-0 flex-1 p-4">
           <Textarea
             ref={inputRef}
-            className="min-h-[100px] resize-y rounded-md bg-[rgba(10,5,24,0.6)] px-3 py-2.5 font-ui text-[13px] focus-visible:border-accent-alt/60"
+            className="font-ui focus-visible:border-accent-alt/60 min-h-[100px] resize-y rounded-md bg-[rgba(10,5,24,0.6)] px-3 py-2.5 text-[13px]"
             placeholder="Issue your command. Type @ for files, / for commands."
             value={text}
             onChange={(e) => handleChange(e.target.value)}
@@ -246,13 +261,13 @@ export function DecreeModal() {
             />
           )}
           {mode.kind === "files" && fileSuggestions.length === 0 && (
-            <div className="mt-2 px-2.5 py-2 text-[11px] italic text-muted">
+            <div className="text-muted mt-2 px-2.5 py-2 text-[11px] italic">
               no recent files for {unit.displayName}
             </div>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 border-t border-white/[0.06] px-4 py-2">
-          <span className="mr-1 font-mono text-[10px] font-bold uppercase tracking-[1.2px] text-muted">
+          <span className="text-muted mr-1 font-mono text-[10px] font-bold tracking-[1.2px] uppercase">
             repeat
           </span>
           {INTERVALS.map((i) => (
@@ -273,8 +288,8 @@ export function DecreeModal() {
             </Button>
           ))}
         </div>
-        <footer className="flex items-center justify-between border-t border-accent-alt/25 bg-[rgba(10,5,24,0.4)] px-4 py-3">
-          <span className="font-mono text-[11px] text-muted">
+        <footer className="border-accent-alt/25 flex items-center justify-between border-t bg-[rgba(10,5,24,0.4)] px-4 py-3">
+          <span className="text-muted font-mono text-[11px]">
             ⌘↩ to send · esc to cancel
           </span>
           <Button
@@ -303,11 +318,11 @@ export function DecreeModal() {
               Issue Standing Order to {unit.displayName}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Will run {pendingOrder?.intervalLabel ?? "on interval"} with a
-              max of 24 iterations, halting after 3 consecutive failures.
+              Will run {pendingOrder?.intervalLabel ?? "on interval"} with a max
+              of 24 iterations, halting after 3 consecutive failures.
             </AlertDialogDescription>
             {pendingOrder && (
-              <div className="mt-1 rounded-sm border border-line bg-black/25 p-2 text-xs leading-relaxed text-text">
+              <div className="border-line text-text mt-1 rounded-sm border bg-black/25 p-2 text-xs leading-relaxed">
                 {pendingOrder.text.slice(0, 240)}
                 {pendingOrder.text.length > 240 ? "…" : ""}
               </div>
@@ -339,19 +354,19 @@ function Palette({
 }) {
   return (
     <Command
-      className="absolute bottom-[-4px] left-4 right-4 z-[1] max-h-[240px] overflow-y-auto rounded-md border border-accent-alt/45 bg-panel-2/[0.98] p-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.5)]"
+      className="border-accent-alt/45 bg-panel-2/[0.98] absolute right-4 bottom-[-4px] left-4 z-[1] max-h-[240px] overflow-y-auto rounded-md border p-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.5)]"
       label={label}
       shouldFilter={false}
       loop
     >
-      <div className="px-1.5 pb-1.5 pt-1 font-mono text-[9px] font-bold uppercase tracking-[1.5px] text-muted">
+      <div className="text-muted px-1.5 pt-1 pb-1.5 font-mono text-[9px] font-bold tracking-[1.5px] uppercase">
         {label}
       </div>
       <CommandList className="max-h-none overflow-visible p-0">
         {items.map((item) => (
           <CommandItem
             key={item}
-            className="block min-h-0 w-full cursor-pointer rounded-sm px-2 py-1.5 font-mono text-xs hover:bg-accent-alt/[0.12] hover:text-accent-alt data-[selected=true]:bg-accent-alt/10 data-[selected=true]:text-accent-alt"
+            className="hover:bg-accent-alt/[0.12] hover:text-accent-alt data-[selected=true]:bg-accent-alt/10 data-[selected=true]:text-accent-alt block min-h-0 w-full cursor-pointer rounded-sm px-2 py-1.5 font-mono text-xs"
             value={item}
             onSelect={() => onPick(item)}
           >
@@ -374,11 +389,15 @@ function extractRecentFiles(events: AgentEvent[], sessionId: string): string[] {
     const ev = events[i];
     if (ev.sessionId !== sessionId) continue;
     if (ev.kind !== "tool_use") continue;
-    const input = ev.payload.input as { file_path?: unknown; pattern?: unknown } | undefined;
+    const input = ev.payload.input as
+      | { file_path?: unknown; pattern?: unknown }
+      | undefined;
     const candidate =
-      typeof input?.file_path === "string" ? input.file_path :
-      typeof input?.pattern === "string" ? input.pattern :
-      null;
+      typeof input?.file_path === "string"
+        ? input.file_path
+        : typeof input?.pattern === "string"
+          ? input.pattern
+          : null;
     if (!candidate) continue;
     if (seen.has(candidate)) continue;
     seen.add(candidate);

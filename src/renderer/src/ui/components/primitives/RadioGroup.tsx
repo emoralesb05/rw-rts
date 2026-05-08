@@ -11,16 +11,16 @@ export function RadioGroupItem({
   return (
     <RadioGroupPrimitive.Item
       className={cn(
-        "inline-flex size-4 shrink-0 items-center justify-center rounded-pill",
-        "border border-line bg-surface-2 transition-colors",
+        "rounded-pill inline-flex size-4 shrink-0 items-center justify-center",
+        "border-line bg-surface-2 border transition-colors",
         "data-[state=checked]:border-accent",
-        "focus:outline-none focus-visible:border-accent",
+        "focus-visible:border-accent focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
     >
-      <RadioGroupPrimitive.Indicator className="size-2 rounded-pill bg-accent" />
+      <RadioGroupPrimitive.Indicator className="rounded-pill bg-accent size-2" />
     </RadioGroupPrimitive.Item>
   );
 }

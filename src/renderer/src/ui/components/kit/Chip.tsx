@@ -11,9 +11,9 @@ export function Chip({
       type={type}
       className={cn(
         "inline-flex size-7 items-center justify-center rounded-sm",
-        "border border-line bg-black/20 text-muted transition-colors",
+        "border-line text-muted border bg-black/20 transition-colors",
         "hover:border-accent hover:text-accent",
-        "focus:outline-none focus-visible:border-accent",
+        "focus-visible:border-accent focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-45",
         className
       )}

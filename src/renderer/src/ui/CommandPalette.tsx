@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   FileCode,
   MapPin,
@@ -56,8 +51,8 @@ function pathFromInput(ev: AgentEvent): string | null {
     typeof record.file_path === "string"
       ? record.file_path
       : typeof record.path === "string"
-      ? record.path
-      : null;
+        ? record.path
+        : null;
   if (!raw || raw.startsWith("http://") || raw.startsWith("https://")) {
     return null;
   }
@@ -104,7 +99,9 @@ export function CommandPalette() {
   }, []);
 
   const commands = useMemo<CommandItem[]>(() => {
-    const openKingdom = (initialTab?: "overview" | "settings" | "connection" | "demos") =>
+    const openKingdom = (
+      initialTab?: "overview" | "settings" | "connection" | "demos"
+    ) =>
       openPanel({
         kind: "kingdom",
         title: "Kingdom",
@@ -118,7 +115,8 @@ export function CommandPalette() {
         detail: "Spawn Claude, Cursor, Codex, or Gemini into a repo",
         keywords: "spawn dispatch claude cursor codex gemini",
         icon: <Play size={14} aria-hidden />,
-        run: () => openPanel({ kind: "dispatch", title: "Dispatch", width: 520 }),
+        run: () =>
+          openPanel({ kind: "dispatch", title: "Dispatch", width: 520 }),
       },
       {
         id: "connection",
@@ -222,7 +220,16 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [events, focusAlerts, letters, openDrawerTab, openPanel, selectWorld, units, worlds]);
+  }, [
+    events,
+    focusAlerts,
+    letters,
+    openDrawerTab,
+    openPanel,
+    selectWorld,
+    units,
+    worlds,
+  ]);
 
   const setPaletteOpen = (next: boolean) => {
     setOpen(next);
@@ -239,7 +246,7 @@ export function CommandPalette() {
       <DialogContent
         className={cn(
           "top-[13vh] w-[min(680px,calc(100vw-32px))] translate-y-0 p-0",
-          "max-h-[calc(100vh-120px)] overflow-hidden border-accent/35",
+          "border-accent/35 max-h-[calc(100vh-120px)] overflow-hidden",
           "bg-surface-1/95 shadow-[0_22px_80px_rgba(0,0,0,0.68),0_0_0_1px_rgba(255,216,107,0.07)]"
         )}
       >
@@ -248,7 +255,7 @@ export function CommandPalette() {
           Search wielders, worlds, files, and actions.
         </DialogDescription>
         <Command label="Command palette" loop>
-          <div className="flex items-center gap-2.5 px-3.5 py-3 text-accent">
+          <div className="text-accent flex items-center gap-2.5 px-3.5 py-3">
             <Search size={15} aria-hidden />
             <CommandInput
               autoFocus
@@ -268,21 +275,22 @@ export function CommandPalette() {
                 keywords={[item.detail, item.keywords]}
                 onSelect={() => runItem(item)}
               >
-                <span className="inline-flex size-7 items-center justify-center rounded-md bg-accent-alt/10 text-accent-alt">
+                <span className="bg-accent-alt/10 text-accent-alt inline-flex size-7 items-center justify-center rounded-md">
                   {item.icon}
                 </span>
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-[12.5px] font-bold">
                     {item.label}
                   </span>
-                  <span className="truncate text-[11px] text-muted">
+                  <span className="text-muted truncate text-[11px]">
                     {item.detail}
                   </span>
                 </span>
                 {item.id.startsWith("chat:") && (
-                  <span className="font-mono text-[10px] text-muted/85">
+                  <span className="text-muted/85 font-mono text-[10px]">
                     {shortAgo(
-                      units[item.id.slice("chat:".length)]?.lastActivity ?? Date.now()
+                      units[item.id.slice("chat:".length)]?.lastActivity ??
+                        Date.now()
                     )}
                   </span>
                 )}

@@ -10,7 +10,10 @@ class EventBus extends EventEmitter {
     if (!event.repoRoot) event.repoRoot = resolveRepoRoot(event.cwd);
     const parsed = AgentEventSchema.safeParse(event);
     if (!parsed.success) {
-      console.warn("[keykeeper] dropped invalid AgentEvent", parsed.error.issues);
+      console.warn(
+        "[keykeeper] dropped invalid AgentEvent",
+        parsed.error.issues
+      );
       return;
     }
     this.emit("event", parsed.data as AgentEvent);

@@ -29,7 +29,7 @@ export function ArchetypeChip({
       className={cn(
         "inline-flex h-4 shrink-0 items-center justify-center rounded-sm border leading-none",
         labeled
-          ? "w-auto gap-1 px-1.5 text-[9px] font-bold uppercase tracking-[0.4px]"
+          ? "w-auto gap-1 px-1.5 text-[9px] font-bold tracking-[0.4px] uppercase"
           : "w-[18px] text-[10px]",
         ARCHETYPE_CLASS[archetype],
         className

@@ -21,12 +21,15 @@
 
 import { app } from "electron";
 import { homedir } from "node:os";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
-import { dirname, join } from "node:path";
 import {
-  type PersistedState,
-  EMPTY_PERSISTED,
-} from "@shared/events";
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  unlinkSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
+import { type PersistedState, EMPTY_PERSISTED } from "@shared/events";
 import { PersistedStateSchema } from "@shared/schemas";
 
 const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
@@ -123,7 +126,6 @@ function persistNow() {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(cache, null, 2), "utf8");
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[keykeeper] persist failed:", err);
   }
 }

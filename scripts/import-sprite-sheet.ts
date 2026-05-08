@@ -82,8 +82,7 @@ function findContentBox(
       const b = data[i + 2];
       const a = data[i + 3];
       // Treat fully-transparent OR near-white as background.
-      const isBg =
-        a < 16 || (r > 240 && g > 240 && b > 240);
+      const isBg = a < 16 || (r > 240 && g > 240 && b > 240);
       if (!isBg) {
         if (px < minX) minX = px;
         if (px > maxX) maxX = px;
@@ -111,7 +110,11 @@ async function main() {
   const src = createCanvas(W, H);
   const sctx = src.getContext("2d") as unknown as SKRSContext2D;
   sctx.imageSmoothingEnabled = false;
-  sctx.drawImage(img as unknown as Parameters<SKRSContext2D["drawImage"]>[0], 0, 0);
+  sctx.drawImage(
+    img as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
+    0,
+    0
+  );
 
   // Auto-detect the content area, ignoring transparent / near-white
   // borders. This also strips the label row at the bottom if it's

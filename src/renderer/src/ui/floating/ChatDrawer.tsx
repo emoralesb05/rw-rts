@@ -50,7 +50,6 @@ type TabStatus = "permission" | "unread" | "none";
 
 /** Compute the per-tab status dot. Permission outranks unread. */
 function statusForTab(
-  unitId: string,
   events: ReturnType<typeof useStore.getState>["events"],
   letters: ReturnType<typeof useStore.getState>["letters"],
   unit: UnitState | undefined,
@@ -132,7 +131,11 @@ export function ChatDrawer() {
   }, [drawer?.activeTab]);
 
   // Resize-by-drag on the left edge.
-  const dragRef = useRef<{ startX: number; startWidth: number; pointerId: number } | null>(null);
+  const dragRef = useRef<{
+    startX: number;
+    startWidth: number;
+    pointerId: number;
+  } | null>(null);
   const onResizeDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || !drawer) return;
@@ -217,7 +220,6 @@ export function ChatDrawer() {
             // unread/permission dots. Pass isActive: false to the
             // status calc so all tabs show notifications equally.
             const status = statusForTab(
-              unitId,
               events,
               letters,
               unit,
@@ -232,10 +234,9 @@ export function ChatDrawer() {
                     type="button"
                     className={cn(
                       "relative flex size-8 cursor-pointer items-center justify-center rounded-md border",
-                      "border-transparent bg-white/[0.03] font-ui text-[13px] font-bold text-muted transition-colors",
+                      "font-ui text-muted border-transparent bg-white/[0.03] text-[13px] font-bold transition-colors",
                       "hover:bg-accent-alt/[0.08]",
-                      isActive &&
-                        "border-accent-alt/45 bg-accent-alt/[0.14]"
+                      isActive && "border-accent-alt/45 bg-accent-alt/[0.14]"
                     )}
                     onClick={() => {
                       setDrawerActiveTab(unitId);
@@ -246,13 +247,11 @@ export function ChatDrawer() {
                   >
                     {/* Tab initial = wielder color tint so they're
                      * distinguishable at a glance. */}
-                    <span>
-                      {name.slice(0, 1).toUpperCase()}
-                    </span>
+                    <span>{name.slice(0, 1).toUpperCase()}</span>
                     {status !== "none" && (
                       <span
                         className={cn(
-                          "absolute right-0.5 top-0.5",
+                          "absolute top-0.5 right-0.5",
                           statusDotClass(status)
                         )}
                         aria-hidden="true"
@@ -269,7 +268,7 @@ export function ChatDrawer() {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="mt-0.5 inline-flex h-[26px] cursor-pointer items-center justify-center rounded-md border-0 border-t border-line bg-transparent pt-1 text-accent-alt transition-colors hover:bg-accent-alt/[0.08]"
+              className="border-line text-accent-alt hover:bg-accent-alt/[0.08] mt-0.5 inline-flex h-[26px] cursor-pointer items-center justify-center rounded-md border-0 border-t bg-transparent pt-1 transition-colors"
               onClick={() => expandDrawer()}
               aria-label="Expand chat drawer"
             >
@@ -293,7 +292,7 @@ export function ChatDrawer() {
       onPointerDown={() => focusDrawer()}
     >
       <div
-        className="absolute bottom-0 left-[-3px] top-0 z-[1] w-2 cursor-ew-resize hover:bg-accent-alt/[0.14]"
+        className="hover:bg-accent-alt/[0.14] absolute top-0 bottom-0 left-[-3px] z-[1] w-2 cursor-ew-resize"
         onPointerDown={onResizeDown}
         onPointerMove={onResizeMove}
         onPointerUp={onResizeUp}
@@ -307,14 +306,13 @@ export function ChatDrawer() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList
-            className="min-h-10 flex-none items-stretch overflow-x-auto border-accent-alt/20 bg-surface-1/95 p-0 pr-1 [scrollbar-width:thin]"
+            className="border-accent-alt/20 bg-surface-1/95 min-h-10 flex-none items-stretch overflow-x-auto p-0 pr-1 [scrollbar-width:thin]"
             aria-label="Wielder chats"
           >
             {drawer.openTabs.map((unitId) => {
               const unit = units[unitId];
               const isActive = drawer.activeTab === unitId;
               const status = statusForTab(
-                unitId,
                 events,
                 letters,
                 unit,
@@ -327,17 +325,17 @@ export function ChatDrawer() {
                 <div
                   key={unitId}
                   className={cn(
-                    "group relative grid min-w-[164px] max-w-[260px] flex-none grid-cols-[minmax(0,1fr)_26px] items-stretch overflow-hidden border-r border-line/90 bg-transparent transition-colors",
+                    "group border-line/90 relative grid max-w-[260px] min-w-[164px] flex-none grid-cols-[minmax(0,1fr)_26px] items-stretch overflow-hidden border-r bg-transparent transition-colors",
                     "hover:bg-accent-alt/[0.04]",
                     isActive &&
-                      "bg-accent-alt/10 after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:bg-accent-alt after:shadow-[0_0_8px_rgba(255,216,107,0.45)]"
+                      "bg-accent-alt/10 after:bg-accent-alt after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:shadow-[0_0_8px_rgba(255,216,107,0.45)]"
                   )}
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger
                         value={unitId}
-                        className="h-10 w-full min-w-0 flex-none justify-start gap-2 px-3.5 py-2 text-[11px] normal-case tracking-normal data-[state=active]:border-transparent data-[state=active]:text-accent-alt"
+                        className="data-[state=active]:text-accent-alt h-10 w-full min-w-0 flex-none justify-start gap-2 px-3.5 py-2 text-[11px] tracking-normal normal-case data-[state=active]:border-transparent"
                       >
                         <span
                           className={cn(
@@ -353,7 +351,7 @@ export function ChatDrawer() {
                               className="h-[18px] min-w-[54px] justify-center px-1.5 text-[8px]"
                             />
                           )}
-                          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-semibold">
+                          <span className="min-w-0 overflow-hidden text-[12px] font-semibold text-ellipsis whitespace-nowrap">
                             {name}
                           </span>
                         </span>
@@ -377,7 +375,7 @@ export function ChatDrawer() {
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="m-auto inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted opacity-45 transition-colors transition-opacity hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a] group-hover:opacity-100"
+                        className="text-muted m-auto inline-flex size-[18px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 opacity-45 transition-colors transition-opacity group-hover:opacity-100 hover:bg-[#ff7a7a]/[0.14] hover:text-[#ff7a7a]"
                         onClick={(e) => {
                           e.stopPropagation();
                           closeDrawerTab(unitId);
@@ -392,14 +390,14 @@ export function ChatDrawer() {
                 </div>
               );
             })}
-            <div className="sticky right-0 z-[2] ml-auto flex shrink-0 items-stretch border-l border-line bg-surface-1/95 shadow-[-10px_0_14px_rgba(5,9,18,0.55)]">
+            <div className="border-line bg-surface-1/95 sticky right-0 z-[2] ml-auto flex shrink-0 items-stretch border-l shadow-[-10px_0_14px_rgba(5,9,18,0.55)]">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconButton
                     type="button"
                     variant="ghost"
                     size="lg"
-                    className="h-auto rounded-none border-0 px-3 text-muted hover:bg-accent-alt/[0.06] hover:text-accent-alt"
+                    className="text-muted hover:bg-accent-alt/[0.06] hover:text-accent-alt h-auto rounded-none border-0 px-3"
                     onClick={() => toggleDrawerMinimized()}
                     aria-label="Minimize drawer"
                   >
@@ -417,7 +415,7 @@ export function ChatDrawer() {
                     type="button"
                     variant="ghost"
                     size="lg"
-                    className="h-auto rounded-none border-0 px-3 text-muted hover:bg-[#ff7a7a]/[0.08] hover:text-[#ff7a7a]"
+                    className="text-muted h-auto rounded-none border-0 px-3 hover:bg-[#ff7a7a]/[0.08] hover:text-[#ff7a7a]"
                     onClick={() => closeDrawer()}
                     aria-label="Close drawer"
                   >

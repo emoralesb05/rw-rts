@@ -7,7 +7,7 @@
  * this module is just primitives.
  */
 
-import * as Phaser from "phaser";
+import type * as Phaser from "phaser";
 import type { HeartlessType } from "@shared/events";
 
 export type HeartlessRef = {

@@ -13,7 +13,10 @@ function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
     try {
-      const C = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const C =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       if (!C) return null;
       ctx = new C();
       masterGain = ctx.createGain();
@@ -175,11 +178,23 @@ export function playCue(cue: SynthCue) {
       // dissonant low — heartless emerge
       playChord([
         { freq: 130, durationMs: 200, type: "sawtooth", releaseMs: 140 },
-        { freq: 138, durationMs: 200, type: "sawtooth", releaseMs: 140, detune: 30 },
+        {
+          freq: 138,
+          durationMs: 200,
+          type: "sawtooth",
+          releaseMs: 140,
+          detune: 30,
+        },
       ]);
       return;
     case "select":
-      playTone({ freq: 1100, durationMs: 35, type: "triangle", attackMs: 1, releaseMs: 20 });
+      playTone({
+        freq: 1100,
+        durationMs: 35,
+        type: "triangle",
+        attackMs: 1,
+        releaseMs: 20,
+      });
       return;
     case "seal":
       // Triumphant rising 5th + sustained tone — KH "Dearly Beloved" flavor.
@@ -226,7 +241,13 @@ export function playCue(cue: SynthCue) {
       return;
     case "letter":
       // Gentle paper-rustle ping when a letter arrives.
-      playTone({ freq: 988, durationMs: 35, type: "triangle", attackMs: 1, releaseMs: 25 });
+      playTone({
+        freq: 988,
+        durationMs: 35,
+        type: "triangle",
+        attackMs: 1,
+        releaseMs: 25,
+      });
       return;
   }
 }

@@ -20,12 +20,12 @@ export function UnitInspector() {
   const selected = selectedUnitId ? units[selectedUnitId] : null;
 
   return (
-    <div className="border-b border-line px-3.5 py-3">
-      <h3 className="mb-2 mt-0 text-[11px] uppercase tracking-[1px] text-muted">
+    <div className="border-line border-b px-3.5 py-3">
+      <h3 className="text-muted mt-0 mb-2 text-[11px] tracking-[1px] uppercase">
         Units
       </h3>
       {list.length === 0 && (
-        <div className="text-xs text-muted">no units yet</div>
+        <div className="text-muted text-xs">no units yet</div>
       )}
       {list.map((u) => {
         const isSel = u.id === selectedUnitId;
@@ -33,8 +33,8 @@ export function UnitInspector() {
           <div
             key={u.id}
             className={cn(
-              "my-1.5 flex cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-2/45 px-2 py-1.5 text-[12px]",
-              isSel && "border-l-[3px] border-l-accent pl-2 opacity-100",
+              "border-line bg-surface-2/45 my-1.5 flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-[12px]",
+              isSel && "border-l-accent border-l-[3px] pl-2 opacity-100",
               !isSel &&
                 (u.status === "complete" || u.status === "fallen") &&
                 "opacity-55"
@@ -48,11 +48,11 @@ export function UnitInspector() {
             <div className="min-w-0 flex-1">
               <div className="font-semibold">
                 {u.displayName}{" "}
-                <span className="text-[11px] text-muted">
+                <span className="text-muted text-[11px]">
                   · {u.tool} · {u.status}
                 </span>
               </div>
-              <div className="text-[11px] text-muted">
+              <div className="text-muted text-[11px]">
                 {u.cwd.split("/").slice(-2).join("/")}
               </div>
               <Bar
@@ -97,7 +97,7 @@ export function UnitInspector() {
         );
       })}
       {selected && (
-        <div className="mt-2.5 text-[11px] text-muted">
+        <div className="text-muted mt-2.5 text-[11px]">
           last tool: {selected.lastTool ?? "—"}
         </div>
       )}

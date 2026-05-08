@@ -28,7 +28,7 @@ export function SegmentedControl({
   return (
     <RadioGroupPrimitive.Root
       className={cn(
-        "inline-flex overflow-hidden rounded-md border border-line bg-surface-2",
+        "border-line bg-surface-2 inline-flex overflow-hidden rounded-md border",
         className
       )}
       {...props}
@@ -40,9 +40,9 @@ export function SegmentedControl({
           disabled={option.disabled}
           className={cn(
             "inline-flex flex-1 items-center justify-center gap-1.5 border-0 bg-transparent",
-            "font-semibold uppercase text-muted transition-colors",
+            "text-muted font-semibold uppercase transition-colors",
             "data-[state=checked]:bg-accent data-[state=checked]:text-bg",
-            "hover:text-text focus:outline-none focus-visible:text-text",
+            "hover:text-text focus-visible:text-text focus:outline-none",
             "disabled:cursor-not-allowed disabled:opacity-45",
             size === "sm" && "min-h-7 px-2 text-[10px]",
             size === "md" && "min-h-8 px-3 text-[11px]"

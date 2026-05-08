@@ -4,7 +4,10 @@ import type {
   LetterAction,
   LetterRisk,
 } from "@shared/events";
-import type { PermissionOption, ResolvePermissionRequest } from "@shared/schemas";
+import type {
+  PermissionOption,
+  ResolvePermissionRequest,
+} from "@shared/schemas";
 import {
   permissionCapabilityForTool,
   permissionOptionsForPayload,
@@ -23,11 +26,14 @@ export function summarizePermissionInput(input: unknown): string {
 
 export function isObservationOnlyPermission(event: AgentEvent): boolean {
   const mode =
-    event.payload.permissionMode ?? permissionCapabilityForTool(event.tool).mode;
+    event.payload.permissionMode ??
+    permissionCapabilityForTool(event.tool).mode;
   return mode === "observe";
 }
 
-export function permissionActionsForEvent(event: AgentEvent): Letter["actions"] {
+export function permissionActionsForEvent(
+  event: AgentEvent
+): Letter["actions"] {
   const requestId = event.payload.requestId;
   if (!requestId) return [];
   const options = permissionOptionsForPayload(event.tool, event.payload);
@@ -151,7 +157,9 @@ export function isPermissionLetter(letter: Letter): boolean {
   );
 }
 
-export function dismissInformationalLetters(letters: readonly Letter[]): Letter[] {
+export function dismissInformationalLetters(
+  letters: readonly Letter[]
+): Letter[] {
   return letters.filter((l) => isPermissionLetter(l));
 }
 

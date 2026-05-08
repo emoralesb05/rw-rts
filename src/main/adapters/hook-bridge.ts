@@ -1,4 +1,5 @@
-import { createServer, Server, Socket } from "node:net";
+import { createServer } from "node:net";
+import type { Server, Socket } from "node:net";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -135,7 +136,6 @@ export function startHookBridge() {
       // every wielder) — gated behind an env var so it doesn't spam
       // dev output and can't trigger EPIPE storms when stdio is dodgy.
       if (process.env.KEYKEEPER_DEBUG_BRIDGE) {
-        // eslint-disable-next-line no-console
         console.log(
           `[keykeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
             ev ? `${ev.tool}/${ev.kind}${dup ? " DEDUP" : ""}` : "DROPPED"
@@ -202,7 +202,6 @@ export function startHookBridge() {
     });
   });
   server.listen(SOCKET_PATH, () => {
-    // eslint-disable-next-line no-console
     console.log("[keykeeper] hook bridge listening on", SOCKET_PATH);
   });
 }
@@ -244,14 +243,12 @@ export function resolvePermissionRequest(
 ): boolean {
   const p = pending.get(requestId);
   if (!p) {
-    // eslint-disable-next-line no-console
     console.log(
       `[keykeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
     );
     return false;
   }
   if (!isAllowedPendingDecision(p.options, decision, optionId)) {
-    // eslint-disable-next-line no-console
     console.log(
       `[keykeeper/bridge] resolve ${requestId} = ${decision} option=${optionId ?? "(none)"} — UNSUPPORTED OPTION`
     );
@@ -268,13 +265,12 @@ export function resolvePermissionRequest(
       optionId,
       denyMessage: decision === "deny" ? (message ?? undefined) : undefined,
     });
-    // eslint-disable-next-line no-console
+
     console.log(
       `[keykeeper/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
     );
     p.socket.end(reply);
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.log(`[keykeeper/bridge] resolve ${requestId} write FAILED:`, e);
   }
   return true;

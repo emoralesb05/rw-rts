@@ -48,7 +48,11 @@ export function createHookDedupe() {
   const recentEventKeys = new Map<string, number>();
 
   return {
-    isDuplicate(payload: HookPayload, eventName: string, now = Date.now()): boolean {
+    isDuplicate(
+      payload: HookPayload,
+      eventName: string,
+      now = Date.now()
+    ): boolean {
       if (recentEventKeys.size > 200) {
         for (const [k, exp] of recentEventKeys) {
           if (exp <= now) recentEventKeys.delete(k);

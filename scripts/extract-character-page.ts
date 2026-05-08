@@ -31,29 +31,13 @@ function num(name: string, def: number): number {
   return Number.isFinite(n) ? n : def;
 }
 
-// Sample the actual backdrop color from a known-empty corner of the
-// source image (top-left 4×4 patch). Returns [r, g, b] of the most
-// frequent color in that patch.
-function sampleBackdrop(
-  ctx: SKRSContext2D,
-  W: number,
-  H: number
-): [number, number, number] {
-  void W; void H;
-  const img = ctx.getImageData(0, 0, 8, 8);
-  const data = img.data;
-  let r = 0, g = 0, b = 0, n = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
-  }
-  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
-}
-
 // "Is this pixel close to the sampled backdrop?" — Manhattan distance
 // in RGB space. Tight tolerance so the character's dark armor isn't
 // keyed out.
 function isBackdrop(
-  r: number, g: number, b: number,
+  r: number,
+  g: number,
+  b: number,
   bd: [number, number, number],
   tol: number
 ): boolean {
@@ -69,12 +53,18 @@ const BG_TOL = 18;
 // Find the bounding box of non-backdrop content in a region.
 function findContentBox(
   ctx: SKRSContext2D,
-  x: number, y: number, w: number, h: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
   bd: [number, number, number]
 ): { x: number; y: number; w: number; h: number } | null {
   const img = ctx.getImageData(x, y, w, h);
   const data = img.data;
-  let minX = w, minY = h, maxX = -1, maxY = -1;
+  let minX = w,
+    minY = h,
+    maxX = -1,
+    maxY = -1;
   for (let py = 0; py < h; py++) {
     for (let px = 0; px < w; px++) {
       const i = (py * w + px) * 4;
@@ -245,9 +235,7 @@ async function main() {
     `✓ ${role} → ${sheetPath} (${sheetW}×${targetH}, frames sized ${targetW}×${targetH})`
   );
   console.log(
-    `  raw boxes: ${rawFrames
-      .map((f, i) => `${i}=${f.w}×${f.h}`)
-      .join(", ")}`
+    `  raw boxes: ${rawFrames.map((f, i) => `${i}=${f.w}×${f.h}`).join(", ")}`
   );
 }
 

@@ -1,9 +1,18 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-async function withMockHome<T>(fn: (home: string) => Promise<T> | T): Promise<T> {
+async function withMockHome<T>(
+  fn: (home: string) => Promise<T> | T
+): Promise<T> {
   const home = mkdtempSync(join(tmpdir(), "keykeeper-home-"));
   vi.resetModules();
   vi.doMock("node:os", async () => {
@@ -68,7 +77,8 @@ describe("provider hook installers", () => {
         },
       });
 
-      const { installHooks, uninstallHooks, isInstalled } = await import("./hook-installer");
+      const { installHooks, uninstallHooks, isInstalled } =
+        await import("./hook-installer");
 
       installHooks();
       installHooks();
@@ -116,11 +126,8 @@ describe("provider hook installers", () => {
         },
       });
 
-      const {
-        installCursorHooks,
-        uninstallCursorHooks,
-        isCursorInstalled,
-      } = await import("./cursor-hook-installer");
+      const { installCursorHooks, uninstallCursorHooks, isCursorInstalled } =
+        await import("./cursor-hook-installer");
 
       installCursorHooks();
       installCursorHooks();
@@ -140,9 +147,7 @@ describe("provider hook installers", () => {
         expect(countCursorManagedEntries(installed, event)).toBe(1);
       }
       expect(installed.hooks.preToolUse).toEqual(
-        expect.arrayContaining([
-          { command: "foreign-cursor-hook", timeout: 5 },
-        ])
+        expect.arrayContaining([{ command: "foreign-cursor-hook", timeout: 5 }])
       );
 
       uninstallCursorHooks();
@@ -158,7 +163,12 @@ describe("provider hook installers", () => {
   it("installs Gemini hooks and managed policy idempotently", async () => {
     await withMockHome(async (home) => {
       const settingsPath = join(home, ".gemini", "settings.json");
-      const policyPath = join(home, ".gemini", "policies", "keykeeper-managed.toml");
+      const policyPath = join(
+        home,
+        ".gemini",
+        "policies",
+        "keykeeper-managed.toml"
+      );
       writeJson(settingsPath, {
         hooks: {
           BeforeTool: [
@@ -170,11 +180,8 @@ describe("provider hook installers", () => {
         },
       });
 
-      const {
-        installGeminiHooks,
-        uninstallGeminiHooks,
-        isGeminiInstalled,
-      } = await import("./gemini-hook-installer");
+      const { installGeminiHooks, uninstallGeminiHooks, isGeminiInstalled } =
+        await import("./gemini-hook-installer");
 
       installGeminiHooks();
       installGeminiHooks();
@@ -205,7 +212,9 @@ describe("provider hook installers", () => {
       expect(
         installed.hooks.BeforeTool.some((entry: any) =>
           (entry.hooks ?? []).some((hook: any) =>
-            String(hook.command ?? "").includes("KEYKEEPER_GEMINI_FAIL_CLOSED=1")
+            String(hook.command ?? "").includes(
+              "KEYKEEPER_GEMINI_FAIL_CLOSED=1"
+            )
           )
         )
       ).toBe(true);
@@ -230,11 +239,8 @@ describe("provider hook installers", () => {
       mkdirSync(dirname(configPath), { recursive: true });
       writeFileSync(configPath, 'model = "gpt-5.3-codex"\n');
 
-      const {
-        installCodexHooks,
-        uninstallCodexHooks,
-        isCodexInstalled,
-      } = await import("./codex-hook-installer");
+      const { installCodexHooks, uninstallCodexHooks, isCodexInstalled } =
+        await import("./codex-hook-installer");
 
       installCodexHooks();
       installCodexHooks();

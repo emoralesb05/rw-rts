@@ -30,7 +30,10 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
-import { getHookScriptPath, ensureHookScriptExecutable } from "./hook-installer";
+import {
+  getHookScriptPath,
+  ensureHookScriptExecutable,
+} from "./hook-installer";
 import {
   CursorHooksFileSchema,
   type CursorHookEntry,
@@ -68,7 +71,9 @@ function saveHooksFile(file: CursorHooksFile) {
 }
 
 function isOurEntry(entry: CursorHookEntry): boolean {
-  return typeof entry?.command === "string" && entry.command.includes(HOOK_MARKER);
+  return (
+    typeof entry?.command === "string" && entry.command.includes(HOOK_MARKER)
+  );
 }
 
 export function isCursorInstalled(): boolean {

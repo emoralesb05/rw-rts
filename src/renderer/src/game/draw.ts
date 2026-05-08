@@ -1,4 +1,4 @@
-import * as Phaser from "phaser";
+import type * as Phaser from "phaser";
 import type { UnitRole } from "@shared/events";
 
 // Four-keyblader system. Each archetype has a primitive silhouette
@@ -34,10 +34,14 @@ export function drawKHUnit(
   role: UnitRole
 ): Phaser.GameObjects.GameObject[] {
   switch (role) {
-    case "keyblader2": return drawKeyblader2(scene);
-    case "keyblader3": return drawKeyblader3(scene);
-    case "keyblader4": return drawKeyblader4(scene);
-    default: return drawKeyblader1(scene);
+    case "keyblader2":
+      return drawKeyblader2(scene);
+    case "keyblader3":
+      return drawKeyblader3(scene);
+    case "keyblader4":
+      return drawKeyblader4(scene);
+    default:
+      return drawKeyblader1(scene);
   }
 }
 
@@ -46,13 +50,19 @@ function drawKeyblader1(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   const objs: Phaser.GameObjects.GameObject[] = [];
   // Body — dark coat
   objs.push(
-    scene.add.rectangle(0, 12, 18, 16, 0x3a2870).setStrokeStyle(1.5, 0x000000, 0.7)
+    scene.add
+      .rectangle(0, 12, 18, 16, 0x3a2870)
+      .setStrokeStyle(1.5, 0x000000, 0.7)
   );
   // Gold trim down center
   objs.push(scene.add.rectangle(0, 12, 1.4, 14, 0xd8a830));
   // Black boots
-  objs.push(scene.add.rectangle(-5, 21, 6, 4, 0x1a1a1a).setStrokeStyle(1, 0x000000, 0.7));
-  objs.push(scene.add.rectangle(5, 21, 6, 4, 0x1a1a1a).setStrokeStyle(1, 0x000000, 0.7));
+  objs.push(
+    scene.add.rectangle(-5, 21, 6, 4, 0x1a1a1a).setStrokeStyle(1, 0x000000, 0.7)
+  );
+  objs.push(
+    scene.add.rectangle(5, 21, 6, 4, 0x1a1a1a).setStrokeStyle(1, 0x000000, 0.7)
+  );
   // Head
   objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.8));
   // Spiky dark hair
@@ -72,8 +82,16 @@ function drawKeyblader1(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   hair.fillEllipse(0, -8, 18, 6);
   objs.push(hair);
   // Blue eyes
-  objs.push(scene.add.ellipse(-3.5, -3, 2.6, 3.4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
-  objs.push(scene.add.ellipse(3.5, -3, 2.6, 3.4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+  objs.push(
+    scene.add
+      .ellipse(-3.5, -3, 2.6, 3.4, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
+  objs.push(
+    scene.add
+      .ellipse(3.5, -3, 2.6, 3.4, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
   objs.push(scene.add.circle(-3.5, -3, 1.1, 0x2c5e8a));
   objs.push(scene.add.circle(3.5, -3, 1.1, 0x2c5e8a));
   return objs;
@@ -84,12 +102,16 @@ function drawKeyblader2(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   const objs: Phaser.GameObjects.GameObject[] = [];
   // Body — flowing robes
   objs.push(
-    scene.add.rectangle(0, 12, 16, 16, 0xf0c0d8).setStrokeStyle(1.5, 0x6a4060, 0.7)
+    scene.add
+      .rectangle(0, 12, 16, 16, 0xf0c0d8)
+      .setStrokeStyle(1.5, 0x6a4060, 0.7)
   );
   // Silver belt
   objs.push(scene.add.rectangle(0, 14, 16, 1.4, 0xb8b8c8));
   // Lavender skirt visible at bottom
-  objs.push(scene.add.rectangle(0, 18, 18, 6, 0xc8a0d0).setStrokeStyle(1, 0x6a4060, 0.7));
+  objs.push(
+    scene.add.rectangle(0, 18, 18, 6, 0xc8a0d0).setStrokeStyle(1, 0x6a4060, 0.7)
+  );
   // Sandals
   objs.push(scene.add.rectangle(-5, 22, 5, 2.5, 0xb8b8c8));
   objs.push(scene.add.rectangle(5, 22, 5, 2.5, 0xb8b8c8));
@@ -108,8 +130,16 @@ function drawKeyblader2(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   hair.strokeEllipse(0, -12, 24, 12);
   objs.push(hair);
   // Amber eyes
-  objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
-  objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+  objs.push(
+    scene.add
+      .ellipse(-3.5, -3, 2.4, 3, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
+  objs.push(
+    scene.add
+      .ellipse(3.5, -3, 2.4, 3, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
   objs.push(scene.add.circle(-3.5, -3, 1, 0xa07020));
   objs.push(scene.add.circle(3.5, -3, 1, 0xa07020));
   return objs;
@@ -120,16 +150,28 @@ function drawKeyblader3(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   const objs: Phaser.GameObjects.GameObject[] = [];
   // Body — dark tunic
   objs.push(
-    scene.add.rectangle(0, 12, 18, 16, 0x586068).setStrokeStyle(1.5, 0x000000, 0.7)
+    scene.add
+      .rectangle(0, 12, 18, 16, 0x586068)
+      .setStrokeStyle(1.5, 0x000000, 0.7)
   );
   // Crimson cloak draped over shoulders
-  objs.push(scene.add.rectangle(-8, 11, 4, 18, 0x883028).setStrokeStyle(1, 0x000000, 0.7));
-  objs.push(scene.add.rectangle(8, 11, 4, 18, 0x883028).setStrokeStyle(1, 0x000000, 0.7));
+  objs.push(
+    scene.add
+      .rectangle(-8, 11, 4, 18, 0x883028)
+      .setStrokeStyle(1, 0x000000, 0.7)
+  );
+  objs.push(
+    scene.add.rectangle(8, 11, 4, 18, 0x883028).setStrokeStyle(1, 0x000000, 0.7)
+  );
   // Brass belt buckle
   objs.push(scene.add.rectangle(0, 16, 4, 2, 0xc89040));
   // Iron-toed boots
-  objs.push(scene.add.rectangle(-5, 21, 6, 4, 0x2a2a2a).setStrokeStyle(1, 0x000000, 0.7));
-  objs.push(scene.add.rectangle(5, 21, 6, 4, 0x2a2a2a).setStrokeStyle(1, 0x000000, 0.7));
+  objs.push(
+    scene.add.rectangle(-5, 21, 6, 4, 0x2a2a2a).setStrokeStyle(1, 0x000000, 0.7)
+  );
+  objs.push(
+    scene.add.rectangle(5, 21, 6, 4, 0x2a2a2a).setStrokeStyle(1, 0x000000, 0.7)
+  );
   // Head
   objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.8));
   // Tousled copper hair
@@ -143,8 +185,16 @@ function drawKeyblader3(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   hair.strokeEllipse(0, -10, 20, 8);
   objs.push(hair);
   // Amber eyes
-  objs.push(scene.add.ellipse(-3.5, -3, 2.6, 3.4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
-  objs.push(scene.add.ellipse(3.5, -3, 2.6, 3.4, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+  objs.push(
+    scene.add
+      .ellipse(-3.5, -3, 2.6, 3.4, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
+  objs.push(
+    scene.add
+      .ellipse(3.5, -3, 2.6, 3.4, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
   objs.push(scene.add.circle(-3.5, -3, 1.1, 0xa05818));
   objs.push(scene.add.circle(3.5, -3, 1.1, 0xa05818));
   return objs;
@@ -155,17 +205,23 @@ function drawKeyblader4(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   const objs: Phaser.GameObjects.GameObject[] = [];
   // Body — cyan tunic
   objs.push(
-    scene.add.rectangle(0, 12, 16, 16, 0x5cc8d8).setStrokeStyle(1.5, 0x2a4858, 0.7)
+    scene.add
+      .rectangle(0, 12, 16, 16, 0x5cc8d8)
+      .setStrokeStyle(1.5, 0x2a4858, 0.7)
   );
   // Navy sash at waist
   objs.push(scene.add.rectangle(0, 14, 16, 1.6, 0x203848));
   // Teal trousers
-  objs.push(scene.add.rectangle(0, 20, 14, 6, 0x2a7088).setStrokeStyle(1, 0x000000, 0.7));
+  objs.push(
+    scene.add.rectangle(0, 20, 14, 6, 0x2a7088).setStrokeStyle(1, 0x000000, 0.7)
+  );
   // White wrap-boots
   objs.push(scene.add.rectangle(-4, 23, 5, 2.5, 0xf8f8f0));
   objs.push(scene.add.rectangle(4, 23, 5, 2.5, 0xf8f8f0));
   // Silver pauldron on left shoulder
-  objs.push(scene.add.circle(-8, 6, 2.4, 0xb0b8c0).setStrokeStyle(0.8, 0x000000, 0.7));
+  objs.push(
+    scene.add.circle(-8, 6, 2.4, 0xb0b8c0).setStrokeStyle(0.8, 0x000000, 0.7)
+  );
   // Head
   objs.push(scene.add.circle(0, -4, 11, SKIN).setStrokeStyle(1, 0x3a2010, 0.7));
   // Wavy teal hair, half-back
@@ -181,8 +237,16 @@ function drawKeyblader4(scene: Phaser.Scene): Phaser.GameObjects.GameObject[] {
   // Silver clasp
   objs.push(scene.add.circle(-7, -10, 1.1, 0xb0b8c0));
   // Sea-green eyes
-  objs.push(scene.add.ellipse(-3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
-  objs.push(scene.add.ellipse(3.5, -3, 2.4, 3, 0xffffff).setStrokeStyle(0.8, 0x000000, 1));
+  objs.push(
+    scene.add
+      .ellipse(-3.5, -3, 2.4, 3, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
+  objs.push(
+    scene.add
+      .ellipse(3.5, -3, 2.4, 3, 0xffffff)
+      .setStrokeStyle(0.8, 0x000000, 1)
+  );
   objs.push(scene.add.circle(-3.5, -3, 1, 0x2a7088));
   objs.push(scene.add.circle(3.5, -3, 1, 0x2a7088));
   return objs;
@@ -211,7 +275,17 @@ export function drawKHBuilding(
       const tower2 = scene.add
         .rectangle(x + 16, y - 32, 12, 30, 0x6cc6ff)
         .setStrokeStyle(1, 0xffffff, 0.7);
-      const peakC = scene.add.triangle(x, y - 56, -18, 14, 18, 14, 0, -16, 0xffd86b);
+      const peakC = scene.add.triangle(
+        x,
+        y - 56,
+        -18,
+        14,
+        18,
+        14,
+        0,
+        -16,
+        0xffd86b
+      );
       objs.push(base, wall, tower, tower2, peakC);
       break;
     }
@@ -242,8 +316,28 @@ export function drawKHBuilding(
       const right = scene.add
         .rectangle(x + 11, y - 14, 18, 20, 0x8a5530)
         .setStrokeStyle(1, 0xffd86b, 0.5);
-      const roofL = scene.add.triangle(x - 13, y - 32, -11, 8, 11, 8, 0, -8, 0xff7a3c);
-      const roofR = scene.add.triangle(x + 11, y - 26, -11, 6, 11, 6, 0, -8, 0xff7a3c);
+      const roofL = scene.add.triangle(
+        x - 13,
+        y - 32,
+        -11,
+        8,
+        11,
+        8,
+        0,
+        -8,
+        0xff7a3c
+      );
+      const roofR = scene.add.triangle(
+        x + 11,
+        y - 26,
+        -11,
+        6,
+        11,
+        6,
+        0,
+        -8,
+        0xff7a3c
+      );
       const lamp = scene.add.circle(x + 21, y - 16, 3, 0xffd86b);
       objs.push(base, left, right, roofL, roofR, lamp);
       break;

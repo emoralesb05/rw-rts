@@ -22,15 +22,21 @@ export function PanelLayer() {
           {p.kind === "wielder" && p.key ? (
             <WielderPanelBody unitId={p.key} />
           ) : p.kind === "settings" ? (
-            <SettingsPanelBody onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))} />
+            <SettingsPanelBody
+              onSaved={() =>
+                window.dispatchEvent(new Event("kh:settings-changed"))
+              }
+            />
           ) : p.kind === "kingdom" ? (
             <KingdomPanelBody
-              initialTab={p.data?.initialTab as
-                | "overview"
-                | "settings"
-                | "connection"
-                | "demos"
-                | undefined}
+              initialTab={
+                p.data?.initialTab as
+                  | "overview"
+                  | "settings"
+                  | "connection"
+                  | "demos"
+                  | undefined
+              }
             />
           ) : p.kind === "dispatch" ? (
             <DispatchPanelBody />

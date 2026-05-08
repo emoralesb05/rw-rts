@@ -117,11 +117,11 @@ export function ActivityLog() {
   return (
     <div
       className={cn(
-        "activity-log absolute bottom-3 left-3 z-hud flex w-[360px] max-h-[280px]",
-        "flex-col overflow-hidden rounded-md border border-accent-alt/20",
-        "bg-[#0a1130]/80 font-mono text-text shadow-2xl backdrop-blur-md",
-        "transition-[width] duration-base ease-out",
-        collapsed && "w-[180px] max-h-8"
+        "activity-log z-hud absolute bottom-3 left-3 flex max-h-[280px] w-[360px]",
+        "border-accent-alt/20 flex-col overflow-hidden rounded-md border",
+        "text-text bg-[#0a1130]/80 font-mono shadow-2xl backdrop-blur-md",
+        "duration-base transition-[width] ease-out",
+        collapsed && "max-h-8 w-[180px]"
       )}
       role="log"
       aria-label="Activity log"
@@ -129,20 +129,23 @@ export function ActivityLog() {
       <button
         type="button"
         className={cn(
-          "flex w-full cursor-pointer items-center gap-2 border-0 border-b border-line",
-          "bg-accent-alt/5 px-2.5 py-1.5 text-left font-[inherit] text-text",
+          "border-line flex w-full cursor-pointer items-center gap-2 border-0 border-b",
+          "bg-accent-alt/5 text-text px-2.5 py-1.5 text-left font-[inherit]",
           collapsed && "border-b-transparent"
         )}
         onClick={() => setCollapsed((v) => !v)}
         aria-expanded={!collapsed}
       >
-        <span className="text-[10px] font-bold uppercase tracking-[0.8px] text-accent-alt">
+        <span className="text-accent-alt text-[10px] font-bold tracking-[0.8px] uppercase">
           activity
         </span>
-        <span className="text-[10px] tabular-nums text-muted">
+        <span className="text-muted text-[10px] tabular-nums">
           {events.length}
         </span>
-        <span className="ml-auto inline-flex items-center text-muted" aria-hidden="true">
+        <span
+          className="text-muted ml-auto inline-flex items-center"
+          aria-hidden="true"
+        >
           {collapsed ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
         </span>
       </button>
@@ -159,7 +162,7 @@ export function ActivityLog() {
           ref={scrollRef}
         >
           {recent.length === 0 ? (
-            <div className="px-3.5 py-3 text-center font-ui text-[11px] italic text-muted">
+            <div className="font-ui text-muted px-3.5 py-3 text-center text-[11px] italic">
               No activity yet.
             </div>
           ) : (
@@ -173,8 +176,8 @@ export function ActivityLog() {
               const dotColor = isMe
                 ? "#ffd86b"
                 : unit
-                ? ROLE_HEX[unit.role]
-                : "#444";
+                  ? ROLE_HEX[unit.role]
+                  : "#444";
               const recipientName = unit?.displayName ?? "—";
               const recipientColor = unit ? ROLE_HEX[unit.role] : "#888";
               const key = `${ev.sessionId}-${ev.timestamp}-${i}`;
@@ -189,7 +192,9 @@ export function ActivityLog() {
               const clickable =
                 !NON_CLICKABLE.has(ev.kind) &&
                 !isPermResolved &&
-                (ev.kind === "permission_request" ? !!ev.payload.requestId : !!unit);
+                (ev.kind === "permission_request"
+                  ? !!ev.payload.requestId
+                  : !!unit);
               const tone = isPermResolved ? "muted" : summary.tone;
               const rowClassName = cn(
                 "grid w-full grid-cols-[8px_100px_minmax(0,1fr)_28px] items-center gap-1.5",
@@ -224,30 +229,30 @@ export function ActivityLog() {
                   ? "permission already resolved"
                   : "system event"
                 : ev.kind === "permission_request"
-                ? "click to spotlight the alert"
-                : isMe
-                ? `you sent a prompt to ${recipientName}`
-                : `${recipientName} — click to open conversation`;
+                  ? "click to spotlight the alert"
+                  : isMe
+                    ? `you sent a prompt to ${recipientName}`
+                    : `${recipientName} — click to open conversation`;
               const summaryText = isPermResolved
                 ? `${summary.text} · resolved`
                 : summary.text;
               const NameSlot = isMe ? (
-                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-accent-alt">
+                <span className="text-accent-alt overflow-hidden font-semibold text-ellipsis whitespace-nowrap">
                   Me
-                  <span className="mx-1 inline-flex items-center font-normal text-muted">
+                  <span className="text-muted mx-1 inline-flex items-center font-normal">
                     <ArrowRight size={10} aria-hidden />
                   </span>
                   <span style={{ color: recipientColor }}>{recipientName}</span>
                 </span>
               ) : (
-                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-semibold text-text">
+                <span className="text-text overflow-hidden font-semibold text-ellipsis whitespace-nowrap">
                   {recipientName}
                 </span>
               );
               const Body = (
                 <>
                   <span
-                    className="size-1.5 rounded-pill"
+                    className="rounded-pill size-1.5"
                     style={{ background: dotColor }}
                   />
                   {NameSlot}
@@ -259,7 +264,7 @@ export function ActivityLog() {
                   >
                     {summaryText}
                   </span>
-                  <span className="text-right text-[9.5px] tabular-nums text-muted">
+                  <span className="text-muted text-right text-[9.5px] tabular-nums">
                     {shortAgo(ev.timestamp)}
                   </span>
                 </>
@@ -273,10 +278,7 @@ export function ActivityLog() {
                   {Body}
                 </button>
               ) : (
-                <div
-                  className={rowClassName}
-                  aria-disabled="true"
-                >
+                <div className={rowClassName} aria-disabled="true">
                   {Body}
                 </div>
               );

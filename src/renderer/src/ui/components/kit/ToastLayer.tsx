@@ -70,8 +70,8 @@ export function AppToastProvider({ children }: { children: ReactNode }) {
               toast.tone === "success"
                 ? "border-success/50"
                 : toast.tone === "danger"
-                ? "border-danger/60"
-                : undefined
+                  ? "border-danger/60"
+                  : undefined
             }
             onOpenChange={(open) => {
               if (!open) remove(toast.id);

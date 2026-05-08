@@ -22,8 +22,14 @@
  *   - the key "excludeRepos" is still honored if "exclude" isn't set,
  *     so older config files keep working
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  statSync,
+} from "node:fs";
+import { join } from "node:path";
 import { homedir } from "node:os";
 import { RawSettingsSchema } from "@shared/schemas";
 
@@ -62,7 +68,11 @@ export function loadSettings(): Settings {
       const def = defaults();
       try {
         mkdirSync(KEYKEEPER_DIR, { recursive: true });
-        writeFileSync(SETTINGS_PATH, JSON.stringify(def, null, 2) + "\n", "utf8");
+        writeFileSync(
+          SETTINGS_PATH,
+          JSON.stringify(def, null, 2) + "\n",
+          "utf8"
+        );
       } catch {
         // best-effort — if HOME is read-only, just return defaults in-memory
       }
@@ -88,7 +98,11 @@ export function loadSettings(): Settings {
     if (readPath === LEGACY_SETTINGS_PATH) {
       try {
         mkdirSync(KEYKEEPER_DIR, { recursive: true });
-        writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + "\n", "utf8");
+        writeFileSync(
+          SETTINGS_PATH,
+          JSON.stringify(settings, null, 2) + "\n",
+          "utf8"
+        );
       } catch {
         // best-effort
       }
@@ -97,7 +111,7 @@ export function loadSettings(): Settings {
   } catch {
     // Malformed file — log once, fall through to defaults. Don't
     // overwrite the user's broken file; let them fix it.
-    // eslint-disable-next-line no-console
+
     console.warn(`[keykeeper] failed to parse ${readPath}; using defaults`);
     return defaults();
   }
@@ -170,12 +184,14 @@ export function isExcluded(
       const prefix = pattern.slice(0, -2);
       if (prefix.startsWith("/")) {
         // Absolute prefix — match against full path.
-        if (repo.path === prefix || repo.path.startsWith(prefix + "/")) return true;
+        if (repo.path === prefix || repo.path.startsWith(prefix + "/"))
+          return true;
       } else {
         // Relative prefix — match label first segment(s) OR any
         // path segment chain (so "forks/*" hits both label "forks/x"
         // and a deeper path that happens to traverse a "forks" dir).
-        if (repo.label === prefix || repo.label.startsWith(prefix + "/")) return true;
+        if (repo.label === prefix || repo.label.startsWith(prefix + "/"))
+          return true;
         if (repo.path.includes(`/${prefix}/`)) return true;
       }
       continue;

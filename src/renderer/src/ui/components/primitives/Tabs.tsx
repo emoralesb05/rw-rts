@@ -10,10 +10,7 @@ export function TabsList({
 }: ComponentProps<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List
-      className={cn(
-        "flex border-b border-line bg-black/20",
-        className
-      )}
+      className={cn("border-line flex border-b bg-black/20", className)}
       {...props}
     />
   );
@@ -27,10 +24,10 @@ export function TabsTrigger({
     <TabsPrimitive.Trigger
       className={cn(
         "flex-1 border-0 border-b-2 border-transparent bg-transparent",
-        "px-3 py-2 text-[11px] font-semibold uppercase text-muted",
-        "transition-colors hover:text-text",
+        "text-muted px-3 py-2 text-[11px] font-semibold uppercase",
+        "hover:text-text transition-colors",
         "data-[state=active]:border-accent data-[state=active]:text-accent",
-        "focus:outline-none focus-visible:text-text",
+        "focus-visible:text-text focus:outline-none",
         className
       )}
       {...props}

@@ -199,7 +199,9 @@ describe("runtime schemas", () => {
   it("parses provider JSONL only when the line is a JSON object", () => {
     expect(parseProviderStreamMessage("plain banner line")).toBeNull();
     expect(parseProviderStreamMessage("null")).toBeNull();
-    expect(parseProviderStreamMessage('{"type":"item.completed"}')).toMatchObject({
+    expect(
+      parseProviderStreamMessage('{"type":"item.completed"}')
+    ).toMatchObject({
       type: "item.completed",
     });
   });

@@ -17,8 +17,8 @@ export function PopoverContent({
       <PopoverPrimitive.Content
         sideOffset={sideOffset}
         className={cn(
-          "z-[var(--z-popover)] rounded-md border border-line",
-          "bg-surface-2 p-3 text-text shadow-2xl",
+          "border-line z-[var(--z-popover)] rounded-md border",
+          "bg-surface-2 text-text p-3 shadow-2xl",
           className
         )}
         {...props}

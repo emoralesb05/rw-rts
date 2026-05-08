@@ -16,10 +16,10 @@ export function SelectTrigger({
     <SelectPrimitive.Trigger
       className={cn(
         "inline-flex min-h-8 w-full items-center justify-between gap-2",
-        "rounded-sm border border-line bg-surface-2 px-3 py-1.5",
-        "text-left text-xs text-text shadow-sm",
-        "transition-colors hover:border-accent",
-        "focus:outline-none focus-visible:border-accent",
+        "border-line bg-surface-2 rounded-sm border px-3 py-1.5",
+        "text-text text-left text-xs shadow-sm",
+        "hover:border-accent transition-colors",
+        "focus-visible:border-accent focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
@@ -45,19 +45,19 @@ export function SelectContent({
         position={position}
         className={cn(
           "z-[var(--z-popover)] max-h-72 min-w-[var(--radix-select-trigger-width)]",
-          "overflow-hidden rounded-md border border-line bg-surface-2 text-text shadow-2xl",
+          "border-line bg-surface-2 text-text overflow-hidden rounded-md border shadow-2xl",
           "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className
         )}
         {...props}
       >
-        <SelectPrimitive.ScrollUpButton className="flex h-6 items-center justify-center text-muted">
+        <SelectPrimitive.ScrollUpButton className="text-muted flex h-6 items-center justify-center">
           <ChevronUp size={14} aria-hidden />
         </SelectPrimitive.ScrollUpButton>
         <SelectPrimitive.Viewport className="p-1">
           {children}
         </SelectPrimitive.Viewport>
-        <SelectPrimitive.ScrollDownButton className="flex h-6 items-center justify-center text-muted">
+        <SelectPrimitive.ScrollDownButton className="text-muted flex h-6 items-center justify-center">
           <ChevronDown size={14} aria-hidden />
         </SelectPrimitive.ScrollDownButton>
       </SelectPrimitive.Content>
@@ -73,8 +73,8 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        "relative flex min-h-7 cursor-default select-none items-center",
-        "rounded-sm py-1.5 pl-8 pr-2 text-xs outline-none",
+        "relative flex min-h-7 cursor-default items-center select-none",
+        "rounded-sm py-1.5 pr-2 pl-8 text-xs outline-none",
         "data-[highlighted]:bg-accent/15 data-[highlighted]:text-accent",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className

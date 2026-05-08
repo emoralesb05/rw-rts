@@ -23,8 +23,8 @@ import { dirname, resolve } from "node:path";
 // frames live (y row) and where the 4 attack frames live, plus the card
 // origin. Tuned visually; tweak if the source layout shifts.
 type CardSpec = {
-  role: string;          // game slot identifier (sora, riku, etc.)
-  display: string;       // character name for logging
+  role: string; // game slot identifier (sora, riku, etc.)
+  display: string; // character name for logging
   // Card bounds (top-left + size)
   cardX: number;
   cardY: number;
@@ -58,9 +58,9 @@ const TOP_GAP = 12;
 const TOP_X = (i: number) => 16 + i * (TOP_CARD_W + TOP_GAP);
 
 // Within a top card:
-const TOP_IDLE_X_REL = 95;      // x offset of frame 0 from card left
-const TOP_IDLE_Y_REL = 70;      // y offset
-const TOP_ATTACK_Y_REL = 198;   // y offset of attack row
+const TOP_IDLE_X_REL = 95; // x offset of frame 0 from card left
+const TOP_IDLE_Y_REL = 70; // y offset
+const TOP_ATTACK_Y_REL = 198; // y offset of attack row
 const TOP_FRAME_W = 50;
 const TOP_FRAME_H = 100;
 const TOP_FRAME_STRIDE = 50;
@@ -186,7 +186,11 @@ async function main() {
   const src = createCanvas(W, H);
   const sctx = src.getContext("2d") as unknown as SKRSContext2D;
   sctx.imageSmoothingEnabled = false;
-  sctx.drawImage(img as unknown as Parameters<SKRSContext2D["drawImage"]>[0], 0, 0);
+  sctx.drawImage(
+    img as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
+    0,
+    0
+  );
 
   for (const card of CARDS) {
     // Slice the 8 frames out of this card. 4 idle (y=idleY), then 4
@@ -195,15 +199,39 @@ async function main() {
     const rawFrames: { x: number; y: number; w: number; h: number }[] = [];
     for (let i = 0; i < 4; i++) {
       const fx = card.idleX + i * card.frameStrideX;
-      const trim = findContentBox(sctx, fx, card.idleY, card.frameW, card.frameH);
+      const trim = findContentBox(
+        sctx,
+        fx,
+        card.idleY,
+        card.frameW,
+        card.frameH
+      );
       if (trim) rawFrames.push(trim);
-      else rawFrames.push({ x: fx, y: card.idleY, w: card.frameW, h: card.frameH });
+      else
+        rawFrames.push({
+          x: fx,
+          y: card.idleY,
+          w: card.frameW,
+          h: card.frameH,
+        });
     }
     for (let i = 0; i < 4; i++) {
       const fx = card.idleX + i * card.frameStrideX;
-      const trim = findContentBox(sctx, fx, card.attackY, card.frameW, card.frameH);
+      const trim = findContentBox(
+        sctx,
+        fx,
+        card.attackY,
+        card.frameW,
+        card.frameH
+      );
       if (trim) rawFrames.push(trim);
-      else rawFrames.push({ x: fx, y: card.attackY, w: card.frameW, h: card.frameH });
+      else
+        rawFrames.push({
+          x: fx,
+          y: card.attackY,
+          w: card.frameW,
+          h: card.frameH,
+        });
     }
 
     // Compute uniform frame size — biggest content box across all 8
@@ -226,8 +254,14 @@ async function main() {
       const dy = targetH - drawH;
       octx.drawImage(
         img as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
-        f.x, f.y, f.w, f.h,
-        dx, dy, drawW, drawH
+        f.x,
+        f.y,
+        f.w,
+        f.h,
+        dx,
+        dy,
+        drawW,
+        drawH
       );
     }
 
@@ -236,7 +270,9 @@ async function main() {
     const finalImg = octx.getImageData(0, 0, sheetW, targetH);
     const fd = finalImg.data;
     for (let p = 0; p < fd.length; p += 4) {
-      const r = fd[p], g = fd[p + 1], b = fd[p + 2];
+      const r = fd[p],
+        g = fd[p + 1],
+        b = fd[p + 2];
       if (r + g + b < 130 && r < 50 && g < 60 && b < 90) {
         fd[p + 3] = 0;
       }
@@ -253,14 +289,21 @@ async function main() {
     stCtx.imageSmoothingEnabled = false;
     stCtx.drawImage(
       out as unknown as Parameters<SKRSContext2D["drawImage"]>[0],
-      0, 0, targetW, targetH,
-      0, 0, targetW, targetH
+      0,
+      0,
+      targetW,
+      targetH,
+      0,
+      0,
+      targetW,
+      targetH
     );
     const stillPath = resolve(outDir, `${card.role}.png`);
     writeFileSync(stillPath, still.toBuffer("image/png"));
 
-    // eslint-disable-next-line no-console
-    console.log(`✓ ${card.display.padEnd(8)} → ${card.role.padEnd(13)} (${sheetW}×${targetH})`);
+    console.log(
+      `✓ ${card.display.padEnd(8)} → ${card.role.padEnd(13)} (${sheetW}×${targetH})`
+    );
   }
 }
 

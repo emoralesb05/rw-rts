@@ -37,19 +37,30 @@ function px(ctx: SKRSContext2D, x: number, y: number, color: string) {
 }
 
 function fillRect(
-  ctx: SKRSContext2D, x: number, y: number, w: number, h: number, color: string
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string
 ) {
   ctx.fillStyle = color;
   ctx.fillRect(x | 0, y | 0, w | 0, h | 0);
 }
 
 function fillEllipse(
-  ctx: SKRSContext2D, cx: number, cy: number, rx: number, ry: number, color: string
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: string
 ) {
   ctx.fillStyle = color;
   for (let y = -ry; y <= ry; y++) {
     for (let x = -rx; x <= rx; x++) {
-      const fx = x / rx, fy = y / ry;
+      const fx = x / rx,
+        fy = y / ry;
       if (fx * fx + fy * fy <= 1) {
         ctx.fillRect((cx + x) | 0, (cy + y) | 0, 1, 1);
       }
@@ -58,8 +69,14 @@ function fillEllipse(
 }
 
 function shadedRect(
-  ctx: SKRSContext2D, x: number, y: number, w: number, h: number,
-  base: string, shadow: string, highlight: string
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  base: string,
+  shadow: string,
+  highlight: string
 ) {
   fillRect(ctx, x, y, w, h, base);
   fillRect(ctx, x, y + h - 1, w, 1, shadow);
@@ -68,7 +85,12 @@ function shadedRect(
 }
 
 function outlineRect(
-  ctx: SKRSContext2D, x: number, y: number, w: number, h: number, color: string
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string
 ) {
   fillRect(ctx, x, y, w, 1, color);
   fillRect(ctx, x, y + h - 1, w, 1, color);
@@ -86,10 +108,14 @@ function bobOffset(frame: number): number {
 type SwingPose = { tilt: number; armOut: boolean; flash: boolean };
 function swingPose(frame: number): SwingPose {
   switch (frame) {
-    case 4: return { tilt: -2, armOut: false, flash: false };
-    case 5: return { tilt: 3, armOut: true, flash: true };
-    case 6: return { tilt: 1, armOut: true, flash: false };
-    case 7: return { tilt: 0, armOut: false, flash: false };
+    case 4:
+      return { tilt: -2, armOut: false, flash: false };
+    case 5:
+      return { tilt: 3, armOut: true, flash: true };
+    case 6:
+      return { tilt: 1, armOut: true, flash: false };
+    case 7:
+      return { tilt: 0, armOut: false, flash: false };
   }
   return { tilt: 0, armOut: false, flash: false };
 }
@@ -98,9 +124,7 @@ function drawShadow(ctx: SKRSContext2D) {
   fillEllipse(ctx, 24, 60, 9, 2, "rgba(0,0,0,0.45)");
 }
 
-function drawFace(
-  ctx: SKRSContext2D, dy: number, irisColor: string
-) {
+function drawFace(ctx: SKRSContext2D, dy: number, irisColor: string) {
   fillRect(ctx, 19, 19 + dy, 3, 3, "#ffffff");
   fillRect(ctx, 20, 19 + dy, 2, 1, irisColor);
   fillRect(ctx, 20, 20 + dy, 2, 2, "#1a1010");
@@ -156,7 +180,9 @@ function drawKeyblader1(ctx: SKRSContext2D, frame: number) {
   drawFace(ctx, dy + 1, "#3a8ad8");
 
   // Spiky dark hair
-  const hair = "#1a1430", hairDk = "#000000", hairHi = "#3a3050";
+  const hair = "#1a1430",
+    hairDk = "#000000",
+    hairHi = "#3a3050";
   shadedRect(ctx, 16, 6 + dy, 16, 7, hair, hairDk, hairHi);
   // Spikes
   fillRect(ctx, 19, 2 + dy, 4, 5, hair);
@@ -235,7 +261,9 @@ function drawKeyblader2(ctx: SKRSContext2D, frame: number) {
   drawFace(ctx, dy + 1, "#d8a040");
 
   // Long pink hair past shoulders
-  const hair = "#f0c0d8", hairDk = "#a85878", hairHi = "#ffd0e0";
+  const hair = "#f0c0d8",
+    hairDk = "#a85878",
+    hairHi = "#ffd0e0";
   shadedRect(ctx, 14, 6 + dy, 20, 9, hair, hairDk, hairHi);
   // Side strands flowing past shoulders
   fillRect(ctx, 14, 14 + dy, 3, 16, hair);
@@ -293,7 +321,7 @@ function makeSheet(role: "keyblader1" | "keyblader2") {
     resolve("assets/sprites/kh-default", `${role}.png`),
     still.toBuffer("image/png")
   );
-  // eslint-disable-next-line no-console
+
   console.log(`✓ ${role} → ${sheetPath}`);
 }
 
@@ -306,13 +334,20 @@ function drawShadowHeartless(ctx: SKRSContext2D, frame: number) {
   const dy = [0, -1, 0, 1][frame % 4] ?? 0;
   fillEllipse(ctx, 16, 18 + dy, 8, 6, "#05050a");
   fillEllipse(ctx, 16, 14 + dy, 6, 3, "#0a0518");
-  px(ctx, 12, 12 + dy, "#05050a"); px(ctx, 11, 11 + dy, "#05050a");
-  px(ctx, 12, 10 + dy, "#05050a"); px(ctx, 13, 9 + dy, "#05050a");
-  px(ctx, 20, 12 + dy, "#05050a"); px(ctx, 21, 11 + dy, "#05050a");
-  px(ctx, 20, 10 + dy, "#05050a"); px(ctx, 19, 9 + dy, "#05050a");
-  px(ctx, 13, 16 + dy, "#ffd86b"); px(ctx, 14, 16 + dy, "#ffd86b");
-  px(ctx, 18, 16 + dy, "#ffd86b"); px(ctx, 19, 16 + dy, "#ffd86b");
-  px(ctx, 8, 22 + dy, "#05050a"); px(ctx, 24, 22 + dy, "#05050a");
+  px(ctx, 12, 12 + dy, "#05050a");
+  px(ctx, 11, 11 + dy, "#05050a");
+  px(ctx, 12, 10 + dy, "#05050a");
+  px(ctx, 13, 9 + dy, "#05050a");
+  px(ctx, 20, 12 + dy, "#05050a");
+  px(ctx, 21, 11 + dy, "#05050a");
+  px(ctx, 20, 10 + dy, "#05050a");
+  px(ctx, 19, 9 + dy, "#05050a");
+  px(ctx, 13, 16 + dy, "#ffd86b");
+  px(ctx, 14, 16 + dy, "#ffd86b");
+  px(ctx, 18, 16 + dy, "#ffd86b");
+  px(ctx, 19, 16 + dy, "#ffd86b");
+  px(ctx, 8, 22 + dy, "#05050a");
+  px(ctx, 24, 22 + dy, "#05050a");
   fillEllipse(ctx, 16, 26, 7, 1, "rgba(0,0,0,0.5)");
 }
 
@@ -337,7 +372,8 @@ function drawLargeBodyHeartless(ctx: SKRSContext2D, frame: number) {
   fillEllipse(ctx, 16, 18 + dy, 9, 6, "#5a2f7a");
   fillRect(ctx, 11, 18 + dy, 10, 2, "#ff5a3c");
   fillEllipse(ctx, 16, 9 + dy, 4, 4, "#3a1f5a");
-  px(ctx, 14, 9 + dy, "#ffd86b"); px(ctx, 18, 9 + dy, "#ffd86b");
+  px(ctx, 14, 9 + dy, "#ffd86b");
+  px(ctx, 18, 9 + dy, "#ffd86b");
   fillRect(ctx, 12, 24 + dy, 3, 2, "#3a1f5a");
   fillRect(ctx, 17, 24 + dy, 3, 2, "#3a1f5a");
   fillRect(ctx, 15, 16 + dy, 2, 2, "#ff5a3c");
@@ -372,7 +408,7 @@ function makeHeartlessSheets() {
       resolve("assets/sprites/kh-default", `${name}.png`),
       still.toBuffer("image/png")
     );
-    // eslint-disable-next-line no-console
+
     console.log(`✓ ${name}`);
   }
 }
@@ -455,9 +491,9 @@ function drawTwilightTown(ctx: SKRSContext2D) {
   fillRect(ctx, 18, 53, 28, 1, "#5a3a2c");
   // Tall clock-tower body (Big-Ben-style — narrow, tall).
   fillRect(ctx, 26, 18, 12, 36, "#a87a4a");
-  fillRect(ctx, 26, 17, 12, 1, "#7a5530");      // top ledge shadow
-  fillRect(ctx, 25, 18, 1, 36, "#7a5530");      // left depth
-  fillRect(ctx, 38, 18, 1, 36, "#5a3a20");      // right depth
+  fillRect(ctx, 26, 17, 12, 1, "#7a5530"); // top ledge shadow
+  fillRect(ctx, 25, 18, 1, 36, "#7a5530"); // left depth
+  fillRect(ctx, 38, 18, 1, 36, "#5a3a20"); // right depth
   // Decorative brick rows.
   fillRect(ctx, 26, 26, 12, 1, "#7a5530");
   fillRect(ctx, 26, 38, 12, 1, "#7a5530");
@@ -465,19 +501,19 @@ function drawTwilightTown(ctx: SKRSContext2D) {
   // Big clock face (8x8 circle near the top).
   fillEllipse(ctx, 32, 24, 5, 5, "#0a0a14");
   fillEllipse(ctx, 32, 24, 4, 4, "#f7e8c8");
-  fillRect(ctx, 32, 22, 1, 3, "#1a1426");       // minute hand (up)
-  fillRect(ctx, 32, 24, 3, 1, "#1a1426");       // hour hand (right)
-  fillRect(ctx, 31, 23, 1, 1, "#ff5a3c");       // pin
+  fillRect(ctx, 32, 22, 1, 3, "#1a1426"); // minute hand (up)
+  fillRect(ctx, 32, 24, 3, 1, "#1a1426"); // hour hand (right)
+  fillRect(ctx, 31, 23, 1, 1, "#ff5a3c"); // pin
   // Belfry crown — narrow tier above the clock.
   fillRect(ctx, 28, 13, 8, 4, "#8a5530");
   fillRect(ctx, 28, 12, 8, 1, "#5a3a20");
-  fillRect(ctx, 30, 14, 1, 2, "#ffd86b");       // belfry windows (lit)
+  fillRect(ctx, 30, 14, 1, 2, "#ffd86b"); // belfry windows (lit)
   fillRect(ctx, 33, 14, 1, 2, "#ffd86b");
   // Spire + cross.
   fillRect(ctx, 30, 6, 4, 7, "#5a3a20");
   fillRect(ctx, 31, 3, 2, 3, "#7a5530");
-  fillRect(ctx, 31, 1, 2, 2, "#ffd86b");        // gilded peak
-  fillRect(ctx, 30, 2, 4, 1, "#ffd86b");        // crossbar
+  fillRect(ctx, 31, 1, 2, 2, "#ffd86b"); // gilded peak
+  fillRect(ctx, 30, 2, 4, 1, "#ffd86b"); // crossbar
   // Stained glass on the body — small.
   fillRect(ctx, 30, 32, 4, 4, "#6cc6ff");
   fillRect(ctx, 31, 33, 2, 2, "#a4d8ff");
@@ -490,9 +526,9 @@ function drawTwilightTown(ctx: SKRSContext2D) {
 function drawHalloweenTown(ctx: SKRSContext2D) {
   // Crescent moon in the sky.
   fillEllipse(ctx, 12, 10, 5, 5, "#ffd86b");
-  fillEllipse(ctx, 14, 9, 4, 4, "#1a0f24");      // crescent bite
+  fillEllipse(ctx, 14, 9, 4, 4, "#1a0f24"); // crescent bite
   // Curly Hill — the iconic spiral silhouette. Hand-drawn pixel curl.
-  fillRect(ctx, 12, 50, 40, 12, "#1a0f24");      // base mound
+  fillRect(ctx, 12, 50, 40, 12, "#1a0f24"); // base mound
   fillRect(ctx, 14, 48, 36, 2, "#1a0f24");
   fillRect(ctx, 18, 44, 28, 4, "#1a0f24");
   fillRect(ctx, 22, 40, 18, 4, "#1a0f24");
@@ -505,23 +541,23 @@ function drawHalloweenTown(ctx: SKRSContext2D) {
   fillRect(ctx, 40, 18, 4, 2, "#1a0f24");
   fillRect(ctx, 42, 16, 3, 2, "#1a0f24");
   fillRect(ctx, 43, 18, 2, 2, "#1a0f24");
-  fillRect(ctx, 41, 20, 2, 2, "#1a0f24");        // inner curl shadow
+  fillRect(ctx, 41, 20, 2, 2, "#1a0f24"); // inner curl shadow
   // Bare twisted tree on the left foreground.
-  fillRect(ctx, 8, 36, 2, 22, "#0a0510");        // trunk
-  fillRect(ctx, 6, 32, 2, 6, "#0a0510");         // branch left-up
+  fillRect(ctx, 8, 36, 2, 22, "#0a0510"); // trunk
+  fillRect(ctx, 6, 32, 2, 6, "#0a0510"); // branch left-up
   fillRect(ctx, 4, 30, 2, 2, "#0a0510");
-  fillRect(ctx, 10, 28, 2, 8, "#0a0510");        // branch up
-  fillRect(ctx, 12, 30, 2, 4, "#0a0510");        // branch right
+  fillRect(ctx, 10, 28, 2, 8, "#0a0510"); // branch up
+  fillRect(ctx, 12, 30, 2, 4, "#0a0510"); // branch right
   fillRect(ctx, 14, 32, 2, 2, "#0a0510");
   // Pumpkins at the foot — two of them, one bigger.
   fillEllipse(ctx, 18, 56, 4, 3, "#ff7a3c");
-  fillRect(ctx, 17, 54, 2, 1, "#3d2010");        // stem
+  fillRect(ctx, 17, 54, 2, 1, "#3d2010"); // stem
   fillEllipse(ctx, 50, 56, 5, 4, "#ff7a3c");
-  fillEllipse(ctx, 50, 56, 4, 3, "#ff9a4c");     // highlight
-  fillRect(ctx, 49, 53, 2, 1, "#3d2010");        // stem
-  fillRect(ctx, 47, 55, 1, 1, "#ffd86b");        // jack-o-lantern eye
-  fillRect(ctx, 51, 55, 1, 1, "#ffd86b");        // jack-o-lantern eye
-  fillRect(ctx, 49, 57, 3, 1, "#1a0f24");        // grin
+  fillEllipse(ctx, 50, 56, 4, 3, "#ff9a4c"); // highlight
+  fillRect(ctx, 49, 53, 2, 1, "#3d2010"); // stem
+  fillRect(ctx, 47, 55, 1, 1, "#ffd86b"); // jack-o-lantern eye
+  fillRect(ctx, 51, 55, 1, 1, "#ffd86b"); // jack-o-lantern eye
+  fillRect(ctx, 49, 57, 3, 1, "#1a0f24"); // grin
   // Distant gravestones — silhouette dots at the right of the hill.
   fillRect(ctx, 54, 52, 3, 6, "#3a2840");
   fillRect(ctx, 53, 53, 1, 1, "#3a2840");
@@ -548,7 +584,7 @@ function makeLandmarks() {
       resolve("assets/sprites/kh-default", `${name}.png`),
       canvas.toBuffer("image/png")
     );
-    // eslint-disable-next-line no-console
+
     console.log(`✓ ${name}`);
   }
 }
@@ -558,23 +594,36 @@ function makeLandmarks() {
 const TILE_W = 96;
 const TILE_H = 48;
 
-function drawIsoTile(ctx: SKRSContext2D, base: string, edge: string, hi: string) {
+function drawIsoTile(
+  ctx: SKRSContext2D,
+  base: string,
+  edge: string,
+  hi: string
+) {
   for (let y = 0; y < TILE_H; y++) {
     const halfFromMid = Math.abs(y - (TILE_H / 2 - 0.5)) * (TILE_W / TILE_H);
-    const halfWidth = (TILE_W / 2) - halfFromMid;
+    const halfWidth = TILE_W / 2 - halfFromMid;
     if (halfWidth < 1) continue;
-    fillRect(ctx, Math.round(TILE_W / 2 - halfWidth), y,
-      Math.round(halfWidth * 2), 1, base);
+    fillRect(
+      ctx,
+      Math.round(TILE_W / 2 - halfWidth),
+      y,
+      Math.round(halfWidth * 2),
+      1,
+      base
+    );
   }
   for (let y = 0; y < TILE_H / 2; y++) {
-    const halfFromMid = ((TILE_H / 2 - 0.5) - y) * (TILE_W / TILE_H);
+    const halfFromMid = (TILE_H / 2 - 0.5 - y) * (TILE_W / TILE_H);
     const x = Math.round(TILE_W / 2 - halfFromMid);
-    px(ctx, x, y, hi); px(ctx, TILE_W - x - 1, y, hi);
+    px(ctx, x, y, hi);
+    px(ctx, TILE_W - x - 1, y, hi);
   }
   for (let y = TILE_H / 2; y < TILE_H; y++) {
     const halfFromMid = (y - (TILE_H / 2 - 0.5)) * (TILE_W / TILE_H);
     const x = Math.round(TILE_W / 2 - halfFromMid);
-    px(ctx, x, y, edge); px(ctx, TILE_W - x - 1, y, edge);
+    px(ctx, x, y, edge);
+    px(ctx, TILE_W - x - 1, y, edge);
   }
 }
 
@@ -592,7 +641,7 @@ function makeGroundTiles() {
       resolve("assets/sprites/kh-default", `${name}.png`),
       canvas.toBuffer("image/png")
     );
-    // eslint-disable-next-line no-console
+
     console.log(`✓ ${name}`);
   }
 }
@@ -610,9 +659,10 @@ function makeGroundTiles() {
 //   bun scripts/generate-pixel-sprites.ts heartless tiles
 //   bun scripts/generate-pixel-sprites.ts all          # full run
 const args = process.argv.slice(2);
-const groups = args.length === 0 || args.includes("all")
-  ? new Set(["keybladers", "heartless", "landmarks", "tiles"])
-  : new Set(args);
+const groups =
+  args.length === 0 || args.includes("all")
+    ? new Set(["keybladers", "heartless", "landmarks", "tiles"])
+    : new Set(args);
 
 if (groups.has("keybladers")) {
   makeSheet("keyblader1");

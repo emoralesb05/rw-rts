@@ -43,10 +43,10 @@ export function WielderHUD() {
             type="button"
             variant="ghost"
             className={cn(
-              "min-h-6 px-2 py-0.5 text-[10px] uppercase tracking-[0.5px]",
+              "min-h-6 px-2 py-0.5 text-[10px] tracking-[0.5px] uppercase",
               showGhosted
                 ? "border-accent-alt bg-accent-alt/15 text-accent-alt hover:bg-accent-alt/20"
-                : "border-white/20 text-muted hover:border-accent-alt hover:text-accent-alt"
+                : "text-muted hover:border-accent-alt hover:text-accent-alt border-white/20"
             )}
             onClick={() => setShowGhosted((v) => !v)}
             aria-pressed={showGhosted}
@@ -55,12 +55,10 @@ export function WielderHUD() {
           </Button>
         </TooltipHint>
       )}
-      <TooltipHint
-        label="dispatch a wielder — opens the spawn dialog"
-      >
+      <TooltipHint label="dispatch a wielder — opens the spawn dialog">
         <Button
           type="button"
-          className="min-h-6 border-accent-alt/30 bg-accent-alt/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.5px] text-accent-alt hover:border-accent-alt hover:bg-accent-alt/20"
+          className="border-accent-alt/30 bg-accent-alt/10 text-accent-alt hover:border-accent-alt hover:bg-accent-alt/20 min-h-6 px-2 py-0.5 text-[10px] tracking-[0.5px] uppercase"
           onClick={() =>
             openPanel({ kind: "dispatch", title: "Dispatch", width: 480 })
           }

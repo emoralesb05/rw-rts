@@ -112,9 +112,9 @@ function createWindow() {
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
   // Lock down navigation. The renderer should never leave its bundled
@@ -199,7 +199,7 @@ if (!app.isPackaged) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222");
 }
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   // Refresh the user-dir copy of bin/keykeeper-hook from the bundled
   // source. Runs every boot — keeps the installed script in sync with
   // the app version. Must run before hook installers (so they
@@ -211,16 +211,18 @@ app.whenReady().then(async () => {
   startCodexTranscriptWatcher();
   createWindow();
 
-  process.on("SIGUSR1", async () => {
+  process.on("SIGUSR1", () => {
     if (!mainWindow) return;
-    try {
-      const img = await mainWindow.webContents.capturePage();
-      const path = "/tmp/keykeeper-frame.png";
-      await writeFile(path, img.toPNG());
-      console.log(`[keykeeper] frame captured → ${path}`);
-    } catch (e) {
-      console.error("[keykeeper] capture failed:", e);
-    }
+    void (async () => {
+      try {
+        const img = await mainWindow.webContents.capturePage();
+        const path = "/tmp/keykeeper-frame.png";
+        await writeFile(path, img.toPNG());
+        console.log(`[keykeeper] frame captured → ${path}`);
+      } catch (e) {
+        console.error("[keykeeper] capture failed:", e);
+      }
+    })();
   });
 
   await offerHookInstall();
@@ -234,10 +236,10 @@ app.whenReady().then(async () => {
         req.tool === "cursor"
           ? "cursor"
           : req.tool === "codex"
-          ? "codex"
-          : req.tool === "gemini"
-          ? "gemini"
-          : "claude";
+            ? "codex"
+            : req.tool === "gemini"
+              ? "gemini"
+              : "claude";
       const agent = await AgentManager.spawn(tool, { prompt: req.prompt, cwd });
       return { unitId: agent.unitId, sessionId: agent.sessionId };
     },

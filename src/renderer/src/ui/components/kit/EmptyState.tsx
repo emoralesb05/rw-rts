@@ -17,13 +17,15 @@ export function EmptyState({
     <div
       className={cn(
         "flex min-h-16 flex-col items-center justify-center gap-2",
-        "rounded-sm bg-black/20 px-4 py-3 text-center text-xs text-muted",
+        "text-muted rounded-sm bg-black/20 px-4 py-3 text-center text-xs",
         className
       )}
       {...props}
     >
-      {title && <div className="font-semibold text-text">{title}</div>}
-      {children && <div className="text-[11px] italic leading-relaxed">{children}</div>}
+      {title && <div className="text-text font-semibold">{title}</div>}
+      {children && (
+        <div className="text-[11px] leading-relaxed italic">{children}</div>
+      )}
       {action}
     </div>
   );

@@ -144,7 +144,10 @@ const api = {
     );
   },
   listWorkspaceRepos() {
-    return invokeParsed(IPC.ListWorkspaceRepos, ListWorkspaceReposResponseSchema);
+    return invokeParsed(
+      IPC.ListWorkspaceRepos,
+      ListWorkspaceReposResponseSchema
+    );
   },
   getSettings() {
     return invokeParsed(IPC.GetSettings, AppSettingsSchema);

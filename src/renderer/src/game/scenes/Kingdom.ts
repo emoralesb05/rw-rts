@@ -49,9 +49,9 @@ import type { Heartless } from "@shared/events";
 
 // Drive form aura colors — match the KH visual language.
 const DRIVE_COLORS: Record<DriveForm, number> = {
-  valor: 0xff5a3c,   // red
-  wisdom: 0x6cc6ff,  // blue
-  final: 0xffd86b,   // gold
+  valor: 0xff5a3c, // red
+  wisdom: 0x6cc6ff, // blue
+  final: 0xffd86b, // gold
 };
 
 const SCANLINE_TEX = "kh-kingdom-scanlines";
@@ -124,13 +124,18 @@ const THEME_ACCENTS: Record<
 // Per-theme particle palette: small drifting motes inside the world's
 // iso footprint. Color + count + speed varies per theme to give each
 // world a distinct atmospheric voice.
-type ThemeParticle = { color: number; count: number; speed: number; size: number };
+type ThemeParticle = {
+  color: number;
+  count: number;
+  speed: number;
+  size: number;
+};
 const THEME_PARTICLES: Record<WorldTheme, ThemeParticle> = {
-  disney:    { color: 0xffd86b, count: 8,  speed: 0.04, size: 1.2 }, // gold sparkle
-  hollow:    { color: 0xc9a4ff, count: 12, speed: 0.06, size: 1.0 }, // dark embers
-  traverse:  { color: 0xffd86b, count: 6,  speed: 0.05, size: 1.2 }, // lamp dust
-  destiny:   { color: 0xb3e0ff, count: 10, speed: 0.05, size: 1.0 }, // sea spray
-  twilight:  { color: 0xffb86c, count: 8,  speed: 0.05, size: 1.2 }, // dusk fireflies
+  disney: { color: 0xffd86b, count: 8, speed: 0.04, size: 1.2 }, // gold sparkle
+  hollow: { color: 0xc9a4ff, count: 12, speed: 0.06, size: 1.0 }, // dark embers
+  traverse: { color: 0xffd86b, count: 6, speed: 0.05, size: 1.2 }, // lamp dust
+  destiny: { color: 0xb3e0ff, count: 10, speed: 0.05, size: 1.0 }, // sea spray
+  twilight: { color: 0xffb86c, count: 8, speed: 0.05, size: 1.2 }, // dusk fireflies
   halloween: { color: 0xff7a4a, count: 14, speed: 0.07, size: 1.2 }, // ash flecks
 };
 
@@ -199,7 +204,13 @@ type WorldRef = {
   spawnedAt: number;
   wielders: Map<string, WielderRef>;
   heartless: Map<string, HeartlessRef>;
-  particles: { circle: Phaser.GameObjects.Arc; vx: number; vy: number; baseAlpha: number; phase: number }[];
+  particles: {
+    circle: Phaser.GameObjects.Arc;
+    vx: number;
+    vy: number;
+    baseAlpha: number;
+    phase: number;
+  }[];
   // Tier 2 — per-theme animated atmospherics drawn on the iso plane.
   // Only populated for themes that have a signature effect (water, fire,
   // magic). Redrawn each frame from the theme's draw routine.
@@ -222,7 +233,10 @@ type StarRef = {
 export class KingdomScene extends Phaser.Scene {
   private worlds = new Map<string, WorldRef>();
   private clusters = new Map<string, ClusterRef>();
-  private layout = new Map<string, { x: number; y: number; clusterKey: string }>();
+  private layout = new Map<
+    string,
+    { x: number; y: number; clusterKey: string }
+  >();
   private skyGfx?: Phaser.GameObjects.Graphics;
   private scanline?: Phaser.GameObjects.TileSprite;
   private stars: StarRef[] = [];
@@ -246,10 +260,18 @@ export class KingdomScene extends Phaser.Scene {
     // Pixel-art landmarks (one per theme) + iso ground tiles. Same files
     // the legacy WorldScene loaded; KingdomScene now owns them.
     const themes: WorldTheme[] = [
-      "disney", "hollow", "traverse", "destiny", "twilight", "halloween",
+      "disney",
+      "hollow",
+      "traverse",
+      "destiny",
+      "twilight",
+      "halloween",
     ];
     for (const t of themes) {
-      this.load.image(LANDMARK_TEX(t), `/sprites/kh-default/${LANDMARK_TEX(t)}.png`);
+      this.load.image(
+        LANDMARK_TEX(t),
+        `/sprites/kh-default/${LANDMARK_TEX(t)}.png`
+      );
     }
     this.load.image("tile-iso-a", "/sprites/kh-default/tile-iso-a.png");
     this.load.image("tile-iso-b", "/sprites/kh-default/tile-iso-b.png");
@@ -289,7 +311,15 @@ export class KingdomScene extends Phaser.Scene {
     // Tier 1 filter stack — shared across the whole map
     const cm = this.cameras.main.filters.internal.addColorMatrix();
     cm.colorMatrix.saturate(0.15, true).hue(-6, true).contrast(0.05, true);
-    this.bloomFilter = this.cameras.main.filters.internal.addGlow(0xffd86b, 0.45, 0.25, 1, false, 4, 8);
+    this.bloomFilter = this.cameras.main.filters.internal.addGlow(
+      0xffd86b,
+      0.45,
+      0.25,
+      1,
+      false,
+      4,
+      8
+    );
     this.cameras.main.filters.internal.addVignette(0.5, 0.5, 0.85, 0.5);
 
     // Tier 3 — event-driven filters held at neutral until pulsed.
@@ -346,7 +376,8 @@ export class KingdomScene extends Phaser.Scene {
       let barkKind: BarkKind | undefined;
       if (ev.kind === "session_start") barkKind = "session_start";
       else if (ev.kind === "subagent_spawn") barkKind = "subagent_spawn";
-      else if (ev.kind === "permission_request") barkKind = "permission_request";
+      else if (ev.kind === "permission_request")
+        barkKind = "permission_request";
       else if (ev.kind === "error") barkKind = "error";
       else if (ev.kind === "session_end") {
         const u = useStore.getState().units[ev.sessionId];
@@ -451,7 +482,8 @@ export class KingdomScene extends Phaser.Scene {
     // Cluster labels fade in at zoom-out (zoom < 0.7), out at zoom-in.
     // Per Q40 cascading defaults: cluster labels visible at zoom-out only.
     const z = this.cameras.main.zoom;
-    const targetAlpha = z < 0.45 ? 0.95 : z < 0.7 ? (0.7 - z) / 0.25 * 0.95 : 0;
+    const targetAlpha =
+      z < 0.45 ? 0.95 : z < 0.7 ? ((0.7 - z) / 0.25) * 0.95 : 0;
     for (const c of this.clusters.values()) {
       const cur = c.label.alpha;
       // Smooth fade rather than snap
@@ -614,7 +646,8 @@ export class KingdomScene extends Phaser.Scene {
    */
   private syncClusterLabels() {
     const clusterKeys = new Set<string>();
-    for (const layout of this.layout.values()) clusterKeys.add(layout.clusterKey);
+    for (const layout of this.layout.values())
+      clusterKeys.add(layout.clusterKey);
 
     // Drop labels for clusters that are gone.
     for (const [key, ref] of this.clusters) {
@@ -629,7 +662,8 @@ export class KingdomScene extends Phaser.Scene {
       const members = [...this.layout.entries()].filter(
         ([, l]) => l.clusterKey === key
       );
-      let cx = 0, cy = 0;
+      let cx = 0,
+        cy = 0;
       for (const [, l] of members) {
         cx += l.x;
         cy += l.y;
@@ -666,7 +700,10 @@ export class KingdomScene extends Phaser.Scene {
    */
   private fitCameraToWorlds() {
     if (this.worlds.size === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const ref of this.worlds.values()) {
       minX = Math.min(minX, ref.container.x);
       minY = Math.min(minY, ref.container.y);
@@ -674,8 +711,8 @@ export class KingdomScene extends Phaser.Scene {
       maxY = Math.max(maxY, ref.container.y);
     }
     const padding = 160;
-    const w = (maxX - minX) + padding * 2;
-    const h = (maxY - minY) + padding * 2;
+    const w = maxX - minX + padding * 2;
+    const h = maxY - minY + padding * 2;
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     const cam = this.cameras.main;
@@ -747,7 +784,15 @@ export class KingdomScene extends Phaser.Scene {
       .rectangle(0, 0, todSize, todSize, 0x000000, 0)
       .setOrigin(0.5);
 
-    container.add([isoPlane, todOverlay, alertRing, label, themeText, countBg, countText]);
+    container.add([
+      isoPlane,
+      todOverlay,
+      alertRing,
+      label,
+      themeText,
+      countBg,
+      countText,
+    ]);
 
     // Click → select world's first wielder + pan camera here.
     // Hit area is the alert ring (covers the world's footprint).
@@ -892,7 +937,7 @@ export class KingdomScene extends Phaser.Scene {
   ): WorldRef["particles"] {
     const cfg = THEME_PARTICLES[theme];
     const halfW = (ISO_GRID * ISO_TILE_W) / 2;
-    const halfH = (ISO_GRID * ISO_TILE_H);
+    const halfH = ISO_GRID * ISO_TILE_H;
     const out: WorldRef["particles"] = [];
     for (let i = 0; i < cfg.count; i++) {
       const x = (Math.random() - 0.5) * halfW * 2;
@@ -957,11 +1002,7 @@ export class KingdomScene extends Phaser.Scene {
    * - Patrol step (walk toward target tile, idle, pick new)
    * - Subagent tether to parent
    */
-  private updateWielder(
-    worldRef: WorldRef,
-    ref: WielderRef,
-    unit: UnitState
-  ) {
+  private updateWielder(worldRef: WorldRef, ref: WielderRef, unit: UnitState) {
     const now = this.time.now;
 
     // ── HP / MP bars ────────────────────────────────────────────────
@@ -1054,10 +1095,7 @@ export class KingdomScene extends Phaser.Scene {
           ease: "Sine.easeInOut",
         });
         ref.label.setColor("#ffd86b");
-      } else if (
-        ref.lastStatus === "fallen" ||
-        ref.lastStatus === "complete"
-      ) {
+      } else if (ref.lastStatus === "fallen" || ref.lastStatus === "complete") {
         // Recovered (rare — typically fixtures only).
         this.tweens.killTweensOf(ref.container);
         ref.container.setAngle(0);
@@ -1085,11 +1123,18 @@ export class KingdomScene extends Phaser.Scene {
       // Ensure no stale rotation/alpha from a fallen→recovered transition
       ref.container.setAngle(0);
       ref.container.setAlpha(1);
-      const dist = Math.hypot(targetX - ref.container.x, targetY - ref.container.y);
+      const dist = Math.hypot(
+        targetX - ref.container.x,
+        targetY - ref.container.y
+      );
       const duration = Math.max(800, dist * 12);
       // Switch to walk animation while moving.
       const walkAnim = ANIM.walkDown(unit.role);
-      if (this.anims.exists(walkAnim) && ref.sprite && ref.currentAnim !== walkAnim) {
+      if (
+        this.anims.exists(walkAnim) &&
+        ref.sprite &&
+        ref.currentAnim !== walkAnim
+      ) {
         ref.sprite.play(walkAnim);
         ref.currentAnim = walkAnim;
       }
@@ -1148,9 +1193,11 @@ export class KingdomScene extends Phaser.Scene {
     }
     if (childCount > 0) {
       const formName =
-        childCount === 1 ? "✦ Pair"
-        : childCount === 2 ? "✦ Royal Guard"
-        : "✦ Wayfinder Trio";
+        childCount === 1
+          ? "✦ Pair"
+          : childCount === 2
+            ? "✦ Royal Guard"
+            : "✦ Wayfinder Trio";
       if (!ref.compositeBanner) {
         ref.compositeBanner = this.add
           .text(0, -52, formName, {
@@ -1329,12 +1376,25 @@ export class KingdomScene extends Phaser.Scene {
   private spawnHeartlessIn(worldRef: WorldRef, h: Heartless): HeartlessRef {
     // Spawn at a random edge tile (so they crawl in from the dark border).
     const edge = Math.floor(Math.random() * 4);
-    let tx = 0, ty = 0;
+    let tx = 0,
+      ty = 0;
     switch (edge) {
-      case 0: tx = Math.random() * ISO_GRID; ty = -1; break;
-      case 1: tx = ISO_GRID; ty = Math.random() * ISO_GRID; break;
-      case 2: tx = Math.random() * ISO_GRID; ty = ISO_GRID; break;
-      case 3: tx = -1; ty = Math.random() * ISO_GRID; break;
+      case 0:
+        tx = Math.random() * ISO_GRID;
+        ty = -1;
+        break;
+      case 1:
+        tx = ISO_GRID;
+        ty = Math.random() * ISO_GRID;
+        break;
+      case 2:
+        tx = Math.random() * ISO_GRID;
+        ty = ISO_GRID;
+        break;
+      case 3:
+        tx = -1;
+        ty = Math.random() * ISO_GRID;
+        break;
     }
     const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
     const x = (tx - ty) * (ISO_TILE_W / 2);
@@ -1465,8 +1525,12 @@ export class KingdomScene extends Phaser.Scene {
    * landmark sprite at center + small accent landmarks at fixed offsets.
    * Falls back to drawn polygons if the tile texture didn't load.
    */
-  private buildIsoPlane(plane: Phaser.GameObjects.Container, theme: WorldTheme) {
-    const haveTiles = this.textures.exists("tile-iso-a") && this.textures.exists("tile-iso-b");
+  private buildIsoPlane(
+    plane: Phaser.GameObjects.Container,
+    theme: WorldTheme
+  ) {
+    const haveTiles =
+      this.textures.exists("tile-iso-a") && this.textures.exists("tile-iso-b");
     const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
     const isoToLocal = (tx: number, ty: number) => ({
       x: (tx - ty) * (ISO_TILE_W / 2),
@@ -1535,7 +1599,8 @@ export class KingdomScene extends Phaser.Scene {
       this.didDrag = false;
     });
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!p.isDown || !this.dragOriginScroll || !this.dragOriginPointer) return;
+      if (!p.isDown || !this.dragOriginScroll || !this.dragOriginPointer)
+        return;
       const dx = p.x - this.dragOriginPointer.x;
       const dy = p.y - this.dragOriginPointer.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
@@ -1553,12 +1618,7 @@ export class KingdomScene extends Phaser.Scene {
     });
     this.input.on(
       "wheel",
-      (
-        _p: Phaser.Input.Pointer,
-        _g: unknown,
-        _dx: number,
-        dy: number
-      ) => {
+      (_p: Phaser.Input.Pointer, _g: unknown, _dx: number, dy: number) => {
         const cam = this.cameras.main;
         const factor = dy > 0 ? 1 / 1.1 : 1.1;
         cam.zoom = Phaser.Math.Clamp(cam.zoom * factor, 0.3, 2.5);
@@ -1568,10 +1628,7 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private drawSky() {
-    this.skyGfx = this.add
-      .graphics()
-      .setDepth(-100)
-      .setScrollFactor(0);
+    this.skyGfx = this.add.graphics().setDepth(-100).setScrollFactor(0);
     this.repaintSky();
   }
 
@@ -1656,9 +1713,10 @@ function computeClusterLayout(
   const sortedKeys = [...clusters.keys()].sort();
 
   for (const key of sortedKeys) {
-    const members = clusters.get(key)!.slice().sort((a, b) =>
-      a.id.localeCompare(b.id)
-    );
+    const members = clusters
+      .get(key)!
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id));
     const ch = hashString(key);
     // Outer ring: cluster centroids at radius 600–1400 from origin.
     const outerRadius = 600 + (Math.abs(ch) % 800);

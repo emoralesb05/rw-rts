@@ -9,6 +9,11 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "lint:eslint": "eslint .",
+    "lint:style": "stylelint \"src/**/*.css\"",
+    "lint": "bun run lint:eslint && bun run lint:style",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "bun run typecheck:node && bun run typecheck:web",
@@ -31,7 +36,9 @@
       {
         "from": "bin",
         "to": "bin",
-        "filter": ["keykeeper-hook"]
+        "filter": [
+          "keykeeper-hook"
+        ]
       }
     ],
     "asar": true,
@@ -39,11 +46,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         },
         {
           "target": "dir",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "category": "public.app-category.developer-tools",
@@ -105,6 +116,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@napi-rs/canvas": "^0.1.100",
     "@types/node": "^25.0.0",
     "@types/react": "^19.0.7",
@@ -113,7 +125,15 @@
     "electron": "^41.0.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "stylelint": "^17.11.0",
+    "stylelint-config-standard": "^40.0.0",
     "typescript": "^6.0.0",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.5"
   }
