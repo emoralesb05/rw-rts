@@ -71,6 +71,7 @@ export function DispatchPanelBody() {
 
   const targetLabel =
     spawnPath && discoveredRepos.find((r) => r.path === spawnPath)?.label;
+  const canSpawn = !busy && !!prompt.trim();
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3.5 font-ui">
@@ -150,9 +151,9 @@ export function DispatchPanelBody() {
         </Button>
         <Button
           type="button"
-          variant="primary"
+          variant={canSpawn ? "primary" : "default"}
           onClick={send}
-          disabled={busy || !prompt.trim()}
+          disabled={!canSpawn}
         >
           {busy ? "Spawning…" : (<><Play size={12} aria-hidden /> Spawn {tool}</>)}
         </Button>

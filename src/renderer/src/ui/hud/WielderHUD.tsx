@@ -22,12 +22,13 @@ export function WielderHUD() {
   const all = Object.values(units).sort(
     (a, b) => (a.spawnedAt ?? a.lastActivity) - (b.spawnedAt ?? b.lastActivity)
   );
+  const active = all.filter(
+    (u) => u.status !== "complete" && u.status !== "fallen"
+  );
   const ghostedCount = all.filter(
     (u) => u.status === "complete" || u.status === "fallen"
   ).length;
-  const list = showGhosted
-    ? all
-    : all.filter((u) => u.status !== "complete" && u.status !== "fallen");
+  const list = showGhosted ? all : active;
   const headerExtra = (
     <>
       {ghostedCount > 0 && (
@@ -38,20 +39,20 @@ export function WielderHUD() {
               : `Show ${ghostedCount} completed/fallen wielders`
           }
         >
-          <button
+          <Button
             type="button"
+            variant="ghost"
             className={cn(
-              "inline-flex min-h-6 items-center justify-center gap-1 rounded-sm border px-2 py-0.5",
-              "text-[10px] font-bold uppercase tracking-[0.5px] transition-colors",
+              "min-h-6 px-2 py-0.5 text-[10px] uppercase tracking-[0.5px]",
               showGhosted
-                ? "border-accent-alt bg-accent-alt/20 text-accent-alt"
-                : "border-white/20 bg-transparent text-muted hover:border-accent-alt hover:text-accent-alt"
+                ? "border-accent-alt bg-accent-alt/15 text-accent-alt hover:bg-accent-alt/20"
+                : "border-white/20 text-muted hover:border-accent-alt hover:text-accent-alt"
             )}
             onClick={() => setShowGhosted((v) => !v)}
             aria-pressed={showGhosted}
           >
-            ✦ {ghostedCount}
-          </button>
+            done {ghostedCount}
+          </Button>
         </TooltipHint>
       )}
       <TooltipHint
@@ -74,14 +75,14 @@ export function WielderHUD() {
     <HudWidget
       anchor="top-left"
       title="Wielders"
-      count={list.length}
+      count={active.length}
       headerExtra={headerExtra}
     >
       {list.length === 0 ? (
         <EmptyState className="min-h-0 bg-transparent px-2 py-3">
           {all.length === 0
             ? "The kingdom is quiet. Spawn or run an agent to begin."
-            : "All active wielders done. Toggle ✦ to see history."}
+            : "All active wielders done. Toggle done to see history."}
         </EmptyState>
       ) : (
         <div className="mt-2.5 flex flex-col gap-1">

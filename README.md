@@ -183,7 +183,7 @@ single Phaser scene (`KingdomScene`) renders the unified Star Chart
 with a shared filter pipeline (CRT scanline + bloom + vignette + per-
 event Tier 3 shader pulses + per-theme atmospherics). React HUD
 widgets and floating panels overlay the canvas — no top toolbar; the
-KingdomHeader pill is the de-facto chrome.
+KingdomHeader pill is the de-facto top HUD.
 
 Persistent state lives in JSON in the userData dir; main reads it on
 launch and writes it debounced as the renderer dispatches updates.
@@ -260,7 +260,7 @@ constraints behind that asymmetry.
 **HUD redesign (shipped):** four-corner glass-pane HUD widgets,
 floating panel system (drag, stack, no backdrop), per-wielder Messages
 tab with chat input, Dispatch dialog, Kingdom tabbed panel, KingdomHeader
-pill as the only top chrome.
+pill as the only top HUD.
 
 **Post-MVP (deferred, not blocking ship):** Cura/Curaga heal-many verbs,
 replay mode (event-log scrubber), outbound MCP server, Quest system.

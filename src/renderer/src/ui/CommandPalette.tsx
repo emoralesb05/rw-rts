@@ -32,6 +32,7 @@ import {
   CommandList,
 } from "./components/primitives/Command";
 import { Separator } from "./components/primitives/Separator";
+import { cn } from "@/lib/cn";
 import type { AgentEvent, UnitState, WorldState } from "@shared/events";
 
 type CommandItem = {
@@ -236,11 +237,11 @@ export function CommandPalette() {
   return (
     <Dialog open={open} onOpenChange={setPaletteOpen}>
       <DialogContent
-        className={[
+        className={cn(
           "top-[13vh] w-[min(680px,calc(100vw-32px))] translate-y-0 p-0",
           "max-h-[calc(100vh-120px)] overflow-hidden border-accent/35",
-          "bg-surface-1/95 shadow-[0_22px_80px_rgba(0,0,0,0.68),0_0_0_1px_rgba(255,216,107,0.07)]",
-        ].join(" ")}
+          "bg-surface-1/95 shadow-[0_22px_80px_rgba(0,0,0,0.68),0_0_0_1px_rgba(255,216,107,0.07)]"
+        )}
       >
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <DialogDescription className="sr-only">

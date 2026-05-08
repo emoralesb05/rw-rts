@@ -11,7 +11,7 @@ import { TooltipProvider } from "./ui/components/primitives/Tooltip";
 import { AppToastProvider } from "./ui/components/kit/ToastLayer";
 
 /**
- * HUD-overlay layout (FFXIV-style, no chrome bars):
+ * HUD-overlay layout (FFXIV-style, no app bars):
  *
  *   ┌─ thin invisible drag strip (12px) ────────────────────────┐
  *   │           ┌── KingdomHeader pill ──┐                       │

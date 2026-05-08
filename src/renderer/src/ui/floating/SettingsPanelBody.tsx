@@ -135,7 +135,7 @@ export function SettingsPanelBody({ onSaved }: Props) {
         </Button>
         <Button
           type="button"
-          variant="primary"
+          variant={canSave ? "primary" : "default"}
           onClick={save}
           disabled={!canSave}
         >

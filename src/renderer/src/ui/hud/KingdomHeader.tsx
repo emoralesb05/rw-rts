@@ -1,5 +1,5 @@
 /**
- * Translucent floating strip at top-center — the de-facto top chrome.
+ * Translucent floating strip at top-center — the de-facto top HUD.
  * Shows kingdom-level info (sealed / wielders / munny / age) plus the
  * two persistent action icons (mute toggle, Kingdom panel).
  *
