@@ -26,6 +26,7 @@ export default {
       },
     ],
     "custom-property-pattern": null,
+    "import-notation": "string",
     "keyframes-name-pattern": null,
     "selector-class-pattern": null,
   },

@@ -1,6 +1,6 @@
-@import url("tailwindcss");
-@import url("streamdown/styles.css");
-@import url("katex/dist/katex.min.css");
+@import "tailwindcss";
+@import "streamdown/styles.css";
+@import "katex/dist/katex.min.css";
 
 @source "../../../node_modules/streamdown/dist/*.js";
 @source "../../../node_modules/@streamdown/code/dist/*.js";
