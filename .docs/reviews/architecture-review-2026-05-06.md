@@ -76,7 +76,7 @@ Largest files at review time:
 
 | Technology | Recommendation | Why |
 |---|---|---|
-| Radix UI primitives | Adopt for dialogs, tabs, tooltips, select/dropdowns, popovers, and scroll areas | Gives accessible behavior while keeping visual ownership in our components. Matches the existing design-system plan. |
+| Radix UI primitives | Adopt for dialogs, tabs, tooltips, select/dropdowns, popovers, and scroll areas | Gives accessible behavior while keeping visual ownership in our components. Matches the design-system direction that has since landed. |
 | Tailwind v4 theme variables | Adopt incrementally | Tailwind v4 exposes theme values as CSS variables, which fits the current CSS-heavy renderer and can reduce repeated magic values. |
 | Zod | Adopt at IPC/provider/persistence boundaries | Small, direct runtime schema validation for untrusted JSON and renderer calls. |
 | Vitest | Adopt | Fast unit tests for pure TypeScript reducers, normalizers, and parser helpers. |

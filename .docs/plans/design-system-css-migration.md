@@ -7,9 +7,8 @@
 Shrink `src/renderer/src/styles.css` from ~3500 lines to the small set
 of authored CSS that is actually irreducible: Tailwind v4 tokens, global
 resets, Phaser canvas integration, keyframes, and markup we do not own.
-The Radix/OSS component foundation is complete in
-`.docs/plans/design-system.md`; this plan owns only the remaining CSS
-migration work.
+The Radix/OSS component foundation has landed; this plan owns only the
+remaining CSS migration work.
 
 ## Migration Order
 

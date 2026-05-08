@@ -27,6 +27,7 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Store letter-action shell behavior now has tests for permission allow/deny, observation-only acknowledgements, dispatch selection, and recalls.
 - Provider hook installers now have idempotency tests against mocked home-directory config files.
 - Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
+- The Radix/Tailwind owned component foundation has landed; remaining UI cleanup is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
 
 ## Adopt now
 
@@ -68,13 +69,16 @@ Acceptance:
 
 ### Radix UI primitives
 
-Adopt through the existing design-system plan, not ad hoc inside feature code. See [`design-system.md`](./design-system.md).
+The owned Radix/Tailwind foundation has landed. New UI should keep using
+the owned wrappers under `src/renderer/src/components/primitives/` and
+chrome atoms under `src/renderer/src/components/chrome/`; remaining CSS
+reduction is tracked in [`design-system-css-migration.md`](./design-system-css-migration.md).
 
 First slice:
 
-1. Install dialog, tabs, tooltip, select, popover, dropdown menu, and scroll area primitives.
-2. Add owned wrappers under `src/renderer/src/components/primitives/`.
-3. Convert `DecreeModal` first because focus trapping and modal semantics matter there.
+1. Install dialog, tabs, tooltip, select, popover, dropdown menu, and scroll area primitives. **Done.**
+2. Add owned wrappers under `src/renderer/src/components/primitives/`. **Done.**
+3. Convert `DecreeModal` first because focus trapping and modal semantics matter there. **Done.**
 
 Acceptance:
 
@@ -148,13 +152,13 @@ Defer until provider process lifecycle complexity proves it needs a formal state
 4. Extract store reducers and add standing-order/permission tests. **Started with standing-order and permission-letter domain helpers.**
 5. Add provider installer idempotency tests. **Done for Claude, Cursor, Gemini, and Codex.**
 6. Continue extracting the large store event reducer. **Store letter-action shell coverage is now in place.**
-7. Start Radix-owned component wrappers and convert `DecreeModal`.
+7. Start Radix-owned component wrappers and convert `DecreeModal`. **Done.**
 8. Add Playwright Electron smoke tests after fixture-driven UI flows have stable selectors.
 
 ## Source links
 
 - Architecture review: [`../reviews/architecture-review-2026-05-06.md`](../reviews/architecture-review-2026-05-06.md)
-- Design-system plan: [`design-system.md`](./design-system.md)
+- Design-system CSS migration: [`design-system-css-migration.md`](./design-system-css-migration.md)
 - Multi-choice permissions plan: [`multi-choice-permissions.md`](./multi-choice-permissions.md)
 - Electron security checklist: https://www.electronjs.org/docs/latest/tutorial/security
 - Vitest guide: https://vitest.dev/guide/
