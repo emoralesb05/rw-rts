@@ -10,5 +10,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    environmentMatchGlobs: [["**/*.component.test.tsx", "jsdom"]],
+    setupFiles: ["src/renderer/src/test/setup.ts"],
   },
 });

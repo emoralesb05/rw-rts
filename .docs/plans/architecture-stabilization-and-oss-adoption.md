@@ -25,6 +25,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Pure renderer logic now has unit coverage for activity summaries and wielder archetype classification.
 - Store standing-order and permission-letter helpers are extracted into `store-domain.ts` with unit coverage.
 - Store letter-action shell behavior now has tests for permission allow/deny, observation-only acknowledgements, dispatch selection, and recalls.
+- Store event ingestion now has unit coverage for animation-frame
+  batching, repo-root visit persistence, permission-letter lifecycle,
+  combat/world updates, and total-munny persistence debounce.
 - Provider hook installers now have idempotency tests against mocked home-directory config files.
 - Hook bridge normalization and duplicate suppression are split into pure modules with direct imports and focused tests.
 - The Radix/Tailwind owned component foundation has landed, and the completed CSS migration plan was removed.
@@ -39,6 +42,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - Streamdown is now used with local component mappings in
   `ConversationStream`, so markdown styling no longer needs global
   `.md*` CSS.
+- React Testing Library is installed with jsdom-backed component tests
+  for `LetterCard` permission actions/shortcuts and `ConversationStream`
+  unit grouping/subagent inclusion.
 
 ## Adopt now
 
@@ -103,13 +109,13 @@ Use for focused renderer component behavior after Vitest is in place.
 
 First slice:
 
-1. Configure a jsdom Vitest environment for renderer tests.
-2. Test `LetterCard` action rendering and `ConversationStream` event grouping.
-3. Avoid large visual snapshots; prefer user-visible behavior assertions.
+1. Configure a jsdom Vitest environment for renderer tests. **Done for `*.component.test.tsx`.**
+2. Test `LetterCard` action rendering and `ConversationStream` event grouping. **Done.**
+3. Avoid large visual snapshots; prefer user-visible behavior assertions. **Done for the first slice.**
 
 Acceptance:
 
-- Tests exercise the same actions users click, not implementation details.
+- Tests exercise the same actions users click, not implementation details. **Done for the first slice.**
 
 ## Evaluate with a spike
 
@@ -163,7 +169,7 @@ Defer until provider process lifecycle complexity proves it needs a formal state
 3. Add Zod schemas around IPC and persisted/settings boundaries.
 4. Extract store reducers and add standing-order/permission tests. **Started with standing-order and permission-letter domain helpers.**
 5. Add provider installer idempotency tests. **Done for Claude, Cursor, Gemini, and Codex.**
-6. Continue extracting the large store event reducer. **Store letter-action shell coverage is now in place.**
+6. Continue extracting the large store event reducer. **Store letter-action shell and event-ingest reducer coverage are now in place; extraction remains incremental.**
 7. Start Radix-owned component wrappers and convert `DecreeModal`. **Done.**
 8. Add Playwright Electron smoke tests after fixture-driven UI flows have stable selectors.
 9. Replace the remaining manual Electron smoke workflow with automated app-level checks once selectors are stable.
