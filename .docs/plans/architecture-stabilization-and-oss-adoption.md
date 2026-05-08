@@ -45,6 +45,9 @@ Turn the architecture review in [`../reviews/architecture-review-2026-05-06.md`]
 - React Testing Library is installed with jsdom-backed component tests
   for `LetterCard` permission actions/shortcuts and `ConversationStream`
   unit grouping/subagent inclusion.
+- Radix-backed `DecreeModal` now has jsdom component tests for one-off
+  decrees, recent-file command palette insertion, standing-order
+  confirmation, and observed-only disabled state.
 
 ## Adopt now
 
@@ -97,6 +100,8 @@ First slice:
 1. Install dialog, tabs, tooltip, select, popover, dropdown menu, and scroll area primitives. **Done.**
 2. Add owned wrappers under `src/renderer/src/ui/components/primitives/`. **Done.**
 3. Convert `DecreeModal` first because focus trapping and modal semantics matter there. **Done.**
+4. Add behavior coverage for the Radix-backed `DecreeModal` send,
+   palette, and confirmation flows. **Done.**
 
 Acceptance:
 
