@@ -6,6 +6,10 @@ function soundFor(ev: AgentEvent): SoundName | null {
   if (ev.kind === "session_start") return "session_start";
   if (ev.kind === "session_end") return "session_end";
   if (ev.kind === "error") return "error";
+  if (ev.kind === "permission_request" || ev.kind === "user_prompt") {
+    return "letter";
+  }
+  if (ev.kind === "subagent_spawn") return "summon";
   if (ev.kind === "tool_use") {
     const name = String(ev.payload.name ?? "");
     if (["Edit", "Write", "MultiEdit"].includes(name)) return "edit";

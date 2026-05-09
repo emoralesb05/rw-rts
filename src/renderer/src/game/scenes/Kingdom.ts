@@ -18,10 +18,12 @@
  */
 
 import * as Phaser from "phaser";
-import { useStore } from "../../store";
+import { unitIdentityForUnit, useStore } from "../../store";
 import type {
   AgentEvent,
+  Letter,
   UnitState,
+  WielderStats,
   WorldState,
   WorldAlertLevel,
   DriveForm,
@@ -167,6 +169,15 @@ const THEME_BIOMES: Record<WorldTheme, BiomePalette> = {
   },
 };
 
+const THEME_TILE_TINT: Record<WorldTheme, [number, number]> = {
+  disney: [0xc9ddff, 0x9fc2ff],
+  hollow: [0x7a5db7, 0x4b367f],
+  traverse: [0xd08a4f, 0x9d5f36],
+  destiny: [0xf4d5a4, 0x8ed5ff],
+  twilight: [0xf2a0ad, 0xb77aa0],
+  halloween: [0x7c5a9f, 0x4c2c66],
+};
+
 // Per-theme landmark: at the center of the iso plane. Texture key
 // matches the loader pattern landmark-${theme}.
 const LANDMARK_TEX = (theme: WorldTheme) => `landmark-${theme}`;
@@ -249,6 +260,21 @@ const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
 };
 
 const ACTIVITY_MOOD_MS = 6000;
+const IDLE_QUIRK_MIN_MS = 4200;
+const IDLE_QUIRK_MAX_MS = 8200;
+const IDLE_QUIRK_DURATION_MS = 3600;
+const RESULT_STREAK_POSE_MS = 1800;
+const CAMERA_PUNCTUATION_COOLDOWN_MS = 900;
+const FINE_DETAIL_FADE_MIN_ZOOM = 0.24;
+const FINE_DETAIL_FADE_FULL_ZOOM = 0.48;
+const WORLD_CULL_PAD = 360;
+const LETTER_SIGNAL_MS = 1500;
+const RENOWN_SIGNAL_MS = 2400;
+const MISSION_FORMATION_ORDER = [0, 3, 1, 4, 2, 5] as const;
+
+type IdleQuirkKind = "watch" | "garden" | "forge" | "tide";
+type ResultPoseKind = "success" | "error";
+type RenownTier = "New" | "Apprentice" | "Veteran" | "Hero";
 
 type WielderRef = {
   unitId: string;
@@ -268,6 +294,18 @@ type WielderRef = {
   orderLine: Phaser.GameObjects.Graphics;
   orderRing: Phaser.GameObjects.Arc;
   orderLabel: Phaser.GameObjects.Text;
+  jobGfx: Phaser.GameObjects.Graphics;
+  jobPhase: number;
+  idleGfx: Phaser.GameObjects.Graphics;
+  idleQuirkKind: IdleQuirkKind;
+  idleQuirkPhase: number;
+  idleQuirkNextAt: number;
+  idleQuirkUntil: number;
+  streakGfx: Phaser.GameObjects.Graphics;
+  streakPoseKind?: ResultPoseKind;
+  streakPoseUntil: number;
+  successStreak: number;
+  errorStreak: number;
   // Bobbing "!" alert icon shown above the head when HP is critical
   // (or the wielder has just fallen). Hidden otherwise.
   criticalAlert: Phaser.GameObjects.Text;
@@ -277,10 +315,13 @@ type WielderRef = {
   lastBarkAt: number;
   label: Phaser.GameObjects.Text;
   homeIndex: number;
+  formationSlot?: number;
   locationMode: "base" | "mission";
   locationTargetKey?: string;
   isTraveling: boolean;
   missionHoldUntil: number;
+  renownTier: RenownTier;
+  renownScore: number;
   // Patrol state machine.
   patrolState: "scouting" | "walking" | "arrived";
   patrolTarget?: { x: number; y: number };
@@ -377,8 +418,12 @@ export class KingdomScene extends Phaser.Scene {
   private didDrag = false;
   private lastWorldsKey = "";
   private lastCameraTargetVersion = 0;
+  private seenLetterIds = new Set<string>();
+  private seenLetterCounts = new Map<string, number>();
+  private renownTiers = new Map<string, RenownTier>();
   private lastUserCamMs = 0;
   private t = 0;
+  private lastCameraPunctuationAt = -CAMERA_PUNCTUATION_COOLDOWN_MS;
   // Tier 3 filter handles — held so KO + seal pulses can tween amplitudes.
   private bloomFilter?: Phaser.Filters.Glow;
   private barrelFilter?: Phaser.Filters.Barrel;
@@ -481,6 +526,18 @@ export class KingdomScene extends Phaser.Scene {
     // before any spawnWielder call.
     createRoleAnimations(this.anims, this.textures);
 
+    const initialState = useStore.getState();
+    this.seenLetterIds = new Set(initialState.letters.map((l) => l.id));
+    this.seenLetterCounts = new Map(
+      initialState.letters.map((l) => [l.id, l.count ?? 1])
+    );
+    this.renownTiers = new Map(
+      Object.entries(initialState.persisted.wielders).map(([id, stats]) => [
+        id,
+        renownForStats(stats).tier,
+      ])
+    );
+
     // Camera control
     this.installCameraControls();
 
@@ -509,6 +566,13 @@ export class KingdomScene extends Phaser.Scene {
       if (worldRef) {
         this.holdMissionForEvent(ref, ev);
         this.triggerWorldEventVfx(worldRef, ref, ev);
+        const resultKind =
+          ev.kind === "tool_result" || ev.kind === "error"
+            ? activityForEvent(ev)
+            : null;
+        if (resultKind === "success" || resultKind === "error") {
+          this.recordResultPose(worldRef, ref, resultKind);
+        }
       }
 
       // Voice bark — independent of sprite/anim timing. Bark on the
@@ -572,6 +636,9 @@ export class KingdomScene extends Phaser.Scene {
       this.scanline = undefined;
       this.lastWorldsKey = "";
       this.lastCameraTargetVersion = 0;
+      this.seenLetterIds.clear();
+      this.seenLetterCounts.clear();
+      this.renownTiers.clear();
     });
   }
 
@@ -580,7 +647,8 @@ export class KingdomScene extends Phaser.Scene {
     this.updateViewportBackdrops();
 
     // Sync world planets
-    const worlds = useStore.getState().worlds;
+    const storeState = useStore.getState();
+    const worlds = storeState.worlds;
     const key = Object.keys(worlds).sort().join(",");
     if (key !== this.lastWorldsKey) {
       this.syncWorlds(worlds);
@@ -589,7 +657,7 @@ export class KingdomScene extends Phaser.Scene {
     this.enforceStrategyZoomFloor();
 
     // Update per-world live state (count, alert ring color, wielders)
-    const units = useStore.getState().units;
+    const units = storeState.units;
     for (const [id, ref] of this.worlds) {
       const w = worlds[id];
       if (!w) continue;
@@ -612,21 +680,27 @@ export class KingdomScene extends Phaser.Scene {
       }
 
       // Sync wielders + heartless for this world.
-      this.syncWieldersFor(ref, w, units);
+      this.syncWieldersFor(ref, w, units, delta);
       this.syncHeartlessFor(ref, w);
-      this.tickHeartlessCombat(ref, w, units, delta);
-      // Time-of-day tint per-world based on session age.
-      this.updateTimeOfDay(ref);
-      // Drift particles inside this world's iso footprint.
-      this.tickWorldParticles(ref, delta);
-      // Tier 2 — per-theme animated atmosphere (water, fire, magic).
-      this.tickWorldAtmospherics(ref, delta);
-      this.updateWorldBreath(ref, w, units);
-      this.tickWorldBiome(ref, w, units, delta);
-      this.tickWorldWorkSites(ref, w, units);
+      if (this.isWorldNearViewport(ref)) {
+        this.tickHeartlessCombat(ref, w, units, delta);
+        // Time-of-day tint per-world based on session age.
+        this.updateTimeOfDay(ref);
+        // Drift particles inside this world's iso footprint.
+        this.tickWorldParticles(ref, delta);
+        // Tier 2 — per-theme animated atmosphere (water, fire, magic).
+        this.tickWorldAtmospherics(ref, delta);
+        this.updateWorldBreath(ref, w, units);
+        this.tickWorldBiome(ref, w, units, delta);
+        this.tickWorldWorkSites(ref, w, units);
+      } else {
+        ref.workGfx.clear();
+      }
     }
 
     this.tickKingdomBase(delta, units);
+    this.syncLetterSignals(storeState.letters, units);
+    this.syncRenownSignals(units, storeState.persisted.wielders);
 
     // Twinkle stars
     for (const s of this.stars) {
@@ -740,15 +814,524 @@ export class KingdomScene extends Phaser.Scene {
     if (kind === "subagent" || kind === "web") {
       this.pulseRoutesFromWorld(worldRef, color);
     }
+    this.punctuateCameraForEvent(worldRef, kind, event);
+  }
+
+  private recordResultPose(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    kind: ResultPoseKind
+  ) {
+    if (kind === "success") {
+      ref.successStreak += 1;
+      ref.errorStreak = 0;
+      if (ref.successStreak < 3 || ref.successStreak % 3 !== 0) return;
+    } else {
+      ref.errorStreak += 1;
+      ref.successStreak = 0;
+    }
+
+    ref.streakPoseKind = kind;
+    ref.streakPoseUntil = this.time.now + RESULT_STREAK_POSE_MS;
+    const color =
+      kind === "success"
+        ? activityColorForTheme(worldRef.theme, "success")
+        : activityColorForTheme(worldRef.theme, "error");
+    this.spawnResultStreakBurst(
+      ref,
+      kind,
+      color,
+      kind === "success" ? ref.successStreak : ref.errorStreak
+    );
+  }
+
+  private spawnResultStreakBurst(
+    ref: WielderRef,
+    kind: ResultPoseKind,
+    color: number,
+    streak: number
+  ) {
+    const x = ref.container.x;
+    const y = ref.container.y - 48;
+    const g = this.add.graphics().setPosition(x, y).setDepth(73);
+    g.fillStyle(color, 0.14);
+    g.fillCircle(0, 0, 18);
+    g.lineStyle(2.4, color, 0.92);
+    if (kind === "success") {
+      g.beginPath();
+      g.moveTo(-9, -1);
+      g.lineTo(-3, 7);
+      g.lineTo(12, -10);
+      g.strokePath();
+      for (let i = 0; i < Math.min(streak, 6); i++) {
+        const a = -Math.PI + i * (Math.PI / 5);
+        g.fillStyle(color, 0.72);
+        g.fillCircle(Math.cos(a) * 24, Math.sin(a) * 10, 1.8);
+      }
+    } else {
+      g.beginPath();
+      g.moveTo(-9, -10);
+      g.lineTo(9, 10);
+      g.moveTo(9, -10);
+      g.lineTo(-9, 10);
+      g.strokePath();
+      g.lineStyle(1.2, color, 0.52);
+      g.strokeCircle(0, 0, 25);
+    }
+    const label = this.add
+      .text(x, y + 22, kind === "success" ? `CHAIN ${streak}` : "BREAK", {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.76)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(74);
+    this.agentLayer?.add([g, label]);
+    this.tweens.add({
+      targets: [g, label],
+      y: "-=22",
+      alpha: 0,
+      scale: 1.18,
+      duration: 950,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        label.destroy();
+      },
+    });
+  }
+
+  private punctuateCameraForEvent(
+    worldRef: WorldRef,
+    kind: WorldActivityKind,
+    event: AgentEvent
+  ) {
+    if (
+      event.kind !== "permission_request" &&
+      event.kind !== "error" &&
+      event.kind !== "subagent_spawn"
+    ) {
+      return;
+    }
+    if (
+      this.time.now - this.lastCameraPunctuationAt <
+      CAMERA_PUNCTUATION_COOLDOWN_MS
+    ) {
+      return;
+    }
+
+    this.lastCameraPunctuationAt = this.time.now;
+    const cam = this.cameras.main;
+    if (kind === "error") {
+      cam.shake(220, 0.004, true);
+      cam.flash(180, 255, 90, 60, false);
+    } else if (kind === "permission" || kind === "prompt") {
+      cam.flash(160, 255, 184, 108, false);
+      cam.shake(140, 0.0016, true);
+    } else if (kind === "subagent") {
+      cam.flash(180, 255, 216, 107, false);
+    }
+
+    if (performance.now() - this.lastUserCamMs > 2500) {
+      cam.pan(
+        Phaser.Math.Linear(0, worldRef.container.x, 0.52),
+        Phaser.Math.Linear(0, worldRef.container.y, 0.52),
+        320,
+        "Sine.easeInOut"
+      );
+    }
+  }
+
+  private syncLetterSignals(
+    letters: readonly Letter[],
+    units: Record<string, UnitState>
+  ) {
+    const liveIds = new Set<string>();
+    for (const letter of [...letters].sort(
+      (a, b) => a.createdAt - b.createdAt
+    )) {
+      liveIds.add(letter.id);
+      const nextCount = letter.count ?? 1;
+      const previousCount = this.seenLetterCounts.get(letter.id);
+      if (!this.seenLetterIds.has(letter.id)) {
+        this.seenLetterIds.add(letter.id);
+        this.seenLetterCounts.set(letter.id, nextCount);
+        this.triggerLetterSignal(letter, units);
+      } else if (previousCount !== undefined && nextCount > previousCount) {
+        this.seenLetterCounts.set(letter.id, nextCount);
+        this.triggerLetterSignal(letter, units);
+      }
+    }
+
+    if (this.seenLetterIds.size <= 96) return;
+    for (const id of [...this.seenLetterIds]) {
+      if (liveIds.has(id)) continue;
+      this.seenLetterIds.delete(id);
+      this.seenLetterCounts.delete(id);
+    }
+  }
+
+  private triggerLetterSignal(
+    letter: Letter,
+    units: Record<string, UnitState>
+  ) {
+    const unit = letter.sessionId ? units[letter.sessionId] : undefined;
+    const target = unit ? this.findWielderRef(unit.id) : undefined;
+    const worldRef =
+      (letter.worldId ? this.worlds.get(letter.worldId) : undefined) ??
+      target?.worldRef;
+    const color = letterSignalColor(letter);
+    const kind = letterActivityKind(letter);
+    const label = letterSignalLabel(letter);
+
+    this.spawnBaseSignal(color, label);
+    if (worldRef) {
+      worldRef.lastActivityKind = kind;
+      worldRef.lastActivityAt = this.time.now;
+      worldRef.lastActivityColor = color;
+      this.tweens.killTweensOf(worldRef.eventOverlay);
+      worldRef.eventOverlay
+        .setFillStyle(color, letter.severity === "critical" ? 0.34 : 0.24)
+        .setAlpha(1);
+      this.tweens.add({
+        targets: worldRef.eventOverlay,
+        alpha: 0,
+        duration: LETTER_SIGNAL_MS,
+        ease: "Sine.easeOut",
+      });
+      this.tweens.killTweensOf(worldRef.alertRing);
+      this.tweens.add({
+        targets: worldRef.alertRing,
+        scale: { from: 1.16, to: 1 },
+        duration: 520,
+        ease: "Back.easeOut",
+      });
+      this.pulseRoutesFromWorld(worldRef, color);
+      this.spawnLetterWorldSignal(worldRef, letter, color, label);
+    }
+
+    if (target) {
+      this.spawnLetterWielderSignal(target.ref, letter, color, label);
+    }
+
+    if (
+      letter.severity === "critical" &&
+      this.time.now - this.lastCameraPunctuationAt >
+        CAMERA_PUNCTUATION_COOLDOWN_MS
+    ) {
+      this.lastCameraPunctuationAt = this.time.now;
+      this.cameras.main.flash(180, 255, 90, 60, false);
+      this.cameras.main.shake(180, 0.0022, true);
+    }
+  }
+
+  private findWielderRef(unitId: string) {
+    for (const worldRef of this.worlds.values()) {
+      const ref = worldRef.wielders.get(unitId);
+      if (ref) return { worldRef, ref };
+    }
+    return undefined;
+  }
+
+  private spawnBaseSignal(color: number, label: string) {
+    const base = this.base;
+    if (!base) return;
+    const center = this.baseIsoToLocal(BASE_GRID_W / 2, BASE_GRID_H / 2);
+    const g = this.add
+      .graphics()
+      .setPosition(center.x, center.y - 62)
+      .setDepth(66);
+    g.lineStyle(2.4, color, 0.72);
+    g.strokeCircle(0, 0, 32);
+    g.lineStyle(1.2, color, 0.36);
+    g.strokeCircle(0, 0, 52);
+    g.fillStyle(color, 0.18);
+    g.fillCircle(0, 0, 42);
+    const text = this.add
+      .text(center.x, center.y - 104, label, {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.72)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(67);
+    this.agentLayer?.add([g, text]);
+    this.tweens.add({
+      targets: [g, text],
+      alpha: 0,
+      scale: 1.42,
+      duration: LETTER_SIGNAL_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        text.destroy();
+      },
+    });
+  }
+
+  private spawnLetterWorldSignal(
+    worldRef: WorldRef,
+    letter: Letter,
+    color: number,
+    label: string
+  ) {
+    const x = worldRef.container.x;
+    const y = worldRef.container.y - 66;
+    const g = this.add.graphics().setPosition(x, y).setDepth(68);
+    this.drawLetterEnvelope(g, color, letter.severity === "critical" ? 1 : 0.8);
+    g.lineStyle(1.4, color, 0.5);
+    g.strokeEllipse(0, 68, 112, 32);
+    const text = this.add
+      .text(x, y + 26, label, {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.72)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(69);
+    this.agentLayer?.add([g, text]);
+    this.tweens.add({
+      targets: [g, text],
+      y: "-=20",
+      alpha: 0,
+      scale: 1.2,
+      duration: LETTER_SIGNAL_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        text.destroy();
+      },
+    });
+  }
+
+  private spawnLetterWielderSignal(
+    ref: WielderRef,
+    letter: Letter,
+    color: number,
+    label: string
+  ) {
+    const x = ref.container.x;
+    const y = ref.container.y - 58;
+    const g = this.add.graphics().setPosition(x, y).setDepth(74);
+    this.drawLetterEnvelope(g, color, letter.severity === "critical" ? 1 : 0.8);
+    const text = this.add
+      .text(x, y + 16, label, {
+        fontSize: "7px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.78)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5)
+      .setDepth(75);
+    this.agentLayer?.add([g, text]);
+    this.tweens.add({
+      targets: [g, text],
+      y: "-=24",
+      alpha: 0,
+      scale: 1.16,
+      duration: 1100,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        text.destroy();
+      },
+    });
+  }
+
+  private drawLetterEnvelope(
+    g: Phaser.GameObjects.Graphics,
+    color: number,
+    alpha: number
+  ) {
+    g.fillStyle(0x020713, 0.72);
+    g.fillRoundedRect(-17, -11, 34, 22, 4);
+    g.lineStyle(1.4, color, alpha);
+    g.strokeRoundedRect(-17, -11, 34, 22, 4);
+    g.lineStyle(1.1, color, alpha * 0.72);
+    g.beginPath();
+    g.moveTo(-15, -9);
+    g.lineTo(0, 2);
+    g.lineTo(15, -9);
+    g.moveTo(-15, 9);
+    g.lineTo(-3, -1);
+    g.moveTo(15, 9);
+    g.lineTo(3, -1);
+    g.strokePath();
+    g.fillStyle(color, 0.16);
+    g.fillCircle(0, 0, 25);
+  }
+
+  private syncRenownSignals(
+    units: Record<string, UnitState>,
+    persistedWielders: Record<string, WielderStats>
+  ) {
+    for (const unit of Object.values(units)) {
+      const identity = unitIdentityForUnit(unit);
+      const renown = renownForStats(persistedWielders[identity]);
+      const previousTier = this.renownTiers.get(identity);
+      if (!previousTier) {
+        this.renownTiers.set(identity, renown.tier);
+        continue;
+      }
+      if (renownRank(renown.tier) > renownRank(previousTier)) {
+        this.renownTiers.set(identity, renown.tier);
+        const target = this.findWielderRef(unit.id);
+        if (target) {
+          target.ref.renownTier = renown.tier;
+          target.ref.renownScore = renown.score;
+          this.triggerRenownSignal(target.worldRef, target.ref, renown);
+        }
+      } else if (renown.tier !== previousTier) {
+        this.renownTiers.set(identity, renown.tier);
+      }
+    }
+  }
+
+  private triggerRenownSignal(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    renown: ReturnType<typeof renownForStats>
+  ) {
+    const color = ROLE_PALETTE[ref.role].color;
+    const x = ref.container.x;
+    const y = ref.container.y - 24;
+    const g = this.add.graphics().setPosition(x, y).setDepth(76);
+    g.fillStyle(0xffd86b, 0.16);
+    g.fillCircle(0, 0, 30);
+    g.lineStyle(2.4, 0xffd86b, 0.9);
+    g.strokeCircle(0, 0, 28);
+    g.lineStyle(1.3, color, 0.72);
+    g.strokeCircle(0, 0, 42);
+    for (let i = 0; i < renown.stars.length; i++) {
+      const a = -Math.PI / 2 + i * 0.42 - (renown.stars.length - 1) * 0.21;
+      const sx = Math.cos(a) * 33;
+      const sy = Math.sin(a) * 18;
+      g.fillStyle(0xfff4c7, 0.88);
+      g.fillCircle(sx, sy, 3.2);
+      g.lineStyle(1.1, 0xfff4c7, 0.78);
+      g.lineBetween(sx - 5, sy, sx + 5, sy);
+      g.lineBetween(sx, sy - 5, sx, sy + 5);
+    }
+    const text = this.add
+      .text(x, y - 42, renown.tier.toUpperCase(), {
+        fontSize: "8px",
+        color: "#fff8e0",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.82)",
+        padding: { x: 5, y: 2 },
+      })
+      .setOrigin(0.5)
+      .setDepth(77);
+    this.agentLayer?.add([g, text]);
+    worldRef.lastActivityKind = "success";
+    worldRef.lastActivityAt = this.time.now;
+    worldRef.lastActivityColor = 0xffd86b;
+    this.spawnBaseSignal(0xffd86b, "RENOWN");
+    this.showBark(ref, `${renown.tier} renown.`);
+    this.tweens.add({
+      targets: [g, text],
+      alpha: 0,
+      scale: 1.52,
+      duration: RENOWN_SIGNAL_MS,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        g.destroy();
+        text.destroy();
+      },
+    });
   }
 
   private spawnToolVfx(worldRef: WorldRef, ref: WielderRef, toolName: string) {
     const kind = activityForToolName(toolName);
     const color = activityColorForTheme(worldRef.theme, kind);
     this.spawnActivityGlyph(ref, kind, color);
+    this.spawnRoleDeliveryVfx(worldRef, ref, kind, color);
     if (kind === "subagent" || kind === "web") {
       this.pulseRoutesFromWorld(worldRef, color);
     }
+  }
+
+  private spawnRoleDeliveryVfx(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    kind: WorldActivityKind,
+    color: number
+  ) {
+    const fromX = ref.container.x;
+    const fromY = ref.container.y - 10;
+    const toX = worldRef.container.x;
+    const toY = worldRef.container.y + 6;
+    const g = this.add.graphics().setDepth(69);
+    const wave = kind === "error" ? 0.3 : kind === "success" ? 0.85 : 0.55;
+
+    if (ref.role === "keyblader1") {
+      g.lineStyle(5, 0x020713, 0.42);
+      g.lineBetween(fromX, fromY, toX, toY);
+      g.lineStyle(2.2, color, 0.78);
+      g.lineBetween(fromX, fromY, toX, toY);
+      g.fillStyle(color, 0.85);
+      g.fillCircle(
+        Phaser.Math.Linear(fromX, toX, wave),
+        Phaser.Math.Linear(fromY, toY, wave),
+        3
+      );
+    } else if (ref.role === "keyblader2") {
+      g.lineStyle(1.6, color, 0.52);
+      for (let i = 0; i < 3; i++) {
+        g.strokeCircle(fromX, fromY + 10, 12 + i * 9);
+      }
+      g.fillStyle(color, 0.2);
+      g.fillCircle(toX, toY, 20);
+      g.lineStyle(2, color, 0.54);
+      g.strokeCircle(toX, toY, 24);
+    } else if (ref.role === "keyblader3") {
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      const slashX = fromX + Math.cos(angle) * 28;
+      const slashY = fromY + Math.sin(angle) * 18;
+      g.lineStyle(7, 0x020713, 0.38);
+      g.lineBetween(fromX - 16, fromY + 13, slashX + 32, slashY - 18);
+      g.lineStyle(3, color, 0.86);
+      g.lineBetween(fromX - 16, fromY + 13, slashX + 32, slashY - 18);
+      g.fillStyle(0xfff4c7, 0.82);
+      g.fillCircle(slashX + 28, slashY - 18, 2.4);
+    } else {
+      g.lineStyle(1.4, color, 0.58);
+      g.beginPath();
+      g.moveTo(fromX, fromY);
+      g.lineTo(Phaser.Math.Linear(fromX, toX, 0.42), fromY - 28);
+      g.lineTo(toX, toY);
+      g.strokePath();
+      g.fillStyle(color, 0.68);
+      for (let i = 0; i < 5; i++) {
+        const t = (i + 1) / 6;
+        const x = Phaser.Math.Linear(fromX, toX, t);
+        const y =
+          Phaser.Math.Linear(fromY, toY, t) - Math.sin(t * Math.PI) * 28;
+        g.fillCircle(x, y, 5 - i * 0.55);
+      }
+    }
+
+    this.agentLayer?.add(g);
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      scale: 1.08,
+      duration: 680,
+      ease: "Sine.easeOut",
+      onComplete: () => g.destroy(),
+    });
   }
 
   private spawnActivityGlyph(
@@ -1529,6 +2112,60 @@ export class KingdomScene extends Phaser.Scene {
     return (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 52;
   }
 
+  private missionSlotFor(ref: WielderRef) {
+    return ref.formationSlot ?? ref.homeIndex;
+  }
+
+  private refreshMissionFormation(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ) {
+    const activeRefs = world.unitIds
+      .map((id) => {
+        const unit = units[id];
+        const ref = worldRef.wielders.get(id);
+        return unit && ref ? { unit, ref } : undefined;
+      })
+      .filter(
+        (entry): entry is { unit: UnitState; ref: WielderRef } =>
+          !!entry &&
+          (this.shouldStandAtMission(entry.unit, entry.ref) ||
+            this.isWielderVisiblyWorking(entry.ref, entry.unit))
+      )
+      .sort((a, b) => {
+        const statusWeight = (unit: UnitState) =>
+          unit.status === "fallen"
+            ? 0
+            : unit.parentSessionId
+              ? 1
+              : unit.status === "casting"
+                ? 2
+                : unit.status === "working"
+                  ? 3
+                  : 4;
+        const byStatus = statusWeight(a.unit) - statusWeight(b.unit);
+        if (byStatus !== 0) return byStatus;
+        return (
+          (a.unit.spawnedAt ?? a.unit.lastActivity) -
+          (b.unit.spawnedAt ?? b.unit.lastActivity)
+        );
+      });
+
+    const assigned = new Set<WielderRef>();
+    activeRefs.forEach(({ ref }, index) => {
+      ref.formationSlot =
+        MISSION_FORMATION_ORDER[index % MISSION_FORMATION_ORDER.length];
+      assigned.add(ref);
+    });
+
+    for (const ref of worldRef.wielders.values()) {
+      if (!assigned.has(ref)) {
+        ref.formationSlot = undefined;
+      }
+    }
+  }
+
   private hasMissionStatus(unit: UnitState) {
     return (
       unit.status === "working" ||
@@ -1585,7 +2222,7 @@ export class KingdomScene extends Phaser.Scene {
 
     const target =
       mode === "mission"
-        ? this.missionSlotPosition(worldRef, ref.homeIndex)
+        ? this.missionSlotPosition(worldRef, this.missionSlotFor(ref))
         : this.baseSlotPosition(ref.homeIndex);
     ref.locationTargetKey = key;
     ref.locationMode = mode;
@@ -1933,7 +2570,7 @@ export class KingdomScene extends Phaser.Scene {
         ref.locationMode === "mission" ||
         this.time.now < ref.missionHoldUntil
       ) {
-        activeSlots.add(Math.abs(ref.homeIndex) % MISSION_PAD_COUNT);
+        activeSlots.add(Math.abs(this.missionSlotFor(ref)) % MISSION_PAD_COUNT);
       }
     }
 
@@ -1991,6 +2628,9 @@ export class KingdomScene extends Phaser.Scene {
       world.alertLevel === "danger" ||
       world.alertLevel === "warning" ||
       world.heartless.length > 0;
+    const fineAlpha = this.fineDetailAlpha();
+    if (fineAlpha < 0.08 && !danger) return;
+    g.setAlpha(Math.max(fineAlpha, danger ? 0.34 : 0));
     const worldPulse = 0.5 + 0.5 * Math.sin(this.t * (danger ? 4.4 : 2.2));
     if (activeRefs.length > 0) {
       g.lineStyle(1.2, 0xffd86b, 0.16 + worldPulse * 0.08);
@@ -1998,9 +2638,10 @@ export class KingdomScene extends Phaser.Scene {
     }
 
     for (const { ref, unit } of activeRefs.slice(0, MISSION_PAD_COUNT)) {
-      const p = this.missionSlotPosition(worldRef, ref.homeIndex);
+      const p = this.missionSlotPosition(worldRef, this.missionSlotFor(ref));
       const x = p.x - worldRef.container.x;
       const y = p.y - worldRef.container.y;
+      const kind = this.unitActivityKind(unit);
       const color = this.commandColorForUnit(worldRef, unit);
       const slotPulse = 0.5 + 0.5 * Math.sin(this.t * 5.2 + ref.homeIndex);
       g.lineStyle(6, 0x020713, 0.36);
@@ -2026,6 +2667,17 @@ export class KingdomScene extends Phaser.Scene {
         Phaser.Math.Linear(y, 6, 0.5 + slotPulse * 0.16),
         2.2
       );
+      if (fineAlpha > 0.18) {
+        this.drawWorldJobSite(
+          g,
+          kind,
+          x,
+          y,
+          color,
+          slotPulse,
+          this.t + ref.homeIndex * 0.31
+        );
+      }
     }
 
     if (danger) {
@@ -2223,7 +2875,8 @@ export class KingdomScene extends Phaser.Scene {
   private syncWieldersFor(
     worldRef: WorldRef,
     world: WorldState,
-    units: Record<string, UnitState>
+    units: Record<string, UnitState>,
+    delta: number
   ) {
     const seen = new Set(world.unitIds);
     // Remove gone
@@ -2244,11 +2897,12 @@ export class KingdomScene extends Phaser.Scene {
       worldRef.wielders.set(id, this.spawnWielder(worldRef, unit, index));
       index++;
     }
+    this.refreshMissionFormation(worldRef, world, units);
     // Per-frame state update for everyone (HP/MP/aura/patrol/status/tether)
     for (const [id, ref] of worldRef.wielders) {
       const unit = units[id];
       if (!unit) continue;
-      this.updateWielder(worldRef, ref, unit);
+      this.updateWielder(worldRef, ref, unit, delta);
     }
   }
 
@@ -2260,8 +2914,15 @@ export class KingdomScene extends Phaser.Scene {
    * - Patrol step (walk toward target tile, idle, pick new)
    * - Subagent tether to parent
    */
-  private updateWielder(worldRef: WorldRef, ref: WielderRef, unit: UnitState) {
+  private updateWielder(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState,
+    delta: number
+  ) {
     const now = this.time.now;
+    ref.jobPhase += delta * 0.001;
+    ref.idleQuirkPhase += delta * 0.001;
 
     // ── HP / MP bars ────────────────────────────────────────────────
     // FF14 nameplate look — scale the fill rectangle horizontally by
@@ -2335,6 +2996,9 @@ export class KingdomScene extends Phaser.Scene {
     }
     this.ensureWielderLocation(worldRef, ref, unit, now);
     this.updateWielderOrder(worldRef, ref, unit);
+    this.updateWielderJobChoreography(worldRef, ref, unit);
+    this.updateWielderIdleQuirk(ref, unit);
+    this.updateWielderResultPose(worldRef, ref, unit);
 
     // ── Status pose (death / victory) ───────────────────────────────
     if (unit.status !== ref.lastStatus) {
@@ -2470,6 +3134,503 @@ export class KingdomScene extends Phaser.Scene {
     }
   }
 
+  private updateWielderJobChoreography(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState
+  ) {
+    const active = this.isWielderVisiblyWorking(ref, unit);
+    const g = ref.jobGfx;
+    g.clear();
+    g.setVisible(active);
+
+    if (!active) {
+      ref.body.setPosition(0, 0);
+      ref.body.setAngle(0);
+      ref.body.setScale(1);
+      return;
+    }
+
+    const fineAlpha = this.fineDetailAlpha();
+    if (fineAlpha < 0.08) {
+      g.setVisible(false);
+      return;
+    }
+    g.setAlpha(fineAlpha);
+
+    const kind = this.unitActivityKind(unit);
+    const color = this.commandColorForUnit(worldRef, unit);
+    const phase = ref.jobPhase + ref.homeIndex * 0.41;
+    const wave = 0.5 + 0.5 * Math.sin(phase * 2.6);
+
+    ref.body.setScale(1);
+    if (kind === "shell") {
+      ref.body.setPosition(Math.sin(phase * 9) * 0.8, wave * -1.5);
+      ref.body.setAngle(Math.sin(phase * 7) * 2.2);
+    } else if (kind === "edit") {
+      ref.body.setPosition(Math.sin(phase * 6) * 1.4, 0);
+      ref.body.setAngle(Math.sin(phase * 6) * 4.5);
+    } else if (kind === "search" || kind === "read") {
+      ref.body.setPosition(
+        Math.sin(phase * 2.2) * 1.6,
+        Math.cos(phase * 2) * 0.6
+      );
+      ref.body.setAngle(Math.sin(phase * 2.2) * 3);
+    } else if (kind === "web" || kind === "subagent") {
+      ref.body.setPosition(0, -wave * 2);
+      ref.body.setAngle(Math.sin(phase * 2.8) * 2.5);
+    } else if (kind === "permission" || kind === "prompt") {
+      ref.body.setPosition(0, Math.sin(phase * 3.4) * 0.9);
+      ref.body.setAngle(0);
+    } else if (kind === "success") {
+      ref.body.setPosition(0, -wave * 2.4);
+      ref.body.setAngle(Math.sin(phase * 3) * 2);
+    } else {
+      ref.body.setPosition(0, 0);
+      ref.body.setAngle(kind === "error" ? -4 + wave * 8 : 0);
+    }
+
+    this.drawLocalJobGlyph(g, kind, color, phase);
+  }
+
+  private updateWielderIdleQuirk(ref: WielderRef, unit: UnitState) {
+    const g = ref.idleGfx;
+    g.clear();
+    const fineAlpha = this.fineDetailAlpha();
+    const canIdleQuirk =
+      (unit.status === "idle" || unit.status === "moving") &&
+      ref.locationMode === "base" &&
+      ref.patrolState !== "walking" &&
+      !ref.isTraveling;
+
+    if (!canIdleQuirk || fineAlpha < 0.08) {
+      g.setVisible(false);
+      return;
+    }
+
+    const now = this.time.now;
+    if (now >= ref.idleQuirkNextAt && now >= ref.idleQuirkUntil) {
+      ref.idleQuirkUntil = now + IDLE_QUIRK_DURATION_MS;
+      ref.idleQuirkNextAt =
+        ref.idleQuirkUntil +
+        IDLE_QUIRK_MIN_MS +
+        Math.random() * (IDLE_QUIRK_MAX_MS - IDLE_QUIRK_MIN_MS);
+    }
+
+    if (now >= ref.idleQuirkUntil) {
+      g.setVisible(false);
+      return;
+    }
+
+    const phase = ref.idleQuirkPhase + ref.homeIndex * 0.33;
+    const color = ROLE_PALETTE[ref.role].color;
+    g.setVisible(true).setAlpha(fineAlpha);
+    this.drawIdleQuirk(g, ref.idleQuirkKind, color, phase);
+
+    const bob = Math.sin(phase * 2.6);
+    if (ref.idleQuirkKind === "watch") {
+      ref.body.setPosition(0, -0.5 + bob * 0.7);
+      ref.body.setAngle(bob * 1.8);
+    } else if (ref.idleQuirkKind === "garden") {
+      ref.body.setPosition(Math.sin(phase * 2.1) * 0.8, 0);
+      ref.body.setAngle(Math.sin(phase * 3.4) * 2.6);
+    } else if (ref.idleQuirkKind === "forge") {
+      ref.body.setPosition(Math.sin(phase * 8) * 0.45, 0);
+      ref.body.setAngle(Math.sin(phase * 8) * 2.2);
+    } else {
+      ref.body.setPosition(Math.sin(phase * 1.7) * 1.1, bob * 0.8);
+      ref.body.setAngle(Math.sin(phase * 1.4) * 2);
+    }
+  }
+
+  private updateWielderResultPose(
+    worldRef: WorldRef,
+    ref: WielderRef,
+    unit: UnitState
+  ) {
+    const g = ref.streakGfx;
+    g.clear();
+    const fineAlpha = this.fineDetailAlpha();
+    if (
+      !ref.streakPoseKind ||
+      this.time.now >= ref.streakPoseUntil ||
+      fineAlpha < 0.08
+    ) {
+      g.setVisible(false);
+      if (this.time.now >= ref.streakPoseUntil) {
+        ref.streakPoseKind = undefined;
+      }
+      return;
+    }
+
+    const color =
+      ref.streakPoseKind === "success"
+        ? activityColorForTheme(worldRef.theme, "success")
+        : activityColorForTheme(worldRef.theme, "error");
+    const age =
+      1 - (ref.streakPoseUntil - this.time.now) / RESULT_STREAK_POSE_MS;
+    const phase = ref.jobPhase + age * Math.PI * 2;
+    const pulse = 0.5 + 0.5 * Math.sin(phase * 4);
+    g.setVisible(true).setAlpha(fineAlpha);
+
+    if (ref.streakPoseKind === "success") {
+      g.fillStyle(color, 0.12 + pulse * 0.08);
+      g.fillCircle(0, -18, 18 + pulse * 4);
+      g.lineStyle(2.4, color, 0.86);
+      g.beginPath();
+      g.moveTo(-11, -18);
+      g.lineTo(-3, -9);
+      g.lineTo(13, -27);
+      g.strokePath();
+      g.lineStyle(1.2, color, 0.46);
+      g.strokeEllipse(0, 8, 50 + pulse * 9, 18 + pulse * 3);
+      if (unit.status !== "fallen") {
+        ref.body.setPosition(0, -2 - pulse * 2);
+        ref.body.setAngle(Math.sin(phase * 3) * 2.4);
+      }
+    } else {
+      const shake = Math.sin(phase * 16);
+      g.fillStyle(color, 0.1 + pulse * 0.08);
+      g.fillTriangle(-18, -5, 0, -34, 18, -5);
+      g.lineStyle(2.2, color, 0.88);
+      g.lineBetween(0, -27, 0, -15);
+      g.fillCircle(0, -9, 2.2);
+      g.lineStyle(1.2, color, 0.52);
+      g.strokeEllipse(0, 8, 48 + pulse * 10, 16 + pulse * 3);
+      if (unit.status !== "fallen") {
+        ref.body.setPosition(shake * 1.8, 0);
+        ref.body.setAngle(shake * 4.5);
+      }
+    }
+  }
+
+  private drawIdleQuirk(
+    g: Phaser.GameObjects.Graphics,
+    kind: IdleQuirkKind,
+    color: number,
+    phase: number
+  ) {
+    const pulse = 0.5 + 0.5 * Math.sin(phase * 2.8);
+    g.lineStyle(1.1, color, 0.28 + pulse * 0.12);
+    g.strokeEllipse(0, 8, 36 + pulse * 4, 13 + pulse * 2);
+
+    if (kind === "watch") {
+      g.lineStyle(1.3, color, 0.68);
+      g.lineBetween(-20, -23, 20, -29);
+      g.strokeCircle(22, -30, 4);
+      g.fillStyle(0xffd86b, 0.68 + pulse * 0.2);
+      for (let i = 0; i < 3; i++) {
+        const a = phase + i * 2.1;
+        g.fillCircle(-5 + Math.cos(a) * 18, -35 + Math.sin(a) * 8, 1.8);
+      }
+    } else if (kind === "garden") {
+      g.lineStyle(1.3, color, 0.62);
+      g.beginPath();
+      g.moveTo(-6, 7);
+      g.lineTo(-5, -9);
+      g.moveTo(7, 7);
+      g.lineTo(8, -11);
+      g.strokePath();
+      for (let i = 0; i < 5; i++) {
+        const a = phase * 1.4 + i * ((Math.PI * 2) / 5);
+        g.fillStyle(i % 2 === 0 ? color : 0xffd6ee, 0.56 + pulse * 0.18);
+        g.fillCircle(Math.cos(a) * 15, -16 + Math.sin(a) * 9, 2.2);
+      }
+    } else if (kind === "forge") {
+      const slash = Math.sin(phase * 8) * 4;
+      g.lineStyle(2.2, color, 0.76);
+      g.lineBetween(-20, -7 + slash, 18, -21 - slash);
+      g.lineStyle(1.2, 0xfff4c7, 0.72);
+      for (let i = 0; i < 4; i++) {
+        const a = phase * 5 + i * 1.4;
+        g.fillStyle(0xfff4c7, 0.62);
+        g.fillCircle(13 + Math.cos(a) * 7, -20 + Math.sin(a) * 5, 1.6);
+      }
+    } else {
+      g.lineStyle(1.4, color, 0.6);
+      for (let i = 0; i < 3; i++) {
+        const y = -12 + i * 5;
+        g.beginPath();
+        for (let x = -22; x <= 22; x += 7) {
+          const yy = y + Math.sin(phase * 2 + x * 0.22 + i) * 2.5;
+          if (x === -22) g.moveTo(x, yy);
+          else g.lineTo(x, yy);
+        }
+        g.strokePath();
+      }
+      g.fillStyle(0xffffff, 0.48 + pulse * 0.22);
+      g.fillCircle(-16 + ((phase * 9) % 32), -20 + pulse * 4, 1.9);
+    }
+  }
+
+  private isWielderVisiblyWorking(ref: WielderRef, unit: UnitState) {
+    if (ref.isTraveling) return false;
+    if (
+      unit.status === "working" ||
+      unit.status === "casting" ||
+      unit.status === "fallen" ||
+      unit.status === "complete"
+    ) {
+      return true;
+    }
+    return (
+      ref.locationMode === "mission" && this.time.now < ref.missionHoldUntil
+    );
+  }
+
+  private unitActivityKind(unit: UnitState): WorldActivityKind {
+    if (unit.status === "fallen") return "error";
+    if (unit.status === "complete") return "success";
+    if (unit.lastTool) return activityForToolName(unit.lastTool);
+    if (unit.parentSessionId && unit.status !== "idle") return "subagent";
+    if (unit.status === "casting") return "shell";
+    if (unit.status === "working") return "generic";
+    return "generic";
+  }
+
+  private drawLocalJobGlyph(
+    g: Phaser.GameObjects.Graphics,
+    kind: WorldActivityKind,
+    color: number,
+    phase: number
+  ) {
+    const pulse = 0.5 + 0.5 * Math.sin(phase * 3.2);
+    const spin = phase * 1.6;
+    g.lineStyle(1.3, 0x020713, 0.55);
+    g.strokeEllipse(0, 8, 44 + pulse * 5, 16 + pulse * 3);
+    g.lineStyle(1.2, color, 0.3 + pulse * 0.18);
+    g.strokeEllipse(0, 8, 40 + pulse * 5, 14 + pulse * 3);
+
+    if (kind === "shell") {
+      g.fillStyle(0x020713, 0.58);
+      g.fillRect(-20, -25, 40, 15);
+      g.lineStyle(1.2, color, 0.82);
+      g.strokeRect(-20, -25, 40, 15);
+      for (let i = 0; i < 4; i++) {
+        const y = -22 + i * 3;
+        const w = 8 + ((phase * 10 + i * 5) % 18);
+        g.lineBetween(-16, y, -16 + w, y);
+      }
+      g.fillStyle(color, 0.75);
+      g.fillCircle(15, -18 + pulse * 4, 1.8);
+    } else if (kind === "read") {
+      g.fillStyle(color, 0.12);
+      g.fillTriangle(0, -16, -28, 5, 28, 5);
+      g.lineStyle(1.2, color, 0.72);
+      g.strokeTriangle(0, -16, -28, 5, 28, 5);
+      g.fillStyle(0x020713, 0.58);
+      g.fillRect(-10, -27, 20, 18);
+      g.lineStyle(1, color, 0.86);
+      g.strokeRect(-10, -27, 20, 18);
+      for (let i = 0; i < 3; i++) {
+        g.lineBetween(-6, -22 + i * 5, 6, -22 + i * 5);
+      }
+    } else if (kind === "edit") {
+      const slash = Math.sin(phase * 7) * 5;
+      g.lineStyle(4, 0x020713, 0.45);
+      g.lineBetween(-23, -6 + slash, 24, -25 - slash);
+      g.lineStyle(2.2, color, 0.9);
+      g.lineBetween(-23, -6 + slash, 24, -25 - slash);
+      g.fillStyle(0xfff4c7, 0.78);
+      g.fillCircle(21, -22 - slash, 2.4);
+      g.fillCircle(-13, -2 + slash, 1.8);
+    } else if (kind === "search") {
+      const sx = Math.cos(spin) * 16;
+      const sy = -10 + Math.sin(spin) * 9;
+      g.lineStyle(1.4, color, 0.58);
+      g.strokeCircle(0, -12, 14 + pulse * 4);
+      g.fillStyle(color, 0.12);
+      g.fillTriangle(0, -12, sx, sy, sx * 0.45, sy + 16);
+      g.lineStyle(2, color, 0.86);
+      g.strokeCircle(sx * 0.45, sy * 0.45 - 6, 5);
+      g.lineBetween(
+        sx * 0.45 + 4,
+        sy * 0.45 - 2,
+        sx * 0.45 + 10,
+        sy * 0.45 + 5
+      );
+    } else if (kind === "web") {
+      for (let i = 0; i < 3; i++) {
+        g.lineStyle(1.2, color, 0.34 + i * 0.14);
+        g.strokeEllipse(0, -13, 20 + i * 10 + pulse * 5, 9 + i * 5);
+      }
+      g.lineStyle(1.1, color, 0.58);
+      g.lineBetween(-20, -13, 20, -13);
+      g.lineBetween(0, -27, 0, 1);
+    } else if (kind === "permission" || kind === "prompt") {
+      g.fillStyle(color, 0.13 + pulse * 0.08);
+      g.fillTriangle(0, -31, 21, -17, 0, -4);
+      g.fillTriangle(0, -31, 0, -4, -21, -17);
+      g.lineStyle(1.8, color, 0.82);
+      g.strokeTriangle(0, -31, 21, -17, 0, -4);
+      g.strokeTriangle(0, -31, 0, -4, -21, -17);
+      g.lineStyle(2.4, color, 0.88);
+      if (kind === "permission") {
+        g.lineBetween(-5, -20, -5, -11);
+        g.lineBetween(5, -20, 5, -11);
+      } else {
+        g.lineBetween(-6, -20, 0, -17);
+        g.lineBetween(0, -17, -6, -14);
+        g.lineBetween(3, -12, 9, -12);
+      }
+    } else if (kind === "error") {
+      g.lineStyle(2.4, color, 0.92);
+      g.beginPath();
+      g.moveTo(-12, -29);
+      g.lineTo(-4, -21);
+      g.lineTo(-8, -13);
+      g.lineTo(3, -4);
+      g.lineTo(8, -15);
+      g.lineTo(16, -8);
+      g.strokePath();
+      g.fillStyle(color, 0.16 + pulse * 0.08);
+      g.fillTriangle(-18, -6, 0, -33, 18, -6);
+    } else if (kind === "success") {
+      g.fillStyle(color, 0.12 + pulse * 0.1);
+      g.fillCircle(0, -16, 16 + pulse * 4);
+      g.lineStyle(2.5, color, 0.92);
+      g.beginPath();
+      g.moveTo(-10, -16);
+      g.lineTo(-3, -8);
+      g.lineTo(13, -25);
+      g.strokePath();
+    } else if (kind === "subagent") {
+      g.lineStyle(1.3, color, 0.48);
+      g.strokeCircle(0, -15, 18);
+      g.fillStyle(color, 0.82);
+      for (let i = 0; i < 3; i++) {
+        const a = spin + i * ((Math.PI * 2) / 3);
+        g.fillCircle(Math.cos(a) * 18, -15 + Math.sin(a) * 10, 2.4);
+      }
+    } else {
+      g.lineStyle(1.4, color, 0.65);
+      g.strokeCircle(0, -14, 13 + pulse * 4);
+      g.lineBetween(0, -32, 0, 4);
+      g.lineBetween(-17, -14, 17, -14);
+    }
+  }
+
+  private drawWorldJobSite(
+    g: Phaser.GameObjects.Graphics,
+    kind: WorldActivityKind,
+    x: number,
+    y: number,
+    color: number,
+    pulse: number,
+    phase: number
+  ) {
+    const alpha = 0.38 + pulse * 0.24;
+    if (kind === "shell") {
+      g.fillStyle(0x020713, 0.42);
+      g.fillRect(x - 24, y - 24, 48, 19);
+      g.lineStyle(1.2, color, alpha);
+      g.strokeRect(x - 24, y - 24, 48, 19);
+      for (let i = 0; i < 4; i++) {
+        const rowY = y - 20 + i * 4;
+        const rowW = 10 + ((phase * 10 + i * 6) % 24);
+        g.lineBetween(x - 18, rowY, x - 18 + rowW, rowY);
+      }
+      g.fillStyle(color, 0.55 + pulse * 0.22);
+      g.fillCircle(x + 18, y - 14 + Math.sin(phase * 7) * 3, 2.3);
+    } else if (kind === "read") {
+      g.fillStyle(color, 0.1 + pulse * 0.08);
+      g.fillTriangle(x, y - 31, x - 43, y + 4, x + 43, y + 4);
+      g.lineStyle(1.2, color, alpha);
+      g.strokeTriangle(x, y - 31, x - 43, y + 4, x + 43, y + 4);
+      g.fillStyle(0x020713, 0.42);
+      g.fillRect(x - 13, y - 28, 26, 22);
+      g.lineStyle(1.1, color, 0.72);
+      g.strokeRect(x - 13, y - 28, 26, 22);
+      for (let i = 0; i < 4; i++) {
+        g.lineBetween(x - 8, y - 23 + i * 5, x + 8, y - 23 + i * 5);
+      }
+    } else if (kind === "edit") {
+      const slash = Math.sin(phase * 6) * 6;
+      g.lineStyle(5, 0x020713, 0.34);
+      g.lineBetween(x - 34, y - 1 + slash, x + 34, y - 31 - slash);
+      g.lineStyle(2.4, color, 0.78);
+      g.lineBetween(x - 34, y - 1 + slash, x + 34, y - 31 - slash);
+      g.lineStyle(1.3, color, 0.46);
+      g.strokeRect(x - 25, y - 16, 50, 21);
+      g.lineBetween(x - 25, y - 5, x + 25, y - 5);
+    } else if (kind === "search") {
+      const sweep = phase * 1.8;
+      const sx = Math.cos(sweep) * 34;
+      const sy = Math.sin(sweep) * 18;
+      g.lineStyle(1.3, color, 0.32 + pulse * 0.18);
+      g.strokeCircle(x, y - 10, 27 + pulse * 6);
+      g.strokeCircle(x, y - 10, 42 + pulse * 4);
+      g.fillStyle(color, 0.1 + pulse * 0.08);
+      g.fillTriangle(x, y - 10, x + sx, y - 10 + sy, x + sx * 0.25, y + 16);
+      g.lineStyle(2, color, alpha);
+      g.strokeCircle(x + sx * 0.36, y - 12 + sy * 0.36, 6);
+      g.lineBetween(
+        x + sx * 0.36 + 5,
+        y - 7 + sy * 0.36,
+        x + sx * 0.36 + 13,
+        y + 1 + sy * 0.36
+      );
+    } else if (kind === "web") {
+      for (let i = 0; i < 4; i++) {
+        g.lineStyle(1.2, color, 0.22 + i * 0.1 + pulse * 0.06);
+        g.strokeEllipse(x, y - 16, 34 + i * 15 + pulse * 8, 13 + i * 7);
+      }
+      g.lineStyle(1.1, color, alpha);
+      g.lineBetween(x - 38, y - 16, x + 38, y - 16);
+      g.lineBetween(x, y - 40, x, y + 8);
+    } else if (kind === "permission" || kind === "prompt") {
+      g.fillStyle(color, 0.12 + pulse * 0.08);
+      g.fillTriangle(x, y - 43, x + 30, y - 20, x, y + 4);
+      g.fillTriangle(x, y - 43, x, y + 4, x - 30, y - 20);
+      g.lineStyle(1.8, color, alpha);
+      g.strokeTriangle(x, y - 43, x + 30, y - 20, x, y + 4);
+      g.strokeTriangle(x, y - 43, x, y + 4, x - 30, y - 20);
+      g.lineStyle(3, color, 0.74);
+      if (kind === "permission") {
+        g.lineBetween(x - 7, y - 29, x - 7, y - 14);
+        g.lineBetween(x + 7, y - 29, x + 7, y - 14);
+      } else {
+        g.lineBetween(x - 8, y - 28, x, y - 23);
+        g.lineBetween(x, y - 23, x - 8, y - 18);
+        g.lineBetween(x + 4, y - 14, x + 13, y - 14);
+      }
+    } else if (kind === "error") {
+      g.fillStyle(color, 0.1 + pulse * 0.08);
+      g.fillTriangle(x - 31, y + 2, x, y - 43, x + 31, y + 2);
+      g.lineStyle(2.4, color, 0.76);
+      g.beginPath();
+      g.moveTo(x - 13, y - 35);
+      g.lineTo(x - 3, y - 24);
+      g.lineTo(x - 10, y - 12);
+      g.lineTo(x + 4, y + 1);
+      g.lineTo(x + 10, y - 14);
+      g.lineTo(x + 20, y - 5);
+      g.strokePath();
+    } else if (kind === "success") {
+      g.fillStyle(color, 0.12 + pulse * 0.12);
+      g.fillCircle(x, y - 18, 23 + pulse * 5);
+      g.lineStyle(3, color, 0.78);
+      g.beginPath();
+      g.moveTo(x - 15, y - 17);
+      g.lineTo(x - 4, y - 5);
+      g.lineTo(x + 18, y - 31);
+      g.strokePath();
+    } else if (kind === "subagent") {
+      g.lineStyle(1.3, color, 0.38 + pulse * 0.18);
+      g.strokeCircle(x, y - 17, 31);
+      g.fillStyle(color, 0.68);
+      for (let i = 0; i < 4; i++) {
+        const a = phase * 1.8 + i * ((Math.PI * 2) / 4);
+        g.fillCircle(x + Math.cos(a) * 31, y - 17 + Math.sin(a) * 18, 3);
+      }
+    } else {
+      g.lineStyle(1.5, color, alpha);
+      g.strokeCircle(x, y - 18, 19 + pulse * 6);
+      g.lineBetween(x, y - 42, x, y + 6);
+      g.lineBetween(x - 26, y - 18, x + 26, y - 18);
+    }
+  }
+
   private updateWielderOrder(
     worldRef: WorldRef,
     ref: WielderRef,
@@ -2484,14 +3645,17 @@ export class KingdomScene extends Phaser.Scene {
       unit.status === "fallen" ||
       unit.status === "complete";
     const wave = 0.5 + 0.5 * Math.sin(this.t * 5 + ref.homeIndex);
+    const fineAlpha = this.fineDetailAlpha();
     ref.orderLine.clear();
     ref.orderRing.setVisible(active);
-    ref.orderLabel.setVisible(active);
+    ref.orderLabel.setVisible(active && fineAlpha > 0.22);
     if (!active) return;
+    ref.orderLine.setAlpha(fineAlpha);
+    ref.orderRing.setAlpha(0.45 + fineAlpha * 0.55);
 
     const target =
       ref.locationMode === "mission"
-        ? this.missionSlotPosition(worldRef, ref.homeIndex)
+        ? this.missionSlotPosition(worldRef, this.missionSlotFor(ref))
         : this.baseSlotPosition(ref.homeIndex);
     const alpha = ref.isTraveling ? 0.58 : 0.28;
     this.strokeDashedLine(
@@ -2525,9 +3689,13 @@ export class KingdomScene extends Phaser.Scene {
   private commandLabelForUnit(unit: UnitState) {
     if (unit.status === "fallen") return "DOWN";
     if (unit.status === "complete") return "DONE";
-    if (unit.status === "casting") return "CAST";
-    if (unit.lastTool) return ORDER_LABELS[activityForToolName(unit.lastTool)];
-    if (unit.status === "working") return "WORK";
+    if (
+      unit.lastTool ||
+      unit.status === "working" ||
+      unit.status === "casting"
+    ) {
+      return ORDER_LABELS[this.unitActivityKind(unit)];
+    }
     if (unit.status === "moving") return "MOVE";
     return "IDLE";
   }
@@ -2535,14 +3703,13 @@ export class KingdomScene extends Phaser.Scene {
   private commandColorForUnit(worldRef: WorldRef, unit: UnitState) {
     if (unit.status === "fallen") return 0xff5a3c;
     if (unit.status === "complete") return 0xffd86b;
-    if (unit.status === "casting") return 0xc9a4ff;
-    if (unit.lastTool) {
-      return activityColorForTheme(
-        worldRef.theme,
-        activityForToolName(unit.lastTool)
-      );
+    if (
+      unit.lastTool ||
+      unit.status === "working" ||
+      unit.status === "casting"
+    ) {
+      return activityColorForTheme(worldRef.theme, this.unitActivityKind(unit));
     }
-    if (unit.status === "working") return THEME_BIOMES[worldRef.theme].accent;
     if (unit.status === "moving") return THEME_BIOMES[worldRef.theme].lane;
     return ROLE_PALETTE[unit.role].color;
   }
@@ -2586,6 +3753,9 @@ export class KingdomScene extends Phaser.Scene {
   ): WielderRef {
     const palette = ROLE_PALETTE[unit.role];
     const homeIndex = (Math.abs(hashString(unit.id)) + index) % 12;
+    const renown = renownForStats(
+      useStore.getState().persisted.wielders[unitIdentityForUnit(unit)]
+    );
     const locationMode: WielderRef["locationMode"] = this.shouldStandAtMission(
       unit
     )
@@ -2610,6 +3780,9 @@ export class KingdomScene extends Phaser.Scene {
       .setStrokeStyle(1.8, palette.color, 0.65)
       .setScale(1, 0.46)
       .setVisible(false);
+    const jobGfx = this.add.graphics().setVisible(false);
+    const idleGfx = this.add.graphics().setVisible(false);
+    const streakGfx = this.add.graphics().setVisible(false);
 
     // FF14 nameplate-style HP/MP bars — sit at the wielder's feet,
     // stacked HP-over-MP. Each bar = dark track + scaled fill.
@@ -2676,7 +3849,10 @@ export class KingdomScene extends Phaser.Scene {
       driveAura,
       orderRing,
       glow,
+      idleGfx,
+      jobGfx,
       body,
+      streakGfx,
       hpBarBg,
       hpBarFill,
       mpBarBg,
@@ -2713,15 +3889,31 @@ export class KingdomScene extends Phaser.Scene {
       orderLine,
       orderRing,
       orderLabel,
+      jobGfx,
+      jobPhase: Math.random() * Math.PI * 2,
+      idleGfx,
+      idleQuirkKind: idleQuirkForRole(unit.role),
+      idleQuirkPhase: Math.random() * Math.PI * 2,
+      idleQuirkNextAt:
+        this.time.now + IDLE_QUIRK_MIN_MS + Math.random() * IDLE_QUIRK_MAX_MS,
+      idleQuirkUntil: 0,
+      streakGfx,
+      streakPoseKind: undefined,
+      streakPoseUntil: 0,
+      successStreak: 0,
+      errorStreak: 0,
       label,
       criticalAlert,
       lastBarkAt: 0,
       homeIndex,
+      formationSlot: undefined,
       locationMode,
       locationTargetKey: this.locationKeyFor(locationMode, worldRef.worldId),
       isTraveling: false,
       missionHoldUntil:
         locationMode === "mission" ? this.time.now + MISSION_DWELL_MS : 0,
+      renownTier: renown.tier,
+      renownScore: renown.score,
       patrolState: "scouting",
       patrolNextSwitchAt: this.time.now + 600 + Math.random() * 1800,
       lastStatus: unit.status,
@@ -2808,6 +4000,7 @@ export class KingdomScene extends Phaser.Scene {
           target.ref.container.y - 16,
           0xff5a3c
         );
+        this.spawnHeartlessPressure(worldRef, heartless, target.ref);
         if (target.unit.status !== "fallen") {
           const attackAnim = ANIM.attack(target.unit.role);
           if (
@@ -2822,6 +4015,11 @@ export class KingdomScene extends Phaser.Scene {
               this.playIdleAnimation(target.ref, target.unit.role);
             });
           }
+          this.time.delayedCall(150, () => {
+            if (!heartless.container.scene || !target.ref.container.scene)
+              return;
+            this.spawnCounterStrike(worldRef, heartless, target.ref);
+          });
         }
       }
     }
@@ -2892,6 +4090,98 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
+  private heartlessScenePosition(worldRef: WorldRef, heartless: HeartlessRef) {
+    return {
+      x: worldRef.container.x + heartless.container.x * ISO_CONTAINER_SCALE,
+      y: worldRef.container.y + heartless.container.y * ISO_CONTAINER_SCALE,
+    };
+  }
+
+  private spawnHeartlessPressure(
+    worldRef: WorldRef,
+    heartless: HeartlessRef,
+    target: WielderRef
+  ) {
+    const from = this.heartlessScenePosition(worldRef, heartless);
+    const to = { x: target.container.x, y: target.container.y - 10 };
+    const g = this.add.graphics().setDepth(71);
+    g.lineStyle(5, 0x020713, 0.42);
+    g.lineBetween(from.x, from.y - 8, to.x, to.y);
+    g.lineStyle(1.8, 0xff5a3c, 0.68);
+    g.lineBetween(from.x, from.y - 8, to.x, to.y);
+    g.lineStyle(1.4, 0xff5a3c, 0.76);
+    g.strokeEllipse(to.x, to.y + 17, 42, 16);
+    g.fillStyle(0xff5a3c, 0.2);
+    g.fillTriangle(to.x, to.y - 24, to.x - 16, to.y + 1, to.x + 16, to.y + 1);
+    this.agentLayer?.add(g);
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      scale: 1.18,
+      duration: 420,
+      ease: "Cubic.easeOut",
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  private spawnCounterStrike(
+    worldRef: WorldRef,
+    heartless: HeartlessRef,
+    target: WielderRef
+  ) {
+    const to = this.heartlessScenePosition(worldRef, heartless);
+    const from = { x: target.container.x, y: target.container.y - 14 };
+    const color = ROLE_PALETTE[target.role].color;
+    const g = this.add.graphics().setDepth(73);
+    g.lineStyle(6, 0x020713, 0.42);
+    g.lineBetween(from.x, from.y, to.x, to.y - 8);
+    g.lineStyle(2.4, color, 0.88);
+    g.lineBetween(from.x, from.y, to.x, to.y - 8);
+    g.fillStyle(0xfff4c7, 0.86);
+    g.fillCircle(to.x, to.y - 8, 3.4);
+    g.lineStyle(1.4, color, 0.62);
+    g.strokeCircle(to.x, to.y - 8, 13);
+    this.agentLayer?.add(g);
+    this.tweens.add({
+      targets: g,
+      alpha: 0,
+      scale: 1.24,
+      duration: 360,
+      ease: "Cubic.easeOut",
+      onComplete: () => g.destroy(),
+    });
+    this.tweens.add({
+      targets: heartless.body,
+      alpha: { from: 0.45, to: 1 },
+      duration: 180,
+      ease: "Sine.easeOut",
+    });
+  }
+
+  private createHeartlessTypeMark(type: Heartless["type"]) {
+    const g = this.add.graphics();
+    if (type === "large_body") {
+      g.fillStyle(0x020713, 0.46);
+      g.fillEllipse(0, 4, 34, 22);
+      g.lineStyle(1.4, 0xffb86c, 0.62);
+      g.strokeEllipse(0, 4, 31, 18);
+      g.lineStyle(1.2, 0xffd86b, 0.48);
+      g.lineBetween(-11, 2, 11, 2);
+    } else if (type === "soldier") {
+      g.lineStyle(1.5, 0x6cc6ff, 0.58);
+      g.strokeTriangle(0, -18, -13, 5, 13, 5);
+      g.fillStyle(0x6cc6ff, 0.22);
+      g.fillCircle(-10, 8, 4);
+      g.fillCircle(10, 8, 4);
+    } else {
+      g.lineStyle(1.2, 0xc9a4ff, 0.44);
+      g.strokeCircle(0, 0, 17);
+      g.fillStyle(0xc9a4ff, 0.18);
+      g.fillCircle(0, 0, 22);
+    }
+    return g;
+  }
+
   private spawnHeartlessIn(worldRef: WorldRef, h: Heartless): HeartlessRef {
     // Spawn at a random edge tile (so they crawl in from the dark border).
     const edge = Math.floor(Math.random() * 4);
@@ -2919,12 +4209,27 @@ export class KingdomScene extends Phaser.Scene {
     const x = (tx - ty) * (ISO_TILE_W / 2);
     const y = offsetY + (tx + ty) * (ISO_TILE_H / 2);
 
-    const shadow = this.add.ellipse(0, 14, 16, 4, 0x000000, 0.55);
+    const shadowSize =
+      h.type === "large_body"
+        ? { w: 24, h: 7 }
+        : h.type === "soldier"
+          ? { w: 18, h: 5 }
+          : { w: 16, h: 4 };
+    const shadow = this.add.ellipse(
+      0,
+      h.type === "large_body" ? 17 : 14,
+      shadowSize.w,
+      shadowSize.h,
+      0x000000,
+      0.55
+    );
     const body = this.add.container(0, 0);
     const sheetKey = `heartless-${h.type.replace(/_/g, "")}-sheet`;
     if (this.textures.exists(sheetKey)) {
       const spr = this.add.sprite(0, 0, sheetKey, 0);
-      spr.setScale(1.4);
+      const spriteScale =
+        h.type === "large_body" ? 1.78 : h.type === "soldier" ? 1.52 : 1.34;
+      spr.setScale(spriteScale);
       this.tweens.add({
         targets: spr,
         y: { from: -1, to: 1 },
@@ -2934,15 +4239,17 @@ export class KingdomScene extends Phaser.Scene {
         ease: "Sine.easeInOut",
       });
       body.add(spr);
+      body.add(this.createHeartlessTypeMark(h.type));
     } else {
-      body.add(drawShadow(this));
+      body.add(drawShadow(this, h.type));
     }
     const container = this.add.container(x, y, [shadow, body]);
     container.setScale(0.2);
     container.setAlpha(0);
     this.tweens.add({
       targets: container,
-      scale: 1,
+      scaleX: 1,
+      scaleY: 1,
       alpha: 1,
       duration: 320,
       ease: "Back.easeOut",
@@ -2964,7 +4271,8 @@ export class KingdomScene extends Phaser.Scene {
     if (!ref.container.scene) return;
     this.tweens.add({
       targets: ref.container,
-      scale: 0.2,
+      scaleX: 0.2,
+      scaleY: 0.2,
       alpha: 0,
       duration: 240,
       onComplete: () => ref.container.destroy(true),
@@ -3035,6 +4343,111 @@ export class KingdomScene extends Phaser.Scene {
     return undefined;
   }
 
+  private drawIsoThemeDressing(
+    plane: Phaser.GameObjects.Container,
+    theme: WorldTheme,
+    isoToLocal: (tx: number, ty: number) => { x: number; y: number }
+  ) {
+    const g = this.add.graphics();
+    const palette = THEME_BIOMES[theme];
+    const center = isoToLocal(ISO_GRID / 2, ISO_GRID / 2);
+    if (theme === "destiny") {
+      g.fillStyle(0x6cc6ff, 0.2);
+      g.fillEllipse(center.x, center.y + 46, 190, 26);
+      g.lineStyle(1.4, 0xb3e0ff, 0.58);
+      for (let i = 0; i < 4; i++) {
+        const y = center.y + 34 + i * 7;
+        g.beginPath();
+        for (let x = center.x - 95; x <= center.x + 95; x += 14) {
+          const yy = y + Math.sin(x * 0.06 + i) * 3;
+          if (x === center.x - 95) g.moveTo(x, yy);
+          else g.lineTo(x, yy);
+        }
+        g.strokePath();
+      }
+    } else if (theme === "traverse") {
+      g.lineStyle(5, 0x2a1720, 0.42);
+      g.lineBetween(
+        center.x - 114,
+        center.y + 10,
+        center.x + 112,
+        center.y + 10
+      );
+      g.lineBetween(center.x, center.y - 58, center.x, center.y + 76);
+      g.lineStyle(1.4, 0xffd86b, 0.42);
+      for (let i = -2; i <= 2; i++) {
+        g.lineBetween(
+          center.x - 82,
+          center.y + i * 18,
+          center.x + 82,
+          center.y + i * 18
+        );
+      }
+    } else if (theme === "hollow") {
+      for (let i = 0; i < 6; i++) {
+        const a = i * ((Math.PI * 2) / 6);
+        const x = center.x + Math.cos(a) * 78;
+        const y = center.y + Math.sin(a) * 36;
+        g.fillStyle(i % 2 === 0 ? palette.accent : palette.lane, 0.34);
+        g.fillTriangle(x, y - 20, x - 9, y + 12, x + 10, y + 10);
+        g.lineStyle(1, 0xffd86b, 0.3);
+        g.strokeTriangle(x, y - 20, x - 9, y + 12, x + 10, y + 10);
+      }
+    } else if (theme === "twilight") {
+      g.lineStyle(1.5, palette.accent, 0.4);
+      g.strokeCircle(center.x, center.y - 10, 44);
+      g.strokeCircle(center.x, center.y - 10, 66);
+      g.lineStyle(3, 0x6b4423, 0.38);
+      g.lineBetween(center.x - 92, center.y + 52, center.x + 92, center.y - 18);
+      g.lineStyle(1, 0xffd86b, 0.38);
+      for (let i = 0; i < 7; i++) {
+        const x = center.x - 72 + i * 24;
+        g.lineBetween(x, center.y + 42 - i * 4, x + 10, center.y + 34 - i * 4);
+      }
+    } else if (theme === "halloween") {
+      g.lineStyle(1.6, 0xff7a4a, 0.48);
+      for (let i = 0; i < 7; i++) {
+        const x = center.x - 92 + i * 30;
+        g.beginPath();
+        g.moveTo(x, center.y + 48);
+        g.lineTo(x + 10, center.y + 12);
+        g.lineTo(x - 5, center.y - 20);
+        g.strokePath();
+      }
+      g.fillStyle(0x05050a, 0.52);
+      g.fillTriangle(
+        center.x - 44,
+        center.y - 60,
+        center.x - 32,
+        center.y - 54,
+        center.x - 39,
+        center.y - 49
+      );
+      g.fillTriangle(
+        center.x + 58,
+        center.y - 46,
+        center.x + 70,
+        center.y - 40,
+        center.x + 63,
+        center.y - 35
+      );
+    } else {
+      g.lineStyle(1.5, palette.accent, 0.34);
+      for (let i = 0; i < 10; i++) {
+        const a = i * ((Math.PI * 2) / 10);
+        g.lineBetween(
+          center.x + Math.cos(a) * 28,
+          center.y + Math.sin(a) * 12,
+          center.x + Math.cos(a) * 104,
+          center.y + Math.sin(a) * 52
+        );
+      }
+      g.lineStyle(2, 0xffd86b, 0.36);
+      g.strokeEllipse(center.x, center.y + 18, 138, 44);
+    }
+    plane.add(g);
+  }
+
   /**
    * Build a small iso plane (ISO_GRID × ISO_GRID tiles) into the given
    * container, centered on the container origin, with the theme's
@@ -3060,6 +4473,8 @@ export class KingdomScene extends Phaser.Scene {
           const tex = (x + y) % 2 === 0 ? "tile-iso-a" : "tile-iso-b";
           const tile = this.add.image(c.x, c.y, tex);
           tile.setOrigin(0.5, 0.5);
+          tile.setTint(THEME_TILE_TINT[theme][(x + y) % 2]);
+          tile.setAlpha(0.96);
           plane.add(tile);
         }
       }
@@ -3080,6 +4495,8 @@ export class KingdomScene extends Phaser.Scene {
       }
       plane.add(g);
     }
+
+    this.drawIsoThemeDressing(plane, theme, isoToLocal);
 
     // Center landmark (themed). Anchored bottom-center so the building
     // sits on the central tile; lifted slightly so it doesn't intersect
@@ -3102,6 +4519,25 @@ export class KingdomScene extends Phaser.Scene {
         plane.add(acc);
       }
     }
+  }
+
+  private fineDetailAlpha() {
+    return Phaser.Math.Clamp(
+      (this.cameras.main.zoom - FINE_DETAIL_FADE_MIN_ZOOM) /
+        (FINE_DETAIL_FADE_FULL_ZOOM - FINE_DETAIL_FADE_MIN_ZOOM),
+      0,
+      1
+    );
+  }
+
+  private isWorldNearViewport(worldRef: WorldRef, pad = WORLD_CULL_PAD) {
+    const view = this.cameras.main.worldView;
+    return (
+      worldRef.container.x >= view.x - pad &&
+      worldRef.container.x <= view.x + view.width + pad &&
+      worldRef.container.y >= view.y - pad &&
+      worldRef.container.y <= view.y + view.height + pad
+    );
   }
 
   private installCameraControls() {
@@ -3260,6 +4696,57 @@ export class KingdomScene extends Phaser.Scene {
  * Hash-only fallback for ungrouped repos (cluster size 1) — they live on
  * the outer ring at their hash position, no inner ring offset.
  */
+function idleQuirkForRole(role: UnitState["role"]): IdleQuirkKind {
+  if (role === "keyblader1") return "watch";
+  if (role === "keyblader2") return "garden";
+  if (role === "keyblader3") return "forge";
+  return "tide";
+}
+
+function letterSignalColor(letter: Letter): number {
+  if (letter.risk === "high") return 0xff5a3c;
+  if (letter.risk === "elevated") return 0xffb86c;
+  if (letter.severity === "critical") return 0xff5a3c;
+  if (letter.severity === "important") return 0xffd86b;
+  return 0x6cc6ff;
+}
+
+function letterActivityKind(letter: Letter): WorldActivityKind {
+  if (letter.severity === "critical") return "error";
+  if (letter.title.toLowerCase().includes("finished")) return "success";
+  if (letter.title.toLowerCase().includes("form")) return "subagent";
+  if (letter.actions.some((entry) => entry.action.kind === "send-word")) {
+    return "prompt";
+  }
+  return letter.severity === "important" ? "permission" : "generic";
+}
+
+function letterSignalLabel(letter: Letter): string {
+  if (letter.severity === "critical") return "DECREE";
+  if (letter.severity === "important") return "LETTER";
+  return "NOTE";
+}
+
+function renownForStats(stats: WielderStats | undefined): {
+  tier: RenownTier;
+  stars: string;
+  score: number;
+} {
+  if (!stats) return { tier: "New", stars: "", score: 0 };
+  const score = stats.visits + stats.seals * 3 - stats.falls * 2;
+  if (score >= 24) return { tier: "Hero", stars: "***", score };
+  if (score >= 12) return { tier: "Veteran", stars: "**", score };
+  if (score >= 4) return { tier: "Apprentice", stars: "*", score };
+  return { tier: "New", stars: "", score };
+}
+
+function renownRank(tier: RenownTier): number {
+  if (tier === "Hero") return 3;
+  if (tier === "Veteran") return 2;
+  if (tier === "Apprentice") return 1;
+  return 0;
+}
+
 function computeClusterLayout(
   worldsRecord: Record<string, WorldState>
 ): Map<string, { x: number; y: number; clusterKey: string }> {
