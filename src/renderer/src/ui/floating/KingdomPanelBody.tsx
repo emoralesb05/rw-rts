@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { seedVisualQaState } from "../../dev/visual-qa-seed";
 import { usePanels } from "./panel-store";
 import { SettingsPanelBody } from "./SettingsPanelBody";
 import {
@@ -68,6 +69,10 @@ const DEMO_FIXTURES = [
       { id: "stress", label: "Stress · 30 events" },
       { id: "permission", label: "Permission · approval letter" },
     ],
+  },
+  {
+    label: "Visual QA",
+    items: [{ id: "visual-qa-board", label: "RTS board · all states" }],
   },
 ] as const;
 
@@ -609,6 +614,10 @@ function PreloadRestartHint({ title }: { title: string }) {
 function DemosTab() {
   const selectWorld = useStore((s) => s.selectWorld);
   const fire = (id: string) => {
+    if (id === "visual-qa-board") {
+      seedVisualQaState();
+      return;
+    }
     if (id.startsWith("summon-")) {
       // Summon demos land in fresh /tmp worlds; clear any selection
       // so the new world isn't pre-targeted.

@@ -43,7 +43,7 @@ export function KingdomHeader() {
   );
   const totalMunny = Math.max(persisted.totalMunnyEver, sessionMunny);
   return (
-    <div className="rounded-pill border-accent-alt/20 font-ui text-text absolute top-[38px] left-1/2 z-[51] flex -translate-x-1/2 items-center gap-2.5 border bg-[#0a1130]/55 px-[18px] py-2 text-xs whitespace-nowrap shadow-2xl backdrop-blur-md">
+    <div className="rounded-pill border-accent-alt/18 font-ui text-text absolute top-[38px] left-1/2 z-[51] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 overflow-hidden border bg-[#0a1130]/48 px-4 py-1.5 text-xs whitespace-nowrap shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-md">
       <span className="text-accent-alt text-[11px] font-bold tracking-[1.2px] uppercase">
         ⌬ Keykeeper
       </span>

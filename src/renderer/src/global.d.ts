@@ -11,6 +11,7 @@ import type {
   WorkspaceRootValidation,
 } from "@shared/schemas";
 import type { AgentEvent, PersistedState } from "@shared/events";
+import type { seedVisualQaState } from "./dev/visual-qa-seed";
 
 declare global {
   interface Window {
@@ -46,6 +47,7 @@ declare global {
       saveSettings(next: AppSettings): Promise<AppSettings>;
       validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;
     };
+    __khSeedVisualQa?: typeof seedVisualQaState;
   }
 }
 

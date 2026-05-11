@@ -6,6 +6,7 @@ import { preloadSounds, play } from "./audio/sounds";
 import { attachMusicLoop } from "./audio/music";
 import { attachLetterNotifications } from "./desktop-notifications";
 import { attachStandingOrderRunner } from "./standing-orders";
+import { seedVisualQaState } from "./dev/visual-qa-seed";
 import "./styles.css";
 
 void preloadSounds();
@@ -16,10 +17,20 @@ attachMusicLoop();
 
 // Hydrate persisted kingdom state on launch. Renderer reads via IPC; the
 // main process is the source of truth for the JSON file on disk.
+const shouldSeedVisualQa =
+  import.meta.env.DEV &&
+  (new URLSearchParams(window.location.search).has("visual-qa") ||
+    window.location.hash.includes("visual-qa"));
+
 void window.kh
   .loadPersisted()
   .then((s) => useStore.getState().hydratePersisted(s))
-  .catch(() => {});
+  .catch(() => {})
+  .finally(() => {
+    if (shouldSeedVisualQa) {
+      seedVisualQaState();
+    }
+  });
 
 // Play the warp SFX whenever the camera is asked to pan to a world
 // (clicking a wielder card, a letter, or a planet). cameraTargetVersion
@@ -33,7 +44,12 @@ useStore.subscribe((state) => {
 });
 
 if (import.meta.env.DEV) {
-  (window as unknown as { __khStore: typeof useStore }).__khStore = useStore;
+  const devWindow = window as unknown as {
+    __khSeedVisualQa: typeof seedVisualQaState;
+    __khStore: typeof useStore;
+  };
+  devWindow.__khStore = useStore;
+  devWindow.__khSeedVisualQa = seedVisualQaState;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);

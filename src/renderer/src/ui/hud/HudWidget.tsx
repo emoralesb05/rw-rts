@@ -82,13 +82,13 @@ export function HudWidget({
         "hud",
         `hud-${anchor}`,
         `hud-tone-${tone}`,
-        "z-hud absolute flex max-h-[calc(50vh-24px)] w-[340px] flex-col overflow-hidden",
-        "border-accent-alt/20 font-ui rounded-md border bg-[#0a1130]/60 shadow-2xl backdrop-blur-md",
+        "z-hud absolute flex max-h-[calc(50vh-24px)] w-[330px] flex-col overflow-hidden",
+        "border-accent-alt/18 font-ui rounded-md border bg-[#0a1130]/50 shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur-md",
         "duration-base transition-[width] ease-out",
         tone === "alert" &&
           "border-warning/45 shadow-[0_0_0_1px_rgba(255,122,60,0.10),0_16px_40px_rgba(0,0,0,0.45)]",
         tone === "info" && "border-accent/30",
-        collapsed && "hud-collapsed max-h-none w-[180px]",
+        collapsed && "hud-collapsed max-h-none w-[156px]",
         anchorClass[anchor],
         className
       )}
@@ -129,18 +129,14 @@ export function HudWidget({
             {headerExtra}
           </span>
         )}
-        {/* Chevron lives at the far right — past any action chip — so
-         * the hierarchy reads title → count → action → toggle. Separate
-         * button so headerExtra stays clickable in its own right. */}
-        <button
-          type="button"
-          className="text-muted hover:text-accent-alt inline-flex shrink-0 cursor-pointer items-center border-0 bg-transparent px-0.5"
-          onClick={() => setCollapsed((v) => !v)}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+        {/* Decorative state indicator. The title button owns the actual
+         * expand/collapse action so assistive tech sees one control. */}
+        <span
+          className="text-muted inline-flex shrink-0 items-center px-0.5"
+          aria-hidden="true"
         >
           {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
+        </span>
       </header>
       <div
         className={cn(

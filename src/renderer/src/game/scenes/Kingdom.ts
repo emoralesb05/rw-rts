@@ -74,7 +74,7 @@ const ISO_GRID = 6;
 // Container scale to fit a per-world iso plane in roughly a 230×230 box,
 // matching the cluster inner-ring spacing. Worlds are positioned by the
 // cluster layout; this scale just makes their internal renderings fit.
-const ISO_CONTAINER_SCALE = 0.55;
+const ISO_CONTAINER_SCALE = 0.62;
 
 // Central base geometry. Agents idle here between missions; worlds are treated
 // as destination nodes around the base instead of tiny maps that hold the full
@@ -84,8 +84,8 @@ const BASE_TILE_H = 36;
 const BASE_GRID_W = 10;
 const BASE_GRID_H = 8;
 const BASE_RADIUS = 260;
-const WIELDER_SPRITE_SCALE = 0.32;
-const WORLD_FOCUS_ZOOM = 1.05;
+const WIELDER_SPRITE_SCALE = 0.34;
+const WORLD_FOCUS_ZOOM = 1.16;
 const MISSION_DWELL_MS = 3500;
 const PERMISSION_DWELL_MS = 6500;
 const MISSION_PAD_COUNT = 6;
@@ -93,8 +93,8 @@ const WORLD_REALM_PAD_X = 240;
 const WORLD_REALM_PAD_Y = 175;
 const ABSOLUTE_MIN_ZOOM = 0.18;
 const STRATEGY_ZOOM_EXTRA_ROOM = 0.92;
-const CAMERA_SAFE_LEFT_PX = 360;
-const CAMERA_SAFE_RIGHT_PX = 360;
+const CAMERA_SAFE_LEFT_PX = 330;
+const CAMERA_SAFE_RIGHT_PX = 330;
 const CAMERA_SAFE_TOP_PX = 110;
 const CAMERA_SAFE_BOTTOM_PX = 270;
 const CAMERA_WORLD_PAD_X = 140;
@@ -121,6 +121,22 @@ const ORDER_LABELS: Record<WorldActivityKind, string> = {
   subagent: "PARTY",
   prompt: "ASK",
   generic: "WORK",
+};
+
+const WORLD_STATE_LABELS: Record<WorldReadState, string> = {
+  idle: "CALM",
+  active: "ACTIVE",
+  hold: "HOLD",
+  pressure: "PRESSURE",
+  sealed: "SEALED",
+};
+
+const WORLD_STATE_COLORS: Record<WorldReadState, number> = {
+  idle: 0x6cc6ff,
+  active: 0xffd86b,
+  hold: 0xffb86c,
+  pressure: 0xff5a3c,
+  sealed: 0x7af0c0,
 };
 
 type BiomePalette = {
@@ -265,8 +281,8 @@ const IDLE_QUIRK_MAX_MS = 8200;
 const IDLE_QUIRK_DURATION_MS = 3600;
 const RESULT_STREAK_POSE_MS = 1800;
 const CAMERA_PUNCTUATION_COOLDOWN_MS = 900;
-const FINE_DETAIL_FADE_MIN_ZOOM = 0.24;
-const FINE_DETAIL_FADE_FULL_ZOOM = 0.48;
+const FINE_DETAIL_FADE_MIN_ZOOM = 0.19;
+const FINE_DETAIL_FADE_FULL_ZOOM = 0.39;
 const WORLD_CULL_PAD = 360;
 const LETTER_SIGNAL_MS = 1500;
 const RENOWN_SIGNAL_MS = 2400;
@@ -275,6 +291,7 @@ const MISSION_FORMATION_ORDER = [0, 3, 1, 4, 2, 5] as const;
 type IdleQuirkKind = "watch" | "garden" | "forge" | "tide";
 type ResultPoseKind = "success" | "error";
 type RenownTier = "New" | "Apprentice" | "Veteran" | "Hero";
+type WorldReadState = "idle" | "active" | "hold" | "pressure" | "sealed";
 
 type WielderRef = {
   unitId: string;
@@ -346,12 +363,16 @@ type WorldRef = {
   container: Phaser.GameObjects.Container;
   isoPlane: Phaser.GameObjects.Container;
   biome: Phaser.GameObjects.Graphics;
+  stateGfx: Phaser.GameObjects.Graphics;
   workGfx: Phaser.GameObjects.Graphics;
   missionPads: Phaser.GameObjects.Arc[];
   todOverlay: Phaser.GameObjects.Ellipse;
   breathOverlay: Phaser.GameObjects.Ellipse;
   eventOverlay: Phaser.GameObjects.Ellipse;
   alertRing: Phaser.GameObjects.Arc;
+  selectionRing: Phaser.GameObjects.Arc;
+  stateLabelBg: Phaser.GameObjects.Rectangle;
+  stateLabel: Phaser.GameObjects.Text;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
   theme: WorldTheme;
@@ -406,6 +427,10 @@ export class KingdomScene extends Phaser.Scene {
   private agentLayer?: Phaser.GameObjects.Container;
   private realmGfx?: Phaser.GameObjects.Graphics;
   private routeGfx?: Phaser.GameObjects.Graphics;
+  private routeTrafficGfx?: Phaser.GameObjects.Graphics;
+  private miniMapGfx?: Phaser.GameObjects.Graphics;
+  private miniMapLabel?: Phaser.GameObjects.Text;
+  private hudCamera?: Phaser.Cameras.Scene2D.Camera;
   private layout = new Map<
     string,
     { x: number; y: number; clusterKey: string }
@@ -510,6 +535,28 @@ export class KingdomScene extends Phaser.Scene {
     this.spawnStars(140);
     this.realmGfx = this.add.graphics().setDepth(-70);
     this.routeGfx = this.add.graphics().setDepth(-45);
+    this.routeTrafficGfx = this.add.graphics().setDepth(-34);
+    this.miniMapGfx = this.add.graphics().setDepth(1300);
+    this.miniMapLabel = this.add
+      .text(0, 0, "TACTICAL MAP", {
+        fontSize: "12px",
+        color: "#ffd86b",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
+        letterSpacing: 1,
+      })
+      .setDepth(1301)
+      .setAlpha(0.92);
+    this.hudCamera = this.cameras.add(
+      0,
+      0,
+      this.scale.width,
+      this.scale.height,
+      false,
+      "hud"
+    );
+    this.hudCamera.setScroll(0, 0).setZoom(1);
+    this.cameras.main.ignore([this.miniMapGfx, this.miniMapLabel]);
     this.base = this.spawnKingdomBase();
     this.agentLayer = this.add.container(0, 0).setDepth(60);
 
@@ -537,6 +584,12 @@ export class KingdomScene extends Phaser.Scene {
         renownForStats(stats).tier,
       ])
     );
+    const initialWorldsKey = Object.keys(initialState.worlds).sort().join(",");
+    if (initialWorldsKey) {
+      this.syncWorlds(initialState.worlds);
+      this.lastWorldsKey = initialWorldsKey;
+      this.drawTacticalMiniMap(initialState.worlds, initialState.units);
+    }
 
     // Camera control
     this.installCameraControls();
@@ -551,6 +604,7 @@ export class KingdomScene extends Phaser.Scene {
     const eventHandler = (e: Event) => {
       const ev = (e as CustomEvent<AgentEvent>).detail;
       const now = performance.now();
+      if (!this.canCreateGameObjects()) return;
       // Find the wielder by sessionId (across all worlds).
       let ref: WielderRef | undefined;
       let worldRef: WorldRef | undefined;
@@ -633,6 +687,10 @@ export class KingdomScene extends Phaser.Scene {
       this.realmGfx = undefined;
       this.skyGfx = undefined;
       this.routeGfx = undefined;
+      this.routeTrafficGfx = undefined;
+      this.miniMapGfx = undefined;
+      this.miniMapLabel = undefined;
+      this.hudCamera = undefined;
       this.scanline = undefined;
       this.lastWorldsKey = "";
       this.lastCameraTargetVersion = 0;
@@ -678,6 +736,15 @@ export class KingdomScene extends Phaser.Scene {
       } else {
         ref.alertRing.setAlpha(1);
       }
+      const selected = storeState.activeWorldId === id;
+      ref.selectionRing.setVisible(selected);
+      if (selected) {
+        const pulse = 0.5 + 0.5 * Math.sin(this.t * 3.2);
+        ref.selectionRing
+          .setStrokeStyle(2.2, 0xffd86b, 0.56 + pulse * 0.26)
+          .setScale(1.02 + pulse * 0.04);
+      }
+      this.tickWorldStateLayer(ref, w, units);
 
       // Sync wielders + heartless for this world.
       this.syncWieldersFor(ref, w, units, delta);
@@ -701,6 +768,9 @@ export class KingdomScene extends Phaser.Scene {
     this.tickKingdomBase(delta, units);
     this.syncLetterSignals(storeState.letters, units);
     this.syncRenownSignals(units, storeState.persisted.wielders);
+    this.drawRouteTraffic(storeState.worlds, units);
+    this.drawTacticalMiniMap(storeState.worlds, units);
+    this.syncHudCameraLayer();
 
     // Twinkle stars
     for (const s of this.stars) {
@@ -777,13 +847,23 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
+  private canCreateGameObjects() {
+    return Boolean(
+      this.add &&
+      this.tweens &&
+      this.time &&
+      this.scene &&
+      this.scene.isActive()
+    );
+  }
+
   private triggerWorldEventVfx(
     worldRef: WorldRef,
     ref: WielderRef,
     event: AgentEvent
   ) {
     const kind = activityForEvent(event);
-    if (!kind) return;
+    if (!kind || !this.canCreateGameObjects()) return;
     const color = activityColorForTheme(worldRef.theme, kind);
     worldRef.lastActivityKind = kind;
     worldRef.lastActivityAt = this.time.now;
@@ -1254,6 +1334,7 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private spawnToolVfx(worldRef: WorldRef, ref: WielderRef, toolName: string) {
+    if (!this.canCreateGameObjects()) return;
     const kind = activityForToolName(toolName);
     const color = activityColorForTheme(worldRef.theme, kind);
     this.spawnActivityGlyph(ref, kind, color);
@@ -1339,6 +1420,7 @@ export class KingdomScene extends Phaser.Scene {
     kind: WorldActivityKind,
     color: number
   ) {
+    if (!this.canCreateGameObjects()) return;
     const x = ref.container.x;
     const y = ref.container.y - 52;
     const g = this.add.graphics().setPosition(x, y).setDepth(70);
@@ -1370,6 +1452,7 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private pulseRoutesFromWorld(worldRef: WorldRef, color: number) {
+    if (!this.canCreateGameObjects()) return;
     const source = this.layout.get(worldRef.worldId);
     if (!source) return;
     const peers = [...this.worlds.values()]
@@ -1586,6 +1669,137 @@ export class KingdomScene extends Phaser.Scene {
         2.1
       );
     }
+  }
+
+  private drawRouteTraffic(
+    worlds: Record<string, WorldState>,
+    units: Record<string, UnitState>
+  ) {
+    const g = this.routeTrafficGfx;
+    if (!g) return;
+    g.clear();
+    if (this.worlds.size === 0) return;
+
+    const zoom = this.cameras.main.zoom;
+    const routeAlpha = zoom < 0.52 ? 0.42 : 0.3;
+    for (const worldRef of this.worlds.values()) {
+      const world = worlds[worldRef.worldId];
+      if (!world) continue;
+      const read = this.worldReadState(worldRef, world, units);
+      const activeCount = world.unitIds.filter((id) => {
+        const unit = units[id];
+        return (
+          unit?.status === "working" ||
+          unit?.status === "casting" ||
+          unit?.status === "fallen"
+        );
+      }).length;
+      if (
+        read.state === "idle" &&
+        world.unitIds.length === 0 &&
+        world.heartless.length === 0
+      ) {
+        continue;
+      }
+
+      const x2 = worldRef.container.x;
+      const y2 = worldRef.container.y;
+      const dist = Math.hypot(x2, y2);
+      if (dist < BASE_RADIUS * 0.72) continue;
+      const ux = x2 / dist;
+      const uy = y2 / dist;
+      const nx = -uy;
+      const ny = ux;
+      const start = BASE_RADIUS * 0.48;
+      const end = Math.max(start + 1, dist - 112);
+      const color = read.color;
+      const urgency =
+        read.state === "pressure"
+          ? 1.45
+          : read.state === "hold"
+            ? 1.15
+            : read.state === "sealed"
+              ? 0.62
+              : 0.92;
+      const laneAlpha =
+        read.state === "idle"
+          ? 0.08
+          : read.state === "sealed"
+            ? 0.13
+            : routeAlpha + read.intensity * 0.14;
+
+      g.lineStyle(9, 0x020713, laneAlpha * 0.55);
+      g.lineBetween(ux * start, uy * start, ux * end, uy * end);
+      g.lineStyle(read.state === "pressure" ? 2.6 : 2, color, laneAlpha);
+      g.lineBetween(ux * start, uy * start, ux * end, uy * end);
+
+      const packetCount = Phaser.Math.Clamp(
+        activeCount + world.heartless.length + (read.state === "hold" ? 2 : 1),
+        read.state === "idle" ? 1 : 3,
+        7
+      );
+      for (let i = 0; i < packetCount; i++) {
+        const drift = (this.t * 0.09 * urgency + i / packetCount) % 1;
+        const t = read.state === "pressure" ? 1 - drift : drift;
+        const d = Phaser.Math.Linear(start, end, t);
+        const wobble = Math.sin(this.t * 2.7 + i * 1.4) * 5;
+        const px = ux * d + nx * wobble;
+        const py = uy * d + ny * wobble;
+        const pulse = 0.5 + 0.5 * Math.sin(this.t * 5.2 + i);
+        const size =
+          read.state === "pressure"
+            ? 8 + pulse * 2
+            : read.state === "sealed"
+              ? 4.5 + pulse
+              : 6.2 + pulse * 1.8;
+
+        if (read.state === "pressure" || read.state === "hold") {
+          this.fillRouteTriangle(g, px, py, ux, uy, nx, ny, size, color);
+        } else {
+          g.fillStyle(color, 0.48 + pulse * 0.24);
+          g.fillCircle(px, py, size * 0.42);
+          g.lineStyle(1.1, color, 0.26 + pulse * 0.18);
+          g.strokeCircle(px, py, size);
+        }
+      }
+
+      if (read.state === "pressure") {
+        const pulse = 0.5 + 0.5 * Math.sin(this.t * 4.2);
+        g.lineStyle(1.3, color, 0.18 + pulse * 0.16);
+        g.strokeCircle(x2, y2, 112 + pulse * 18);
+      }
+    }
+  }
+
+  private fillRouteTriangle(
+    g: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    ux: number,
+    uy: number,
+    nx: number,
+    ny: number,
+    size: number,
+    color: number
+  ) {
+    g.fillStyle(color, 0.62);
+    g.fillTriangle(
+      x + ux * size,
+      y + uy * size,
+      x - ux * size * 0.72 + nx * size * 0.58,
+      y - uy * size * 0.72 + ny * size * 0.58,
+      x - ux * size * 0.72 - nx * size * 0.58,
+      y - uy * size * 0.72 - ny * size * 0.58
+    );
+    g.lineStyle(1.1, 0xfff4c7, 0.28);
+    g.strokeTriangle(
+      x + ux * size,
+      y + uy * size,
+      x - ux * size * 0.72 + nx * size * 0.58,
+      y - uy * size * 0.72 + ny * size * 0.58,
+      x - ux * size * 0.72 - nx * size * 0.58,
+      y - uy * size * 0.72 - ny * size * 0.58
+    );
   }
 
   private drawRealmMap() {
@@ -1832,8 +2046,20 @@ export class KingdomScene extends Phaser.Scene {
     const metrics = this.realmCameraMetrics();
     if (!metrics) return;
     const cam = this.cameras.main;
-    cam.setZoom(Phaser.Math.Clamp(metrics.fitZoom, ABSOLUTE_MIN_ZOOM, 1.5));
+    cam.setZoom(
+      Phaser.Math.Clamp(metrics.fitZoom * 1.06, ABSOLUTE_MIN_ZOOM, 1.5)
+    );
     cam.centerOn(metrics.centerX, metrics.centerY);
+  }
+
+  private cameraSafeInsets() {
+    const cam = this.cameras.main;
+    return {
+      left: Math.min(CAMERA_SAFE_LEFT_PX, cam.width * 0.34),
+      right: Math.min(CAMERA_SAFE_RIGHT_PX, cam.width * 0.3),
+      top: Math.min(CAMERA_SAFE_TOP_PX, cam.height * 0.18),
+      bottom: Math.min(CAMERA_SAFE_BOTTOM_PX, cam.height * 0.32),
+    };
   }
 
   private realmCameraMetrics() {
@@ -1843,13 +2069,13 @@ export class KingdomScene extends Phaser.Scene {
     ]);
     const cam = this.cameras.main;
     if (cam.width <= 0 || cam.height <= 0) return undefined;
-    const safeLeft = Math.min(CAMERA_SAFE_LEFT_PX, cam.width * 0.34);
-    const safeRight = Math.min(CAMERA_SAFE_RIGHT_PX, cam.width * 0.3);
-    const safeTop = Math.min(CAMERA_SAFE_TOP_PX, cam.height * 0.18);
-    const safeBottom = Math.min(CAMERA_SAFE_BOTTOM_PX, cam.height * 0.32);
-    const safeW = Math.max(cam.width - safeLeft - safeRight, cam.width * 0.38);
+    const safe = this.cameraSafeInsets();
+    const safeW = Math.max(
+      cam.width - safe.left - safe.right,
+      cam.width * 0.38
+    );
     const safeH = Math.max(
-      cam.height - safeTop - safeBottom,
+      cam.height - safe.top - safe.bottom,
       cam.height * 0.42
     );
     const w = maxX - minX + CAMERA_WORLD_PAD_X * 2;
@@ -1859,8 +2085,8 @@ export class KingdomScene extends Phaser.Scene {
       Math.min(safeW / Math.max(w, 200), safeH / Math.max(h, 200))
     );
     return {
-      centerX: (minX + maxX) / 2 + (safeRight - safeLeft) / (2 * fitZoom),
-      centerY: (minY + maxY) / 2 + (safeBottom - safeTop) / (2 * fitZoom),
+      centerX: (minX + maxX) / 2 + (safe.right - safe.left) / (2 * fitZoom),
+      centerY: (minY + maxY) / 2 + (safe.bottom - safe.top) / (2 * fitZoom),
       fitZoom,
     };
   }
@@ -2353,11 +2579,16 @@ export class KingdomScene extends Phaser.Scene {
     const ringRadius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 8;
     const biome = this.add.graphics();
     this.drawWorldBiomeBackdrop(biome, theme, ringRadius);
+    const stateGfx = this.add.graphics();
     const workGfx = this.add.graphics();
     const missionPads = this.spawnMissionPads(theme);
     const alertRing = this.add
       .circle(0, 0, ringRadius, 0x000000, 0)
       .setStrokeStyle(2.5, ALERT_RING_COLOR[world.alertLevel], 1);
+    const selectionRing = this.add
+      .circle(0, 0, ringRadius + 12, 0x000000, 0)
+      .setStrokeStyle(2.2, 0xffd86b, 0)
+      .setVisible(false);
 
     const labelY = ringRadius + 6;
     const label = this.add
@@ -2366,6 +2597,8 @@ export class KingdomScene extends Phaser.Scene {
         color: "#cfd9f0",
         fontFamily: "system-ui, sans-serif",
         fontStyle: "bold",
+        backgroundColor: "rgba(6, 8, 18, 0.72)",
+        padding: { x: 5, y: 1 },
       })
       .setOrigin(0.5, 0);
 
@@ -2375,6 +2608,21 @@ export class KingdomScene extends Phaser.Scene {
         color: "#8aa0d0",
         fontFamily: "ui-monospace, monospace",
         letterSpacing: 1,
+        backgroundColor: "rgba(6, 8, 18, 0.56)",
+        padding: { x: 4, y: 1 },
+      })
+      .setOrigin(0.5, 0);
+
+    const stateLabelY = -ringRadius - 18;
+    const stateLabelBg = this.add
+      .rectangle(0, stateLabelY + 7, 76, 18, 0x06101f, 0.86)
+      .setStrokeStyle(1, WORLD_STATE_COLORS.idle, 0.45);
+    const stateLabel = this.add
+      .text(0, stateLabelY, WORLD_STATE_LABELS.idle, {
+        fontSize: "9px",
+        color: "#dce8ff",
+        fontFamily: "ui-monospace, monospace",
+        fontStyle: "bold",
       })
       .setOrigin(0.5, 0);
 
@@ -2412,6 +2660,7 @@ export class KingdomScene extends Phaser.Scene {
 
     container.add([
       biome,
+      stateGfx,
       workGfx,
       ...missionPads,
       isoPlane,
@@ -2419,8 +2668,11 @@ export class KingdomScene extends Phaser.Scene {
       breathOverlay,
       eventOverlay,
       alertRing,
+      selectionRing,
       label,
       themeText,
+      stateLabelBg,
+      stateLabel,
       countBg,
       countText,
     ]);
@@ -2433,7 +2685,7 @@ export class KingdomScene extends Phaser.Scene {
       const w = useStore.getState().worlds[worldId];
       const firstUnit = w?.unitIds?.[0];
       if (firstUnit) useStore.getState().selectUnit(firstUnit);
-      useStore.getState().setCameraTarget(worldId);
+      useStore.getState().selectWorld(worldId);
     });
 
     // Tier 2 — per-theme signature atmosphere on the iso plane.
@@ -2451,12 +2703,16 @@ export class KingdomScene extends Phaser.Scene {
       container,
       isoPlane,
       biome,
+      stateGfx,
       workGfx,
       missionPads,
       todOverlay,
       breathOverlay,
       eventOverlay,
       alertRing,
+      selectionRing,
+      stateLabelBg,
+      stateLabel,
       countText,
       countBg,
       theme,
@@ -2481,13 +2737,15 @@ export class KingdomScene extends Phaser.Scene {
   ) {
     const palette = THEME_BIOMES[theme];
     g.clear();
-    g.fillStyle(palette.shadow, 0.78);
-    g.fillEllipse(0, 24, ringRadius * 2.38, ringRadius * 1.24);
-    g.fillStyle(palette.ground, 0.38);
-    g.fillEllipse(0, 10, ringRadius * 2.18, ringRadius * 1.1);
-    g.lineStyle(2, palette.accent, 0.32);
+    g.fillStyle(0x000000, 0.34);
+    g.fillEllipse(0, 34, ringRadius * 2.52, ringRadius * 1.3);
+    g.fillStyle(palette.shadow, 0.86);
+    g.fillEllipse(0, 24, ringRadius * 2.42, ringRadius * 1.26);
+    g.fillStyle(palette.ground, 0.5);
+    g.fillEllipse(0, 10, ringRadius * 2.22, ringRadius * 1.12);
+    g.lineStyle(2.4, palette.accent, 0.42);
     g.strokeEllipse(0, 10, ringRadius * 2.06, ringRadius);
-    g.lineStyle(1.2, palette.lane, 0.24);
+    g.lineStyle(1.4, palette.lane, 0.32);
     g.strokeEllipse(0, 10, ringRadius * 1.56, ringRadius * 0.68);
 
     if (theme === "destiny") {
@@ -2548,12 +2806,182 @@ export class KingdomScene extends Phaser.Scene {
       const x = Math.cos(angle) * radius;
       const y = Math.sin(angle) * radius * 0.68;
       const pad = this.add
-        .circle(x, y, 14, palette.ground, 0.22)
-        .setStrokeStyle(1.6, palette.lane, 0.45)
+        .circle(x, y, 16, palette.ground, 0.26)
+        .setStrokeStyle(1.9, palette.lane, 0.55)
         .setScale(1, 0.46);
       pads.push(pad);
     }
     return pads;
+  }
+
+  private worldReadState(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ): { color: number; intensity: number; state: WorldReadState } {
+    const activeCount = world.unitIds.filter((id) => {
+      const unit = units[id];
+      return unit?.status === "working" || unit?.status === "casting";
+    }).length;
+    const fallenCount = world.unitIds.filter(
+      (id) => units[id]?.status === "fallen"
+    ).length;
+    const recentKind =
+      this.time.now - worldRef.lastActivityAt < ACTIVITY_MOOD_MS
+        ? worldRef.lastActivityKind
+        : undefined;
+    if (world.alertLevel === "cleared") {
+      return {
+        state: "sealed",
+        color: WORLD_STATE_COLORS.sealed,
+        intensity: 0.58,
+      };
+    }
+    if (
+      world.alertLevel === "danger" ||
+      world.heartless.length >= 3 ||
+      fallenCount > 0 ||
+      recentKind === "error"
+    ) {
+      return {
+        state: "pressure",
+        color: WORLD_STATE_COLORS.pressure,
+        intensity: Phaser.Math.Clamp(
+          0.42 + world.heartless.length * 0.08 + fallenCount * 0.14,
+          0.42,
+          0.9
+        ),
+      };
+    }
+    if (recentKind === "permission" || recentKind === "prompt") {
+      return {
+        state: "hold",
+        color: WORLD_STATE_COLORS.hold,
+        intensity: 0.62,
+      };
+    }
+    if (
+      world.alertLevel === "warning" ||
+      world.heartless.length > 0 ||
+      activeCount > 0
+    ) {
+      return {
+        state: activeCount > 0 ? "active" : "pressure",
+        color:
+          activeCount > 0
+            ? WORLD_STATE_COLORS.active
+            : WORLD_STATE_COLORS.pressure,
+        intensity: Phaser.Math.Clamp(0.34 + activeCount * 0.1, 0.34, 0.7),
+      };
+    }
+    return { state: "idle", color: WORLD_STATE_COLORS.idle, intensity: 0.24 };
+  }
+
+  private tickWorldStateLayer(
+    worldRef: WorldRef,
+    world: WorldState,
+    units: Record<string, UnitState>
+  ) {
+    const g = worldRef.stateGfx;
+    const read = this.worldReadState(worldRef, world, units);
+    const ringRadius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 8;
+    const pulse =
+      0.5 + 0.5 * Math.sin(this.t * (read.state === "pressure" ? 4.8 : 2.2));
+    const fineAlpha = Math.max(this.fineDetailAlpha(), 0.32);
+    g.clear();
+    g.setAlpha(fineAlpha);
+
+    worldRef.stateLabel.setText(WORLD_STATE_LABELS[read.state]);
+    worldRef.stateLabel.setColor(
+      read.state === "pressure" ? "#ffe0d8" : "#fff8e0"
+    );
+    worldRef.stateLabelBg
+      .setFillStyle(0x06101f, read.state === "idle" ? 0.62 : 0.86)
+      .setStrokeStyle(1.2, read.color, 0.5 + read.intensity * 0.3);
+    worldRef.stateLabelBg.width =
+      read.state === "pressure" ? 92 : read.state === "sealed" ? 78 : 72;
+
+    if (read.state === "idle") {
+      g.lineStyle(1.1, read.color, 0.08 + pulse * 0.04);
+      g.strokeEllipse(0, 12, ringRadius * 1.9, ringRadius * 0.86);
+      g.lineStyle(1, THEME_BIOMES[worldRef.theme].lane, 0.08);
+      for (let i = -2; i <= 2; i++) {
+        g.lineBetween(
+          -ringRadius * 0.58,
+          10 + i * 13,
+          ringRadius * 0.58,
+          10 + i * 13
+        );
+      }
+      return;
+    }
+
+    if (read.state === "sealed") {
+      g.fillStyle(0x7af0c0, 0.06 + pulse * 0.04);
+      g.fillEllipse(0, 12, ringRadius * 2.2, ringRadius * 1.02);
+      g.lineStyle(2.2, 0xffd86b, 0.28 + pulse * 0.18);
+      g.strokeEllipse(0, 10, ringRadius * 2.04, ringRadius * 0.92);
+      g.lineStyle(1.3, 0x7af0c0, 0.22 + pulse * 0.12);
+      for (let i = 0; i < 6; i++) {
+        const a = this.t * 0.8 + i * ((Math.PI * 2) / 6);
+        const x = Math.cos(a) * ringRadius * 0.72;
+        const y = 10 + Math.sin(a) * ringRadius * 0.28;
+        g.fillStyle(i % 2 === 0 ? 0xffd86b : 0x7af0c0, 0.45 + pulse * 0.18);
+        g.fillCircle(x, y, 2.2 + pulse * 1.4);
+      }
+      return;
+    }
+
+    if (read.state === "hold") {
+      g.fillStyle(read.color, 0.07 + pulse * 0.06);
+      g.fillEllipse(0, 12, ringRadius * 2.14, ringRadius * 1.02);
+      g.lineStyle(2.4, read.color, 0.38 + pulse * 0.22);
+      g.strokeEllipse(0, 10, ringRadius * 1.98, ringRadius * 0.92);
+      g.fillStyle(read.color, 0.12 + pulse * 0.08);
+      g.fillTriangle(0, -ringRadius * 0.64, 34, -ringRadius * 0.28, 0, 0);
+      g.fillTriangle(0, -ringRadius * 0.64, 0, 0, -34, -ringRadius * 0.28);
+      g.lineStyle(1.6, read.color, 0.56);
+      g.strokeTriangle(0, -ringRadius * 0.64, 34, -ringRadius * 0.28, 0, 0);
+      g.strokeTriangle(0, -ringRadius * 0.64, 0, 0, -34, -ringRadius * 0.28);
+      return;
+    }
+
+    if (read.state === "active") {
+      g.fillStyle(read.color, 0.06 + pulse * 0.05);
+      g.fillEllipse(0, 12, ringRadius * 2.24, ringRadius * 1.04);
+      g.lineStyle(2, read.color, 0.28 + pulse * 0.18);
+      g.strokeEllipse(0, 10, ringRadius * 2.06, ringRadius * 0.94);
+      g.lineStyle(1.2, THEME_BIOMES[worldRef.theme].lane, 0.24 + pulse * 0.14);
+      for (let i = 0; i < 5; i++) {
+        const a = this.t * 1.2 + i * ((Math.PI * 2) / 5);
+        g.lineBetween(
+          Math.cos(a) * ringRadius * 0.32,
+          10 + Math.sin(a) * ringRadius * 0.14,
+          Math.cos(a) * ringRadius * 0.82,
+          10 + Math.sin(a) * ringRadius * 0.36
+        );
+      }
+      return;
+    }
+
+    g.fillStyle(read.color, 0.08 + read.intensity * 0.06 + pulse * 0.04);
+    g.fillEllipse(0, 14, ringRadius * 2.3, ringRadius * 1.08);
+    g.lineStyle(2.6, read.color, 0.36 + pulse * 0.24);
+    g.strokeEllipse(0, 10, ringRadius * 2.08, ringRadius * 0.94);
+    g.lineStyle(1.5, read.color, 0.24 + pulse * 0.18);
+    for (let i = 0; i < 8; i++) {
+      const a = this.t * 1.6 + i * ((Math.PI * 2) / 8);
+      const x = Math.cos(a) * ringRadius * 0.9;
+      const y = 10 + Math.sin(a) * ringRadius * 0.42;
+      g.fillTriangle(
+        x,
+        y - 8,
+        x + Math.cos(a + 0.28) * 12,
+        y + Math.sin(a + 0.28) * 7,
+        x + Math.cos(a - 0.28) * 12,
+        y + Math.sin(a - 0.28) * 7
+      );
+    }
   }
 
   private tickWorldBiome(
@@ -2785,16 +3213,23 @@ export class KingdomScene extends Phaser.Scene {
 
     const alertAlpha =
       world.alertLevel === "danger"
-        ? 0.12
+        ? 0.16
         : world.alertLevel === "warning"
-          ? 0.09
+          ? 0.11
           : world.alertLevel === "active"
-            ? 0.06
+            ? 0.08
             : world.alertLevel === "cleared"
-              ? 0.05
+              ? 0.07
               : 0.025;
     const workAlpha = activeUnits.length > 0 ? 0.06 : 0;
-    const moodAlpha = recentMood ? 0.08 : 0;
+    const moodAlpha = recentMood
+      ? worldRef.lastActivityKind === "permission" ||
+        worldRef.lastActivityKind === "prompt"
+        ? 0.14
+        : worldRef.lastActivityKind === "error"
+          ? 0.16
+          : 0.09
+      : 0;
     const speed =
       world.alertLevel === "danger"
         ? 5.4
@@ -4228,7 +4663,7 @@ export class KingdomScene extends Phaser.Scene {
     if (this.textures.exists(sheetKey)) {
       const spr = this.add.sprite(0, 0, sheetKey, 0);
       const spriteScale =
-        h.type === "large_body" ? 1.78 : h.type === "soldier" ? 1.52 : 1.34;
+        h.type === "large_body" ? 2.05 : h.type === "soldier" ? 1.74 : 1.5;
       spr.setScale(spriteScale);
       this.tweens.add({
         targets: spr,
@@ -4531,13 +4966,199 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private isWorldNearViewport(worldRef: WorldRef, pad = WORLD_CULL_PAD) {
-    const view = this.cameras.main.worldView;
+    const view = this.mainCameraWorldView();
     return (
       worldRef.container.x >= view.x - pad &&
       worldRef.container.x <= view.x + view.width + pad &&
       worldRef.container.y >= view.y - pad &&
       worldRef.container.y <= view.y + view.height + pad
     );
+  }
+
+  private mainCameraWorldView() {
+    const cam = this.cameras.main;
+    if (cam.worldView.width > 0 && cam.worldView.height > 0) {
+      return {
+        x: cam.worldView.x,
+        y: cam.worldView.y,
+        width: cam.worldView.width,
+        height: cam.worldView.height,
+      };
+    }
+    const zoomX = Math.max(cam.zoomX, 0.001);
+    const zoomY = Math.max(cam.zoomY, 0.001);
+    return {
+      x: cam.scrollX,
+      y: cam.scrollY,
+      width: cam.width / zoomX,
+      height: cam.height / zoomY,
+    };
+  }
+
+  private tacticalCameraWorldView() {
+    const cam = this.cameras.main;
+    const full = this.mainCameraWorldView();
+    const safe = this.cameraSafeInsets();
+    const zoomX = Math.max(cam.zoomX, 0.001);
+    const zoomY = Math.max(cam.zoomY, 0.001);
+    const safeW = Math.max(cam.width - safe.left - safe.right, 1);
+    const safeH = Math.max(cam.height - safe.top - safe.bottom, 1);
+    return {
+      x: full.x + safe.left / zoomX,
+      y: full.y + safe.top / zoomY,
+      width: safeW / zoomX,
+      height: safeH / zoomY,
+    };
+  }
+
+  private drawTacticalMiniMap(
+    worlds: Record<string, WorldState>,
+    units: Record<string, UnitState>
+  ) {
+    const g = this.miniMapGfx;
+    if (!g) return;
+    const label = this.miniMapLabel;
+    g.clear();
+    if (this.worlds.size === 0) {
+      label?.setVisible(false);
+      return;
+    }
+
+    const mainCam = this.cameras.main;
+    const hudCam = this.hudCamera ?? mainCam;
+    const width = Math.min(292, Math.max(220, hudCam.width * 0.2));
+    const height = 148;
+    const defaultScreenX = hudCam.width / 2 - width / 2;
+    const screenX = Phaser.Math.Clamp(
+      defaultScreenX,
+      12,
+      Math.max(12, hudCam.width - width - 12)
+    );
+    const screenY = Phaser.Math.Clamp(
+      hudCam.height - height - 12,
+      86,
+      Math.max(86, hudCam.height - height - 8)
+    );
+    g.setScrollFactor(0);
+    g.setPosition(screenX, screenY);
+    g.setScale(1);
+    g.setAlpha(0.64);
+    label
+      ?.setVisible(true)
+      .setText("TACTICAL MAP")
+      .setScrollFactor(0)
+      .setPosition(screenX + 16, screenY + 11)
+      .setScale(1)
+      .setAlpha(0.72);
+
+    const x = 0;
+    const y = 0;
+    const pad = 14;
+    const bounds = this.getRealmBounds([...this.worlds.values()]);
+    const worldW = Math.max(bounds.maxX - bounds.minX, 1);
+    const worldH = Math.max(bounds.maxY - bounds.minY, 1);
+    const plot = (wx: number, wy: number) => ({
+      x: x + pad + ((wx - bounds.minX) / worldW) * (width - pad * 2),
+      y: y + pad + ((wy - bounds.minY) / worldH) * (height - pad * 2),
+    });
+
+    g.fillStyle(0x000000, 0.5);
+    g.fillRoundedRect(x - 5, y - 5, width + 10, height + 10, 10);
+    g.fillStyle(0x04060d, 0.97);
+    g.fillRoundedRect(x, y, width, height, 8);
+    g.fillStyle(0x0a1221, 0.94);
+    g.fillRoundedRect(x + 8, y + 8, width - 16, 18, 6);
+    g.fillStyle(0xffd86b, 0.72);
+    g.fillRoundedRect(x + 16, y + 14, 54, 5, 3);
+    g.fillStyle(0x6cc6ff, 0.48);
+    g.fillRoundedRect(x + 76, y + 14, 34, 5, 3);
+    g.fillStyle(0xffffff, 0.3);
+    g.fillRoundedRect(x + width - 76, y + 14, 50, 5, 3);
+    g.lineStyle(2.2, 0x6cc6ff, 0.92);
+    g.strokeRoundedRect(x, y, width, height, 8);
+    g.lineStyle(1, 0xffd86b, 0.28);
+    g.strokeEllipse(
+      x + width / 2,
+      y + height / 2 + 7,
+      width * 0.72,
+      height * 0.58
+    );
+
+    const base = plot(0, 0);
+    g.fillStyle(0xffd86b, 0.95);
+    g.fillCircle(base.x, base.y, 5);
+    g.lineStyle(1.4, 0xffd86b, 0.75);
+    g.strokeCircle(base.x, base.y, 8.6);
+
+    for (const worldRef of this.worlds.values()) {
+      const world = worlds[worldRef.worldId];
+      if (!world) continue;
+      const read = this.worldReadState(worldRef, world, units);
+      const p = plot(worldRef.container.x, worldRef.container.y);
+      g.lineStyle(1.2, read.color, read.state === "idle" ? 0.24 : 0.42);
+      g.lineBetween(base.x, base.y, p.x, p.y);
+      g.fillStyle(read.color, read.state === "idle" ? 0.62 : 0.95);
+      g.fillCircle(p.x, p.y, read.state === "pressure" ? 5.6 : 4.2);
+      g.lineStyle(1.4, read.color, read.state === "idle" ? 0.52 : 0.78);
+      g.strokeCircle(p.x, p.y, read.state === "sealed" ? 7.6 : 6.4);
+    }
+
+    const view = this.tacticalCameraWorldView();
+    const topLeft = plot(view.x, view.y);
+    const bottomRight = plot(view.x + view.width, view.y + view.height);
+    const mapLeft = x + pad;
+    const mapTop = y + pad;
+    const mapRight = x + width - pad;
+    const mapBottom = y + height - pad;
+    const rawLeft = Math.min(topLeft.x, bottomRight.x);
+    const rawRight = Math.max(topLeft.x, bottomRight.x);
+    const rawTop = Math.min(topLeft.y, bottomRight.y);
+    const rawBottom = Math.max(topLeft.y, bottomRight.y);
+    const viewportAxis = (
+      rawMin: number,
+      rawMax: number,
+      min: number,
+      max: number
+    ) => {
+      const clippedMin = Phaser.Math.Clamp(rawMin, min, max);
+      const clippedMax = Phaser.Math.Clamp(rawMax, min, max);
+      const axisSize = max - min;
+      const minSize = Math.min(6, axisSize);
+      let start = Math.min(clippedMin, clippedMax);
+      let size = Math.abs(clippedMax - clippedMin);
+      if (size < minSize) {
+        size = minSize;
+        start = Phaser.Math.Clamp(start - size / 2, min, max - size);
+      }
+      return { start, size };
+    };
+    const horizontal = viewportAxis(rawLeft, rawRight, mapLeft, mapRight);
+    const vertical = viewportAxis(rawTop, rawBottom, mapTop, mapBottom);
+    const vx = horizontal.start;
+    const vy = vertical.start;
+    const vw = horizontal.size;
+    const vh = vertical.size;
+    g.fillStyle(0xffffff, 0.1);
+    g.fillRect(vx, vy, vw, vh);
+    g.lineStyle(1.8, 0xffffff, 0.86);
+    g.strokeRect(vx, vy, vw, vh);
+  }
+
+  private syncHudCameraLayer() {
+    const hudCam = this.hudCamera;
+    const miniMap = this.miniMapGfx;
+    const label = this.miniMapLabel;
+    if (!hudCam || !miniMap || !label) return;
+
+    this.cameras.main.ignore([miniMap, label]);
+
+    const hudObjects = new Set<Phaser.GameObjects.GameObject>([miniMap, label]);
+    const ignored = this.children.list.filter(
+      (child) => !hudObjects.has(child)
+    );
+    if (ignored.length > 0) {
+      hudCam.ignore(ignored);
+    }
   }
 
   private installCameraControls() {
@@ -4678,6 +5299,8 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private handleResize() {
+    this.hudCamera?.setViewport(0, 0, this.scale.width, this.scale.height);
+    this.hudCamera?.setScroll(0, 0).setZoom(1);
     this.repaintSky();
     if (this.scanline) {
       this.scanline.setSize(this.scale.width, this.scale.height);

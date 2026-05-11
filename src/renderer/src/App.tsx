@@ -6,6 +6,7 @@ import { WielderHUD } from "./ui/hud/WielderHUD";
 import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
+import { WorldCommandHUD } from "./ui/hud/WorldCommandHUD";
 import { CommandPalette } from "./ui/CommandPalette";
 import { TooltipProvider } from "./ui/components/primitives/Tooltip";
 import { AppToastProvider } from "./ui/components/kit/ToastLayer";
@@ -40,6 +41,7 @@ export function App() {
             <WielderHUD />
             <AlertsHUD />
             <ActivityLog />
+            <WorldCommandHUD />
             <LettersHUD />
           </div>
           <DecreeModal />
