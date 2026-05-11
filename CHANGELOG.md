@@ -2,6 +2,34 @@
 
 All notable changes to keykeeper. Format follows [Keep a Changelog](https://keepachangelog.com/) section names and [Conventional Commits](https://www.conventionalcommits.org/) `type(scope): subject` bullets. Hashes link to the commit on GitHub.
 
+## [0.7.0] (2026-05-11)
+
+This release batch finishes the world-aliveness pass: the Star Chart now reads more like an RTS command map, selected worlds get a dedicated command surface, and the tactical map is a real navigation control instead of a passive decoration.
+
+### Features
+
+- **world:** unified Star Chart aliveness pass with central base behavior, world state labels, route traffic, per-world activity mood, selection rings, richer world/enemy scale, and agents visibly operating across the map.
+- **hud:** world-anchored WorldCommandHUD for selected worlds with focus / dispatch / seal actions, blocking-permission routing, recent signals, and clickable mission-line agents that open wielder status panels.
+- **map:** tactical map now renders bottom-center through a HUD camera, stays translucent, projects the safe gameplay viewport, and supports clicking world markers plus click/drag panning.
+
+### Bug Fixes
+
+- **map:** tactical map viewport rectangle now clips against the minimap bounds and describes the visible gameplay window between HUD panels instead of the full canvas.
+- **hud:** selected-world commands now render as a clamped contextual popover emerging from the world instead of a detached screen bar, with a wider mission-line column for long names and tool badges.
+- **hud:** collapsible HUD widgets expose a single expand/collapse control to assistive tech, with the chevron rendered as a decorative state indicator.
+- **world:** event VFX creation now guards against scene shutdown during dev reloads or late hook events.
+
+### Tests
+
+- **map:** added pure unit coverage for tactical map projection, safe-area viewport math, clipping, and click unprojection.
+- **hud:** added component coverage for WorldCommandHUD command scope, world-anchored placement, status-panel opening, and same-name mission-line agent disambiguation.
+
+### Documentation
+
+- **docs:** renderer architecture, vision, README, and plan index now reflect the shipped world-aliveness/tactical-map work.
+
+---
+
 ## [0.6.0] (2026-05-08)
 
 This release stabilizes keykeeper's internal foundation after the Gemini provider work: runtime validation now uses shared Zod schemas, provider events flow through a normalized hook bridge, the renderer has a Radix/Tailwind design-system base, and the repo has first-class lint, format, style, typecheck, and unit-test coverage.
