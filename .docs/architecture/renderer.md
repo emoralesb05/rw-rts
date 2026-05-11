@@ -10,7 +10,7 @@ Both share state through a single Zustand store (`src/renderer/src/store.ts`). T
 ## Layer stack (bottom to top)
 
 ```
-0. <canvas>            — Phaser KingdomScene (one big z-layer)
+0. <canvas>            — Phaser KingdomScene (Star Chart + tactical map)
 1. .hud-top-left/-right/-center/.hud-bottom-* — HUD widgets (DOM, fixed)
 2. .floating-panel-layer  — draggable panels (modals, wielder cards)
 3. .decree-modal       — full-screen letter modal (highest)
@@ -26,6 +26,16 @@ Both share state through a single Zustand store (`src/renderer/src/store.ts`). T
 
 The active scene is `KingdomScene` (`src/renderer/src/game/scenes/`). Per the Q40 decision in vision.md, there's just one unified scene — no per-world scene switching.
 
+The scene also owns the bottom-center tactical map. It renders through a
+separate HUD camera so it stays pinned to the viewport while the main camera
+pan/zooms the world. The tactical viewport rectangle uses the same safe-area
+insets as camera fitting, so it represents the visible gameplay window between
+the DOM HUD panels rather than the full canvas. Clicking a world marker selects
+that world; clicking/dragging empty tactical-map space pans the Star Chart.
+For the selected world, Phaser also publishes a screen-space anchor into the
+Zustand store. React uses that anchor to render `WorldCommandHUD` as a clamped
+contextual popover emerging from the world instead of as a fixed screen bar.
+
 ## HUD widgets (`src/renderer/src/ui/hud/`)
 
 | File | Where | Purpose |
@@ -34,6 +44,7 @@ The active scene is `KingdomScene` (`src/renderer/src/game/scenes/`). Per the Q4
 | `WielderHUD.tsx` | top-left | Live party roster |
 | `AlertsHUD.tsx` | top-right | Permission letters, important alerts |
 | `LettersHUD.tsx` | bottom-right | Notable / non-blocking letters |
+| `WorldCommandHUD.tsx` | selected world | Contextual selected-world command popover with focus / dispatch / seal and clickable mission-line agents |
 | `PartyRow.tsx` | inside WielderHUD | Per-wielder row in the roster |
 | `LetterCard.tsx` | shared | One letter card, used by both AlertsHUD and LettersHUD |
 | `HudWidget.tsx` | shared | Collapsible HUD shell (header + body, click to toggle) |

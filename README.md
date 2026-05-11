@@ -40,7 +40,10 @@ wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
   (Disney Castle / Hollow Bastion / Traverse Town / Destiny Islands /
   Twilight Town / Halloween Town). Wielders render inside their world's
   iso plane as painterly pixel sprites with FF14 nameplate-style HP/MP
-  bars and KH-flavored speech bubbles on big events.
+  bars and KH-flavored speech bubbles on big events. Selecting a world
+  opens a contextual command popover from that world, and the
+  bottom-center tactical map is interactive: click a world marker to
+  select/focus it, or click/drag empty map space to pan the Star Chart.
 - **Floating panels** — wielder details, Kingdom, Settings, Dispatch,
   Decree composer. All draggable, stack via z-index, no backdrop, close
   individually or with `⌘⇧W` / the `✕ close N` chip.
@@ -181,9 +184,11 @@ events for the same conversation. Each event is stamped with its
 heartless, drives, letters, alert levels — all derived from events. A
 single Phaser scene (`KingdomScene`) renders the unified Star Chart
 with a shared filter pipeline (CRT scanline + bloom + vignette + per-
-event Tier 3 shader pulses + per-theme atmospherics). React HUD
-widgets and floating panels overlay the canvas — no top toolbar; the
-KingdomHeader pill is the de-facto top HUD.
+event Tier 3 shader pulses + per-theme atmospherics). The canvas also
+owns the tactical map through a HUD camera so it stays pinned to the
+viewport, and publishes the selected-world screen anchor used by the
+world command popover. React HUD widgets and floating panels overlay the
+canvas — no top toolbar; the KingdomHeader pill is the de-facto top HUD.
 
 Persistent state lives in JSON in the userData dir; main reads it on
 launch and writes it debounced as the renderer dispatches updates.

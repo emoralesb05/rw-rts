@@ -55,6 +55,16 @@ import {
   type WorldActivityKind,
 } from "../world-aliveness";
 import { drawActivityGlyph } from "../world-aliveness-vfx";
+import {
+  projectViewportToTacticalMap,
+  projectWorldToTacticalMap,
+  tacticalCameraWorldView as createTacticalCameraWorldView,
+  unprojectTacticalMapToWorld,
+  type TacticalBounds,
+  type TacticalMapLayout,
+  type TacticalPoint,
+  type TacticalRect,
+} from "../tactical-map";
 import type { Heartless } from "@shared/events";
 
 // Drive form aura colors — match the KH visual language.
@@ -420,6 +430,19 @@ type StarRef = {
   baseAlpha: number;
 };
 
+type TacticalMapState = {
+  screenX: number;
+  screenY: number;
+  layout: TacticalMapLayout;
+  bounds: TacticalBounds;
+  viewport: TacticalRect;
+  worldPoints: Array<{
+    worldId: string;
+    point: TacticalPoint;
+    radius: number;
+  }>;
+};
+
 export class KingdomScene extends Phaser.Scene {
   private worlds = new Map<string, WorldRef>();
   private clusters = new Map<string, ClusterRef>();
@@ -430,7 +453,10 @@ export class KingdomScene extends Phaser.Scene {
   private routeTrafficGfx?: Phaser.GameObjects.Graphics;
   private miniMapGfx?: Phaser.GameObjects.Graphics;
   private miniMapLabel?: Phaser.GameObjects.Text;
+  private miniMapHitArea?: Phaser.GameObjects.Rectangle;
   private hudCamera?: Phaser.Cameras.Scene2D.Camera;
+  private tacticalMapState?: TacticalMapState;
+  private tacticalMapDragMode: "pan" | null = null;
   private layout = new Map<
     string,
     { x: number; y: number; clusterKey: string }
@@ -547,6 +573,16 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setDepth(1301)
       .setAlpha(0.92);
+    this.miniMapHitArea = this.add
+      .rectangle(0, 0, 1, 1, 0x000000, 0)
+      .setOrigin(0, 0)
+      .setDepth(1302)
+      .setScrollFactor(0)
+      .setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, 1, 1),
+        Phaser.Geom.Rectangle.Contains
+      );
+    this.installTacticalMapInput(this.miniMapHitArea);
     this.hudCamera = this.cameras.add(
       0,
       0,
@@ -556,7 +592,11 @@ export class KingdomScene extends Phaser.Scene {
       "hud"
     );
     this.hudCamera.setScroll(0, 0).setZoom(1);
-    this.cameras.main.ignore([this.miniMapGfx, this.miniMapLabel]);
+    this.cameras.main.ignore([
+      this.miniMapGfx,
+      this.miniMapLabel,
+      this.miniMapHitArea,
+    ]);
     this.base = this.spawnKingdomBase();
     this.agentLayer = this.add.container(0, 0).setDepth(60);
 
@@ -690,7 +730,11 @@ export class KingdomScene extends Phaser.Scene {
       this.routeTrafficGfx = undefined;
       this.miniMapGfx = undefined;
       this.miniMapLabel = undefined;
+      this.miniMapHitArea = undefined;
       this.hudCamera = undefined;
+      this.tacticalMapState = undefined;
+      this.tacticalMapDragMode = null;
+      useStore.getState().setWorldCommandAnchor(null);
       this.scanline = undefined;
       this.lastWorldsKey = "";
       this.lastCameraTargetVersion = 0;
@@ -770,6 +814,7 @@ export class KingdomScene extends Phaser.Scene {
     this.syncRenownSignals(units, storeState.persisted.wielders);
     this.drawRouteTraffic(storeState.worlds, units);
     this.drawTacticalMiniMap(storeState.worlds, units);
+    this.syncWorldCommandAnchor(storeState.activeWorldId);
     this.syncHudCameraLayer();
 
     // Twinkle stars
@@ -4999,16 +5044,56 @@ export class KingdomScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const full = this.mainCameraWorldView();
     const safe = this.cameraSafeInsets();
-    const zoomX = Math.max(cam.zoomX, 0.001);
-    const zoomY = Math.max(cam.zoomY, 0.001);
-    const safeW = Math.max(cam.width - safe.left - safe.right, 1);
-    const safeH = Math.max(cam.height - safe.top - safe.bottom, 1);
+    return createTacticalCameraWorldView(
+      full,
+      {
+        width: cam.width,
+        height: cam.height,
+        zoomX: cam.zoomX,
+        zoomY: cam.zoomY,
+      },
+      safe
+    );
+  }
+
+  private worldToScreen(point: TacticalPoint): TacticalPoint {
+    const cam = this.cameras.main;
+    const view = this.mainCameraWorldView();
     return {
-      x: full.x + safe.left / zoomX,
-      y: full.y + safe.top / zoomY,
-      width: safeW / zoomX,
-      height: safeH / zoomY,
+      x: cam.x + (point.x - view.x) * cam.zoomX,
+      y: cam.y + (point.y - view.y) * cam.zoomY,
     };
+  }
+
+  private syncWorldCommandAnchor(activeWorldId: string | null) {
+    const setAnchor = useStore.getState().setWorldCommandAnchor;
+    if (!activeWorldId) {
+      setAnchor(null);
+      return;
+    }
+    const ref = this.worlds.get(activeWorldId);
+    if (!ref) {
+      setAnchor(null);
+      return;
+    }
+
+    const worldX = ref.container.x;
+    const worldY = ref.container.y - this.missionRingRadius() - 24;
+    const screen = this.worldToScreen({ x: worldX, y: worldY });
+    const cam = this.cameras.main;
+    const margin = 160;
+    setAnchor({
+      worldId: activeWorldId,
+      x: screen.x,
+      y: screen.y,
+      worldX,
+      worldY,
+      visible:
+        screen.x >= -margin &&
+        screen.x <= cam.width + margin &&
+        screen.y >= -margin &&
+        screen.y <= cam.height + margin,
+    });
   }
 
   private drawTacticalMiniMap(
@@ -5021,6 +5106,8 @@ export class KingdomScene extends Phaser.Scene {
     g.clear();
     if (this.worlds.size === 0) {
       label?.setVisible(false);
+      this.miniMapHitArea?.setVisible(false);
+      this.tacticalMapState = undefined;
       return;
     }
 
@@ -5055,11 +5142,9 @@ export class KingdomScene extends Phaser.Scene {
     const y = 0;
     const pad = 14;
     const bounds = this.getRealmBounds([...this.worlds.values()]);
-    const worldW = Math.max(bounds.maxX - bounds.minX, 1);
-    const worldH = Math.max(bounds.maxY - bounds.minY, 1);
+    const layout = { width, height, pad };
     const plot = (wx: number, wy: number) => ({
-      x: x + pad + ((wx - bounds.minX) / worldW) * (width - pad * 2),
-      y: y + pad + ((wy - bounds.minY) / worldH) * (height - pad * 2),
+      ...projectWorldToTacticalMap({ x: wx, y: wy }, bounds, layout),
     });
 
     g.fillStyle(0x000000, 0.5);
@@ -5090,11 +5175,17 @@ export class KingdomScene extends Phaser.Scene {
     g.lineStyle(1.4, 0xffd86b, 0.75);
     g.strokeCircle(base.x, base.y, 8.6);
 
+    const worldPoints: TacticalMapState["worldPoints"] = [];
     for (const worldRef of this.worlds.values()) {
       const world = worlds[worldRef.worldId];
       if (!world) continue;
       const read = this.worldReadState(worldRef, world, units);
       const p = plot(worldRef.container.x, worldRef.container.y);
+      worldPoints.push({
+        worldId: worldRef.worldId,
+        point: p,
+        radius: read.state === "pressure" ? 13 : 11,
+      });
       g.lineStyle(1.2, read.color, read.state === "idle" ? 0.24 : 0.42);
       g.lineBetween(base.x, base.y, p.x, p.y);
       g.fillStyle(read.color, read.state === "idle" ? 0.62 : 0.95);
@@ -5104,55 +5195,160 @@ export class KingdomScene extends Phaser.Scene {
     }
 
     const view = this.tacticalCameraWorldView();
-    const topLeft = plot(view.x, view.y);
-    const bottomRight = plot(view.x + view.width, view.y + view.height);
-    const mapLeft = x + pad;
-    const mapTop = y + pad;
-    const mapRight = x + width - pad;
-    const mapBottom = y + height - pad;
-    const rawLeft = Math.min(topLeft.x, bottomRight.x);
-    const rawRight = Math.max(topLeft.x, bottomRight.x);
-    const rawTop = Math.min(topLeft.y, bottomRight.y);
-    const rawBottom = Math.max(topLeft.y, bottomRight.y);
-    const viewportAxis = (
-      rawMin: number,
-      rawMax: number,
-      min: number,
-      max: number
-    ) => {
-      const clippedMin = Phaser.Math.Clamp(rawMin, min, max);
-      const clippedMax = Phaser.Math.Clamp(rawMax, min, max);
-      const axisSize = max - min;
-      const minSize = Math.min(6, axisSize);
-      let start = Math.min(clippedMin, clippedMax);
-      let size = Math.abs(clippedMax - clippedMin);
-      if (size < minSize) {
-        size = minSize;
-        start = Phaser.Math.Clamp(start - size / 2, min, max - size);
-      }
-      return { start, size };
-    };
-    const horizontal = viewportAxis(rawLeft, rawRight, mapLeft, mapRight);
-    const vertical = viewportAxis(rawTop, rawBottom, mapTop, mapBottom);
-    const vx = horizontal.start;
-    const vy = vertical.start;
-    const vw = horizontal.size;
-    const vh = vertical.size;
+    const viewport = projectViewportToTacticalMap(view, bounds, layout);
+    const vx = viewport.x;
+    const vy = viewport.y;
+    const vw = viewport.width;
+    const vh = viewport.height;
     g.fillStyle(0xffffff, 0.1);
     g.fillRect(vx, vy, vw, vh);
     g.lineStyle(1.8, 0xffffff, 0.86);
     g.strokeRect(vx, vy, vw, vh);
+    this.tacticalMapState = {
+      screenX,
+      screenY,
+      layout,
+      bounds,
+      viewport,
+      worldPoints,
+    };
+    this.updateTacticalMapHitArea(screenX, screenY, width, height);
+  }
+
+  private updateTacticalMapHitArea(
+    screenX: number,
+    screenY: number,
+    width: number,
+    height: number
+  ) {
+    const hitArea = this.miniMapHitArea;
+    if (!hitArea) return;
+    hitArea
+      .setVisible(true)
+      .setPosition(screenX, screenY)
+      .setSize(width, height)
+      .setDisplaySize(width, height);
+    const inputHitArea = hitArea.input?.hitArea;
+    if (inputHitArea instanceof Phaser.Geom.Rectangle) {
+      inputHitArea.setTo(0, 0, width, height);
+    }
+  }
+
+  private installTacticalMapInput(hitArea: Phaser.GameObjects.Rectangle) {
+    hitArea.on(
+      "pointerdown",
+      (
+        pointer: Phaser.Input.Pointer,
+        localX: number,
+        localY: number,
+        event: Phaser.Types.Input.EventData
+      ) => {
+        event.stopPropagation();
+        if (pointer.button !== 0) return;
+        const result = this.handleTacticalMapPointer({ x: localX, y: localY });
+        this.tacticalMapDragMode = result === "pan" ? "pan" : null;
+      }
+    );
+    hitArea.on(
+      "pointermove",
+      (pointer: Phaser.Input.Pointer, localX: number, localY: number) => {
+        if (this.tacticalMapDragMode !== "pan" || !pointer.isDown) return;
+        this.panTacticalMapTo({ x: localX, y: localY });
+      }
+    );
+    hitArea.on("pointerup", () => {
+      this.tacticalMapDragMode = null;
+    });
+    hitArea.on("pointerout", () => {
+      this.tacticalMapDragMode = null;
+    });
+  }
+
+  private handleTacticalMapPointer(point: TacticalPoint): "world" | "pan" {
+    const worldId = this.pickTacticalMapWorld(point);
+    if (worldId) {
+      useStore.getState().selectWorld(worldId);
+      this.lastUserCamMs = performance.now();
+      return "world";
+    }
+    this.panTacticalMapTo(point);
+    return "pan";
+  }
+
+  private pickTacticalMapWorld(point: TacticalPoint) {
+    const state = this.tacticalMapState;
+    if (!state) return undefined;
+    let nearest:
+      | { worldId: string; distance: number; radius: number }
+      | undefined;
+    for (const marker of state.worldPoints) {
+      const distance = Math.hypot(
+        point.x - marker.point.x,
+        point.y - marker.point.y
+      );
+      if (!nearest || distance < nearest.distance) {
+        nearest = {
+          worldId: marker.worldId,
+          distance,
+          radius: marker.radius,
+        };
+      }
+    }
+    return nearest && nearest.distance <= nearest.radius
+      ? nearest.worldId
+      : undefined;
+  }
+
+  private panTacticalMapTo(point: TacticalPoint) {
+    const state = this.tacticalMapState;
+    if (!state) return;
+    const worldPoint = unprojectTacticalMapToWorld(
+      point,
+      state.bounds,
+      state.layout
+    );
+    this.panSafeViewportTo(worldPoint.x, worldPoint.y);
+    this.lastUserCamMs = performance.now();
+  }
+
+  private panSafeViewportTo(worldX: number, worldY: number, duration = 220) {
+    const cam = this.cameras.main;
+    const safe = this.cameraSafeInsets();
+    const zoomX = Math.max(cam.zoomX, 0.001);
+    const zoomY = Math.max(cam.zoomY, 0.001);
+    const safeW = Math.max(cam.width - safe.left - safe.right, 1);
+    const safeH = Math.max(cam.height - safe.top - safe.bottom, 1);
+    const safeCenterX = safe.left + safeW / 2;
+    const safeCenterY = safe.top + safeH / 2;
+    const fullCenterX = worldX + (cam.width / 2 - safeCenterX) / zoomX;
+    const fullCenterY = worldY + (cam.height / 2 - safeCenterY) / zoomY;
+    cam.pan(fullCenterX, fullCenterY, duration, "Sine.easeOut");
+  }
+
+  private pointerHitsTacticalMap(pointer: Phaser.Input.Pointer) {
+    const state = this.tacticalMapState;
+    if (!state) return false;
+    return (
+      pointer.x >= state.screenX &&
+      pointer.x <= state.screenX + state.layout.width &&
+      pointer.y >= state.screenY &&
+      pointer.y <= state.screenY + state.layout.height
+    );
   }
 
   private syncHudCameraLayer() {
     const hudCam = this.hudCamera;
     const miniMap = this.miniMapGfx;
     const label = this.miniMapLabel;
+    const hitArea = this.miniMapHitArea;
     if (!hudCam || !miniMap || !label) return;
 
-    this.cameras.main.ignore([miniMap, label]);
+    const hudObjectsList = [miniMap, label, hitArea].filter(
+      Boolean
+    ) as Phaser.GameObjects.GameObject[];
+    this.cameras.main.ignore(hudObjectsList);
 
-    const hudObjects = new Set<Phaser.GameObjects.GameObject>([miniMap, label]);
+    const hudObjects = new Set<Phaser.GameObjects.GameObject>(hudObjectsList);
     const ignored = this.children.list.filter(
       (child) => !hudObjects.has(child)
     );
@@ -5164,6 +5360,7 @@ export class KingdomScene extends Phaser.Scene {
   private installCameraControls() {
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       if (p.button !== 0) return;
+      if (this.pointerHitsTacticalMap(p)) return;
       this.dragOriginScroll = {
         x: this.cameras.main.scrollX,
         y: this.cameras.main.scrollY,
@@ -5192,6 +5389,7 @@ export class KingdomScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (_p: Phaser.Input.Pointer, _g: unknown, _dx: number, dy: number) => {
+        if (this.pointerHitsTacticalMap(_p)) return;
         const cam = this.cameras.main;
         const factor = dy > 0 ? 1 / 1.1 : 1.1;
         const minZoom = this.strategyMinZoom();

@@ -124,8 +124,13 @@ One Phaser scene renders the entire kingdom in a single pan/zoom
 canvas. Every repo is a world; every world contains a per-world iso
 plane with its themed landmark, ground tiles, ambient particles, and
 the wielders working there. Camera control is manual (drag-pan,
-scroll-wheel zoom); clicking a wielder card or letter pans + zooms
-to that world. Filter pipeline runs scene-wide:
+scroll-wheel zoom); clicking a wielder card, letter, world, or
+tactical-map marker pans + zooms to that world. The tactical map is
+bottom-center and interactive: world markers select/focus worlds, while
+empty-space clicks/drags pan the Star Chart. Selecting a world opens a
+clamped command popover from that world's screen position, so the command
+surface reads as part of the map rather than as a detached bottom bar.
+Filter pipeline runs scene-wide:
 
 - **Tier 1 (always on):** scanline + bloom + per-scene color grade +
   vignette
@@ -169,6 +174,10 @@ localStorage (`keykeeper:hud:collapsed:<title>`).
   scrolls the stream to the event with a gold pulse. Click permission
   rows → pulse the matching alert. System markers (session_start/end,
   subagent_spawn) non-clickable.
+- **World-anchored: WorldCommandHUD** — selected-world command popover
+  emerging from the focused world. It owns world-level focus / dispatch /
+  seal actions, blocking-permission signal, recent signals, and clickable
+  mission-line agents that open wielder status panels.
 - **Bottom-right: LettersHUD** — informational letters, one per
   wielder (most-recent wins). Body click pans canvas to wielder's
   world. `✕ clear` button to drop all at once.
@@ -585,6 +594,10 @@ trigger condition shows up. Order is rough priority (highest first).
 - **Drive observed wielders via session resume** — full plan in
   [`./plans/observed-resume.md`](./plans/observed-resume.md). Empirically
   verified for all 3 tools 2026-04-30; implementation pending.
+- **Provider-neutral multi-choice permissions** — full plan in
+  [`./plans/multi-choice-permissions.md`](./plans/multi-choice-permissions.md).
+  Needed for confirmation prompts that expose multiple selectable options
+  instead of a single allow/deny pair.
 
 ### Phase 2A polish (deferred)
 

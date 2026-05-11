@@ -90,12 +90,42 @@ describe("WorldCommandHUD", () => {
     expect(within(hud).queryByRole("button", { name: /recall/i })).toBeNull();
   });
 
+  it("positions the command surface as a world-anchored popover", () => {
+    const activeWorld = world();
+    const activeUnit = unit();
+    useStore.setState({
+      activeWorldId: activeWorld.id,
+      worldCommandAnchor: {
+        worldId: activeWorld.id,
+        x: 512,
+        y: 520,
+        worldX: 120,
+        worldY: -80,
+        visible: true,
+      },
+      worlds: { [activeWorld.id]: activeWorld },
+      units: { [activeUnit.id]: activeUnit },
+      letters: [],
+      events: [],
+    });
+
+    render(
+      <TooltipProvider>
+        <WorldCommandHUD />
+      </TooltipProvider>
+    );
+
+    const hud = screen.getByRole("region", { name: /repo world command/i });
+    expect(hud).toHaveAttribute("data-placement", "above");
+    expect(hud).toHaveStyle({ left: "152px", top: "282px" });
+  });
+
   it("opens wielder status from mission-line agents", async () => {
     const user = userEvent.setup();
     renderCommandHUD();
 
     await user.click(
-      screen.getByRole("button", { name: /open vaelen status/i })
+      screen.getByRole("button", { name: /open vaelen .* status/i })
     );
 
     expect(useStore.getState().selectedUnitId).toBe("unit-1");
@@ -108,5 +138,44 @@ describe("WorldCommandHUD", () => {
         width: 560,
       }),
     ]);
+  });
+
+  it("disambiguates same-name mission-line agents for assistive tech", () => {
+    const activeWorld = world({ unitIds: ["unit-1", "unit-2"] });
+    const first = unit({
+      id: "unit-1",
+      sessionId: "same-1",
+      lastTool: "Read",
+    });
+    const second = unit({
+      id: "unit-2",
+      sessionId: "same-2",
+      lastTool: "Bash",
+    });
+    useStore.setState({
+      activeWorldId: activeWorld.id,
+      worlds: { [activeWorld.id]: activeWorld },
+      units: { [first.id]: first, [second.id]: second },
+      letters: [],
+      events: [],
+    });
+
+    render(
+      <TooltipProvider>
+        <WorldCommandHUD />
+      </TooltipProvider>
+    );
+
+    const hud = screen.getByRole("region", { name: /repo world command/i });
+    expect(
+      within(hud).getByRole("button", {
+        name: /open vaelen claude read same-1 status/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      within(hud).getByRole("button", {
+        name: /open vaelen claude bash same-2 status/i,
+      })
+    ).toBeInTheDocument();
   });
 });

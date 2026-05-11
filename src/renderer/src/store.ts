@@ -34,6 +34,15 @@ export type ComfortReceipt =
   | "full-hp"
   | "fallen";
 
+export type WorldCommandAnchor = {
+  worldId: string;
+  x: number;
+  y: number;
+  worldX: number;
+  worldY: number;
+  visible: boolean;
+};
+
 type Store = {
   events: AgentEvent[];
   eventCount: number;
@@ -53,6 +62,9 @@ type Store = {
   // a monotonic version so the same target can be re-clicked to re-pan.
   cameraTarget: string | null;
   cameraTargetVersion: number;
+  // Phaser publishes the selected world's current screen position so
+  // the React world command can render as a contextual map popover.
+  worldCommandAnchor: WorldCommandAnchor | null;
   // DecreeModal is open for this unitId when non-null (Phase 2B #14).
   decreeUnitId: string | null;
   // Active recurring Decrees (Phase 2B #14b). Keyed by orderId. NOT
@@ -64,6 +76,7 @@ type Store = {
   selectUnit(id: string | null): void;
   selectWorld(id: string | null): void;
   setCameraTarget(worldId: string | null): void;
+  setWorldCommandAnchor(anchor: WorldCommandAnchor | null): void;
   openDecreeFor(unitId: string): void;
   closeDecree(): void;
   startStandingOrder(
@@ -118,6 +131,26 @@ const COMFORT_COOLDOWN_MS = 30_000;
 const _queue: AgentEvent[] = [];
 let _flushScheduled = false;
 
+function roundAnchorPoint(n: number) {
+  return Math.round(n * 10) / 10;
+}
+
+function sameWorldCommandAnchor(
+  a: WorldCommandAnchor | null,
+  b: WorldCommandAnchor | null
+) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.worldId === b.worldId &&
+    roundAnchorPoint(a.x) === roundAnchorPoint(b.x) &&
+    roundAnchorPoint(a.y) === roundAnchorPoint(b.y) &&
+    roundAnchorPoint(a.worldX) === roundAnchorPoint(b.worldX) &&
+    roundAnchorPoint(a.worldY) === roundAnchorPoint(b.worldY) &&
+    a.visible === b.visible
+  );
+}
+
 export const useStore = create<Store>((set) => ({
   events: [],
   eventCount: 0,
@@ -130,6 +163,7 @@ export const useStore = create<Store>((set) => ({
   letters: [],
   cameraTarget: null,
   cameraTargetVersion: 0,
+  worldCommandAnchor: null,
   decreeUnitId: null,
   standingOrders: {},
 
@@ -166,6 +200,7 @@ export const useStore = create<Store>((set) => ({
       cameraTargetVersion: id
         ? s.cameraTargetVersion + 1
         : s.cameraTargetVersion,
+      worldCommandAnchor: id ? s.worldCommandAnchor : null,
     }));
   },
   setCameraTarget(worldId) {
@@ -173,6 +208,22 @@ export const useStore = create<Store>((set) => ({
       cameraTarget: worldId,
       cameraTargetVersion: s.cameraTargetVersion + 1,
     }));
+  },
+  setWorldCommandAnchor(anchor) {
+    const next = anchor
+      ? {
+          ...anchor,
+          x: roundAnchorPoint(anchor.x),
+          y: roundAnchorPoint(anchor.y),
+          worldX: roundAnchorPoint(anchor.worldX),
+          worldY: roundAnchorPoint(anchor.worldY),
+        }
+      : null;
+    set((s) =>
+      sameWorldCommandAnchor(s.worldCommandAnchor, next)
+        ? s
+        : { worldCommandAnchor: next }
+    );
   },
   openDecreeFor(unitId) {
     set({ decreeUnitId: unitId });
