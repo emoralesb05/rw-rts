@@ -239,10 +239,10 @@ export function createVisualQaSeed(now = Date.now()) {
       riftling: [],
       units: [
         {
-          id: "qa-noct",
+          id: "qa-mira",
           tool: "claude",
           role: "warden3",
-          displayName: "Noct",
+          displayName: "Mira",
           repoRoot: "/tmp/realmkeeper-qa/lantern-town",
           status: "idle",
           hp: 92,
@@ -351,7 +351,7 @@ export function createVisualQaSeed(now = Date.now()) {
       id: "visual-qa-prompt-letter",
       createdAt: now - 2500,
       severity: "important",
-      title: "Noct needs direction in Lantern Hollow Review",
+      title: "Mira needs direction in Lantern Hollow Review",
       body: "The mission is waiting on a player instruction.",
       worldId: allUnits[7].worldId,
       sessionId: allUnits[7].id,

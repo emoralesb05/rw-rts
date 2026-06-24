@@ -204,9 +204,9 @@ Cmd+Shift+W or the `✕ close N` chip closes all open panels.
 
 ### Worlds
 
-6 themed worlds assigned by hash of repo root: Crown Citadel, Hollow
-Bastion, Crossroads Ward, Tide Isles, Dusk Borough, Halloween
-Town. Pixel-art landmarks at 64×64. Per-theme atmospherics + signature
+6 themed worlds assigned by hash of repo root: Crown Citadel, Glass
+Bastion, Crossroads Ward, Tide Isles, Dusk Borough, Lantern
+Hollow. Pixel-art landmarks at 64×64. Per-theme atmospherics + signature
 decorations + color grade.
 
 ---

@@ -192,7 +192,7 @@ function drawWarden1(ctx: SKRSContext2D, frame: number) {
   fillRect(ctx, 31, 5 + dy, 3, 4, hair);
   outlineRect(ctx, 16, 6 + dy, 16, 7, hairDk);
 
-  // Dusk sealblade (Noctis Rayle-flavored — purple + silver)
+  // Dusk focus staff — purple + silver.
   if (sw.armOut) {
     // Held forward
     fillRect(ctx, 35, 26 + dy, 3, 14, "#b0b0c0");
@@ -277,7 +277,7 @@ function drawWarden2(ctx: SKRSContext2D, frame: number) {
   fillRect(ctx, 22, 7 + dy, 4, 1, hairHi);
   outlineRect(ctx, 14, 6 + dy, 20, 9, hairDk);
 
-  // Lunaflower sealblade — silver + pink, lotus motif
+  // Petalbloom focus staff — silver + pink, lotus motif.
   if (sw.armOut) {
     fillRect(ctx, 35, 24 + dy, 3, 14, "#fafaf5");
     fillRect(ctx, 35, 24 + dy, 3, 1, "#ffffff");
@@ -437,7 +437,7 @@ function drawCitadelLandmark(ctx: SKRSContext2D) {
   fillEllipse(ctx, 32, 60, 22, 2, "rgba(0,0,0,0.45)");
 }
 
-function drawHollowBastion(ctx: SKRSContext2D) {
+function drawGlassBastion(ctx: SKRSContext2D) {
   fillRect(ctx, 16, 34, 32, 26, "#1a1426");
   fillRect(ctx, 14, 22, 6, 18, "#2a1f3a");
   fillRect(ctx, 15, 18, 4, 4, "#9d6bff");
@@ -452,7 +452,7 @@ function drawHollowBastion(ctx: SKRSContext2D) {
   fillEllipse(ctx, 32, 60, 24, 2, "rgba(0,0,0,0.55)");
 }
 
-function drawTraverseTown(ctx: SKRSContext2D) {
+function drawCrossroadsWard(ctx: SKRSContext2D) {
   fillRect(ctx, 8, 30, 22, 30, "#6b4423");
   fillRect(ctx, 8, 26, 22, 4, "#ff7a3c");
   fillRect(ctx, 11, 22, 16, 4, "#ff7a3c");
@@ -468,7 +468,7 @@ function drawTraverseTown(ctx: SKRSContext2D) {
   fillEllipse(ctx, 32, 60, 26, 2, "rgba(0,0,0,0.45)");
 }
 
-function drawDestinyIslands(ctx: SKRSContext2D) {
+function drawTideIsles(ctx: SKRSContext2D) {
   fillEllipse(ctx, 32, 56, 26, 5, "#f6d6a8");
   fillEllipse(ctx, 32, 58, 24, 3, "#c89a64");
   fillRect(ctx, 32, 52, 3, 4, "#6b4423");
@@ -482,14 +482,14 @@ function drawDestinyIslands(ctx: SKRSContext2D) {
   fillEllipse(ctx, 30, 19, 2, 2, "#ffd86b");
 }
 
-function drawTwilightTown(ctx: SKRSContext2D) {
+function drawDuskBorough(ctx: SKRSContext2D) {
   // Sunset bloom backdrop.
   fillEllipse(ctx, 32, 16, 22, 12, "rgba(255, 137, 163, 0.35)");
   fillEllipse(ctx, 32, 18, 16, 8, "rgba(255, 184, 108, 0.30)");
   // Stone plinth at the base.
   fillRect(ctx, 18, 54, 28, 8, "#3a2820");
   fillRect(ctx, 18, 53, 28, 1, "#5a3a2c");
-  // Tall clock-tower body (Big-Ben-style — narrow, tall).
+  // Tall clock-tower body — narrow, tall.
   fillRect(ctx, 26, 18, 12, 36, "#a87a4a");
   fillRect(ctx, 26, 17, 12, 1, "#7a5530"); // top ledge shadow
   fillRect(ctx, 25, 18, 1, 36, "#7a5530"); // left depth
@@ -523,11 +523,11 @@ function drawTwilightTown(ctx: SKRSContext2D) {
   fillEllipse(ctx, 32, 62, 24, 2, "rgba(0,0,0,0.45)");
 }
 
-function drawHalloweenTown(ctx: SKRSContext2D) {
+function drawLanternHollow(ctx: SKRSContext2D) {
   // Crescent moon in the sky.
   fillEllipse(ctx, 12, 10, 5, 5, "#ffd86b");
   fillEllipse(ctx, 14, 9, 4, 4, "#1a0f24"); // crescent bite
-  // Curly Hill — the iconic spiral silhouette. Hand-drawn pixel curl.
+  // Curling ridge silhouette. Hand-drawn pixel curl.
   fillRect(ctx, 12, 50, 40, 12, "#1a0f24"); // base mound
   fillRect(ctx, 14, 48, 36, 2, "#1a0f24");
   fillRect(ctx, 18, 44, 28, 4, "#1a0f24");
@@ -569,11 +569,11 @@ function drawHalloweenTown(ctx: SKRSContext2D) {
 function makeLandmarks() {
   const drawers: [string, (c: SKRSContext2D) => void][] = [
     ["landmark-citadel", drawCitadelLandmark],
-    ["landmark-bastion", drawHollowBastion],
-    ["landmark-crossroads", drawTraverseTown],
-    ["landmark-tide", drawDestinyIslands],
-    ["landmark-dusk", drawTwilightTown],
-    ["landmark-lantern", drawHalloweenTown],
+    ["landmark-bastion", drawGlassBastion],
+    ["landmark-crossroads", drawCrossroadsWard],
+    ["landmark-tide", drawTideIsles],
+    ["landmark-dusk", drawDuskBorough],
+    ["landmark-lantern", drawLanternHollow],
   ];
   for (const [name, fn] of drawers) {
     const canvas = createCanvas(LM_SIZE, LM_SIZE);
