@@ -8,7 +8,7 @@ import { useState, type KeyboardEvent } from "react";
 import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { ROLE_HEX } from "../../game/units";
-import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { Badge } from "../components/kit/Badge";
 import { Button } from "../components/kit/Button";
 import { Input } from "../components/kit/Input";

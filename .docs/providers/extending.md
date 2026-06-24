@@ -14,8 +14,8 @@ Does the provider expose assistant-response text via a hook?
 └── No  → also need a transcript watcher (Claude/Codex pattern).
 
 Does the provider support session resume from a one-shot CLI?
-├── Yes → can be driven from keykeeper after spawn.
-└── No  → keykeeper is observation-only for that provider.
+├── Yes → can be driven from realmkeeper after spawn.
+└── No  → Realmkeeper is observation-only for that provider.
 ```
 
 ## Hook-based provider — minimum surface
@@ -24,9 +24,9 @@ Concretely, here's what touches what:
 
 | File | Add | Purpose |
 |---|---|---|
-| `src/main/<name>-hook-installer.ts` | new | Read provider config, splice in `bin/keykeeper-hook` invocations, idempotent install/uninstall |
-| `bin/keykeeper-hook` | edit | Branch on `hook_event_name` if the provider uses unusual names. Use a `--tool <name>` argv flag if event names collide with an existing tool |
-| `src/main/adapters/hook-bridge.ts` | edit | Add a `normalize<Name>Payload(p, eventName)` and route from the dispatcher (case detection or `__kh_tool` marker). Add tool-name canonicalization entries if the provider uses non-standard names. Detail in [`../architecture/bridge.md`](../architecture/bridge.md) |
+| `src/main/<name>-hook-installer.ts` | new | Read provider config, splice in `bin/realmkeeper-hook` invocations, idempotent install/uninstall |
+| `bin/realmkeeper-hook` | edit | Branch on `hook_event_name` if the provider uses unusual names. Use a `--tool <name>` argv flag if event names collide with an existing tool |
+| `src/main/adapters/hook-bridge.ts` | edit | Add a `normalize<Name>Payload(p, eventName)` and route from the dispatcher (case detection or `__rw_tool` marker). Add tool-name canonicalization entries if the provider uses non-standard names. Detail in [`../architecture/bridge.md`](../architecture/bridge.md) |
 | `src/shared/ipc.ts` | edit | Add `Install<Name>Hooks` / `Uninstall<Name>Hooks` / `<Name>HooksStatus` IPC channels |
 | `src/main/index.ts` | edit | Wire the new IPC handlers via `safeHandle` |
 | `src/renderer/src/ui/Settings*.tsx` | edit | Add the install/uninstall toggle |
@@ -71,7 +71,7 @@ If `--print --resume` strips hooks (Cursor's case), additionally:
 ## Testing
 
 - **Fixture replay**: write a JSONL of recorded events, register it in `src/main/adapters/fixture.ts`, replay via `IPC.PlayFixture`. Lets you iterate on UI without firing real provider sessions.
-- **Manual smoke**: install hooks, open a session in the provider, watch the bridge log (`/tmp/keykeeper-dev.log` in dev) for `[keykeeper/bridge] hook <Event> sid=...` lines.
+- **Manual smoke**: install hooks, open a session in the provider, watch the bridge log (`/tmp/realmkeeper-dev.log` in dev) for `[realmkeeper/bridge] hook <Event> sid=...` lines.
 - **Empirical resume verification**: snapshot the on-disk transcript before and after a `--print --resume`; diff to confirm no fork (see [`claude.md`](./claude.md) § Resume for the procedure).
 
 ## Documentation requirement

@@ -10,8 +10,8 @@ vi.mock("../audio/sounds", () => ({
   play: vi.fn(),
 }));
 
-function installKh() {
-  const kh = {
+function installRw() {
+  const rw = {
     sendPrompt: vi.fn(() => Promise.resolve(true)),
     savePersisted: vi.fn(() => Promise.resolve(true)),
     killAgent: vi.fn(() => Promise.resolve(true)),
@@ -20,7 +20,7 @@ function installKh() {
       Promise.resolve({
         schemaVersion: 2,
         kingdomFoundedAt: 0,
-        totalMunnyEver: 0,
+        totalGlimmerEver: 0,
         standingOrders: [],
         wielders: {},
         worlds: {},
@@ -28,17 +28,17 @@ function installKh() {
     ),
   };
 
-  Object.defineProperty(window, "kh", {
+  Object.defineProperty(window, "rw", {
     configurable: true,
     writable: true,
-    value: kh,
+    value: rw,
   });
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
     cb(0);
     return 1;
   });
 
-  return kh;
+  return rw;
 }
 
 function unit(overrides: Partial<UnitState> = {}): UnitState {
@@ -46,7 +46,7 @@ function unit(overrides: Partial<UnitState> = {}): UnitState {
     id: "unit-1",
     sessionId: "unit-1",
     tool: "claude",
-    role: "keyblader1",
+    role: "warden1",
     displayName: "Vaelen",
     cwd: "/repo",
     repoRoot: "/repo",
@@ -91,7 +91,7 @@ describe("DecreeModal", () => {
   });
 
   it("sends a one-off decree to spawned units and closes", async () => {
-    const kh = installKh();
+    const rw = installRw();
     const user = userEvent.setup();
     renderOpenDecree();
 
@@ -102,7 +102,7 @@ describe("DecreeModal", () => {
     await user.click(screen.getByRole("button", { name: /issue decree/i }));
 
     await waitFor(() => {
-      expect(kh.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.sendPrompt).toHaveBeenCalledWith({
         unitId: "unit-1",
         prompt: "[Decree from the King]\n\nrun the test suite",
       });
@@ -111,7 +111,7 @@ describe("DecreeModal", () => {
   });
 
   it("renders recent file suggestions and inserts the picked file", async () => {
-    installKh();
+    installRw();
     const user = userEvent.setup();
     const activeUnit = unit();
     useStore.setState({
@@ -132,7 +132,7 @@ describe("DecreeModal", () => {
   });
 
   it("confirms standing orders through the alert dialog", async () => {
-    const kh = installKh();
+    const rw = installRw();
     const user = userEvent.setup();
     renderOpenDecree();
 
@@ -153,7 +153,7 @@ describe("DecreeModal", () => {
 
     await user.click(screen.getByRole("button", { name: /issue order/i }));
 
-    expect(kh.sendPrompt).not.toHaveBeenCalled();
+    expect(rw.sendPrompt).not.toHaveBeenCalled();
     expect(Object.values(useStore.getState().standingOrders)).toEqual([
       expect.objectContaining({
         unitId: "unit-1",
@@ -167,11 +167,11 @@ describe("DecreeModal", () => {
   });
 
   it("prevents sending commands to observed-only units", () => {
-    installKh();
+    installRw();
     renderOpenDecree({ spawnedHere: false });
 
     expect(
-      screen.getByText(/observed-only — keykeeper didn't spawn/i)
+      screen.getByText(/observed-only — Realmkeeper didn't spawn/i)
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/issue your command/i)).toBeDisabled();
     expect(

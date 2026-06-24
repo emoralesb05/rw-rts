@@ -48,8 +48,8 @@ Use `@shared/events` etc. throughout. Don't reach into `src/main/` from the rend
 
 - **Renderer**: open Electron's DevTools (Cmd-Option-I) or attach Chrome DevTools to `localhost:9222`
 - **Main process**: `console.log` lands in the terminal that ran `bun run dev`. For breakpoints, run with `--inspect=9223` and attach Node Inspector
-- **Capture frame**: `kill -SIGUSR1 <electron-pid>` writes `/tmp/keykeeper-frame.png` (see `src/main/index.ts`)
-- **Bridge logs**: every hook fire shows up as `[keykeeper/bridge] hook <Event> sid=<short-id> → <tool>/<kind>` in the dev log
+- **Capture frame**: `kill -SIGUSR1 <electron-pid>` writes `/tmp/realmkeeper-frame.png` (see `src/main/index.ts`)
+- **Bridge logs**: every hook fire shows up as `[realmkeeper/bridge] hook <Event> sid=<short-id> → <tool>/<kind>` in the dev log
 - **agent-browser**: connect to CDP at port 9222 for scripted UI inspection — see `.claude/skills/agent-browser/`
 
 ## Build outputs
@@ -69,25 +69,25 @@ out/
 
 | Script | Output | Use |
 |---|---|---|
-| `bun run pack` | `dist/mac-arm64/Keykeeper.app` (unpacked, ~213 MB) | Fast iteration; no DMG compression |
-| `bun run dist` | Same `.app` + `dist/Keykeeper-<version>-arm64.dmg` (~175 MB) | Distribution-ready single-file artifact |
+| `bun run pack` | `dist/mac-arm64/Realmkeeper.app` (unpacked, ~213 MB) | Fast iteration; no DMG compression |
+| `bun run dist` | Same `.app` + `dist/Realmkeeper-<version>-arm64.dmg` (~175 MB) | Distribution-ready single-file artifact |
 
 ### Why these specific config choices
 
 - **`asar: true`** — main/preload/renderer JS bundled into one archive (`Contents/Resources/app.asar`). Faster app load than thousands of small files.
-- **`extraResources: bin/keykeeper-hook` → `Contents/Resources/bin/`** — the hook script needs to be a real executable on disk, not inside the asar archive (you can't `chmod +x` a file inside asar). `extraResources` puts it at the path `getBundledScriptPath()` in `hook-installer.ts` resolves to in packaged mode (`app.getAppPath() + ".." + "bin/keykeeper-hook"`).
+- **`extraResources: bin/realmkeeper-hook` → `Contents/Resources/bin/`** — the hook script needs to be a real executable on disk, not inside the asar archive (you can't `chmod +x` a file inside asar). `extraResources` puts it at the path `getBundledScriptPath()` in `hook-installer.ts` resolves to in packaged mode (`app.getAppPath() + ".." + "bin/realmkeeper-hook"`).
 - **`mac.target: ["dmg", "dir"]`, `arch: ["arm64"]`** — Apple Silicon only for now (saves build time vs universal). Add `"x64"` to `arch` when an Intel Mac is in scope.
 - **`identity: null`, `hardenedRuntime: false`, `gatekeeperAssess: false`** — code signing is skipped. Apple Developer ID required for a signed build (~$99/year). Unsigned `.app`s show a Gatekeeper "developer cannot be verified" warning on first launch — bypass with right-click → Open, or run `xattr -cr <app>` once to clear quarantine.
 - **`darkModeSupport: true`** — required for proper window styling on modern macOS.
 
-### How `bin/keykeeper-hook` reaches users
+### How `bin/realmkeeper-hook` reaches users
 
 ```
-Repo: bin/keykeeper-hook
+Repo: bin/realmkeeper-hook
   ↓ extraResources copy at build time
-Bundle: Keykeeper.app/Contents/Resources/bin/keykeeper-hook
+Bundle: Realmkeeper.app/Contents/Resources/bin/realmkeeper-hook
   ↓ syncHookScript() on app boot (cp + chmod +x)
-User dir: ~/.keykeeper/keykeeper-hook
+User dir: ~/.realmkeeper/realmkeeper-hook
   ↓ hook installer writes this path to user configs
 ~/.claude/settings.json, ~/.cursor/hooks.json, ~/.codex/config.toml,
 ~/.gemini/settings.json
@@ -101,7 +101,7 @@ The user-dir copy is what Claude/Cursor/Codex/Gemini actually invoke. Repo and `
 
 ### Other generated artifacts
 
-- `dist/Keykeeper-<version>-arm64.dmg.blockmap` — delta-update manifest. Unused since we don't ship auto-updates. Safe to ignore.
+- `dist/Realmkeeper-<version>-arm64.dmg.blockmap` — delta-update manifest. Unused since we don't ship auto-updates. Safe to ignore.
 - `dist/latest-mac.yml` — auto-update manifest for `electron-updater`. Same — unused.
 - `dist/builder-debug.yml` — last build's electron-builder config snapshot. Useful when debugging packaging issues.
 
@@ -125,15 +125,15 @@ The user-dir copy is what Claude/Cursor/Codex/Gemini actually invoke. Repo and `
 
 ## Logging conventions
 
-All console output in main + renderer should use the `[keykeeper/<component>]` prefix so dev-log greps are productive:
+All console output in main + renderer should use the `[realmkeeper/<component>]` prefix so dev-log greps are productive:
 
 ```
-[keykeeper/bridge] hook PreToolUse sid=abc123de → claude/tool_use
-[keykeeper/claude-transcript] watcher started, polling every 2000ms
-[keykeeper/codex-transcript] watcher started, polling every 2000ms
-[keykeeper] hook bridge listening on /Users/ed/.keykeeper/keykeeper.sock
+[realmkeeper/bridge] hook PreToolUse sid=abc123de → claude/tool_use
+[realmkeeper/claude-transcript] watcher started, polling every 2000ms
+[realmkeeper/codex-transcript] watcher started, polling every 2000ms
+[realmkeeper] hook bridge listening on /Users/ed/.realmkeeper/realmkeeper.sock
 ```
 
-Component names match the file/module: `bridge`, `claude-transcript`, `codex-transcript`, `agent-manager`, etc. Bare `[keykeeper]` is for top-level lifecycle (boot/shutdown).
+Component names match the file/module: `bridge`, `claude-transcript`, `codex-transcript`, `agent-manager`, etc. Bare `[realmkeeper]` is for top-level lifecycle (boot/shutdown).
 
 Don't `console.log` from the renderer for routine events — use the activity log or chat drawer instead. Renderer logs should only fire for actual diagnostic concerns (state corruption, IPC errors).

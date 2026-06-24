@@ -33,7 +33,7 @@ describe("desktop notification settings", () => {
 
   it("falls back to defaults for malformed persisted settings", async () => {
     installLocalStorage({
-      "keykeeper:notif-settings": JSON.stringify({
+      "realmkeeper:notif-settings": JSON.stringify({
         enabled: false,
         quietStartHour: 99,
       }),
@@ -57,7 +57,7 @@ describe("desktop notification settings", () => {
 
     expect(api.setItem).toHaveBeenCalledTimes(1);
     expect(
-      JSON.parse(store.get("keykeeper:notif-settings") ?? "{}")
+      JSON.parse(store.get("realmkeeper:notif-settings") ?? "{}")
     ).toMatchObject({
       enabled: true,
       fireImportant: true,

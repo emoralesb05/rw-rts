@@ -28,7 +28,7 @@ import {
 
 export type NotifSettings = NotificationSettings;
 
-const SETTINGS_KEY = "keykeeper:notif-settings";
+const SETTINGS_KEY = "realmkeeper:notif-settings";
 
 const DEFAULTS: NotifSettings = {
   enabled: true,
@@ -106,7 +106,7 @@ async function ensurePermission(): Promise<boolean> {
 async function fireNotification(letter: Letter): Promise<void> {
   const ok = await ensurePermission();
   if (!ok) return;
-  const tag = `keykeeper-letter-${letter.id}`;
+  const tag = `realmkeeper-letter-${letter.id}`;
   const title =
     letter.severity === "critical"
       ? `⚠ ${letter.title}`

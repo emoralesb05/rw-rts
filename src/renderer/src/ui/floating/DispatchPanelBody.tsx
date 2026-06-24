@@ -24,7 +24,7 @@ import type { WorkspaceRepoEntry } from "@shared/schemas";
 type Tool = "claude" | "cursor" | "codex" | "gemini";
 const TOOLS: Tool[] = ["claude", "cursor", "codex", "gemini"];
 const TOOL_OPTIONS = TOOLS.map((tool) => ({ value: tool, label: tool }));
-const CURRENT_REPO_VALUE = "__keykeeper_current_repo__";
+const CURRENT_REPO_VALUE = "__realmkeeper_current_repo__";
 
 export function DispatchPanelBody() {
   const closeKind = usePanels((s) => s.closeKind);
@@ -38,7 +38,7 @@ export function DispatchPanelBody() {
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    void window.kh
+    void window.rw
       .listWorkspaceRepos()
       .then(setDiscoveredRepos)
       .catch(() => setDiscoveredRepos([]));
@@ -51,7 +51,7 @@ export function DispatchPanelBody() {
     if (!trimmed || busy) return;
     setBusy(true);
     try {
-      await window.kh.spawnAgent({
+      await window.rw.spawnAgent({
         prompt: trimmed,
         cwd: spawnPath || ".",
         tool,
@@ -100,7 +100,7 @@ export function DispatchPanelBody() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={CURRENT_REPO_VALUE}>
-              (this repo — keykeeper home)
+              (this repo — Realmkeeper home)
             </SelectItem>
             {discoveredRepos.map((r) => (
               <SelectItem key={r.path} value={r.path}>

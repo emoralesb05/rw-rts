@@ -11,7 +11,7 @@ export const WielderStatsSchema = z.object({
   visits: NonNegativeIntSchema,
   seals: NonNegativeIntSchema,
   falls: NonNegativeIntSchema,
-  totalMunny: NonNegativeNumberSchema,
+  totalGlimmer: NonNegativeNumberSchema,
   lastSeen: NonNegativeNumberSchema,
 });
 export type WielderStats = z.infer<typeof WielderStatsSchema>;
@@ -42,7 +42,7 @@ export type PersistedStandingOrder = z.infer<
 export const PersistedStateSchema = z.object({
   schemaVersion: z.literal(2),
   kingdomFoundedAt: NonNegativeNumberSchema,
-  totalMunnyEver: NonNegativeNumberSchema,
+  totalGlimmerEver: NonNegativeNumberSchema,
   wielders: z.record(z.string(), WielderStatsSchema),
   worlds: z.record(z.string(), WorldStatsSchema),
   standingOrders: z.array(PersistedStandingOrderSchema),

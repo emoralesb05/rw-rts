@@ -20,9 +20,9 @@
  * gates per its own approval policy on top — `permission:"allow"` from
  * preToolUse is advisory, not authoritative, in allowlist mode.
  *
- * All entries point at bin/keykeeper-hook. We add additively to each event
+ * All entries point at bin/realmkeeper-hook. We add additively to each event
  * list so the user's existing entries (e.g. peon-ping) survive.
- * Identification is by the absolute path containing "keykeeper-hook" in the
+ * Identification is by the absolute path containing "realmkeeper-hook" in the
  * entry's `command`, since Cursor doesn't appear to support shell
  * comments in `command`.
  */
@@ -41,7 +41,7 @@ import {
 } from "@shared/schemas";
 
 const CURSOR_HOOKS_PATH = join(homedir(), ".cursor", "hooks.json");
-const HOOK_MARKER = "keykeeper-hook";
+const HOOK_MARKER = "realmkeeper-hook";
 const CURSOR_HOOK_EVENTS = [
   "sessionStart",
   "sessionEnd",

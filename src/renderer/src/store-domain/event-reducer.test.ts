@@ -70,7 +70,7 @@ describe("event reducer", () => {
   beforeEach(() => {
     vi.resetModules();
     savePersisted.mockClear();
-    vi.stubGlobal("window", { kh: { savePersisted } });
+    vi.stubGlobal("window", { rw: { savePersisted } });
   });
 
   afterEach(() => {

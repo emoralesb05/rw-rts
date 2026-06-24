@@ -1,21 +1,24 @@
 # Sprite Generation Prompts
 
-Generate sprites for the **four original keyblade-wielders** keykeeper
-uses. Each agent run is hashed to one of the four archetypes via
-`(tool, repoRoot)`, so any active world rotates through all four
-visuals. The wielders:
+Generate sprites for the **four original realm wardens**
+realmkeeper uses. Each agent run is hashed to one of the four archetypes
+via `(tool, repoRoot)`, so any active world rotates through all four
+visuals. The wardens:
 
-- **Vaelen** — Guardian of Twilight (male, twilight purple) → `keyblader1`
-- **Selene** — Dreamweaver (female, dream-petal pink) → `keyblader2`
-- **Ryder** — Warden of Iron (male, forge orange/iron) → `keyblader3`
-- **Lyris** — Wanderer of the Sea (female, tide cyan/sea) → `keyblader4`
+- **Vaelen** — Guardian of Twilight (male, dusk purple) → `warden1`
+- **Selene** — Dreamweaver (female, dream-petal pink) → `warden2`
+- **Ryder** — Warden of Iron (male, forge orange/iron) → `warden3`
+- **Lyris** — Wanderer of the Sea (female, tide cyan/sea) → `warden4`
 
-All four are your original designs, not based on any copyrighted IP.
+All four are original designs. Avoid named franchises, recognizable
+characters, mascots, logos, signature weapons, or world designs.
 
 Each character needs **one 32-frame sprite sheet** covering every
 animation state the game uses (idle in 3 directions, walk in 3
 directions, attack, special). That single sheet drops into
-`assets/sprites/kh/` and replaces the procedural defaults.
+`assets/sprites/rw/` and replaces the procedural defaults. The path
+uses the Realm Wardens namespace; generated art should stay generic
+and first-party.
 
 ---
 
@@ -27,11 +30,12 @@ Spiky black hair, sharp blue eyes, fair skin. Long dark navy coat with
 purple inner lining and gold trim, asymmetric collar. Black armored
 gauntlets with gold accents. Dark navy pants tucked into knee-high
 black boots with gold ankle buckles. Subtle silver chain hanging from
-left shoulder. Carries the **Noctis Rayle**: a long keyblade with a
-spiked dark-purple guard, silver-and-violet blade with crystal facets,
-and a small chain charm with a purple gem.
+left shoulder. Carries the **Duskward Staff**: a slim ritual staff with
+a dark-purple crystal head, silver bands, and a small chain charm with a
+purple gem. The prop should feel like an original focus tool, not a copy
+of any existing fantasy weapon.
 
-Element: **twilight purple** trail on attack/special.
+Element: **dusk purple** trail on attack/special.
 
 Palette (8 colors): Twilight Purple `#3a2870`, Shadow Violet
 `#5a3878`, Dusky Lavender `#7a6890`, Moon Silver `#b0b0c0`, Royal Gold
@@ -44,9 +48,10 @@ allowed in addition.
 Long pale-pink hair flowing past shoulders, soft amber eyes, fair
 skin. Layered white-and-lavender robes with silver belt and pink sash.
 Open-toed sandals with silver wraps up the calves. Lotus-shaped silver
-brooch at chest. Slim build. Carries the **Lunaflower**: a graceful
-keyblade with a lotus-flower guard, silver-and-pink blade etched with
-moon symbols, and a small lotus charm.
+brooch at chest. Slim build. Carries the **Petalbloom Focus**: a graceful
+orb-topped wand with lotus-petal fins, silver-and-pink accents, and a
+small lotus charm. The silhouette should be slender and ceremonial, with
+original ornament.
 
 Element: **dream-petal pink** trail on attack/special.
 
@@ -63,9 +68,9 @@ layered over a fitted white undershirt, silver pauldron on the left
 shoulder, navy sash tied at the waist. Loose teal trousers tucked
 into knee-high white wrap-boots. A small conch-shell pendant hangs at
 the throat. Athletic build, light on her feet. Carries the
-**Tidebreaker**: a flowing keyblade with a curved wave-shaped guard,
-white-and-cyan blade etched with tide patterns, and a small
-seashell charm at the chain.
+**Tidecall Orb**: a polished sea-glass orb in a curved wave-shaped
+frame, white-and-cyan etching, and a small seashell charm. The prop
+should read as a sea-forged focus tool, not a franchise-specific blade.
 
 Element: **cyan water arc** trail on attack/special — a curved
 crescent of liquid pixels with droplet sparkles on the attack peak,
@@ -84,9 +89,10 @@ collar over a dark-grey utility tunic, iron-plated bracers on both
 forearms, a leather belt with a brass buckle. Reinforced grey trousers
 tucked into iron-toed brown boots. A small gear-shaped iron charm
 hangs at the belt. Stocky, broad-shouldered build. Carries the
-**Gearbound**: a heavy keyblade with a circular gear-ring guard,
-copper-and-iron blade with riveted plating, and a small cog charm at
-the chain.
+**Ironbound Focus**: a heavy lantern-like focus with a circular gear
+frame, copper-and-iron plating, and a small cog charm. The design should
+feel industrial and original, with no recognizable third-party weapon
+outline.
 
 Element: **orange-gold ember spark + iron sheen** trail on
 attack/special — the attack peak shows a curved arc of molten sparks
@@ -153,7 +159,7 @@ doesn't slide.
 ### Effect details for action frames (24–31)
 
 - **Frame 26 (attack peak)**: weapon trail —
-  - **Vaelen**: curved twilight-purple crescent with small star-like
+  - **Vaelen**: curved dusk-purple crescent with small star-like
     sparkles trailing the blade.
   - **Selene**: swirl of pink dream-petals trailing the blade.
   - **Lyris**: cyan water crescent with droplet sparkles flicking off
@@ -198,14 +204,16 @@ upscale a higher-resolution sprite — pixel art is resolution-locked,
 authoring at the target size keeps it crisp at game render scale.
 
 STYLE
-- 16-bit JRPG pixel art (Final Fantasy Tactics / Suikoden / Octopath
-  Traveler quality)
+- High-detail tactical RPG pixel art with painterly color, strong
+  silhouettes, readable animation, and diorama-scale clarity
 - Standard human proportions (5–6 heads tall), NOT chibi
 - Clean 1-pixel outlines around every silhouette
 - Three-tone shading per region (base + highlight + shadow)
 - 8–12 deliberate colors per character (use the palette below)
 - Hand-placed pixels: NO anti-aliasing, NO gradients, NO blur
 - Sharp pixel-perfect edges, integer pixel positions
+- Fully original design language: no named franchise costumes,
+  creature shapes, castle silhouettes, logos, or signature weapons
 
 FRAME LAYOUT (left to right)
 
@@ -263,7 +271,8 @@ CHARACTER
 Lyris, or Ryder), including the full palette]
 
 Output: one PNG, 3072×144, transparent background, original character
-design (no IP copies), no watermarks or text overlays.
+design, no watermarks or text overlays, and no recognizable
+third-party IP references.
 ```
 
 ## Iteration / refinement prompts
@@ -311,16 +320,19 @@ Strengthen the attack and cast frames. Goals:
 
 ## Slot mapping
 
-| Role         | Wielder | Sheet filename             |
+| Role          | Wielder | Sheet filename             |
 | ------------ | ------- | -------------------------- |
-| `keyblader1` | Vaelen  | `keyblader1_sheet.png`     |
-| `keyblader2` | Selene  | `keyblader2_sheet.png`     |
-| `keyblader3` | Ryder   | `keyblader3_sheet.png`     |
-| `keyblader4` | Lyris   | `keyblader4_sheet.png`     |
+| `warden1` | Vaelen  | `warden1_sheet.png`     |
+| `warden2` | Selene  | `warden2_sheet.png`     |
+| `warden3` | Ryder   | `warden3_sheet.png`     |
+| `warden4` | Lyris   | `warden4_sheet.png`     |
+
+The `warden*` names are internal role IDs. Prompt language should use
+`wielder`, `warden`, `staff`, `orb`, `focus`, or `relic` instead.
 
 Each agent run picks one of the four via `archetypeFor(tool,
 repoRoot)` (see `src/shared/events.ts`), then a wielder name from the
-matching archetype pool (`KEYBLADER1_NAMES` … `KEYBLADER4_NAMES`).
+matching archetype pool (`WARDEN1_NAMES` … `WARDEN4_NAMES`).
 The hash is deterministic on identity, so the same wielder gets the
 same archetype + name every session.
 
@@ -332,10 +344,10 @@ After your image-gen tool produces a multi-row concept page, run the
 no-scale extractor for whichever wielder you regenerated:
 
 ```sh
-bun scripts/extract-32-frame-sheet.ts /path/to/vaelen.png keyblader1
-bun scripts/extract-32-frame-sheet.ts /path/to/selene.png keyblader2
-bun scripts/extract-32-frame-sheet.ts /path/to/ryder.png  keyblader3
-bun scripts/extract-32-frame-sheet.ts /path/to/lyris.png  keyblader4
+bun scripts/extract-32-frame-sheet.ts /path/to/vaelen.png warden1
+bun scripts/extract-32-frame-sheet.ts /path/to/selene.png warden2
+bun scripts/extract-32-frame-sheet.ts /path/to/ryder.png  warden3
+bun scripts/extract-32-frame-sheet.ts /path/to/lyris.png  warden4
 ```
 
 The extractor auto-detects content rows, slices at fixed column
@@ -354,7 +366,8 @@ sheet at the wrong stride.
 ## License + IP
 
 Vaelen, Selene, Lyris, and Ryder are **original characters** owned by
-you (or the artist you commission). Their designs, names, and weapons
-are not based on any copyrighted IP. Use freely for keykeeper. Pay
-artists if you commission, respect royalty-free pack licenses if you
-use those.
+you (or the artist you commission). Their designs, names, weapons, and
+effects should stay first-party: no named franchise characters, logos,
+mascots, distinctive castle silhouettes, or signature weapon outlines.
+Use freely for realmkeeper. Pay artists if you commission, and respect
+royalty-free pack licenses if you use those.

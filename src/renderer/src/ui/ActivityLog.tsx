@@ -54,7 +54,7 @@ function toneTextClass(tone: string) {
 function highlightAlert(requestId: string) {
   // Force-expand AlertsHUD if it's currently collapsed.
   window.dispatchEvent(
-    new CustomEvent("kh:expand-hud", { detail: { title: "Alerts" } })
+    new CustomEvent("rw:expand-hud", { detail: { title: "Alerts" } })
   );
   const findAndPulse = () => {
     const el = document.querySelector<HTMLElement>(
@@ -218,7 +218,7 @@ export function ActivityLog() {
                 // first and the active tab is in place.
                 window.setTimeout(() => {
                   window.dispatchEvent(
-                    new CustomEvent("kh:drawer-scroll-to", {
+                    new CustomEvent("rw:drawer-scroll-to", {
                       detail: { unitId: unit.id, ts: ev.timestamp },
                     })
                   );

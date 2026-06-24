@@ -5,7 +5,7 @@
  * wielder's recent Read/Edit tool calls in the event log) and `/` to
  * open a command palette (predefined common commands + free-form).
  *
- * KH-flavored as a royal proclamation: gold sigil, formal framing,
+ * RW-flavored as a royal proclamation: gold sigil, formal framing,
  * distinct from Send word's gentle text-only prompt.
  *
  * Wired via store.openDecreeFor(unitId) — set on a wielder card click.
@@ -164,7 +164,7 @@ export function DecreeModal() {
     setBusy(true);
     try {
       const prompt = `[Decree from the King]\n\n${trimmed}`;
-      await window.kh.sendPrompt({ unitId: unit.id, prompt });
+      await window.rw.sendPrompt({ unitId: unit.id, prompt });
       closeDecree();
     } finally {
       setBusy(false);
@@ -222,7 +222,7 @@ export function DecreeModal() {
         </DialogHeader>
         {!unit.spawnedHere && (
           <div className="border-b border-[#ff5a3c]/30 bg-[#ff5a3c]/[0.12] px-4 py-2.5 text-xs text-[#ffb6a0]">
-            {unit.displayName} is observed-only — keykeeper didn't spawn this
+            {unit.displayName} is observed-only — Realmkeeper didn't spawn this
             wielder, so we can't send it commands.
           </div>
         )}

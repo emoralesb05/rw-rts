@@ -35,7 +35,7 @@ export type DrawerState = {
   minimized: boolean;
 };
 
-const DRAWER_WIDTH_KEY = "keykeeper:drawer:width";
+const DRAWER_WIDTH_KEY = "realmkeeper:drawer:width";
 const DRAWER_DEFAULT_WIDTH = () =>
   typeof window !== "undefined"
     ? Math.max(560, Math.round(window.innerWidth * 0.5))

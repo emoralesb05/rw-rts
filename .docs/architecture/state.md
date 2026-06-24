@@ -24,7 +24,7 @@ type UnitState = {
   id: string;
   sessionId: string;
   tool: "claude" | "cursor" | "codex" | "gemini";
-  role: "keyblader1" | "keyblader2" | "keyblader3" | "keyblader4";   // archetype, drives sprite + color
+  role: "warden1" | "warden2" | "warden3" | "warden4";   // archetype, auras sprite + color
   displayName: string;             // "Vaelen", "Selene", etc. — stable per (tool, repoRoot)
   cwd: string;
   repoRoot?: string;               // see "identity stability" below
@@ -37,8 +37,8 @@ type UnitState = {
   lastTool?: string;
   spawnedHere: boolean;            // see "spawn provenance" below
   parentSessionId?: string;        // for sub-agents
-  driveForm?: "valor" | "wisdom" | "final";
-  driveFormUntil?: number;
+  auraState?: "guard" | "focus" | "link";
+  auraUntil?: number;
 };
 ```
 
@@ -49,25 +49,25 @@ Wielder identity is `${tool}::${repoRoot}` — used by standing orders, persiste
 `src/main/persistent-state.ts` writes a debounced snapshot to:
 
 ```
-~/.keykeeper/state.json
+~/.realmkeeper/state.json
 ```
 
 ```ts
 type PersistedState = {
   schemaVersion: 2;
   kingdomFoundedAt: number;
-  totalMunnyEver: number;
+  totalGlimmerEver: number;
   wielders: Record<string, WielderStats>;   // keyed by `${tool}::${repoRoot}`
   worlds: Record<string, WorldStats>;       // keyed by repoRoot
   standingOrders: PersistedStandingOrder[];
 };
 ```
 
-It captures **enough to rehydrate the renderer on next launch** — wielders the user expects to still see, persistent per-wielder/per-world stats (visits, seals, falls, totalMunny), and active standing orders. NOT the entire event history (that's in the JSONLs and SQLite stores anyway).
+It captures **enough to rehydrate the renderer on next launch** — wielders the user expects to still see, persistent per-wielder/per-world stats (visits, seals, falls, totalGlimmer), and active standing orders. NOT the entire event history (that's in the JSONLs and SQLite stores anyway).
 
 `schemaVersion` lets the loader migrate older snapshots forward (or fall back to `EMPTY_PERSISTED` if the file is corrupt).
 
-IPC channels: `kh:load-persisted` / `kh:save-persisted` / `kh:reset-persisted`.
+IPC channels: `rw:load-persisted` / `rw:save-persisted` / `rw:reset-persisted`.
 
 ## Pending permissions — main (in-memory only)
 
@@ -77,11 +77,11 @@ IPC channels: `kh:load-persisted` / `kh:save-persisted` / `kh:reset-persisted`.
 { socket, sessionId, cwd, tool }
 ```
 
-**Not persisted.** A keykeeper crash means orphaned requests, but the upstream provider will time out the hook on its own (for example, Claude defaults around 30s; Codex and Gemini use longer blocking permission timeouts), so the user's CLI session recovers without manual cleanup.
+**Not persisted.** A realmkeeper crash means orphaned requests, but the upstream provider will time out the hook on its own (for example, Claude defaults around 30s; Codex and Gemini use longer blocking permission timeouts), so the user's CLI session recovers without manual cleanup.
 
 ## Spawn provenance — `unit.spawnedHere`
 
-A wielder's `UnitState` carries `spawnedHere: boolean` — true if keykeeper started this session via `AgentManager.spawn`, false if we observed it via hooks. Verbs like *recall* and *send* are gated on this for now. (For the planned "drive observed sessions via `--resume`" work see [`../vision.md`](../vision.md) and [`../plans/observed-resume.md`](../plans/observed-resume.md).)
+A wielder's `UnitState` carries `spawnedHere: boolean` — true if Realmkeeper started this session via `AgentManager.spawn`, false if we observed it via hooks. Verbs like *recall* and *send* are gated on this for now. (For the planned "drive observed sessions via `--resume`" work see [`../vision.md`](../vision.md) and [`../plans/observed-resume.md`](../plans/observed-resume.md).)
 
 ## Identity stability — `unit.repoRoot`
 
@@ -129,12 +129,12 @@ The `AnyAgent` interface (`{unitId, sessionId, cwd, send, kill}`) is the common 
 
 ## Domain models (in-app fiction)
 
-Defined in `src/shared/events.ts`. These are KH-themed but they ARE the data model — not just decoration:
+Defined in `src/shared/events.ts`. These are RW-themed but they ARE the data model — not just decoration:
 
-- **`UnitRole`** = one of four keyblader archetypes: `keyblader1` (Vaelen, twilight-purple), `keyblader2` (Selene, dream-petal pink), `keyblader3` (Ryder, forge orange), `keyblader4` (Lyris, tide cyan). Assigned **deterministically** from `(tool, repoRoot)` — the same wielder identity always gets the same archetype + display name, across sessions and restarts.
-- **`DriveForm`** = `valor | wisdom | final` — an elevated state a wielder can enter (e.g. on a streak of successful turns). `driveFormUntil` is the expiration timestamp. Cosmetic for now (color shift), no gameplay impact.
-- **`Heartless`** = `shadow | soldier | large_body` — enemy sprites in the Phaser scene that visualize stuck/erroring wielders. Spawned by the renderer in response to `error` events; cleared on recovery.
-- **`WielderStats`** (persisted, keyed by `${tool}::${repoRoot}`) — `visits`, `seals`, `falls`, `totalMunny`, `lastSeen`. Sims-style memory across sessions.
+- **`UnitRole`** = one of four warden archetypes: `warden1` (Vaelen, dusk-purple), `warden2` (Selene, dream-petal pink), `warden3` (Ryder, forge orange), `warden4` (Lyris, tide cyan). Assigned **deterministically** from `(tool, repoRoot)` — the same wielder identity always gets the same archetype + display name, across sessions and restarts.
+- **`WardenAura`** = `guard | focus | link` — an elevated state a wielder can enter (e.g. on a streak of successful turns). `auraUntil` is the expiration timestamp. Cosmetic for now (color shift), no gameplay impact.
+- **`Riftling`** = `shadow | soldier | bulwark` — enemy sprites in the Phaser scene that visualize stuck/erroring wielders. Spawned by the renderer in response to `error` events; cleared on recovery.
+- **`WielderStats`** (persisted, keyed by `${tool}::${repoRoot}`) — `visits`, `seals`, `falls`, `totalGlimmer`, `lastSeen`. Sims-style memory across sessions.
 - **`WorldStats`** (persisted, keyed by `repoRoot`) — `lastVisit`, `totalSeals`, `totalClears`, `totalFalls`, `sealedAt?`. Per-repo counters.
 
 ## Schema migration

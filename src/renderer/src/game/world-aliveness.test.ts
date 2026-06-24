@@ -51,9 +51,9 @@ describe("world aliveness classification", () => {
   });
 
   it("varies activity color by theme while keeping labels stable", () => {
-    expect(activityColorForTheme("hollow", "permission")).toBe(0xc9a4ff);
-    expect(activityColorForTheme("halloween", "shell")).toBe(0xffb86c);
-    expect(activityColorForTheme("destiny", "web")).toBe(0x6cd5ff);
+    expect(activityColorForTheme("bastion", "permission")).toBe(0xc9a4ff);
+    expect(activityColorForTheme("lantern", "shell")).toBe(0xffb86c);
+    expect(activityColorForTheme("tide", "web")).toBe(0x6cd5ff);
     expect(activityLabel("search")).toBe("scan");
   });
 });

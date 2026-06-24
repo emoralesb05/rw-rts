@@ -85,12 +85,12 @@ function claudeStarter(cwd: string): FakeUnit {
       {
         delayMs: 700,
         kind: "tool_result",
-        output: '{ "name": "keykeeper", "version": "0.0.1" }',
+        output: '{ "name": "realmkeeper", "version": "0.0.1" }',
       },
       {
         delayMs: 900,
         kind: "assistant_text",
-        text: "It's an Electron desktop app called **keykeeper**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
+        text: "It's an Electron desktop app called **Realmkeeper**. Stack: Electron, Phaser 4, React 19, Streamdown.\n\nLet me check the source.",
       },
       {
         delayMs: 800,
@@ -270,7 +270,7 @@ function subagentSummon(cwd: string): FakeUnit[] {
         {
           delayMs: 700,
           kind: "assistant_text",
-          text: "Surveyed the repo: no markdown docs, manifest is keykeeper.",
+          text: "Surveyed the repo: no markdown docs, manifest is `realmkeeper`.",
         },
         { delayMs: 400, kind: "session_end", text: "exit 0" },
       ],
@@ -278,8 +278,8 @@ function subagentSummon(cwd: string): FakeUnit[] {
   ];
 }
 
-function heartlessRaid(cwd: string): FakeUnit {
-  // Stresses the combat layer: errors that summon Heartless, edits that
+function riftlingRaid(cwd: string): FakeUnit {
+  // Stresses the combat layer: errors that summon Riftling, edits that
   // clear them, occasional follow-up errors so the world goes warning →
   // danger → cleared.
   return {
@@ -337,7 +337,7 @@ function heartlessRaid(cwd: string): FakeUnit {
       {
         delayMs: 700,
         kind: "assistant_text",
-        text: "Tests pass. Heartless cleared.",
+        text: "Tests pass. Riftling cleared.",
       },
       { delayMs: 400, kind: "session_end", text: "exit 0" },
     ],
@@ -348,10 +348,10 @@ function heartlessRaid(cwd: string): FakeUnit {
 // lands on the desired archetype, since archetype assignment is locked per
 // wielder identity. Each summon lands in its own demo world tile.
 const WIELDER_LABEL: Record<UnitRole, string> = {
-  keyblader1: "vaelens-grove",
-  keyblader2: "selenes-bower",
-  keyblader3: "ryders-forge",
-  keyblader4: "lyris-cove",
+  warden1: "vaelens-grove",
+  warden2: "selenes-bower",
+  warden3: "ryders-forge",
+  warden4: "lyris-cove",
 };
 
 function findCwdForRole(target: UnitRole, tool: AgentTool): string {
@@ -392,10 +392,10 @@ function summonWielder(target: UnitRole): FakeUnit {
 
 function summonAllWielders(): FakeUnit[] {
   return [
-    summonWielder("keyblader1"),
-    summonWielder("keyblader2"),
-    summonWielder("keyblader3"),
-    summonWielder("keyblader4"),
+    summonWielder("warden1"),
+    summonWielder("warden2"),
+    summonWielder("warden3"),
+    summonWielder("warden4"),
   ];
 }
 
@@ -441,16 +441,16 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
   console.log(`[fixture] play scenario=${scenario}`);
   switch (scenario) {
     case "summon-vaelen":
-      schedule(summonWielder("keyblader1"));
+      schedule(summonWielder("warden1"));
       break;
     case "summon-selene":
-      schedule(summonWielder("keyblader2"));
+      schedule(summonWielder("warden2"));
       break;
     case "summon-ryder":
-      schedule(summonWielder("keyblader3"));
+      schedule(summonWielder("warden3"));
       break;
     case "summon-lyris":
-      schedule(summonWielder("keyblader4"));
+      schedule(summonWielder("warden4"));
       break;
     case "summon-all":
       // Fire all four with small staggers so the worlds appear in sequence.
@@ -474,7 +474,7 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       schedule(stressBurst(c));
       break;
     case "combat":
-      schedule(heartlessRaid(c));
+      schedule(riftlingRaid(c));
       break;
     case "permission":
       // UI-only test of the permission letter + IPC flow. No hook

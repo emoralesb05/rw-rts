@@ -1,7 +1,7 @@
 /**
  * FloatingPanel — generic draggable, non-modal panel.
  *
- * Conventions for keykeeper dialogs:
+ * Conventions for realmkeeper dialogs:
  *   - No backdrop, no auto-dismiss on outside click. Panels stay open
  *     until you explicitly close them.
  *   - Drag by the header (anywhere except the close button) to move.

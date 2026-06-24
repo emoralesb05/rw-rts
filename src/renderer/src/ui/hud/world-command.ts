@@ -110,7 +110,7 @@ export function createWorldCommandBrief(args: {
     readState = "sealed";
   } else if (
     world.alertLevel === "danger" ||
-    world.heartless.length >= 3 ||
+    world.riftling.length >= 3 ||
     fallen > 0 ||
     recentError
   ) {
@@ -119,7 +119,7 @@ export function createWorldCommandBrief(args: {
     readState = "hold";
   } else if (
     world.alertLevel === "warning" ||
-    world.heartless.length > 0 ||
+    world.riftling.length > 0 ||
     activeUnits.length > 0
   ) {
     readState = activeUnits.length > 0 ? "active" : "pressure";
@@ -127,7 +127,7 @@ export function createWorldCommandBrief(args: {
 
   const pressureScore = Math.min(
     100,
-    world.heartless.length * 18 +
+    world.riftling.length * 18 +
       fallen * 28 +
       pendingLetters.length * 20 +
       activeUnits.length * 8 +
@@ -136,13 +136,13 @@ export function createWorldCommandBrief(args: {
 
   const objective =
     readState === "sealed"
-      ? "Keyhole secured; keep the route quiet."
+      ? "Realm seal secured; keep the route quiet."
       : pendingLetters.length > 0
         ? "Permission hold: resolve the pending ask."
         : fallen > 0
           ? "Recover the fallen wielder before pressure spreads."
-          : world.heartless.length > 0
-            ? "Clear the heartless and stabilize the world."
+          : world.riftling.length > 0
+            ? "Clear the riftling and stabilize the world."
             : activeUnits.length > 0
               ? "Hold the mission line while work resolves."
               : liveUnits.length > 0
@@ -177,7 +177,7 @@ export function createWorldCommandBrief(args: {
     recentEvents,
     canSeal:
       world.alertLevel !== "cleared" &&
-      world.heartless.length === 0 &&
+      world.riftling.length === 0 &&
       worldUnits.length > 0,
   };
 }

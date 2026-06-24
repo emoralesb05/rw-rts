@@ -1,10 +1,10 @@
 # Workspace, settings & repo discovery
 
-How keykeeper finds repos to spawn into, and how the user configures that.
+How Realmkeeper finds repos to spawn into, and how the user configures that.
 
 ## Settings file
 
-User-editable JSON at `~/.keykeeper/config.json`. Auto-created with defaults on first launch. **Reloaded on every read** — changes take effect immediately, no restart.
+User-editable JSON at `~/.realmkeeper/config.json`. Auto-created with defaults on first launch. **Reloaded on every read** — changes take effect immediately, no restart.
 
 ```json
 {
@@ -24,7 +24,7 @@ User-editable JSON at `~/.keykeeper/config.json`. Auto-created with defaults on 
 - Back-compat: the old `excludeRepos` key is still honored if `exclude` isn't set
 - Malformed JSON → falls back to defaults in-memory, **doesn't overwrite the user's broken file** (let them fix it)
 
-Source: `src/main/settings.ts`. IPC: `kh:get-settings` / `kh:save-settings` / `kh:validate-workspace-root`.
+Source: `src/main/settings.ts`. IPC: `rw:get-settings` / `rw:save-settings` / `rw:validate-workspace-root`.
 
 ## Workspace scanning
 
@@ -64,7 +64,7 @@ Renderer can show "✓ valid" / "✗ <reason>" without touching disk twice.
 
 ## Invariants
 
-- Settings file is always overwriteable by the user — keykeeper hand-edit-friendly is a feature
+- Settings file is always overwriteable by the user — realmkeeper hand-edit-friendly is a feature
 - We never silently delete an unparseable settings file
 - `exclude` patterns store the user's original form (not tilde-expanded) so the file stays human-readable
 - Workspace scans are cheap (cached repo-roots, bounded depth) — safe to call from the dispatch dialog on every open

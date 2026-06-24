@@ -33,12 +33,12 @@ export function computeAlertLevel(
       const u = units[id];
       return u && (u.status === "complete" || u.status === "fallen");
     });
-  const heartlessCount = world.heartless.length;
-  if (everyDone && heartlessCount === 0) return "cleared";
+  const riftlingCount = world.riftling.length;
+  if (everyDone && riftlingCount === 0) return "cleared";
   if (live.length === 0) return "idle";
   const minHp = Math.min(...live.map((u) => u.hp));
-  if (heartlessCount > 5 || minHp < 30) return "danger";
-  if (heartlessCount > 0 || minHp < 70) return "warning";
+  if (riftlingCount > 5 || minHp < 30) return "danger";
+  if (riftlingCount > 0 || minHp < 70) return "warning";
   if (live.some((u) => u.status === "working" || u.status === "casting")) {
     return "active";
   }

@@ -1,11 +1,11 @@
 # The hook bridge
 
-`src/main/adapters/hook-bridge.ts` — the unix-socket bridge that ingests payloads from `bin/keykeeper-hook` (and any other producer), normalizes them to a single `AgentEvent` shape, and pushes them onto the in-process event bus.
+`src/main/adapters/hook-bridge.ts` — the unix-socket bridge that ingests payloads from `bin/realmkeeper-hook` (and any other producer), normalizes them to a single `AgentEvent` shape, and pushes them onto the in-process event bus.
 
 ## Socket
 
 ```
-~/.keykeeper/keykeeper.sock
+~/.realmkeeper/realmkeeper.sock
 ```
 
 - Created on `startHookBridge()` at app boot
@@ -17,9 +17,9 @@
 ```
 provider hook fires
    ↓
-bin/keykeeper-hook  (Python; one process per hook fire)
-   ↓ writes JSON, optionally tagged with --tool / __kh_tool
-~/.keykeeper/keykeeper.sock
+bin/realmkeeper-hook  (Python; one process per hook fire)
+   ↓ writes JSON, optionally tagged with --tool / __rw_tool
+~/.realmkeeper/realmkeeper.sock
    ↓
 hook-bridge.ts  (in main)
    ↓ normalize → AgentEvent
@@ -38,15 +38,15 @@ The bridge inspects the event-name case and optional tool marker to pick a norma
 if (eventName[0] === eventName[0].toLowerCase()) {
   return normalizeCursorPayload(p, eventName);
 }
-const tool = (p?.__kh_tool as string | undefined) ?? "claude";
+const tool = (p?.__rw_tool as string | undefined) ?? "claude";
 if (tool === "gemini") return normalizeGeminiPayload(p, eventName);
 return normalizeClaudePayload(p, eventName, tool === "codex" ? "codex" : "claude");
 ```
 
 - camelCase → Cursor
 - PascalCase → Claude by default
-- `__kh_tool: "codex"` → Codex through the Claude-shaped normalizer
-- `__kh_tool: "gemini"` → Gemini through its own normalizer
+- `__rw_tool: "codex"` → Codex through the Claude-shaped normalizer
+- `__rw_tool: "gemini"` → Gemini through its own normalizer
 
 ## Tool-name canonicalization
 
@@ -85,7 +85,7 @@ Bidirectional permission events are stored in a `Pending` map keyed by `requestI
 { socket, sessionId, cwd, tool }
 ```
 
-When the user clicks allow/deny in keykeeper:
+When the user clicks allow/deny in realmkeeper:
 1. Renderer fires `IPC.ResolvePermission`
 2. Main calls `resolvePermissionRequest(requestId, decision, message)`
 3. Bridge looks up the pending socket, writes the provider-shaped reply, closes
@@ -97,7 +97,7 @@ When the user clicks allow/deny in keykeeper:
 
 ```ts
 if (event.sender !== expected || event.senderFrame !== expected.mainFrame) {
-  throw new Error(`[keykeeper] ipc rejected: untrusted sender for ${channel}`);
+  throw new Error(`[realmkeeper] ipc rejected: untrusted sender for ${channel}`);
 }
 ```
 
@@ -121,6 +121,6 @@ Don't filter on `text.startsWith("<system-reminder>")` — King prompts can have
 
 ## Troubleshooting
 
-- **Bridge silent**: check `~/.keykeeper/keykeeper.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.keykeeper/keykeeper.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__kh_tool':'codex'}).encode())"`. Per-event bridge logs require `KEYKEEPER_DEBUG_BRIDGE=1`.
+- **Bridge silent**: check `~/.realmkeeper/realmkeeper.sock` exists and is a socket. Send a test payload from a shell with `python3 -c "import socket,json; s=socket.socket(socket.AF_UNIX); s.connect('/Users/ed/.realmkeeper/realmkeeper.sock'); s.sendall(json.dumps({'hook_event_name':'SessionStart','session_id':'probe','cwd':'/tmp','__rw_tool':'codex'}).encode())"`. Per-event bridge logs require `REALMKEEPER_DEBUG_BRIDGE=1`.
 - **Event not reaching renderer**: confirm the bridge logged it. If it did, the renderer side is wrong.
 - **Event arrived but no wielder**: check the sessionId attribution — Cursor in particular uses different identifiers (process sessionId vs chatId; see [`../providers/cursor.md`](../providers/cursor.md)).

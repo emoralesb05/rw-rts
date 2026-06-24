@@ -14,7 +14,7 @@
  *     [--frame-w=48] [--frame-h=64] [--bottom-crop=80]
  *
  * Example:
- *   bun scripts/import-sprite-sheet.ts /tmp/sora-raw.png sora
+ *   bun scripts/import-sprite-sheet.ts /tmp/warden1-raw.png warden1
  */
 import { createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { writeFileSync } from "node:fs";
@@ -54,7 +54,7 @@ function parseArgs(): Args {
     frameW: Number(flags.get("frame-w") ?? 48),
     frameH: Number(flags.get("frame-h") ?? 64),
     bottomCrop: Number(flags.get("bottom-crop") ?? 0),
-    outDir: flags.get("out") ?? "assets/sprites/kh-default",
+    outDir: flags.get("out") ?? "assets/sprites/rw-default",
   };
 }
 

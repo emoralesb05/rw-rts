@@ -1,7 +1,7 @@
 import type {
   AgentEvent,
-  DriveForm,
-  Heartless,
+  WardenAura,
+  Riftling,
   Letter,
   PersistedState,
   UnitRole,
@@ -44,58 +44,58 @@ export type EventReducerState = {
 
 const MAX_EVENTS = 500;
 
-// Combat tuning. Heartless TTL = how long a mob lingers if the unit ignores
+// Combat tuning. Riftling TTL = how long a mob lingers if the unit ignores
 // it (long enough to feel threatening, short enough to not pile up forever).
-// HEARTLESS_LIMIT caps the on-screen mob count per world so a flapping error
+// RIFTLING_LIMIT caps the on-screen mob count per world so a flapping error
 // stream can't spawn 1000 shadows.
-const HEARTLESS_TTL_MS = 30_000;
-const HEARTLESS_LIMIT = 12;
-const MUNNY_PER_KILL = 5;
+const RIFTLING_TTL_MS = 30_000;
+const RIFTLING_LIMIT = 12;
+const GLIMMER_PER_CLEAR = 5;
 
-function newHeartlessId(worldId: string): string {
+function newRiftlingId(worldId: string): string {
   return `h-${worldId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// Per-theme heartless mix — used by store to pick which heartless
+// Per-theme riftling mix — used by store to pick which riftling
 // type spawns when an error fires.
-const HEARTLESS_MIX_BY_THEME: Record<
+const RIFTLING_MIX_BY_THEME: Record<
   string,
-  { shadow: number; soldier: number; largebody: number }
+  { shadow: number; soldier: number; bulwark: number }
 > = {
-  disney: { shadow: 0.7, soldier: 0.3, largebody: 0 },
-  hollow: { shadow: 0.3, soldier: 0.5, largebody: 0.2 },
-  traverse: { shadow: 0.6, soldier: 0.35, largebody: 0.05 },
-  destiny: { shadow: 0.95, soldier: 0.05, largebody: 0 },
-  twilight: { shadow: 0.5, soldier: 0.45, largebody: 0.05 },
-  halloween: { shadow: 0.7, soldier: 0.25, largebody: 0.05 },
+  citadel: { shadow: 0.7, soldier: 0.3, bulwark: 0 },
+  bastion: { shadow: 0.3, soldier: 0.5, bulwark: 0.2 },
+  crossroads: { shadow: 0.6, soldier: 0.35, bulwark: 0.05 },
+  tide: { shadow: 0.95, soldier: 0.05, bulwark: 0 },
+  dusk: { shadow: 0.5, soldier: 0.45, bulwark: 0.05 },
+  lantern: { shadow: 0.7, soldier: 0.25, bulwark: 0.05 },
 };
 
-function pickHeartlessType(
+function pickRiftlingType(
   worldId: string,
   recentErrorCount: number
-): "shadow" | "soldier" | "large_body" {
-  // Re-derive theme from worldId via the same hash gummi-worlds uses,
+): "shadow" | "soldier" | "bulwark" {
+  // Re-derive theme from worldId via the same hash realm-worlds uses,
   // without importing the renderer-only module here.
   let h = 0;
   for (let i = 0; i < worldId.length; i++) {
     h = (Math.imul(31, h) + worldId.charCodeAt(i)) | 0;
   }
   const themes = [
-    "disney",
-    "hollow",
-    "traverse",
-    "destiny",
-    "twilight",
-    "halloween",
+    "citadel",
+    "bastion",
+    "crossroads",
+    "tide",
+    "dusk",
+    "lantern",
   ];
   const theme = themes[Math.abs(h) % themes.length];
-  const mix = HEARTLESS_MIX_BY_THEME[theme] ?? HEARTLESS_MIX_BY_THEME.disney;
+  const mix = RIFTLING_MIX_BY_THEME[theme] ?? RIFTLING_MIX_BY_THEME.citadel;
 
   // Trigger escalation: if errors are stacking up, bias toward bigger
-  // heartless even on lighter-themed worlds.
+  // riftling even on lighter-themed worlds.
   let shadowW = mix.shadow;
   let soldierW = mix.soldier;
-  let largeW = mix.largebody;
+  let largeW = mix.bulwark;
   if (recentErrorCount >= 3) {
     largeW += 0.2;
     soldierW += 0.2;
@@ -108,21 +108,21 @@ function pickHeartlessType(
   const r = Math.random() * total;
   if (r < shadowW) return "shadow";
   if (r < shadowW + soldierW) return "soldier";
-  return "large_body";
+  return "bulwark";
 }
 
-function spawnHeartless(
-  list: Heartless[],
+function spawnRiftling(
+  list: Riftling[],
   worldId: string,
   targetUnitId: string | undefined,
   count: number,
   recentErrorCount = 1
-): Heartless[] {
+): Riftling[] {
   const next = [...list];
-  for (let i = 0; i < count && next.length < HEARTLESS_LIMIT; i++) {
+  for (let i = 0; i < count && next.length < RIFTLING_LIMIT; i++) {
     next.push({
-      id: newHeartlessId(worldId),
-      type: pickHeartlessType(worldId, recentErrorCount),
+      id: newRiftlingId(worldId),
+      type: pickRiftlingType(worldId, recentErrorCount),
       worldId,
       targetUnitId,
       hp: 1,
@@ -132,11 +132,11 @@ function spawnHeartless(
   return next;
 }
 
-function expireHeartless(list: Heartless[], now: number): Heartless[] {
+function expireRiftling(list: Riftling[], now: number): Riftling[] {
   if (list.length === 0) return list;
-  const cutoff = now - HEARTLESS_TTL_MS;
+  const cutoff = now - RIFTLING_TTL_MS;
   let changed = false;
-  const next: Heartless[] = [];
+  const next: Riftling[] = [];
   for (const h of list) {
     if (h.spawnedAt < cutoff) {
       changed = true;
@@ -147,7 +147,7 @@ function expireHeartless(list: Heartless[], now: number): Heartless[] {
   return changed ? next : list;
 }
 
-function killOldestHeartless(list: Heartless[]): Heartless[] {
+function killOldestRiftling(list: Riftling[]): Riftling[] {
   if (list.length === 0) return list;
   return list.slice(1);
 }
@@ -261,7 +261,7 @@ function pushLetter(state: EventReducerState, letter: Letter): Letter[] {
 }
 
 // Read-only / observation tools don't "fight back" — they don't clear
-// heartless. Only concrete progress (edits, shells, web fetches, summons,
+// riftling. Only concrete progress (edits, shells, web fetches, summons,
 // long results) does. Tool names span all provider rosters.
 const COMBAT_TOOL_RESULT_NAMES = new Set([
   // Claude
@@ -290,7 +290,7 @@ const COMBAT_TOOL_RESULT_NAMES = new Set([
   "exec",
 ]);
 
-// Four-keyblader system: archetype is locked per (tool, repoRoot)
+// Four-warden system: archetype is locked per (tool, repoRoot)
 // wielder identity, not per tool-call. The same wielder always renders
 // the same archetype + name across sessions.
 function roleFor(
@@ -316,7 +316,7 @@ const TASK_NAMES = new Set([
   "invoke_subagent",
 ]);
 
-// Drive form streak tracking. Per-session counters that reset on error or
+// Aura-state streak tracking. Per-session counters that reset on error or
 // session_end. Kept off UnitState because they're transient simulation
 // state, not data the UI needs to read.
 type StreakState = {
@@ -325,10 +325,10 @@ type StreakState = {
   bashSince: number;
 };
 const _streaks = new Map<string, StreakState>();
-const VALOR_THRESHOLD = 5;
-const WISDOM_BASH_COUNT = 3;
-const WISDOM_BASH_WINDOW_MS = 10_000;
-const DRIVE_DURATION_MS = 14_000;
+const GUARD_THRESHOLD = 5;
+const FOCUS_BASH_COUNT = 3;
+const FOCUS_BASH_WINDOW_MS = 10_000;
+const AURA_DURATION_MS = 14_000;
 const BASH_NAMES = new Set([
   "Bash",
   "shell",
@@ -346,16 +346,16 @@ function getStreak(id: string): StreakState {
   return s;
 }
 
-function chooseDriveForm(
+function chooseWardenAura(
   event: AgentEvent,
   streak: StreakState,
   _currentRole: UnitRole
-): { form: DriveForm; until: number } | null {
-  // Final Form is reserved for subagent spawns.
+): { form: WardenAura; until: number } | null {
+  // Link aura is reserved for subagent spawns.
   if (event.kind === "subagent_spawn") {
-    return { form: "final", until: event.timestamp + DRIVE_DURATION_MS };
+    return { form: "link", until: event.timestamp + AURA_DURATION_MS };
   }
-  // Wisdom Form: a burst of shells/bash within WISDOM_BASH_WINDOW_MS.
+  // Focus aura: a burst of shells/bash within FOCUS_BASH_WINDOW_MS.
   if (
     event.kind === "tool_use" &&
     typeof event.payload.name === "string" &&
@@ -363,15 +363,15 @@ function chooseDriveForm(
   ) {
     if (
       streak.bashSince > 0 &&
-      event.timestamp - streak.bashSince <= WISDOM_BASH_WINDOW_MS &&
-      streak.bashCount >= WISDOM_BASH_COUNT
+      event.timestamp - streak.bashSince <= FOCUS_BASH_WINDOW_MS &&
+      streak.bashCount >= FOCUS_BASH_COUNT
     ) {
-      return { form: "wisdom", until: event.timestamp + DRIVE_DURATION_MS };
+      return { form: "focus", until: event.timestamp + AURA_DURATION_MS };
     }
   }
-  // Valor Form: streak of clean tool_results. Only awarded once threshold met.
-  if (event.kind === "tool_result" && streak.successCount >= VALOR_THRESHOLD) {
-    return { form: "valor", until: event.timestamp + DRIVE_DURATION_MS };
+  // Guard aura: streak of clean tool_results. Only awarded once threshold met.
+  if (event.kind === "tool_result" && streak.successCount >= GUARD_THRESHOLD) {
+    return { form: "guard", until: event.timestamp + AURA_DURATION_MS };
   }
   return null;
 }
@@ -389,7 +389,7 @@ export function applyOneEvent(
     event.kind === "tool_use"
       ? (event.payload.name as string | undefined)
       : existing?.lastTool;
-  // Wielder identity = (tool, repoRoot) — drives both archetype + name.
+  // Wielder identity = (tool, repoRoot) — determines both archetype + name.
   const repoRootStable = event.repoRoot ?? event.cwd;
   const role = roleFor(event.tool, repoRootStable, existing?.role);
   const displayName =
@@ -434,13 +434,13 @@ export function applyOneEvent(
             visits: (prior?.visits ?? 0) + 1,
             seals: prior?.seals ?? 0,
             falls: prior?.falls ?? 0,
-            totalMunny: prior?.totalMunny ?? 0,
+            totalGlimmer: prior?.totalGlimmer ?? 0,
             lastSeen: event.timestamp,
           },
         },
       },
     };
-    void window.kh.savePersisted(state.persisted).catch(() => {});
+    void window.rw.savePersisted(state.persisted).catch(() => {});
   }
   // session_end with hp=0 = a fall.
   if (event.kind === "session_end" && existing && existing.hp <= 0) {
@@ -461,7 +461,7 @@ export function applyOneEvent(
           },
         },
       };
-      void window.kh.savePersisted(state.persisted).catch(() => {});
+      void window.rw.savePersisted(state.persisted).catch(() => {});
     }
   }
   // Subagent linkage: an explicit parentSessionId on the event wins;
@@ -512,8 +512,8 @@ export function applyOneEvent(
       _streaks.delete(id);
       break;
     case "subagent_spawn":
-      // No archetype change — drive form (Final) is the visual cue
-      // that a subagent was summoned. Two-keyblader system doesn't
+      // No archetype change — the Link aura is the visual cue
+      // that a subagent was summoned. Two-warden system doesn't
       // have a third archetype to promote into.
       break;
     case "tool_use": {
@@ -562,8 +562,8 @@ export function applyOneEvent(
       break;
   }
 
-  // Drive form streak tracking. Update counters first, then ask
-  // chooseDriveForm whether this event triggers a transformation.
+  // Aura-state streak tracking. Update counters first, then ask
+  // chooseWardenAura whether this event triggers a transformation.
   const streak = getStreak(id);
   if (event.kind === "tool_result") {
     streak.successCount += 1;
@@ -578,7 +578,7 @@ export function applyOneEvent(
   ) {
     if (
       streak.bashSince === 0 ||
-      event.timestamp - streak.bashSince > WISDOM_BASH_WINDOW_MS
+      event.timestamp - streak.bashSince > FOCUS_BASH_WINDOW_MS
     ) {
       streak.bashSince = event.timestamp;
       streak.bashCount = 1;
@@ -586,22 +586,19 @@ export function applyOneEvent(
       streak.bashCount += 1;
     }
   }
-  const drive = chooseDriveForm(event, streak, unit.role);
-  if (drive) {
-    unit.driveForm = drive.form;
-    unit.driveFormUntil = drive.until;
-    if (drive.form === "valor") {
+  const aura = chooseWardenAura(event, streak, unit.role);
+  if (aura) {
+    unit.auraState = aura.form;
+    unit.auraUntil = aura.until;
+    if (aura.form === "guard") {
       streak.successCount = 0;
     }
-  } else if (
-    unit.driveFormUntil !== undefined &&
-    event.timestamp > unit.driveFormUntil
-  ) {
-    unit.driveForm = undefined;
-    unit.driveFormUntil = undefined;
+  } else if (unit.auraUntil !== undefined && event.timestamp > unit.auraUntil) {
+    unit.auraState = undefined;
+    unit.auraUntil = undefined;
   }
-  // No parent-promotion in two-keyblader system — archetype is locked
-  // per (tool, repoRoot). Subagent visualization is the Final drive
+  // No parent-promotion in two-warden system — archetype is locked
+  // per (tool, repoRoot). Subagent visualization is the Link aura
   // form on the parent + tether between sprites.
   const extraUnits: Record<string, UnitState> = {};
 
@@ -611,28 +608,28 @@ export function applyOneEvent(
     ? Array.from(new Set([...existingWorld.unitIds, id]))
     : [id];
 
-  let heartless = existingWorld?.heartless ?? [];
-  heartless = expireHeartless(heartless, event.timestamp);
-  let munny = existingWorld?.munny ?? 0;
+  let riftling = existingWorld?.riftling ?? [];
+  riftling = expireRiftling(riftling, event.timestamp);
+  let glimmer = existingWorld?.glimmer ?? 0;
 
   if (event.kind === "error") {
-    // Errors are heartless invasions. Type biased by world theme + how
-    // many heartless are already present (≈ how stressed this world is).
-    const recentErrorCount = heartless.length + 1;
-    heartless = spawnHeartless(heartless, worldId, id, 1, recentErrorCount);
+    // Errors are riftling invasions. Type biased by world theme + how
+    // many riftling are already present (≈ how stressed this world is).
+    const recentErrorCount = riftling.length + 1;
+    riftling = spawnRiftling(riftling, worldId, id, 1, recentErrorCount);
   } else if (
     event.kind === "tool_result" &&
     lastToolName &&
     COMBAT_TOOL_RESULT_NAMES.has(lastToolName) &&
-    heartless.length > 0
+    riftling.length > 0
   ) {
     // Successful combat-relevant work pushes back the dark.
-    heartless = killOldestHeartless(heartless);
-    munny += MUNNY_PER_KILL;
+    riftling = killOldestRiftling(riftling);
+    glimmer += GLIMMER_PER_CLEAR;
   } else if (event.kind === "session_end" && unit.hp > 0) {
     // Victory clears any lingering shadows; defeat (hp=0) leaves them on
     // the field as a visible reminder that the world fell.
-    heartless = [];
+    riftling = [];
   }
 
   const nextWorld: WorldState = {
@@ -640,8 +637,8 @@ export function applyOneEvent(
     path: worldPathForEvent(event),
     label: worldLabelForEvent(event),
     unitIds,
-    heartless,
-    munny,
+    riftling,
+    glimmer,
     alertLevel: existingWorld?.alertLevel ?? "idle",
   };
   const nextUnits = { ...state.units, [id]: unit, ...extraUnits };
@@ -651,7 +648,7 @@ export function applyOneEvent(
   // -- Letter generation (decision-moment signals)
   let nextLetters = state.letters;
   // Letters use the wielder's auto-generated name, not the raw role
-  // identifier ("keyblader1" -> "Vaelen"/"Aren"/etc.).
+  // identifier ("warden1" -> "Vaelen"/"Aren"/etc.).
   const palette = unit.displayName;
 
   // HP critical — once per session crossing the threshold.
@@ -670,7 +667,7 @@ export function applyOneEvent(
         worldId,
         actions: [
           {
-            label: "♥ comfort (50µ)",
+            label: "♥ comfort (50✧)",
             action: { kind: "comfort", sessionId: id },
           },
           { label: "dismiss", action: { kind: "dismiss" } },
@@ -691,11 +688,11 @@ export function applyOneEvent(
       nextLetters = pushLetter(
         { ...state, letters: nextLetters },
         makeLetter("important", `${palette} finished in ${nextWorld.label}`, {
-          body: "Plan complete? Seal the keyhole or iterate.",
+          body: "Plan complete? Seal the realm or iterate.",
           sessionId: id,
           worldId,
           actions: [
-            { label: "✦ seal keyhole", action: { kind: "seal", worldId } },
+            { label: "✦ seal realm", action: { kind: "seal", worldId } },
             { label: "↻ iterate", action: { kind: "iterate", sessionId: id } },
             { label: "dismiss", action: { kind: "dismiss" } },
           ],
@@ -724,7 +721,7 @@ export function applyOneEvent(
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
       makeLetter("important", `${nextWorld.label} fell into danger`, {
-        body: "Heartless are overwhelming the world.",
+        body: "Riftling are overwhelming the world.",
         worldId,
         actions: [{ label: "dismiss", action: { kind: "dismiss" } }],
       })
@@ -743,7 +740,7 @@ export function applyOneEvent(
     // Walk events excluding the just-arrived permission_request itself.
     const reasoning = extractRecentReasoning(state.events, id);
     // Cursor letters are observational. Gemini BeforeTool letters are
-    // actionable when the managed Gemini policy is installed: Keykeeper
+    // actionable when the managed Gemini policy is installed: Realmkeeper
     // decides, then Gemini's native policy auto-allows past its own prompt.
     const observeOnlyProvider = isObservationOnlyPermission(event);
     const providerLabel = event.tool === "gemini" ? "Gemini" : "Cursor";
@@ -867,14 +864,14 @@ export function applyOneEvent(
     }
   }
 
-  // Drive activation — notable, info only.
-  if (drive && unit.driveForm) {
-    play("drive");
+  // Aura activation — notable, info only.
+  if (aura && unit.auraState) {
+    play("aura");
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
       makeLetter(
         "notable",
-        `${palette} entered ${unit.driveForm.toUpperCase()} FORM`,
+        `${palette} entered ${unit.auraState.toUpperCase()} AURA`,
         {
           sessionId: id,
           worldId,

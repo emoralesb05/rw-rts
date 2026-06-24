@@ -7,8 +7,8 @@
  * PreToolUse, PostToolUse, PermissionRequest, Stop), same input field
  * names (snake_case session_id, cwd, hook_event_name, tool_name, tool_input),
  * same output format for PermissionRequest (`hookSpecificOutput.decision.behavior`).
- * That means our existing keykeeper-hook script's Claude path works as-is for
- * Codex too — we only need to tag events with `__kh_tool: "codex"` so the
+ * That means our existing realmkeeper-hook script's Claude path works as-is for
+ * Codex too — we only need to tag events with `__rw_tool: "codex"` so the
  * bridge can attribute them to the right wielder. The installer does this
  * by appending `--tool codex` to the hook command (script reads it).
  *
@@ -31,8 +31,8 @@ import {
 
 const CODEX_CONFIG_PATH = join(homedir(), ".codex", "config.toml");
 const BLOCK_START =
-  "# keykeeper-hooks-start (managed by keykeeper — do not edit)";
-const BLOCK_END = "# keykeeper-hooks-end";
+  "# realmkeeper-hooks-start (managed by Realmkeeper — do not edit)";
+const BLOCK_END = "# realmkeeper-hooks-end";
 
 function loadConfigFile(): string {
   if (!existsSync(CODEX_CONFIG_PATH)) return "";
@@ -69,7 +69,7 @@ function buildBlock(scriptPath: string): string {
   // exits in milliseconds for fire-and-forget paths, so the blocking
   // cost is negligible. Permission events have NO timeout so Codex
   // falls back to its 600s default — a short timeout here would kill
-  // the script before the King could decide in the keykeeper letter.
+  // the script before the King could decide in the realmkeeper letter.
   const obs = (event: string) =>
     [
       `[[hooks.${event}]]`,

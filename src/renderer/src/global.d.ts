@@ -15,7 +15,7 @@ import type { seedVisualQaState } from "./dev/visual-qa-seed";
 
 declare global {
   interface Window {
-    kh: {
+    rw: {
       onEvent(listener: (event: AgentEvent) => void): () => void;
       spawnAgent(req: SpawnAgentRequest): Promise<SpawnAgentResponse>;
       sendPrompt(req: SendPromptRequest): Promise<void>;
@@ -47,7 +47,7 @@ declare global {
       saveSettings(next: AppSettings): Promise<AppSettings>;
       validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;
     };
-    __khSeedVisualQa?: typeof seedVisualQaState;
+    __rwSeedVisualQa?: typeof seedVisualQaState;
   }
 }
 

@@ -185,10 +185,10 @@ export function ChatDrawer() {
         tick: Date.now(),
       });
     };
-    window.addEventListener("kh:drawer-scroll-to", handler as EventListener);
+    window.addEventListener("rw:drawer-scroll-to", handler as EventListener);
     return () =>
       window.removeEventListener(
-        "kh:drawer-scroll-to",
+        "rw:drawer-scroll-to",
         handler as EventListener
       );
   }, []);

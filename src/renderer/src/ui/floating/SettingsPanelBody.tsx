@@ -35,7 +35,7 @@ export function SettingsPanelBody({ onSaved }: Props) {
   const { notify } = useToast();
 
   useEffect(() => {
-    void window.kh.getSettings().then((s: AppSettings) => {
+    void window.rw.getSettings().then((s: AppSettings) => {
       setWorkspaceRoot(s.workspaceRoot);
       setExcludeText(s.exclude.join("\n"));
       setLoaded(true);
@@ -45,7 +45,7 @@ export function SettingsPanelBody({ onSaved }: Props) {
   useEffect(() => {
     if (!loaded) return;
     const handle = setTimeout(() => {
-      void window.kh.validateWorkspaceRoot(workspaceRoot).then(setValidation);
+      void window.rw.validateWorkspaceRoot(workspaceRoot).then(setValidation);
     }, 200);
     return () => clearTimeout(handle);
   }, [workspaceRoot, loaded]);
@@ -57,14 +57,14 @@ export function SettingsPanelBody({ onSaved }: Props) {
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0 && !line.startsWith("#"));
-      await window.kh.saveSettings({ workspaceRoot, exclude });
+      await window.rw.saveSettings({ workspaceRoot, exclude });
       notify({ title: "Settings saved", tone: "success" });
       onSaved?.();
       closeKind("settings");
     } catch {
       notify({
         title: "Settings save failed",
-        description: "Keykeeper could not write the settings file.",
+        description: "Realmkeeper could not write the settings file.",
         tone: "danger",
       });
     } finally {
@@ -123,8 +123,8 @@ export function SettingsPanelBody({ onSaved }: Props) {
       </Field>
 
       <p className="text-muted m-0 text-[10.5px] italic">
-        Edits also persist to <Code>~/.keykeeper.json</Code>; you can hand-edit
-        that file and the next dropdown render will pick it up.
+        Edits also persist to <Code>~/.realmkeeper.json</Code>; you can
+        hand-edit that file and the next dropdown render will pick it up.
       </p>
 
       <div className="border-line -mx-[18px] -mb-[18px] flex justify-end gap-2 border-t bg-black/25 px-[18px] py-3">

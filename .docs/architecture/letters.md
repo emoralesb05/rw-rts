@@ -1,6 +1,6 @@
 # Letters & decree modal
 
-The "letter" is keykeeper's KH-themed unit of player-facing async messages. Permission requests, important notifications, and one-shot prompts all flow through it. This is the central UX surface for the player as **King**.
+The "letter" is realmkeeper's RW-themed unit of player-facing async messages. Permission requests, important notifications, and one-shot prompts all flow through it. This is the central UX surface for the player as **King**.
 
 ## Letter shape
 
@@ -53,7 +53,7 @@ type LetterAction =
 
 ## Risk levels (permission letters)
 
-`risk: "low" | "elevated" | "high"` drives card tinting and whether allow is single-click vs requires reasoning. We compute risk heuristically from tool name and inputs (e.g. `Bash` with `rm -rf` → high; `Read` of a config file → low). See `src/renderer/src/lettersmiths/` if it exists, otherwise the inline logic in the bridge normalizer.
+`risk: "low" | "elevated" | "high"` auras card tinting and whether allow is single-click vs requires reasoning. We compute risk heuristically from tool name and inputs (e.g. `Bash` with `rm -rf` → high; `Read` of a config file → low). See `src/renderer/src/lettersmiths/` if it exists, otherwise the inline logic in the bridge normalizer.
 
 ## Permission-observe (Cursor exception)
 

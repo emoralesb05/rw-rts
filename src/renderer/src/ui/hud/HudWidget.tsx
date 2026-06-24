@@ -55,7 +55,7 @@ export function HudWidget({
     `collapsed:${title}`,
     defaultCollapsed
   );
-  // Listen for `kh:expand-hud` events that target this widget by title
+  // Listen for `rw:expand-hud` events that target this widget by title
   // (e.g. ActivityLog → AlertsHUD when a permission row is clicked).
   // Force-expand so the highlighted letter card is actually in the DOM.
   useEffect(() => {
@@ -63,8 +63,8 @@ export function HudWidget({
       const detail = (e as CustomEvent<{ title?: string }>).detail;
       if (detail?.title === title) setCollapsed(false);
     };
-    window.addEventListener("kh:expand-hud", onExpand);
-    return () => window.removeEventListener("kh:expand-hud", onExpand);
+    window.addEventListener("rw:expand-hud", onExpand);
+    return () => window.removeEventListener("rw:expand-hud", onExpand);
   }, [title, setCollapsed]);
 
   const anchorClass: Record<HudAnchor, string> = {

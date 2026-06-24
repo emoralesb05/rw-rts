@@ -9,7 +9,7 @@ domain modules. Domain/product surfaces live in the parent `ui/` folder.
 - `primitives/` wraps behavior and accessibility from OSS libraries
   such as Radix UI and cmdk. These components should stay visually
   minimal and generic.
-- `kit/` contains Keykeeper-styled building blocks such as buttons,
+- `kit/` contains Realmkeeper-styled building blocks such as buttons,
   badges, inputs, bars, toolbars, toast wiring, and empty states.
 
 ## Rules

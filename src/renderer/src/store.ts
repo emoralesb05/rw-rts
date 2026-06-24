@@ -29,7 +29,7 @@ export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
 
 export type ComfortReceipt =
   | "ok"
-  | "no-munny"
+  | "no-glimmer"
   | "cooldown"
   | "full-hp"
   | "fallen";
@@ -49,7 +49,7 @@ type Store = {
   units: Record<string, UnitState>;
   worlds: Record<string, WorldState>;
   selectedUnitId: string | null;
-  // The most recently focused world. Drives UnitInspector filtering and
+  // The most recently focused world. Auras UnitInspector filtering and
   // is stamped by selectWorld. In the unified-map architecture (Q40)
   // there's no longer a single "active scene"; this field is just the
   // last-clicked-world bookmark.
@@ -89,7 +89,7 @@ type Store = {
   haltStandingOrder(orderId: string): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
-  sealKeyhole(worldId: string): void;
+  sealRealm(worldId: string): void;
   comfort(sessionId: string): ComfortReceipt;
   dismissLetter(letterId: string): void;
   dismissInformationalLetters(): void;
@@ -97,7 +97,7 @@ type Store = {
   resetKingdom(): Promise<void>;
 };
 
-const MUTED_KEY = "keykeeper:muted-sessions";
+const MUTED_KEY = "realmkeeper:muted-sessions";
 function loadMuted(): Record<string, true> {
   try {
     const raw = localStorage.getItem(MUTED_KEY);
@@ -256,7 +256,7 @@ export const useStore = create<Store>((set) => ({
         ...s.persisted,
         standingOrders: ordersToPersisted(standingOrders),
       };
-      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      void window.rw.savePersisted(nextPersisted).catch(() => {});
       return { standingOrders, persisted: nextPersisted };
     });
     return id;
@@ -274,7 +274,7 @@ export const useStore = create<Store>((set) => ({
         ...s.persisted,
         standingOrders: ordersToPersisted(standingOrders),
       };
-      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      void window.rw.savePersisted(nextPersisted).catch(() => {});
       return { standingOrders, persisted: nextPersisted };
     });
   },
@@ -286,7 +286,7 @@ export const useStore = create<Store>((set) => ({
         ...s.persisted,
         standingOrders: ordersToPersisted(standingOrders),
       };
-      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      void window.rw.savePersisted(nextPersisted).catch(() => {});
       return { standingOrders, persisted: nextPersisted };
     });
   },
@@ -313,14 +313,14 @@ export const useStore = create<Store>((set) => ({
   comfort(sessionId) {
     const state = useStore.getState();
     const unit = state.units[sessionId];
-    if (!unit) return "no-munny";
+    if (!unit) return "no-glimmer";
     if (unit.status === "fallen") return "fallen";
     if (unit.hp >= 100) return "full-hp";
     const now = Date.now();
     const cd = _comfortCooldown.get(sessionId) ?? 0;
     if (now < cd) return "cooldown";
     const world = state.worlds[unit.worldId];
-    if (!world || world.munny < COMFORT_COST) return "no-munny";
+    if (!world || world.glimmer < COMFORT_COST) return "no-glimmer";
     _comfortCooldown.set(sessionId, now + COMFORT_COOLDOWN_MS);
     play("comfort");
     set((s) => {
@@ -334,7 +334,7 @@ export const useStore = create<Store>((set) => ({
         },
         worlds: {
           ...s.worlds,
-          [unit.worldId]: { ...w, munny: w.munny - COMFORT_COST },
+          [unit.worldId]: { ...w, glimmer: w.glimmer - COMFORT_COST },
         },
       };
     });
@@ -360,14 +360,14 @@ export const useStore = create<Store>((set) => ({
         s.comfort(action.sessionId);
         break;
       case "seal":
-        s.sealKeyhole(action.worldId);
+        s.sealRealm(action.worldId);
         break;
       case "iterate":
         // For v1: just dismiss; the user manually issues a follow-up via
         // CommandInput. Wired more deeply in polish phase (modal pre-fill).
         break;
       case "dispatch":
-        // Send the user to the gummi map / world to dispatch. Cinematic
+        // Send the user to the realm map / world to dispatch. Cinematic
         // dispatch flow comes in P9.
         s.selectWorld(action.worldId);
         break;
@@ -375,13 +375,13 @@ export const useStore = create<Store>((set) => ({
         // Stub; CommandInput is the main path for now.
         break;
       case "recall":
-        void window.kh.killAgent(action.sessionId).catch(() => {});
+        void window.rw.killAgent(action.sessionId).catch(() => {});
         break;
       case "permission-allow":
       case "permission-deny":
         {
           const req = permissionResolutionForAction(action);
-          if (req) void window.kh.resolvePermission(req).catch(() => {});
+          if (req) void window.rw.resolvePermission(req).catch(() => {});
         }
         break;
       case "permission-observe":
@@ -393,10 +393,10 @@ export const useStore = create<Store>((set) => ({
     }
     s.dismissLetter(letter.id);
   },
-  sealKeyhole(worldId) {
+  sealRealm(worldId) {
     play("seal");
     // Pan the unified-map camera to the sealed world so the fanfare
-    // (gold-keyhole materialization) plays in context.
+    // (gold-realm-seal materialization) plays in context.
     set((s) => ({
       cameraTarget: worldId,
       cameraTargetVersion: s.cameraTargetVersion + 1,
@@ -439,15 +439,15 @@ export const useStore = create<Store>((set) => ({
         },
       };
       // Persist out — main writes JSON debounced.
-      void window.kh.savePersisted(nextPersisted).catch(() => {});
+      void window.rw.savePersisted(nextPersisted).catch(() => {});
       // Mark the live world as cleared too.
       const nextWorlds = { ...state.worlds };
-      nextWorlds[worldId] = { ...world, alertLevel: "cleared", heartless: [] };
+      nextWorlds[worldId] = { ...world, alertLevel: "cleared", riftling: [] };
       return { persisted: nextPersisted, worlds: nextWorlds };
     });
   },
   async resetKingdom() {
-    const fresh = await window.kh.resetPersisted();
+    const fresh = await window.rw.resetPersisted();
     set({ persisted: fresh });
   },
 }));
@@ -463,16 +463,16 @@ useStore.subscribe((state) => {
   if (_persistDebounce) clearTimeout(_persistDebounce);
   _persistDebounce = setTimeout(() => {
     const s = useStore.getState();
-    // Compute lifetime munny = sum of current world.munny + previously-sealed
-    // worlds' baked totals. Cheap approximation: take current per-world munny.
+    // Compute lifetime glimmer = sum of current world.glimmer + previously-sealed
+    // worlds' baked totals. Cheap approximation: take current per-world glimmer.
     let live = 0;
-    for (const w of Object.values(s.worlds)) live += w.munny;
+    for (const w of Object.values(s.worlds)) live += w.glimmer;
     const next: PersistedState = {
       ...s.persisted,
-      totalMunnyEver: Math.max(s.persisted.totalMunnyEver, live),
+      totalGlimmerEver: Math.max(s.persisted.totalGlimmerEver, live),
     };
     if (next !== s.persisted) {
-      void window.kh.savePersisted(next).catch(() => {});
+      void window.rw.savePersisted(next).catch(() => {});
       useStore.setState({ persisted: next });
     }
   }, 1000);

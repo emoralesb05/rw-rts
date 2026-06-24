@@ -1,7 +1,7 @@
 /**
  * Per-wielder send-prompt input. Lives at the bottom of the chat-
  * drawer's active tab. Every wielder gets its own focused input;
- * disabled (with a hint) for observed-only wielders since keykeeper
+ * disabled (with a hint) for observed-only wielders since realmkeeper
  * can't drive them.
  */
 import { useCallback, useState } from "react";
@@ -22,7 +22,7 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
     if (!text || disabled) return;
     setBusy(true);
     try {
-      await window.kh.sendPrompt({ unitId: unit.id, prompt: text });
+      await window.rw.sendPrompt({ unitId: unit.id, prompt: text });
       setPrompt("");
     } catch {
       // Keep the text in place so the user can retry.

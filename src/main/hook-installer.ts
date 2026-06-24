@@ -17,10 +17,10 @@ import {
 } from "@shared/schemas";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
-const HOOK_MARKER = "keykeeper-managed";
+const HOOK_MARKER = "realmkeeper-managed";
 
-const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
-const INSTALLED_SCRIPT_PATH = join(KEYKEEPER_DIR, "keykeeper-hook");
+const REALMKEEPER_DIR = join(homedir(), ".realmkeeper");
+const INSTALLED_SCRIPT_PATH = join(REALMKEEPER_DIR, "realmkeeper-hook");
 
 const HOOK_EVENTS = [
   "PreToolUse",
@@ -46,17 +46,17 @@ export function getHookScriptPath(): string {
 /**
  * Resolve the bundled source script (in dev: the repo's `bin/`; when
  * packaged: `Resources/bin/` outside app.asar via electron-builder's
- * `asarUnpack`). Used by `syncHookScript()` to copy into ~/.keykeeper/.
+ * `asarUnpack`). Used by `syncHookScript()` to copy into ~/.realmkeeper/.
  */
 function getBundledScriptPath(): string {
   const isDev = !app.isPackaged;
   return isDev
-    ? join(app.getAppPath(), "bin", "keykeeper-hook")
-    : join(app.getAppPath(), "..", "bin", "keykeeper-hook");
+    ? join(app.getAppPath(), "bin", "realmkeeper-hook")
+    : join(app.getAppPath(), "..", "bin", "realmkeeper-hook");
 }
 
 /**
- * Copy the bundled hook script into ~/.keykeeper/keykeeper-hook on
+ * Copy the bundled hook script into ~/.realmkeeper/realmkeeper-hook on
  * every app boot, chmod +x. Cheap (small file) and keeps the installed
  * copy in sync with whatever ships in the current app version (or the
  * current dev source). Idempotent — safe to call repeatedly.
@@ -65,19 +65,19 @@ function getBundledScriptPath(): string {
  */
 export function syncHookScript(): void {
   try {
-    mkdirSync(KEYKEEPER_DIR, { recursive: true });
+    mkdirSync(REALMKEEPER_DIR, { recursive: true });
     const src = getBundledScriptPath();
     if (existsSync(src)) {
       copyFileSync(src, INSTALLED_SCRIPT_PATH);
       chmodSync(INSTALLED_SCRIPT_PATH, 0o755);
     }
   } catch (err) {
-    console.warn("[keykeeper] failed to sync hook script:", err);
+    console.warn("[realmkeeper] failed to sync hook script:", err);
   }
 }
 
 export function ensureHookScriptExecutable() {
-  // The script lives at ~/.keykeeper/keykeeper-hook after syncHookScript().
+  // The script lives at ~/.realmkeeper/realmkeeper-hook after syncHookScript().
   // Belt-and-suspenders chmod in case the boot-time copy was missed.
   if (existsSync(INSTALLED_SCRIPT_PATH)) {
     try {

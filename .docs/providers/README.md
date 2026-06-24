@@ -1,9 +1,9 @@
 # Providers
 
-The external CLI agents keykeeper integrates with: Claude, Cursor, Codex, Gemini. Fast-changing reference — these docs capture upstream behavior we don't control.
+The external CLI agents Realmkeeper integrates with: Claude, Cursor, Codex, Gemini. Fast-changing reference — these docs capture upstream behavior we don't control.
 
 For our internal architecture, see [`../architecture/`](../architecture/).
-For vocabulary (KH terms + technical), see [`../glossary.md`](../glossary.md).
+For vocabulary (RW terms + technical), see [`../glossary.md`](../glossary.md).
 
 ## Files
 

@@ -11,7 +11,7 @@ class EventBus extends EventEmitter {
     const parsed = AgentEventSchema.safeParse(event);
     if (!parsed.success) {
       console.warn(
-        "[keykeeper] dropped invalid AgentEvent",
+        "[realmkeeper] dropped invalid AgentEvent",
         parsed.error.issues
       );
       return;

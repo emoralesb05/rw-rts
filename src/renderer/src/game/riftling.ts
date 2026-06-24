@@ -1,5 +1,5 @@
 /**
- * Heartless mob rendering. Shadow chibi only for now — small black blob with
+ * Riftling mob rendering. Shadow chibi only for now — small black blob with
  * yellow round eyes and two crooked antennae. The visuals are deliberately
  * iconic so the player can read "enemy" instantly even at small zoom.
  *
@@ -8,11 +8,11 @@
  */
 
 import type * as Phaser from "phaser";
-import type { HeartlessType } from "@shared/events";
+import type { RiftlingType } from "@shared/events";
 
-export type HeartlessRef = {
+export type RiftlingRef = {
   id: string;
-  type: HeartlessType;
+  type: RiftlingType;
   targetUnitId?: string;
   container: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
@@ -23,10 +23,10 @@ export type HeartlessRef = {
 
 export function drawShadow(
   scene: Phaser.Scene,
-  type: HeartlessType = "shadow"
+  type: RiftlingType = "shadow"
 ): Phaser.GameObjects.Container {
   const c = scene.add.container(0, 0);
-  const large = type === "large_body";
+  const large = type === "bulwark";
   const soldier = type === "soldier";
   const bodyW = large ? 30 : soldier ? 24 : 22;
   const bodyH = large ? 25 : soldier ? 22 : 18;

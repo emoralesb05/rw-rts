@@ -12,10 +12,10 @@ extraction.
 ## Current Shape
 
 - Electron main owns side effects: provider CLI processes, hook installation, hook socket bridge, transcript polling, filesystem-backed settings, persistent state, file opening, and IPC handlers.
-- The preload exposes a narrow `window.kh` API. Main wraps IPC handlers with a sender-frame guard so only the app's top-level renderer frame can call privileged handlers.
+- The preload exposes a narrow `window.rw` API. Main wraps IPC handlers with a sender-frame guard so only the app's top-level renderer frame can call privileged handlers.
 - Renderer state is centralized in `src/renderer/src/store.ts` via Zustand. The UI derives units, worlds, letters, orders, and persistent stats from `AgentEvent`s.
 - Provider integrations have two paths:
-  - spawned sessions started by Keykeeper through `AgentManager`
+  - spawned sessions started by Realmkeeper through `AgentManager`
   - observed sessions flowing through provider hooks into `hook-bridge.ts`
 - Claude and Codex still need transcript polling for assistant text. Cursor and Gemini use response hooks directly.
 
@@ -31,7 +31,7 @@ extraction.
 
 1. Seal stats should use repo-root identity.
 
-   `sealKeyhole()` currently bumps per-wielder seals with `unitIdentityFor(unit.tool, unit.cwd)`. Visits and standing orders use `unit.repoRoot ?? unit.cwd`. If a session runs from a repo subdirectory, seal counts can miss the persisted wielder record. Use `unit.repoRoot ?? unit.cwd` there.
+   `sealRealm()` currently bumps per-wielder seals with `unitIdentityFor(unit.tool, unit.cwd)`. Visits and standing orders use `unit.repoRoot ?? unit.cwd`. If a session runs from a repo subdirectory, seal counts can miss the persisted wielder record. Use `unit.repoRoot ?? unit.cwd` there.
 
 2. Stop transcript watchers from shared quit cleanup.
 
@@ -39,7 +39,7 @@ extraction.
 
 3. Document or gate Cursor spawned trust mode.
 
-   Spawned Cursor sessions use `cursor-agent` with `--force --trust`. That may be intentional for Keykeeper-controlled sessions, but it is different from observed Cursor sessions where Keykeeper is awareness-only and Cursor's native UI decides. Make the behavior explicit in provider docs, and consider a setting before broad distribution.
+   Spawned Cursor sessions use `cursor-agent` with `--force --trust`. That may be intentional for Realmkeeper-controlled sessions, but it is different from observed Cursor sessions where Realmkeeper is awareness-only and Cursor's native UI decides. Make the behavior explicit in provider docs, and consider a setting before broad distribution.
 
 4. Treat prompt-in-argv as a privacy risk.
 
@@ -70,7 +70,7 @@ Largest files at review time:
 ## Security And Robustness Notes
 
 - Keep following Electron's local-content model. Electron documents that Electron apps have broader filesystem/shell power than browsers, and recommends current Electron versions, context isolation, sandboxing, CSP, sender validation, and not exposing Electron APIs to untrusted web content.
-- `safeHandle()` protects against injected iframes, but top-frame renderer compromise can still call `window.kh`. That makes markdown rendering, link handling, and runtime IPC validation important.
+- `safeHandle()` protects against injected iframes, but top-frame renderer compromise can still call `window.rw`. That makes markdown rendering, link handling, and runtime IPC validation important.
 - Add runtime validation at process boundaries. TypeScript types do not validate provider hook JSON, renderer IPC payloads, persisted state files, or settings files at runtime.
 - Treat provider output as untrusted text. Keep raw HTML disabled or sanitized in rendered markdown, restrict external link behavior, and avoid adding broad preload APIs.
 - Permission decisions should remain fail-closed where providers support synchronous blocking. Gemini's managed policy and `BeforeTool` hook are a good example of explicitly pairing observability with enforcement.

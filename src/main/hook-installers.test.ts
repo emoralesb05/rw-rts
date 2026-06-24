@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 async function withMockHome<T>(
   fn: (home: string) => Promise<T> | T
 ): Promise<T> {
-  const home = mkdtempSync(join(tmpdir(), "keykeeper-home-"));
+  const home = mkdtempSync(join(tmpdir(), "realmkeeper-home-"));
   vi.resetModules();
   vi.doMock("node:os", async () => {
     const actual = await vi.importActual<typeof import("node:os")>("node:os");
@@ -47,14 +47,14 @@ function readJson(path: string): any {
 function countClaudeLikeManagedEntries(settings: any, event: string): number {
   return (settings.hooks?.[event] ?? []).filter((entry: any) =>
     (entry.hooks ?? []).some((hook: any) =>
-      String(hook.command ?? "").includes("keykeeper-managed")
+      String(hook.command ?? "").includes("realmkeeper-managed")
     )
   ).length;
 }
 
 function countCursorManagedEntries(file: any, event: string): number {
   return (file.hooks?.[event] ?? []).filter((entry: any) =>
-    String(entry.command ?? "").includes("keykeeper-hook")
+    String(entry.command ?? "").includes("realmkeeper-hook")
   ).length;
 }
 
@@ -167,7 +167,7 @@ describe("provider hook installers", () => {
         home,
         ".gemini",
         "policies",
-        "keykeeper-managed.toml"
+        "realmkeeper-managed.toml"
       );
       writeJson(settingsPath, {
         hooks: {
@@ -213,7 +213,7 @@ describe("provider hook installers", () => {
         installed.hooks.BeforeTool.some((entry: any) =>
           (entry.hooks ?? []).some((hook: any) =>
             String(hook.command ?? "").includes(
-              "KEYKEEPER_GEMINI_FAIL_CLOSED=1"
+              "REALMKEEPER_GEMINI_FAIL_CLOSED=1"
             )
           )
         )
@@ -248,8 +248,8 @@ describe("provider hook installers", () => {
       const installed = readFileSync(configPath, "utf8");
       expect(isCodexInstalled()).toBe(true);
       expect(installed).toContain('model = "gpt-5.3-codex"');
-      expect(installed.match(/keykeeper-hooks-start/g)?.length).toBe(1);
-      expect(installed.match(/keykeeper-hooks-end/g)?.length).toBe(1);
+      expect(installed.match(/realmkeeper-hooks-start/g)?.length).toBe(1);
+      expect(installed.match(/realmkeeper-hooks-end/g)?.length).toBe(1);
       expect(installed.match(/--tool codex/g)?.length).toBe(6);
 
       uninstallCodexHooks();

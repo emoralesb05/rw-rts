@@ -1,19 +1,19 @@
 /**
  * Procedural placeholder sprite generator. Produces two 8-frame
- * 48×64 sheets — `keyblader1` (masculine) and `keyblader2` (feminine).
+ * 48×64 sheets — `warden1` (masculine) and `warden2` (feminine).
  *
  * These are intentionally simple. The real visual layer is whatever
- * the user drops into `assets/sprites/kh/keyblader1_sheet.png` /
- * `keyblader2_sheet.png` (32-frame AI-generated sheets per
+ * the user drops into `assets/sprites/rw/warden1_sheet.png` /
+ * `warden2_sheet.png` (32-frame AI-generated sheets per
  * `.docs/sprite-prompts.md`).
  *
- * Outputs to `assets/sprites/kh-default/`:
- *   - keyblader1.png         48×64 still
- *   - keyblader1_sheet.png   384×64 sheet, 8 frames horizontal
- *   - keyblader2.png         48×64 still
- *   - keyblader2_sheet.png   384×64 sheet
+ * Outputs to `assets/sprites/rw-default/`:
+ *   - warden1.png         48×64 still
+ *   - warden1_sheet.png   384×64 sheet, 8 frames horizontal
+ *   - warden2.png         48×64 still
+ *   - warden2_sheet.png   384×64 sheet
  *
- * Plus heartless / landmarks / iso tiles, unchanged.
+ * Plus riftling / landmarks / iso tiles, unchanged.
  *
  * Run: bun scripts/generate-pixel-sprites.ts
  */
@@ -136,9 +136,9 @@ function drawFace(ctx: SKRSContext2D, dy: number, irisColor: string) {
   fillRect(ctx, 23, 24 + dy, 3, 1, "#5a2810");
 }
 
-// ─── keyblader1 (masculine, twilight palette) ──────────────────────
+// ─── warden1 (masculine, dusk palette) ──────────────────────
 
-function drawKeyblader1(ctx: SKRSContext2D, frame: number) {
+function drawWarden1(ctx: SKRSContext2D, frame: number) {
   const dy = bobOffset(frame);
   const sw = swingPose(frame);
   drawShadow(ctx);
@@ -192,7 +192,7 @@ function drawKeyblader1(ctx: SKRSContext2D, frame: number) {
   fillRect(ctx, 31, 5 + dy, 3, 4, hair);
   outlineRect(ctx, 16, 6 + dy, 16, 7, hairDk);
 
-  // Twilight keyblade (Noctis Rayle-flavored — purple + silver)
+  // Dusk sealblade (Noctis Rayle-flavored — purple + silver)
   if (sw.armOut) {
     // Held forward
     fillRect(ctx, 35, 26 + dy, 3, 14, "#b0b0c0");
@@ -212,9 +212,9 @@ function drawKeyblader1(ctx: SKRSContext2D, frame: number) {
   }
 }
 
-// ─── keyblader2 (feminine, dream palette) ──────────────────────────
+// ─── warden2 (feminine, dream palette) ──────────────────────────
 
-function drawKeyblader2(ctx: SKRSContext2D, frame: number) {
+function drawWarden2(ctx: SKRSContext2D, frame: number) {
   const dy = bobOffset(frame);
   const sw = swingPose(frame);
   drawShadow(ctx);
@@ -277,7 +277,7 @@ function drawKeyblader2(ctx: SKRSContext2D, frame: number) {
   fillRect(ctx, 22, 7 + dy, 4, 1, hairHi);
   outlineRect(ctx, 14, 6 + dy, 20, 9, hairDk);
 
-  // Lunaflower keyblade — silver + pink, lotus motif
+  // Lunaflower sealblade — silver + pink, lotus motif
   if (sw.armOut) {
     fillRect(ctx, 35, 24 + dy, 3, 14, "#fafaf5");
     fillRect(ctx, 35, 24 + dy, 3, 1, "#ffffff");
@@ -297,8 +297,8 @@ function drawKeyblader2(ctx: SKRSContext2D, frame: number) {
 
 // ─── output ────────────────────────────────────────────────────────
 
-function makeSheet(role: "keyblader1" | "keyblader2") {
-  const drawer = role === "keyblader1" ? drawKeyblader1 : drawKeyblader2;
+function makeSheet(role: "warden1" | "warden2") {
+  const drawer = role === "warden1" ? drawWarden1 : drawWarden2;
   const sheetW = CELL * FRAMES;
   const canvas = createCanvas(sheetW, TALL);
   const ctx = canvas.getContext("2d") as unknown as SKRSContext2D;
@@ -309,7 +309,7 @@ function makeSheet(role: "keyblader1" | "keyblader2") {
     drawer(ctx, i);
     ctx.restore();
   }
-  const sheetPath = resolve("assets/sprites/kh-default", `${role}_sheet.png`);
+  const sheetPath = resolve("assets/sprites/rw-default", `${role}_sheet.png`);
   mkdirSync(dirname(sheetPath), { recursive: true });
   writeFileSync(sheetPath, canvas.toBuffer("image/png"));
 
@@ -318,19 +318,19 @@ function makeSheet(role: "keyblader1" | "keyblader2") {
   sctx.imageSmoothingEnabled = false;
   drawer(sctx, 0);
   writeFileSync(
-    resolve("assets/sprites/kh-default", `${role}.png`),
+    resolve("assets/sprites/rw-default", `${role}.png`),
     still.toBuffer("image/png")
   );
 
   console.log(`✓ ${role} → ${sheetPath}`);
 }
 
-// ─── heartless (kept at 32×32) ─────────────────────────────────────
+// ─── riftling (kept at 32×32) ─────────────────────────────────────
 
 const H_CELL = 32;
 const H_SHEET_W = H_CELL * FRAMES;
 
-function drawShadowHeartless(ctx: SKRSContext2D, frame: number) {
+function drawShadowRiftling(ctx: SKRSContext2D, frame: number) {
   const dy = [0, -1, 0, 1][frame % 4] ?? 0;
   fillEllipse(ctx, 16, 18 + dy, 8, 6, "#05050a");
   fillEllipse(ctx, 16, 14 + dy, 6, 3, "#0a0518");
@@ -351,7 +351,7 @@ function drawShadowHeartless(ctx: SKRSContext2D, frame: number) {
   fillEllipse(ctx, 16, 26, 7, 1, "rgba(0,0,0,0.5)");
 }
 
-function drawSoldierHeartless(ctx: SKRSContext2D, frame: number) {
+function drawSoldierRiftling(ctx: SKRSContext2D, frame: number) {
   const dy = [0, -1, 0, 1][frame % 4] ?? 0;
   fillRect(ctx, 11, 5 + dy, 10, 6, "#3a3850");
   fillRect(ctx, 13, 4 + dy, 6, 1, "#5a5870");
@@ -366,7 +366,7 @@ function drawSoldierHeartless(ctx: SKRSContext2D, frame: number) {
   fillEllipse(ctx, 16, 28, 7, 1, "rgba(0,0,0,0.5)");
 }
 
-function drawLargeBodyHeartless(ctx: SKRSContext2D, frame: number) {
+function drawLargeBodyRiftling(ctx: SKRSContext2D, frame: number) {
   const dy = [0, -1, 0, 1][frame % 4] ?? 0;
   fillEllipse(ctx, 16, 18 + dy, 11, 8, "#3a1f5a");
   fillEllipse(ctx, 16, 18 + dy, 9, 6, "#5a2f7a");
@@ -380,11 +380,11 @@ function drawLargeBodyHeartless(ctx: SKRSContext2D, frame: number) {
   fillEllipse(ctx, 16, 28, 8, 1, "rgba(0,0,0,0.55)");
 }
 
-function makeHeartlessSheets() {
+function makeRiftlingSheets() {
   const types: [string, (ctx: SKRSContext2D, f: number) => void][] = [
-    ["heartless-shadow", drawShadowHeartless],
-    ["heartless-soldier", drawSoldierHeartless],
-    ["heartless-largebody", drawLargeBodyHeartless],
+    ["riftling-shadow", drawShadowRiftling],
+    ["riftling-soldier", drawSoldierRiftling],
+    ["riftling-bulwark", drawLargeBodyRiftling],
   ];
   for (const [name, drawFn] of types) {
     const canvas = createCanvas(H_SHEET_W, H_CELL);
@@ -397,7 +397,7 @@ function makeHeartlessSheets() {
       ctx.restore();
     }
     writeFileSync(
-      resolve("assets/sprites/kh-default", `${name}_sheet.png`),
+      resolve("assets/sprites/rw-default", `${name}_sheet.png`),
       canvas.toBuffer("image/png")
     );
     const still = createCanvas(H_CELL, H_CELL);
@@ -405,7 +405,7 @@ function makeHeartlessSheets() {
     sctx.imageSmoothingEnabled = false;
     drawFn(sctx, 0);
     writeFileSync(
-      resolve("assets/sprites/kh-default", `${name}.png`),
+      resolve("assets/sprites/rw-default", `${name}.png`),
       still.toBuffer("image/png")
     );
 
@@ -417,7 +417,7 @@ function makeHeartlessSheets() {
 
 const LM_SIZE = 64;
 
-function drawDisneyCastle(ctx: SKRSContext2D) {
+function drawCitadelLandmark(ctx: SKRSContext2D) {
   fillRect(ctx, 18, 38, 28, 22, "#eef7ff");
   fillRect(ctx, 18, 38, 28, 1, "#1a0f08");
   fillRect(ctx, 30, 46, 4, 14, "#4d7eff");
@@ -568,12 +568,12 @@ function drawHalloweenTown(ctx: SKRSContext2D) {
 
 function makeLandmarks() {
   const drawers: [string, (c: SKRSContext2D) => void][] = [
-    ["landmark-disney", drawDisneyCastle],
-    ["landmark-hollow", drawHollowBastion],
-    ["landmark-traverse", drawTraverseTown],
-    ["landmark-destiny", drawDestinyIslands],
-    ["landmark-twilight", drawTwilightTown],
-    ["landmark-halloween", drawHalloweenTown],
+    ["landmark-citadel", drawCitadelLandmark],
+    ["landmark-bastion", drawHollowBastion],
+    ["landmark-crossroads", drawTraverseTown],
+    ["landmark-tide", drawDestinyIslands],
+    ["landmark-dusk", drawTwilightTown],
+    ["landmark-lantern", drawHalloweenTown],
   ];
   for (const [name, fn] of drawers) {
     const canvas = createCanvas(LM_SIZE, LM_SIZE);
@@ -581,7 +581,7 @@ function makeLandmarks() {
     ctx.imageSmoothingEnabled = false;
     fn(ctx);
     writeFileSync(
-      resolve("assets/sprites/kh-default", `${name}.png`),
+      resolve("assets/sprites/rw-default", `${name}.png`),
       canvas.toBuffer("image/png")
     );
 
@@ -638,7 +638,7 @@ function makeGroundTiles() {
     ctx.imageSmoothingEnabled = false;
     drawIsoTile(ctx, base, edge, hi);
     writeFileSync(
-      resolve("assets/sprites/kh-default", `${name}.png`),
+      resolve("assets/sprites/rw-default", `${name}.png`),
       canvas.toBuffer("image/png")
     );
 
@@ -648,27 +648,27 @@ function makeGroundTiles() {
 
 // ─── run ───────────────────────────────────────────────────────────
 //
-// Pass group names to limit output. Useful since the keyblader stills +
+// Pass group names to limit output. Useful since the warden stills +
 // sheets in this script are placeholder programmatic art that has been
-// superseded by hand-authored / AI-generated keybladers shipped in
-// kh-default/. Running the script with no args overwrites them too —
+// superseded by hand-authored / AI-generated wardens shipped in
+// rw-default/. Running the script with no args overwrites them too —
 // always pass a filter unless you really want the procedural ones.
 //
 // Examples:
 //   bun scripts/generate-pixel-sprites.ts landmarks
-//   bun scripts/generate-pixel-sprites.ts heartless tiles
+//   bun scripts/generate-pixel-sprites.ts riftling tiles
 //   bun scripts/generate-pixel-sprites.ts all          # full run
 const args = process.argv.slice(2);
 const groups =
   args.length === 0 || args.includes("all")
-    ? new Set(["keybladers", "heartless", "landmarks", "tiles"])
+    ? new Set(["wardens", "riftling", "landmarks", "tiles"])
     : new Set(args);
 
-if (groups.has("keybladers")) {
-  makeSheet("keyblader1");
-  makeSheet("keyblader2");
+if (groups.has("wardens")) {
+  makeSheet("warden1");
+  makeSheet("warden2");
 }
-if (groups.has("heartless")) makeHeartlessSheets();
+if (groups.has("riftling")) makeRiftlingSheets();
 if (groups.has("landmarks")) makeLandmarks();
 if (groups.has("tiles")) makeGroundTiles();
 console.log(`\nDone — groups: ${[...groups].join(", ")}.`);

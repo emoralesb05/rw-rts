@@ -6,7 +6,7 @@
  * attack frames bottom-right, weapon detail + palette at bottom.
  *
  * Output: `<role>_sheet.png` (8 frames horizontal, uniform size) +
- * `<role>.png` (still = frame 0) in `assets/sprites/kh/`.
+ * `<role>.png` (still = frame 0) in `assets/sprites/rw/`.
  *
  * Run: bun scripts/extract-character-page.ts <input.png> <role>
  *
@@ -98,7 +98,7 @@ async function main() {
   const attackH = num("ATTACK_H", 290);
   const targetW = num("TARGET_W", 96);
   const targetH = num("TARGET_H", 144);
-  const outDir = process.env.OUT_DIR ?? "assets/sprites/kh";
+  const outDir = process.env.OUT_DIR ?? "assets/sprites/rw";
 
   const img = await loadImage(input);
   const W = img.width;

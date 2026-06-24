@@ -82,7 +82,7 @@ describe("runtime schemas", () => {
       PersistedStateSchema.parse({
         schemaVersion: 2,
         kingdomFoundedAt: Date.now(),
-        totalMunnyEver: 0,
+        totalGlimmerEver: 0,
         wielders: {
           "claude::/repo": {
             tool: "claude",
@@ -90,7 +90,7 @@ describe("runtime schemas", () => {
             visits: -1,
             seals: 0,
             falls: 0,
-            totalMunny: 0,
+            totalGlimmer: 0,
             lastSeen: Date.now(),
           },
         },
@@ -139,12 +139,12 @@ describe("runtime schemas", () => {
     expect(
       HookPayloadSchema.parse({
         hook_event_name: "BeforeTool",
-        __kh_tool: "gemini",
+        __rw_tool: "gemini",
         future_provider_field: { ok: true },
       })
     ).toMatchObject({
       hook_event_name: "BeforeTool",
-      __kh_tool: "gemini",
+      __rw_tool: "gemini",
     });
   });
 
@@ -159,7 +159,7 @@ describe("runtime schemas", () => {
           PreToolUse: [
             {
               matcher: "*",
-              hooks: [{ type: "command", command: "/x/keykeeper-hook" }],
+              hooks: [{ type: "command", command: "/x/realmkeeper-hook" }],
             },
           ],
         },
@@ -170,7 +170,7 @@ describe("runtime schemas", () => {
       CursorHooksFileSchema.parse({
         version: 1,
         hooks: {
-          preToolUse: [{ command: "/x/keykeeper-hook", timeout: 30 }],
+          preToolUse: [{ command: "/x/realmkeeper-hook", timeout: 30 }],
         },
       })
     ).toMatchObject({ version: 1 });
@@ -184,8 +184,8 @@ describe("runtime schemas", () => {
               hooks: [
                 {
                   type: "command",
-                  name: "keykeeper",
-                  command: "/x/keykeeper-hook --tool gemini",
+                  name: "realmkeeper",
+                  command: "/x/realmkeeper-hook --tool gemini",
                   timeout: 600000,
                 },
               ],
@@ -273,8 +273,8 @@ describe("runtime schemas", () => {
     expect(
       HooksStatusSchema.parse({
         installed: true,
-        socketPath: "/tmp/keykeeper.sock",
-        hookScriptPath: "/repo/dist/keykeeper-hook",
+        socketPath: "/tmp/realmkeeper.sock",
+        hookScriptPath: "/repo/dist/realmkeeper-hook",
         hooksConfigPath: "/home/user/.cursor/hooks.json",
       })
     ).toMatchObject({ installed: true });
@@ -294,7 +294,7 @@ describe("runtime schemas", () => {
     expect(() =>
       HooksStatusSchema.parse({
         installed: true,
-        socketPath: "/tmp/keykeeper.sock",
+        socketPath: "/tmp/realmkeeper.sock",
       })
     ).toThrow();
 

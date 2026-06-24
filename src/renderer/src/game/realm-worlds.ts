@@ -1,41 +1,41 @@
 /**
- * Gummi-map planet art — each world renders as a tiny iconic silhouette of a
- * KH world rather than a flat colored disc. Themes are assigned by hashing
- * the worldId so the same repo always lands on the same world.
+ * Realm-map planet art — each world renders as a tiny iconic silhouette
+ * rather than a flat colored disc. Themes are assigned by hashing the worldId
+ * so the same repo always lands on the same world.
  *
  * The Container is centered at (0,0); KingdomScene wraps it with an
- * alert ring, count text, label, heartless badge, and cleared star around it.
+ * alert ring, count text, label, riftling badge, and cleared star around it.
  */
 
 import type * as Phaser from "phaser";
 
 export const WORLD_THEMES = [
-  "disney",
-  "hollow",
-  "traverse",
-  "destiny",
-  "twilight",
-  "halloween",
+  "citadel",
+  "bastion",
+  "crossroads",
+  "tide",
+  "dusk",
+  "lantern",
 ] as const;
 
 export type WorldTheme = (typeof WORLD_THEMES)[number];
 
 const THEME_BG: Record<WorldTheme, number> = {
-  disney: 0x4d7eff,
-  hollow: 0x4a2070,
-  traverse: 0xff7a3c,
-  destiny: 0x6cd5ff,
-  twilight: 0xff89a3,
-  halloween: 0x6b2bbf,
+  citadel: 0x4d7eff,
+  bastion: 0x4a2070,
+  crossroads: 0xff7a3c,
+  tide: 0x6cd5ff,
+  dusk: 0xff89a3,
+  lantern: 0x6b2bbf,
 };
 
 const THEME_LABEL: Record<WorldTheme, string> = {
-  disney: "Disney Castle",
-  hollow: "Hollow Bastion",
-  traverse: "Traverse Town",
-  destiny: "Destiny Islands",
-  twilight: "Twilight Town",
-  halloween: "Halloween Town",
+  citadel: "Crown Citadel",
+  bastion: "Glass Bastion",
+  crossroads: "Crossroads Ward",
+  tide: "Tide Isles",
+  dusk: "Dusk Borough",
+  lantern: "Lantern Hollow",
 };
 
 export function themeFor(worldId: string): WorldTheme {
@@ -59,7 +59,7 @@ export function themeLabel(theme: WorldTheme): string {
  * atmosphere disc (so callers can read it back if they need to tint on alert
  * state). Everything else is the silhouette.
  */
-export function drawGummiWorld(
+export function drawRealmWorld(
   scene: Phaser.Scene,
   theme: WorldTheme
 ): Phaser.GameObjects.Container {
@@ -71,30 +71,30 @@ export function drawGummiWorld(
   c.add(atm);
 
   switch (theme) {
-    case "disney":
-      drawDisney(scene, c);
+    case "citadel":
+      drawCitadel(scene, c);
       break;
-    case "hollow":
-      drawHollow(scene, c);
+    case "bastion":
+      drawBastion(scene, c);
       break;
-    case "traverse":
-      drawTraverse(scene, c);
+    case "crossroads":
+      drawCrossroads(scene, c);
       break;
-    case "destiny":
-      drawDestiny(scene, c);
+    case "tide":
+      drawTide(scene, c);
       break;
-    case "twilight":
-      drawTwilight(scene, c);
+    case "dusk":
+      drawDusk(scene, c);
       break;
-    case "halloween":
-      drawHalloween(scene, c);
+    case "lantern":
+      drawLantern(scene, c);
       break;
   }
   return c;
 }
 
-function drawDisney(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
-  // Two side towers + tall central spire with Mickey-ear topper.
+function drawCitadel(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+  // Two side towers + tall central spire with a star beacon.
   const wall = scene.add
     .rectangle(0, 6, 20, 18, 0xeef7ff)
     .setStrokeStyle(1, 0x6cc6ff, 0.8);
@@ -108,15 +108,9 @@ function drawDisney(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   const peakL = scene.add.triangle(-11, -16, -5, 8, 5, 8, 0, -7, 0xffd86b);
   const peakR = scene.add.triangle(11, -16, -5, 8, 5, 8, 0, -7, 0xffd86b);
   const peakC = scene.add.triangle(0, -22, -8, 12, 8, 12, 0, -10, 0xffd86b);
-  // Mickey-ear topper on central spire
-  const ear1 = scene.add
-    .circle(-4, -32, 2.6, 0x000000)
-    .setStrokeStyle(0.8, 0xffd86b, 0.9);
-  const earH = scene.add
-    .circle(0, -28, 3.2, 0x000000)
-    .setStrokeStyle(0.8, 0xffd86b, 0.9);
-  const ear2 = scene.add
-    .circle(4, -32, 2.6, 0x000000)
+  const beaconHalo = scene.add.circle(0, -30, 8, 0xffd86b, 0.18);
+  const beacon = scene.add
+    .star(0, -30, 5, 2, 5, 0xfff2a8)
     .setStrokeStyle(0.8, 0xffd86b, 0.9);
   const lamp = scene.add.circle(0, 4, 1.2, 0xffd86b);
   scene.tweens.add({
@@ -134,15 +128,14 @@ function drawDisney(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
     peakL,
     peakR,
     peakC,
-    ear1,
-    earH,
-    ear2,
+    beaconHalo,
+    beacon,
     lamp,
   ]);
 }
 
-function drawHollow(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
-  // Dark gothic castle: short tower + crooked spire + keyhole.
+function drawBastion(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+  // Dark bastion: short tower + crooked spire + lock sigil.
   const wall = scene.add
     .rectangle(0, 6, 20, 18, 0x1a1426)
     .setStrokeStyle(1, 0x9d6bff, 0.85);
@@ -158,11 +151,11 @@ function drawHollow(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
     .rectangle(0, -10, 5, 26, 0x1a1426)
     .setStrokeStyle(1, 0xffd86b, 0.9);
   const tallPeak = scene.add.triangle(0, -27, -3, 4, 3, 4, 0, -5, 0xffd86b);
-  // Keyhole on wall
-  const keyholeRing = scene.add
+  // Lock sigil on wall.
+  const sealRing = scene.add
     .circle(0, 2, 2.6, 0x000000, 0)
     .setStrokeStyle(1.2, 0xffd86b, 1);
-  const keyholeStem = scene.add.rectangle(0, 6, 1.6, 5, 0xffd86b);
+  const sealStem = scene.add.rectangle(0, 6, 1.6, 5, 0xffd86b);
   const lamp = scene.add.circle(-9, -4, 1.1, 0x9d6bff);
   scene.tweens.add({
     targets: lamp,
@@ -179,13 +172,13 @@ function drawHollow(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
     peakR,
     tallSpire,
     tallPeak,
-    keyholeRing,
-    keyholeStem,
+    sealRing,
+    sealStem,
     lamp,
   ]);
 }
 
-function drawTraverse(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+function drawCrossroads(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   // Cluster of leaning shops + lamp post.
   const shopL = scene.add
     .rectangle(-9, 0, 14, 20, 0x6b4423)
@@ -210,8 +203,8 @@ function drawTraverse(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   c.add([shopL, shopR, roofL, roofR, win1, win2, lampPost, lamp, door]);
 }
 
-function drawDestiny(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
-  // Sand island + paopu palm.
+function drawTide(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+  // Sand island + starfruit palm.
   const sand = scene.add.ellipse(0, 12, 36, 10, 0xf6d6a8);
   sand.setStrokeStyle(1, 0xc89a64, 0.85);
   // Curved palm trunk
@@ -242,15 +235,14 @@ function drawDestiny(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   frond.fillTriangle(-3, -14, -2, -22, 5, -18);
   frond.fillTriangle(-3, -14, -10, -10, -2, -10);
   frond.fillTriangle(-3, -14, 10, -14, 4, -10);
-  // Paopu fruit (yellow star)
-  const paopu = scene.add.star(7, -16, 5, 1.6, 3.6, 0xffd86b);
-  paopu.setStrokeStyle(0.7, 0x000000, 0.8);
+  const starfruit = scene.add.star(7, -16, 5, 1.6, 3.6, 0xffd86b);
+  starfruit.setStrokeStyle(0.7, 0x000000, 0.8);
   // Tiny raft hint
   const raft = scene.add.rectangle(10, 12, 12, 3, 0x8a5530);
-  c.add([sand, trunk, frond, paopu, raft]);
+  c.add([sand, trunk, frond, starfruit, raft]);
 }
 
-function drawTwilight(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+function drawDusk(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   // Tall clock tower silhouette against a pink atmosphere.
   const base = scene.add
     .rectangle(0, 8, 22, 12, 0x6b4423)
@@ -277,8 +269,8 @@ function drawTwilight(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
   c.add([halo, base, tower, peak, clockFace, hourHand, minHand, center]);
 }
 
-function drawHalloween(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
-  // Spiral hill + jack-o-lantern.
+function drawLantern(scene: Phaser.Scene, c: Phaser.GameObjects.Container) {
+  // Spiral hill + glowing lantern gourd.
   const hill = scene.add.graphics();
   hill.fillStyle(0x2a1f3a, 1);
   hill.lineStyle(1, 0x6b2bbf, 0.9);

@@ -451,21 +451,21 @@ describe("world and combat domain helpers", () => {
     expect(worldPathForEvent(event)).toBe("/repo");
   });
 
-  it("computes world alert levels from unit state and heartless pressure", () => {
+  it("computes world alert levels from unit state and riftling pressure", () => {
     const world: WorldState = {
       id: "world",
       path: "/repo",
       label: "repo",
       unitIds: ["u1"],
-      heartless: [],
+      riftling: [],
       alertLevel: "idle",
-      munny: 0,
+      glimmer: 0,
     };
     const baseUnit: UnitState = {
       id: "u1",
       sessionId: "u1",
       tool: "claude",
-      role: "keyblader1",
+      role: "warden1",
       displayName: "Aren",
       cwd: "/repo",
       worldId: "world",
@@ -490,7 +490,7 @@ describe("world and combat domain helpers", () => {
       computeAlertLevel(
         {
           ...world,
-          heartless: Array.from({ length: 6 }, (_, i) => ({
+          riftling: Array.from({ length: 6 }, (_, i) => ({
             id: `h${i}`,
             type: "shadow",
             worldId: "world",

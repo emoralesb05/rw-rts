@@ -233,7 +233,7 @@ function FilePathLink({
   const display = label ?? path;
   const onClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    void window.kh.openPath(path, { tool }).catch(() => {});
+    void window.rw.openPath(path, { tool }).catch(() => {});
   };
   const hint = tool === "cursor" ? `open ${path} in Cursor` : `open ${path}`;
   return (
@@ -899,7 +899,7 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   const onClick = () => {
     if (!requestId || !isActive) return;
     window.dispatchEvent(
-      new CustomEvent("kh:expand-hud", { detail: { title: "Alerts" } })
+      new CustomEvent("rw:expand-hud", { detail: { title: "Alerts" } })
     );
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {

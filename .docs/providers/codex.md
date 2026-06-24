@@ -5,7 +5,7 @@
 - Binary: `codex` (typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
 - Two surfaces: **Codex CLI** (`codex`) and **Codex Desktop / VS Code** (separate bundled binary; version may differ)
 - Settings: `~/.codex/config.toml` (hooks live under `[[hooks.<EventName>]]` arrays)
-- Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# keykeeper-hooks-start` … `# keykeeper-hooks-end`)
+- Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# realmkeeper-hooks-start` … `# realmkeeper-hooks-end`)
 
 ## Hook events
 
@@ -23,7 +23,7 @@ PascalCase event names, matching Claude's set:
 
 Async hooks (`async = true`) **silently skip** with a warning (`⚠ skipping async hook in /Users/ed/.codex/config.toml: async hooks are not supported yet`). Don't set them.
 
-The hook command is `bin/keykeeper-hook --tool codex`. The `--tool` flag tags the payload with `__kh_tool` so the bridge knows it came from Codex (vs Claude — same PascalCase event names).
+The hook command is `bin/realmkeeper-hook --tool codex`. The `--tool` flag tags the payload with `__rw_tool` so the bridge knows it came from Codex (vs Claude — same PascalCase event names).
 
 ## Transcript persistence
 
@@ -31,7 +31,7 @@ The hook command is `bin/keykeeper-hook --tool codex`. The `--tool` flag tags th
 ~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<thread-id>.jsonl
 ```
 
-The thread-id is also the sessionId we use throughout keykeeper.
+The thread-id is also the sessionId we use throughout realmkeeper.
 
 ### TWO rollout formats (version-dependent)
 
@@ -74,7 +74,7 @@ codex exec resume <session-id> "<prompt>"
 - **MCP-provided tools** appear as normal `tool_use` events. No special handling — same path as built-in tools.
 - **Plugins / marketplaces** (`[plugins."<name>"]` in config.toml) install their own command handlers. We don't introspect them — sessions using plugin tools just emit normal hook events for the underlying calls.
 - **`[projects."<path>"] trust_level = "trusted"`** entries in config.toml control which repos Codex auto-trusts. Doesn't affect our hook flow but worth knowing exists if a user reports "Codex is asking permission for everything in this repo" — the answer is to add a project trust entry.
-- **`mcp-server` and `app-server` subcommands.** Codex can run as an MCP server itself, or as a local websocket app server (`codex --remote ws://...`). We don't currently consume either — keykeeper observes Codex CLI sessions, not Codex serving as a backend to other tools.
+- **`mcp-server` and `app-server` subcommands.** Codex can run as an MCP server itself, or as a local websocket app server (`codex --remote ws://...`). We don't currently consume either — Realmkeeper observes Codex CLI sessions, not Codex serving as a backend to other tools.
 
 ## Gaps & quirks
 

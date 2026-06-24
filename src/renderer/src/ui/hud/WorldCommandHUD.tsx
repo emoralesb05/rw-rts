@@ -6,7 +6,7 @@
 import { Crosshair, Play, ShieldCheck, Swords, X } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore, type WorldCommandAnchor } from "../../store";
-import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { summarizeEvent, shortAgo } from "../event-summary";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { usePanels } from "../floating/panel-store";
@@ -220,7 +220,7 @@ function UnitLine({ unit }: { unit: UnitState }) {
     >
       <img
         className="size-6 shrink-0 rounded-sm object-cover [image-rendering:pixelated]"
-        src={`/sprites/kh-default/${unit.role}.png`}
+        src={`/sprites/rw-default/${unit.role}.png`}
         alt=""
         onError={(event) => {
           (event.currentTarget as HTMLImageElement).style.display = "none";
@@ -337,7 +337,7 @@ export function WorldCommandHUD() {
   const letters = useStore((state) => state.letters);
   const events = useStore((state) => state.events);
   const selectWorld = useStore((state) => state.selectWorld);
-  const sealKeyhole = useStore((state) => state.sealKeyhole);
+  const sealRealm = useStore((state) => state.sealRealm);
   const openPanel = usePanels((state) => state.openPanel);
   const focusAlerts = usePanels((state) => state.focusAlerts);
   const world = activeWorldId ? worlds[activeWorldId] : undefined;
@@ -432,8 +432,8 @@ export function WorldCommandHUD() {
         <div className="flex min-w-0 flex-col gap-2">
           <div className="grid grid-cols-4 gap-1.5">
             <Metric label="wielders" value={brief.unitCounts.live} />
-            <Metric label="heartless" value={world.heartless.length} />
-            <Metric label="munny" value={world.munny} />
+            <Metric label="riftling" value={world.riftling.length} />
+            <Metric label="glimmer" value={world.glimmer} />
             <Metric label="pressure" value={`${brief.pressureScore}%`} />
           </div>
 
@@ -455,10 +455,10 @@ export function WorldCommandHUD() {
               disabled={!brief.canSeal}
               label={
                 brief.canSeal
-                  ? "Seal this world's keyhole"
+                  ? "Seal this realm"
                   : "Clear pressure before sealing"
               }
-              onClick={() => sealKeyhole(world.id)}
+              onClick={() => sealRealm(world.id)}
               variant={brief.canSeal ? "gold" : "default"}
             >
               <ShieldCheck size={12} aria-hidden /> seal

@@ -1,13 +1,13 @@
 # Events & transcript watchers
 
-The event bus is the spine of keykeeper. Every observable thing a wielder does — start, prompt, tool call, response, error, end — becomes an `AgentEvent` on the bus, gets shipped to the renderer over `IPC.EventStream`, and lands in the Zustand store as part of `events[]`.
+The event bus is the spine of realmkeeper. Every observable thing a wielder does — start, prompt, tool call, response, error, end — becomes an `AgentEvent` on the bus, gets shipped to the renderer over `IPC.EventStream`, and lands in the Zustand store as part of `events[]`.
 
 ## The happy path (hook-driven)
 
 ```
 provider hook fires
-  → bin/keykeeper-hook
-    → bridge socket (~/.keykeeper/keykeeper.sock)
+  → bin/realmkeeper-hook
+    → bridge socket (~/.realmkeeper/realmkeeper.sock)
       → hook-bridge.ts normalizes to AgentEvent
         → event-bus.ts dispatches
           → IPC.EventStream → renderer
@@ -91,7 +91,7 @@ Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`
 `src/main/adapters/fixture.ts` lets you replay a recorded scenario as synthetic events on the bus. Fixtures currently emit `source: "spawned"` because `AgentEvent.source` only allows `"spawned" | "hook"`. Useful for iterating on the renderer without spinning up real provider sessions.
 
 - Built-in scenarios: summon, combat, subagent, permission, etc.
-- IPC: `kh:play-fixture` with `{scenario, cwd}` triggers playback
+- IPC: `rw:play-fixture` with `{scenario, cwd}` triggers playback
 - Synthetic role assignment via archetype hashing — keeps the same prompt → same color across runs
 
 Fixtures emit through the same bus pipeline as hooks. Adding a scenario = appending an entry to the fixture map.

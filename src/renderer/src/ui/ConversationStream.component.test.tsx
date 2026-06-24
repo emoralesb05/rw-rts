@@ -22,7 +22,7 @@ function unit(
     id: sessionId,
     sessionId,
     tool: "claude",
-    role: "keyblader1",
+    role: "warden1",
     displayName,
     cwd: "/repo",
     repoRoot: "/repo",

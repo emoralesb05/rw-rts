@@ -5,16 +5,16 @@ import userEvent from "@testing-library/user-event";
 import { WielderChatInput } from "./WielderChatInput";
 import type { UnitState } from "@shared/events";
 
-function installKh(sendPrompt = vi.fn(() => Promise.resolve(true))) {
-  const kh = { sendPrompt };
+function installRw(sendPrompt = vi.fn(() => Promise.resolve(true))) {
+  const rw = { sendPrompt };
 
-  Object.defineProperty(window, "kh", {
+  Object.defineProperty(window, "rw", {
     configurable: true,
     writable: true,
-    value: kh,
+    value: rw,
   });
 
-  return kh;
+  return rw;
 }
 
 function unit(overrides: Partial<UnitState> = {}): UnitState {
@@ -22,7 +22,7 @@ function unit(overrides: Partial<UnitState> = {}): UnitState {
     id: "unit-1",
     sessionId: "unit-1",
     tool: "claude",
-    role: "keyblader1",
+    role: "warden1",
     displayName: "Vaelen",
     cwd: "/repo",
     repoRoot: "/repo",
@@ -44,7 +44,7 @@ describe("WielderChatInput", () => {
   });
 
   it("sends typed prompts and clears the input", async () => {
-    const kh = installKh();
+    const rw = installRw();
     const user = userEvent.setup();
     render(<WielderChatInput unit={unit()} />);
 
@@ -53,7 +53,7 @@ describe("WielderChatInput", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     await waitFor(() => {
-      expect(kh.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.sendPrompt).toHaveBeenCalledWith({
         unitId: "unit-1",
         prompt: "please run the focused tests",
       });
@@ -62,20 +62,20 @@ describe("WielderChatInput", () => {
   });
 
   it("supports meta-enter send without submitting blank prompts", async () => {
-    const kh = installKh();
+    const rw = installRw();
     const user = userEvent.setup();
     render(<WielderChatInput unit={unit()} />);
 
     const input = screen.getByPlaceholderText(/message vaelen/i);
     await user.click(input);
     await user.keyboard("{Meta>}{Enter}{/Meta}");
-    expect(kh.sendPrompt).not.toHaveBeenCalled();
+    expect(rw.sendPrompt).not.toHaveBeenCalled();
 
     await user.type(input, "ship it");
     await user.keyboard("{Meta>}{Enter}{/Meta}");
 
     await waitFor(() => {
-      expect(kh.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.sendPrompt).toHaveBeenCalledWith({
         unitId: "unit-1",
         prompt: "ship it",
       });
@@ -83,7 +83,7 @@ describe("WielderChatInput", () => {
   });
 
   it("disables command input for observed-only and inactive units", () => {
-    installKh();
+    installRw();
     const { rerender } = render(
       <WielderChatInput unit={unit({ spawnedHere: false })} />
     );
@@ -102,7 +102,7 @@ describe("WielderChatInput", () => {
   });
 
   it("keeps the prompt text when send fails", async () => {
-    const kh = installKh(vi.fn(() => Promise.reject(new Error("offline"))));
+    const rw = installRw(vi.fn(() => Promise.reject(new Error("offline"))));
     const user = userEvent.setup();
     render(<WielderChatInput unit={unit()} />);
 
@@ -111,7 +111,7 @@ describe("WielderChatInput", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     await waitFor(() => {
-      expect(kh.sendPrompt).toHaveBeenCalled();
+      expect(rw.sendPrompt).toHaveBeenCalled();
     });
     expect(input).toHaveValue("retry later");
   });

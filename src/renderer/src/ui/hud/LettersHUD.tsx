@@ -1,5 +1,5 @@
 /**
- * Bottom-right HUD: informational letters — sealed keyholes, drive
+ * Bottom-right HUD: informational letters — sealed realm seals, drive
  * form transitions, finished sessions, stuck-loop hints. Permission
  * letters are filtered OUT (they live in AlertsHUD top-right).
  */

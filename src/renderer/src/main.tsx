@@ -22,7 +22,7 @@ const shouldSeedVisualQa =
   (new URLSearchParams(window.location.search).has("visual-qa") ||
     window.location.hash.includes("visual-qa"));
 
-void window.kh
+void window.rw
   .loadPersisted()
   .then((s) => useStore.getState().hydratePersisted(s))
   .catch(() => {})
@@ -45,11 +45,11 @@ useStore.subscribe((state) => {
 
 if (import.meta.env.DEV) {
   const devWindow = window as unknown as {
-    __khSeedVisualQa: typeof seedVisualQaState;
-    __khStore: typeof useStore;
+    __rwSeedVisualQa: typeof seedVisualQaState;
+    __rwStore: typeof useStore;
   };
-  devWindow.__khStore = useStore;
-  devWindow.__khSeedVisualQa = seedVisualQaState;
+  devWindow.__rwStore = useStore;
+  devWindow.__rwSeedVisualQa = seedVisualQaState;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);

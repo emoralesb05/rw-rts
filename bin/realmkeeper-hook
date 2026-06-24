@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""keykeeper-managed: forwards Claude Code, Cursor, Codex, and Gemini hook payloads to the
-keykeeper GUI socket.
+"""realmkeeper-managed: forwards Claude Code, Cursor, Codex, and Gemini hook payloads to the
+Realmkeeper GUI socket.
 
-Most events are fire-and-forget — payload goes to ~/.claude/keykeeper.sock,
+Most events are fire-and-forget — payload goes to ~/.realmkeeper/realmkeeper.sock,
 script half-closes, exits. Silent if the GUI isn't listening.
 
 Claude `PermissionRequest` and Gemini `BeforeTool` (bidirectional):
   Tagged with a request_id; script blocks waiting for the GUI to reply
   allow/deny, then writes the provider-specific stdout shape.
-  Gemini's managed user policy suppresses its native prompt after Keykeeper's
+  Gemini's managed user policy suppresses its native prompt after Realmkeeper's
   BeforeTool gate answers.
 
 Cursor `beforeShellExecution` (observation + handoff):
   Empirically, Cursor's `allowlist` approvalMode treats hook
   `permission:"allow"` as advisory — the user must still confirm in
-  Cursor's native inline UI. So we don't pretend keykeeper can
+  Cursor's native inline UI. So we don't pretend Realmkeeper can
   pre-approve: the script returns `"ask"` immediately and lets Cursor's
   UI handle the decision. Visibility into the request still flows to
-  keykeeper as a fire-and-forget event for the activity log.
+  Realmkeeper as a fire-and-forget event for the activity log.
 
 All other Cursor hooks (sessionStart/sessionEnd/beforeSubmitPrompt/
 preToolUse/postToolUse/afterAgentResponse/stop): pure fire-and-forget
@@ -25,15 +25,15 @@ to the bridge, which is the canonical observability channel for Cursor
 since the SQLite poller was retired.
 
 Gemini hooks are invoked with `--tool gemini`, forwarded to the bridge, and
-write structured JSON on stdout. `BeforeTool` is a Keykeeper gate; `deny` blocks
+write structured JSON on stdout. `BeforeTool` is a Realmkeeper gate; `deny` blocks
 the tool before it runs. The managed Gemini hook command runs with
-`KEYKEEPER_GEMINI_FAIL_CLOSED=1`, so the hook denies if the GUI is unavailable.
+`REALMKEEPER_GEMINI_FAIL_CLOSED=1`, so the hook denies if the GUI is unavailable.
 `Notification/ToolPermission` returns `{}` immediately and is not rendered
 because Gemini ignores decision fields for that hook.
 """
 import json, os, socket, sys, uuid
 
-SOCK = os.path.join(os.path.expanduser("~"), ".keykeeper", "keykeeper.sock")
+SOCK = os.path.join(os.path.expanduser("~"), ".realmkeeper", "realmkeeper.sock")
 
 QUICK_TIMEOUT_S = 2.0
 
@@ -48,7 +48,7 @@ def getenv_first(*names):
 
 def ensure_gemini_context(payload):
     # Gemini documents these fields on stdin, but also exposes them as
-    # sanitized hook env vars. Backfill from env so Keykeeper can still
+    # sanitized hook env vars. Backfill from env so Realmkeeper can still
     # key an external session if a CLI build omits a field on a hook.
     if not payload.get("session_id"):
         payload["session_id"] = getenv_first(
@@ -67,7 +67,7 @@ def emit_cursor_permission(permission, message=None):
     """Write Cursor's beforeShellExecution reply.
     permission must be 'allow' or 'deny'. message is shown both in the
     Cursor UI and sent back to the agent."""
-    msg = str(message) if message else ("Approved via keykeeper." if permission == "allow" else "Denied via keykeeper.")
+    msg = str(message) if message else ("Approved via realmkeeper." if permission == "allow" else "Denied via realmkeeper.")
     out = {
         "permission": permission,
         "user_message": msg,
@@ -99,11 +99,11 @@ def emit_gemini_permission(decision, message=None):
     """Write Gemini's generic hook decision shape.
     `deny` blocks BeforeTool. `allow` is accepted as a hook decision but does
     not itself bypass Gemini's later policy/native confirmation checks. The
-    managed user policy installed by Keykeeper auto-allows that later layer."""
+    managed user policy installed by Realmkeeper auto-allows that later layer."""
     if decision == "deny":
         out = {
             "decision": "deny",
-            "reason": str(message) if message else "Denied by Keykeeper.",
+            "reason": str(message) if message else "Denied by Realmkeeper.",
         }
     else:
         out = {"decision": "allow"}
@@ -140,7 +140,7 @@ def bidirectional_permission(payload):
     and we get a reply, the provider terminates the hook process, or the GUI
     closes the socket."""
     request_id = str(uuid.uuid4())
-    payload["__kh_permission_request_id"] = request_id
+    payload["__rw_permission_request_id"] = request_id
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.connect(SOCK)
@@ -170,7 +170,7 @@ def bidirectional_permission(payload):
 
 
 def main():
-    # Optional --tool flag tags payloads with __kh_tool so the bridge
+    # Optional --tool flag tags payloads with __rw_tool so the bridge
     # can attribute events to the right wielder when multiple CLIs
     # share Claude-shaped payload format (Codex uses the same shape),
     # or PascalCase event names (Gemini).
@@ -182,7 +182,7 @@ def main():
             break
     is_gemini = tool_marker == "gemini"
     gemini_fail_closed = (
-        is_gemini and os.environ.get("KEYKEEPER_GEMINI_FAIL_CLOSED") == "1"
+        is_gemini and os.environ.get("REALMKEEPER_GEMINI_FAIL_CLOSED") == "1"
     )
     event_name = None
 
@@ -208,7 +208,7 @@ def main():
             ensure_gemini_context(payload)
 
         if tool_marker:
-            payload["__kh_tool"] = tool_marker
+            payload["__rw_tool"] = tool_marker
             raw = json.dumps(payload).encode("utf-8")
 
         event_name = payload.get("hook_event_name")
@@ -218,7 +218,7 @@ def main():
                 if gemini_fail_closed and event_name == "BeforeTool":
                     emit_gemini_permission(
                         "deny",
-                        "Keykeeper is unavailable; refusing Gemini tool execution.",
+                        "Realmkeeper is unavailable; refusing Gemini tool execution.",
                     )
                 else:
                     emit_noop()
@@ -234,8 +234,8 @@ def main():
             silent_exit()
 
         # Gemini BeforeTool gate — bidirectional. This runs for every tool
-        # call, not just native permission prompts. Keykeeper can deny here;
-        # allow means "continue past the hook". Keykeeper-spawned Gemini also
+        # call, not just native permission prompts. Realmkeeper can deny here;
+        # allow means "continue past the hook". Realmkeeper-spawned Gemini also
         # runs with approval-mode=yolo; external Gemini terminals rely on the
         # managed user policy to suppress Gemini's second native prompt.
         if is_gemini and event_name == "BeforeTool":
@@ -248,7 +248,7 @@ def main():
             if gemini_fail_closed:
                 emit_gemini_permission(
                     "deny",
-                    "Keykeeper did not return a permission decision.",
+                    "Realmkeeper did not return a permission decision.",
                 )
                 silent_exit()
             emit_noop()
@@ -261,7 +261,7 @@ def main():
         if is_gemini and event_name == "Notification" and payload.get("notification_type") == "ToolPermission":
             try:
                 request_id = str(uuid.uuid4())
-                payload["__kh_permission_request_id"] = request_id
+                payload["__rw_permission_request_id"] = request_id
                 fire_and_forget(json.dumps(payload).encode("utf-8"))
             except Exception:
                 pass
@@ -278,7 +278,7 @@ def main():
         if event_name == "beforeShellExecution":
             try:
                 request_id = str(uuid.uuid4())
-                payload["__kh_permission_request_id"] = request_id
+                payload["__rw_permission_request_id"] = request_id
                 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 s.settimeout(QUICK_TIMEOUT_S)
                 s.connect(SOCK)
@@ -326,14 +326,14 @@ def main():
             emit_noop()
     except Exception:
         # Default to fail-open so an installed hook doesn't brick external CLIs
-        # when Keykeeper is down. Keykeeper-spawned Gemini opts into fail-closed
+        # when Realmkeeper is down. Realmkeeper-spawned Gemini opts into fail-closed
         # because it also runs Gemini with approval-mode=yolo.
         if tool_marker == "gemini":
             try:
                 if gemini_fail_closed and event_name == "BeforeTool":
                     emit_gemini_permission(
                         "deny",
-                        "Keykeeper permission hook failed.",
+                        "Realmkeeper permission hook failed.",
                     )
                 else:
                     emit_noop()

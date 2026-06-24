@@ -85,7 +85,7 @@ function spawnGeminiProcess(prompt: string, cwd: string, resumeId?: string) {
   return spawn("gemini", buildArgs(prompt, resumeId), {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, KEYKEEPER_GEMINI_FAIL_CLOSED: "1" },
+    env: { ...process.env, REALMKEEPER_GEMINI_FAIL_CLOSED: "1" },
   });
 }
 

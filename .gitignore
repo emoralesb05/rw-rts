@@ -7,9 +7,9 @@ dist
 .env.local
 .vite
 bun.lockb
-assets/sprites/kh/*
-!assets/sprites/kh/.gitkeep
-assets/sounds/kh/*
-!assets/sounds/kh/.gitkeep
+assets/sprites/rw/*
+!assets/sprites/rw/.gitkeep
+assets/sounds/rw/*
+!assets/sounds/rw/.gitkeep
 local-assets/
 .claude/scheduled_tasks.lock

@@ -21,11 +21,11 @@ import type { UnitState } from "@shared/events";
 
 function statusIconClass(cls: string) {
   switch (cls) {
-    case "drive-valor":
+    case "aura-guard":
       return "border-[#ff5a3c]/50 bg-[#ff5a3c]/10 text-[#ff5a3c]";
-    case "drive-wisdom":
+    case "aura-focus":
       return "border-accent/50 bg-accent/10 text-accent";
-    case "drive-final":
+    case "aura-link":
       return "border-accent-alt/50 bg-accent-alt/10 text-accent-alt";
     case "casting":
       return "border-[#c9a4ff]/50 bg-[#c9a4ff]/10 text-[#c9a4ff] animate-[status-pulse_1.4s_ease-in-out_infinite]";
@@ -75,17 +75,17 @@ function StatusIcons({
 }) {
   const icons: { key: string; glyph: string; title: string; cls: string }[] =
     [];
-  if (unit.driveForm) {
+  if (unit.auraState) {
     icons.push({
-      key: "drive",
+      key: "aura",
       glyph:
-        unit.driveForm === "valor"
+        unit.auraState === "guard"
           ? "⚡"
-          : unit.driveForm === "wisdom"
+          : unit.auraState === "focus"
             ? "✦"
-            : "★",
-      title: `${unit.driveForm} form active`,
-      cls: `drive-${unit.driveForm}`,
+            : "⟲",
+      title: `${unit.auraState} aura active`,
+      cls: `aura-${unit.auraState}`,
     });
   }
   if (unit.status === "casting" || unit.status === "working") {
@@ -184,7 +184,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       >
         <img
           className="size-full object-cover [image-rendering:pixelated]"
-          src={`/sprites/kh-default/${unit.role}.png`}
+          src={`/sprites/rw-default/${unit.role}.png`}
           alt=""
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = "none";

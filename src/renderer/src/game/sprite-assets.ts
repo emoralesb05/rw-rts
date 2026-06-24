@@ -1,7 +1,7 @@
 /**
- * Spritesheet loader + animation builder for the four-keyblader system.
+ * Spritesheet loader + animation builder for the four-warden system.
  *
- * Convention: drop `assets/sprites/kh/<role>_sheet.png` as a 32-frame
+ * Convention: drop `assets/sprites/rw/<role>_sheet.png` as a 32-frame
  * spritesheet at 96×144 per frame (3072×144 total). Frame layout:
  *
  *   0..3   idle (front)
@@ -32,20 +32,20 @@ import { UNIT_ROLES, SPRITE_URL } from "./draw";
 // In-world display scale (WorldScene.populateBody) normalizes
 // on-screen size across roles.
 const FRAME_DIMS: Record<UnitRole, { width: number; height: number }> = {
-  keyblader1: { width: 310, height: 198 },
-  keyblader2: { width: 282, height: 226 },
-  keyblader3: { width: 292, height: 201 },
-  keyblader4: { width: 302, height: 215 },
+  warden1: { width: 310, height: 198 },
+  warden2: { width: 282, height: 226 },
+  warden3: { width: 292, height: 201 },
+  warden4: { width: 302, height: 215 },
 };
 const FRAMES_PER_SHEET = 32;
 
-const SHEET_URL = (role: UnitRole) => `/sprites/kh/${role}_sheet.png`;
+const SHEET_URL = (role: UnitRole) => `/sprites/rw/${role}_sheet.png`;
 const SHEET_DEFAULT_URL = (role: UnitRole) =>
-  `/sprites/kh-default/${role}_sheet.png`;
-const SHEET_TEXTURE = (role: UnitRole) => `kh-sheet-${role}`;
-const SHEET_DEFAULT_TEXTURE = (role: UnitRole) => `kh-default-sheet-${role}`;
+  `/sprites/rw-default/${role}_sheet.png`;
+const SHEET_TEXTURE = (role: UnitRole) => `rw-sheet-${role}`;
+const SHEET_DEFAULT_TEXTURE = (role: UnitRole) => `rw-default-sheet-${role}`;
 
-// Probe which user overrides exist in /sprites/kh/ at module load. Phaser's
+// Probe which user overrides exist in /sprites/rw/ at module load. Phaser's
 // loader logs console.error for 404s, and there's no way to suppress per-file.
 // The probe runs once, before the scene preloads, so we can skip registering
 // missing override URLs entirely. Files are typically resolved by the time
@@ -108,8 +108,8 @@ const RANGES: {
 ];
 
 export function registerSpritesheetPreload(scene: Phaser.Scene) {
-  // Always load shipped defaults from kh-default/ (the canonical art).
-  // Only register kh/ overrides for roles that actually have files —
+  // Always load shipped defaults from rw-default/ (the canonical art).
+  // Only register rw/ overrides for roles that actually have files —
   // probed at module load. getSpritesheetConfig prefers override → default.
   for (const role of UNIT_ROLES) {
     const dims = FRAME_DIMS[role];

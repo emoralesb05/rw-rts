@@ -81,14 +81,14 @@ export function normalizeHookPayload(p: HookPayload): AgentEvent | null {
   if (!eventName) return null;
   // Cursor uses camelCase event names (sessionStart, beforeShellExecution,
   // preToolUse, ...); Claude/Codex use PascalCase (SessionStart, PreToolUse,
-  // PermissionRequest, ...). PascalCase + the optional __kh_tool marker
+  // PermissionRequest, ...). PascalCase + the optional __rw_tool marker
   // dispatch onwards — Codex's payload shape is identical to Claude's
   // (same field names, same PermissionRequest output schema), so the
   // marker is the only way to attribute correctly.
   if (eventName[0] === eventName[0].toLowerCase()) {
     return normalizeCursorPayload(p, eventName);
   }
-  const tool = (p?.__kh_tool as string | undefined) ?? "claude";
+  const tool = (p?.__rw_tool as string | undefined) ?? "claude";
   if (tool === "gemini") return normalizeGeminiPayload(p, eventName);
   return normalizeClaudePayload(
     p,
@@ -139,7 +139,7 @@ function normalizeClaudePayload(
 ): AgentEvent | null {
   if (!p?.session_id) return null;
   const ts = Date.now();
-  const requestId = p?.__kh_permission_request_id as string | undefined;
+  const requestId = p?.__rw_permission_request_id as string | undefined;
   // Use the raw session_id for both Claude and Codex. Codex's CLI
   // adapter (codex-cli.ts) registers spawned sessions under their raw
   // thread_id; the bridge must match so a hooked Codex session and a
@@ -155,7 +155,7 @@ function normalizeClaudePayload(
 
   // PermissionRequest with a request_id means the Python script wants a
   // permission decision back. Emit as permission_request, not tool_use.
-  // Permission requests bypass the spawned-session filter — keykeeper
+  // Permission requests bypass the spawned-session filter — realmkeeper
   // wants to gate spawned sessions too. (PreToolUse + request_id is
   // also accepted for back-compat with any in-flight scripts.)
   if (
@@ -246,7 +246,7 @@ function normalizeGeminiPayload(
     p.transcript_path,
     sessionId
   );
-  const requestId = nonEmptyString(p.__kh_permission_request_id);
+  const requestId = nonEmptyString(p.__rw_permission_request_id);
   const base = {
     sessionId,
     tool: "gemini" as const,
@@ -265,7 +265,7 @@ function normalizeGeminiPayload(
   }
 
   // Gemini BeforeTool with a request_id means the Python script is blocking
-  // on Keykeeper. This fires for every tool call; allow only continues the hook
+  // on Realmkeeper. This fires for every tool call; allow only continues the hook
   // path, while deny blocks before Gemini executes the tool.
   if (eventName === "BeforeTool" && requestId) {
     const permission = permissionCapabilityForTool("gemini");
@@ -457,7 +457,7 @@ function normalizeCursorPayload(
       // Cursor — its UI is already in control by the time the user
       // could click). Synthesizes a Bash-like input so the existing
       // risk classifier in store.ts works unchanged.
-      const requestId = p.__kh_permission_request_id as string | undefined;
+      const requestId = p.__rw_permission_request_id as string | undefined;
       if (!requestId) return null;
       const permission = permissionCapabilityForTool("cursor");
       return {

@@ -17,7 +17,7 @@ export function parseIpcPayload<T>(
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
     throw new Error(
-      `[keykeeper] invalid ${channel} payload: ${formatSchemaError(parsed.error)}`
+      `[realmkeeper] invalid ${channel} payload: ${formatSchemaError(parsed.error)}`
     );
   }
   return parsed.data;
@@ -31,7 +31,7 @@ export function parseIpcResponse<T>(
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
     throw new Error(
-      `[keykeeper] invalid ${channel} response: ${formatSchemaError(parsed.error)}`
+      `[realmkeeper] invalid ${channel} response: ${formatSchemaError(parsed.error)}`
     );
   }
   return parsed.data;

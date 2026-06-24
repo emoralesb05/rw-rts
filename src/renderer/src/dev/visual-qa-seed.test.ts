@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { createVisualQaSeed, visualQaThemeCoverage } from "./visual-qa-seed";
-import { themeFor } from "../game/gummi-worlds";
+import { themeFor } from "../game/realm-worlds";
 
 describe("visual QA seed", () => {
   it("creates a deterministic board that covers major world states", () => {

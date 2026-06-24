@@ -3,7 +3,7 @@
  * workspace root. Walks recursively, stops descending once a `.git`
  * is found (repos can't nest meaningfully), caps at MAX_DEPTH to
  * keep big trees bounded. Workspace root and exclusion list come
- * from ~/.keykeeper.json (settings.ts).
+ * from ~/.realmkeeper.json (settings.ts).
  *
  * Returns repos as `{ path, label }`. Label is `parent/repo` when
  * the repo lives in a subdir of the workspace root (which is the

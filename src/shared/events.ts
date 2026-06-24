@@ -10,21 +10,17 @@ export type {
   WorldStats,
 } from "./schemas";
 
-// Four keyblader archetypes:
-//   keyblader1 — Vaelen (masculine, twilight-purple)
-//   keyblader2 — Selene (feminine, dream-petal pink)
-//   keyblader3 — Ryder  (masculine, forge orange / iron)
-//   keyblader4 — Lyris  (feminine, tide cyan / sea)
+// Four warden archetypes:
+//   warden1 — Vaelen (masculine, dusk-purple)
+//   warden2 — Selene (feminine, dream-petal pink)
+//   warden3 — Ryder  (masculine, forge orange / iron)
+//   warden4 — Lyris  (feminine, tide cyan / sea)
 // Each session is assigned one deterministically from its (tool,
 // repoRoot) wielder identity, plus an auto-generated display name
 // from a per-archetype name pool.
-export type UnitRole =
-  | "keyblader1"
-  | "keyblader2"
-  | "keyblader3"
-  | "keyblader4";
+export type UnitRole = "warden1" | "warden2" | "warden3" | "warden4";
 
-export type DriveForm = "valor" | "wisdom" | "final";
+export type WardenAura = "guard" | "focus" | "link";
 
 export type UnitState = {
   id: string;
@@ -56,15 +52,15 @@ export type UnitState = {
   lastTool?: string;
   spawnedHere: boolean;
   parentSessionId?: string;
-  driveForm?: DriveForm;
-  driveFormUntil?: number;
+  auraState?: WardenAura;
+  auraUntil?: number;
 };
 
-export type HeartlessType = "shadow" | "soldier" | "large_body";
+export type RiftlingType = "shadow" | "soldier" | "bulwark";
 
-export type Heartless = {
+export type Riftling = {
   id: string;
-  type: HeartlessType;
+  type: RiftlingType;
   worldId: string;
   targetUnitId?: string;
   hp: number;
@@ -141,7 +137,7 @@ export type WorldAlertLevel =
 export const EMPTY_PERSISTED: PersistedState = {
   schemaVersion: 2,
   kingdomFoundedAt: 0,
-  totalMunnyEver: 0,
+  totalGlimmerEver: 0,
   standingOrders: [],
   wielders: {},
   worlds: {},
@@ -152,16 +148,16 @@ export type WorldState = {
   path: string;
   label: string;
   unitIds: string[];
-  heartless: Heartless[];
+  riftling: Riftling[];
   alertLevel: WorldAlertLevel;
-  munny: number;
+  glimmer: number;
 };
 
 // Auto-generated name pools — original names, no IP. The game picks
 // one deterministically from a wielder's (tool, repoRoot) identity hash
 // so the same wielder gets the same name every session. One pool per
 // archetype, themed loosely to the character's element.
-export const KEYBLADER1_NAMES: readonly string[] = [
+export const WARDEN1_NAMES: readonly string[] = [
   "Vaelen",
   "Aren",
   "Kael",
@@ -180,7 +176,7 @@ export const KEYBLADER1_NAMES: readonly string[] = [
   "Soren",
 ];
 
-export const KEYBLADER2_NAMES: readonly string[] = [
+export const WARDEN2_NAMES: readonly string[] = [
   "Selene",
   "Nyra",
   "Aria",
@@ -199,7 +195,7 @@ export const KEYBLADER2_NAMES: readonly string[] = [
   "Mira",
 ];
 
-export const KEYBLADER3_NAMES: readonly string[] = [
+export const WARDEN3_NAMES: readonly string[] = [
   "Ryder",
   "Krell",
   "Bran",
@@ -218,7 +214,7 @@ export const KEYBLADER3_NAMES: readonly string[] = [
   "Magnus",
 ];
 
-export const KEYBLADER4_NAMES: readonly string[] = [
+export const WARDEN4_NAMES: readonly string[] = [
   "Lyris",
   "Marin",
   "Cara",
@@ -238,17 +234,17 @@ export const KEYBLADER4_NAMES: readonly string[] = [
 ];
 
 const NAME_POOLS: Record<UnitRole, readonly string[]> = {
-  keyblader1: KEYBLADER1_NAMES,
-  keyblader2: KEYBLADER2_NAMES,
-  keyblader3: KEYBLADER3_NAMES,
-  keyblader4: KEYBLADER4_NAMES,
+  warden1: WARDEN1_NAMES,
+  warden2: WARDEN2_NAMES,
+  warden3: WARDEN3_NAMES,
+  warden4: WARDEN4_NAMES,
 };
 
 const ARCHETYPES: readonly UnitRole[] = [
-  "keyblader1",
-  "keyblader2",
-  "keyblader3",
-  "keyblader4",
+  "warden1",
+  "warden2",
+  "warden3",
+  "warden4",
 ];
 
 // Hash a string to a non-negative integer. Used for deterministic name

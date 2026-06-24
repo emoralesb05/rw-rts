@@ -10,7 +10,7 @@ describe("main IPC validation helpers", () => {
 
   it("returns parsed IPC payloads", () => {
     expect(
-      parseIpcPayload("kh:test", Schema, {
+      parseIpcPayload("rw:test", Schema, {
         id: "one",
         nested: { ok: true },
       })
@@ -19,19 +19,19 @@ describe("main IPC validation helpers", () => {
 
   it("labels invalid payload errors with channel and path", () => {
     expect(() =>
-      parseIpcPayload("kh:test", Schema, {
+      parseIpcPayload("rw:test", Schema, {
         id: "",
         nested: { ok: true },
       })
-    ).toThrow("[keykeeper] invalid kh:test payload: id:");
+    ).toThrow("[realmkeeper] invalid rw:test payload: id:");
   });
 
   it("labels invalid response errors separately from payload errors", () => {
     expect(() =>
-      parseIpcResponse("kh:test", Schema, {
+      parseIpcResponse("rw:test", Schema, {
         id: "one",
         nested: { ok: "yes" },
       })
-    ).toThrow("[keykeeper] invalid kh:test response: nested.ok:");
+    ).toThrow("[realmkeeper] invalid rw:test response: nested.ok:");
   });
 });

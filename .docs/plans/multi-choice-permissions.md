@@ -4,7 +4,7 @@
 
 ## Goal
 
-Upgrade Keykeeper permissions from binary `allow` / `deny` letters into a provider-neutral approval surface that can represent the richer choices each LLM CLI already exposes:
+Upgrade Realmkeeper permissions from binary `allow` / `deny` letters into a provider-neutral approval surface that can represent the richer choices each LLM CLI already exposes:
 
 - allow once
 - deny once
@@ -13,13 +13,13 @@ Upgrade Keykeeper permissions from binary `allow` / `deny` letters into a provid
 - always allow in this workspace or globally
 - ask every time
 - answer a provider question / elicitation
-- hand off to the provider-native UI when Keykeeper cannot own the decision
+- hand off to the provider-native UI when Realmkeeper cannot own the decision
 
-The important constraint: Keykeeper should own a stable internal permission model, then translate to provider-specific hooks, settings, and policy files. The UI should not hard-code Claude, Codex, Cursor, or Gemini menu semantics.
+The important constraint: Realmkeeper should own a stable internal permission model, then translate to provider-specific hooks, settings, and policy files. The UI should not hard-code Claude, Codex, Cursor, or Gemini menu semantics.
 
 ## Why
 
-Some provider prompts are not really yes/no prompts. They are "choose a scope" prompts, "allow this class of future tool calls" prompts, plan-exit prompts, MCP elicitation forms, or tool calls whose parameters can be modified before approving. Today Keykeeper flattens all of that into `permission-allow` / `permission-deny`, which works for the current gate but loses intent and forces users to repeat approvals that providers can already remember.
+Some provider prompts are not really yes/no prompts. They are "choose a scope" prompts, "allow this class of future tool calls" prompts, plan-exit prompts, MCP elicitation forms, or tool calls whose parameters can be modified before approving. Today Realmkeeper flattens all of that into `permission-allow` / `permission-deny`, which works for the current gate but loses intent and forces users to repeat approvals that providers can already remember.
 
 ## Current state
 
@@ -27,7 +27,7 @@ Some provider prompts are not really yes/no prompts. They are "choose a scope" p
 - IPC only accepts `decision: "allow" | "deny"` plus optional deny message.
 - `LetterCard` already renders an arbitrary action list, so the UI can technically show more buttons. The missing pieces are typed choice semantics, persistence, provider translation, and rule matching.
 - Cursor is intentionally observation-only in default allowlist mode.
-- Gemini is currently Keykeeper-owned: a fail-closed `BeforeTool` hook asks Keykeeper, while a managed Gemini policy suppresses Gemini's second native prompt.
+- Gemini is currently Realmkeeper-owned: a fail-closed `BeforeTool` hook asks Realmkeeper, while a managed Gemini policy suppresses Gemini's second native prompt.
 
 ## Initial research snapshot
 
@@ -47,12 +47,12 @@ Sources to verify again before implementation:
 
 ### Provider capability matrix
 
-| Provider | Current Keykeeper gate | Native richer choices to research | Likely Keykeeper mapping |
+| Provider | Current Realmkeeper gate | Native richer choices to research | Likely Realmkeeper mapping |
 |---|---|---|---|
 | Claude | `PermissionRequest` bidirectional hook | `PermissionRequest.decision.updatedPermissions`, `updatedInput`, deny `message` / `interrupt`; `PreToolUse.permissionDecision` can be `allow`, `deny`, `ask`, and newer non-interactive flows support deferral for user questions | Return binary allow/deny for the current request, plus optionally send `updatedPermissions` for "remember" choices. Add a separate flow for question/elicitation prompts. |
-| Codex | `PermissionRequest` bidirectional hook, same local shape as Claude in our adapter | `approval_policy` supports `untrusted`, `on-request`, `never`, and granular prompt categories; app/MCP tool approval modes support `auto`, `prompt`, `approve`; managed hooks support `PermissionRequest` in config reference | Verify exact hook output schema in the installed CLI. For persistent choices, prefer Keykeeper local rules first; optionally write Codex config only for explicit "native remember" choices. |
-| Cursor | `beforeShellExecution` advisory; Keykeeper returns `ask` and the Cursor UI decides | CLI permission tokens in `~/.cursor/cli-config.json` or `<project>/.cursor/cli.json`: `Shell(...)`, `Read(...)`, `Write(...)`, with deny taking precedence; print mode writes require `--force` | Keep default IDE flow observational. For Keykeeper-spawned or force/yolo sessions, map remember choices into Cursor permission tokens after explicit opt-in. |
-| Gemini | `BeforeTool` bidirectional hook plus managed policy | Policy rules in `~/.gemini/policies/*.toml` support `allow`, `deny`, `ask_user`, priorities, modes, tool names, command prefixes, args regex, MCP names, subagents, and `allowRedirection`; settings expose default approval mode, permanent approval toggles, and disable-always-allow controls | Keep Keykeeper as the real gate. Add Keykeeper-local rules for automatic allow/deny before showing a letter. Optionally mirror "native remember" rules into a separate managed TOML file. |
+| Codex | `PermissionRequest` bidirectional hook, same local shape as Claude in our adapter | `approval_policy` supports `untrusted`, `on-request`, `never`, and granular prompt categories; app/MCP tool approval modes support `auto`, `prompt`, `approve`; managed hooks support `PermissionRequest` in config reference | Verify exact hook output schema in the installed CLI. For persistent choices, prefer Realmkeeper local rules first; optionally write Codex config only for explicit "native remember" choices. |
+| Cursor | `beforeShellExecution` advisory; Realmkeeper returns `ask` and the Cursor UI decides | CLI permission tokens in `~/.cursor/cli-config.json` or `<project>/.cursor/cli.json`: `Shell(...)`, `Read(...)`, `Write(...)`, with deny taking precedence; print mode writes require `--force` | Keep default IDE flow observational. For Realmkeeper-spawned or force/yolo sessions, map remember choices into Cursor permission tokens after explicit opt-in. |
+| Gemini | `BeforeTool` bidirectional hook plus managed policy | Policy rules in `~/.gemini/policies/*.toml` support `allow`, `deny`, `ask_user`, priorities, modes, tool names, command prefixes, args regex, MCP names, subagents, and `allowRedirection`; settings expose default approval mode, permanent approval toggles, and disable-always-allow controls | Keep Realmkeeper as the real gate. Add Realmkeeper-local rules for automatic allow/deny before showing a letter. Optionally mirror "native remember" rules into a separate managed TOML file. |
 
 ## Target internal model
 
@@ -150,9 +150,9 @@ Keep `PermissionDecision` as the low-level provider reply (`allow` / `deny`) and
    - add `ApplyPermissionChoiceRequest` for richer choices
 3. Store pending request metadata in the bridge so a later choice can write a rule and still resolve the open socket.
 
-### Phase 3 - Keykeeper rule engine
+### Phase 3 - Realmkeeper rule engine
 
-1. Add `~/.keykeeper/permissions.json` or app-state-backed storage for Keykeeper-local rules.
+1. Add `~/.realmkeeper/permissions.json` or app-state-backed storage for Realmkeeper-local rules.
 2. Match rules before rendering a permission letter.
 3. If a rule matches:
    - auto-resolve the hook
@@ -166,11 +166,11 @@ Keep `PermissionDecision` as the low-level provider reply (`allow` / `deny`) and
 Claude:
 - Support `updatedPermissions` for explicit native persistence choices.
 - Support `updatedInput` for "modify and allow" prompts.
-- Research whether Keykeeper should also handle `AskUserQuestion`, `Elicitation`, and plan exit as separate request types.
+- Research whether Realmkeeper should also handle `AskUserQuestion`, `Elicitation`, and plan exit as separate request types.
 
 Codex:
 - Verify current `PermissionRequest` output schema against local CLI and official config reference.
-- Decide whether persistent choices should write Keykeeper rules only, or also Codex config:
+- Decide whether persistent choices should write Realmkeeper rules only, or also Codex config:
   - top-level `approval_policy`
   - granular `approval_policy.granular.*`
   - app/MCP `approval_mode` overrides
@@ -178,17 +178,17 @@ Codex:
 
 Cursor:
 - Keep IDE allowlist mode observation-only unless we can prove a mode where hook decisions are authoritative.
-- For Keykeeper-spawned CLI sessions, research whether `--force` or equivalent is acceptable.
+- For Realmkeeper-spawned CLI sessions, research whether `--force` or equivalent is acceptable.
 - If enabled, write permission tokens to the safest scope:
   - project `<project>/.cursor/cli.json` for workspace-specific rules
   - user `~/.cursor/cli-config.json` only for explicit global choices
 
 Gemini:
-- Keep `BeforeTool` as Keykeeper's gate.
-- Add local rules for "allow once/session/rule" so Keykeeper can answer without popping a letter.
+- Keep `BeforeTool` as Realmkeeper's gate.
+- Add local rules for "allow once/session/rule" so Realmkeeper can answer without popping a letter.
 - Split the current broad native-suppressing policy from user-generated native rules:
-  - `keykeeper-managed.toml`: suppress native prompt because Keykeeper gates
-  - `keykeeper-rules.toml`: optional explicit native mirrors
+  - `realmkeeper-managed.toml`: suppress native prompt because Realmkeeper gates
+  - `realmkeeper-rules.toml`: optional explicit native mirrors
 - Support commandPrefix, argsPattern, modes, MCP, and subagent rule fields.
 
 ### Phase 5 - UI
@@ -221,10 +221,10 @@ Manual:
 
 ## Open questions
 
-- Should Keykeeper's local rules be the source of truth for all providers, with provider-native config only used to suppress duplicate prompts?
+- Should Realmkeeper's local rules be the source of truth for all providers, with provider-native config only used to suppress duplicate prompts?
 - Do we want TTL rules, like "allow this command for 15 minutes"?
-- Should persistent rules live in app state, `~/.keykeeper/permissions.json`, or per-repo `.keykeeper/permissions.json`?
-- For Claude, should we prefer `updatedPermissions` so Claude's own UI knows about the saved rule, or keep persistence in Keykeeper to avoid config churn?
+- Should persistent rules live in app state, `~/.realmkeeper/permissions.json`, or per-repo `.realmkeeper/permissions.json`?
+- For Claude, should we prefer `updatedPermissions` so Claude's own UI knows about the saved rule, or keep persistence in Realmkeeper to avoid config churn?
 - For Cursor, which launch modes make hook decisions authoritative enough to support more than observation?
 - How do we distinguish a permission prompt from an elicitation/question in the shared UI without making everything feel like a modal form?
 
@@ -237,7 +237,7 @@ Manual:
 
 ## Recommended v1
 
-Ship a Keykeeper-local rule engine first:
+Ship a Realmkeeper-local rule engine first:
 
 1. `allow once`
 2. `deny`

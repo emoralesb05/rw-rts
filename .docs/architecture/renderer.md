@@ -121,10 +121,10 @@ Three files, all renderer-side:
 
 | File | Purpose |
 |---|---|
-| `sounds.ts` | Probes `/sounds/kh/{name}.{ext}` (wav/mp3/ogg) for each `SoundName`. Falls back to `synth.ts` synthesized cues when no real audio file is present. |
+| `sounds.ts` | Probes `/sounds/rw/{name}.{ext}` (wav/mp3/ogg) for each `SoundName`. Falls back to `synth.ts` synthesized cues when no real audio file is present. |
 | `synth.ts` | Tiny Web Audio synth — 1–3 oscillator bursts with envelopes, ~30–250ms. Default cues out of the box. |
-| `music.ts` | Background chiptune loop (Aeolian arpeggio, the "Dearly Beloved" cadence) at very low volume. Auto-starts on first user interaction (browsers gate `AudioContext` on user gesture); pauses when window is hidden. |
+| `music.ts` | Background chiptune loop with a soft modal arpeggio at very low volume. Auto-starts on first user interaction (browsers gate `AudioContext` on user gesture); pauses when window is hidden. |
 
-`SoundName` set: `tool, edit, bash, web, summon, session_start, session_end, world_warp, error, select, seal, ko, drive, comfort, letter`. To add a sound, drop a file into `assets/sounds/kh/` (built into `out/renderer/sounds/kh/` at build time) — no code change required, the loader probes for it.
+`SoundName` set: `tool, edit, bash, web, summon, session_start, session_end, world_warp, error, select, seal, ko, aura, comfort, letter`. To add a sound, drop a file into `assets/sounds/rw/` (built into `out/renderer/sounds/rw/` at build time) — no code change required, the loader probes for it.
 
 Mute toggle is shared between `sounds.ts` and `music.ts` via `isMuted()` — single source of truth.

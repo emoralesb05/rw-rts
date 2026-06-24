@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import { useStore } from "../../store";
-import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
 import { usePanels } from "./panel-store";
 import { SettingsPanelBody } from "./SettingsPanelBody";
@@ -64,8 +64,8 @@ const DEMO_FIXTURES = [
       { id: "cursor-turn", label: "Cursor · multi-tool turn" },
       { id: "codex-shell", label: "Codex · shell" },
       { id: "gemini-turn", label: "Gemini · search + write" },
-      { id: "subagent", label: "Claude · subagent (Final drive)" },
-      { id: "combat", label: "Combat · heartless raid" },
+      { id: "subagent", label: "Claude · subagent (Link aura)" },
+      { id: "combat", label: "Combat · riftling raid" },
       { id: "stress", label: "Stress · 30 events" },
       { id: "permission", label: "Permission · approval letter" },
     ],
@@ -215,11 +215,11 @@ function OverviewTab() {
   const eventCount = useStore((s) => s.eventCount);
   const closeKind = usePanels((s) => s.closeKind);
   const reset = useStore((s) => s.resetKingdom);
-  const sessionMunny = Object.values(worlds).reduce(
-    (sum, w) => sum + (w.munny ?? 0),
+  const sessionGlimmer = Object.values(worlds).reduce(
+    (sum, w) => sum + (w.glimmer ?? 0),
     0
   );
-  const totalMunny = Math.max(persisted.totalMunnyEver, sessionMunny);
+  const totalGlimmer = Math.max(persisted.totalGlimmerEver, sessionGlimmer);
   const sealedWorlds = Object.values(persisted.worlds)
     .filter((w) => w.sealedAt)
     .sort((a, b) => (b.sealedAt ?? 0) - (a.sealedAt ?? 0))
@@ -258,7 +258,7 @@ function OverviewTab() {
     <KingdomTab>
       <div className="grid grid-cols-4 gap-2">
         <KingdomStat label="sealed" value={sealedWorlds.length} />
-        <KingdomStat label="µ munny" value={totalMunny.toLocaleString()} />
+        <KingdomStat label="✧ glimmer" value={totalGlimmer.toLocaleString()} />
         <KingdomStat label="events" value={eventCount} />
         <KingdomStat
           value={
@@ -276,7 +276,7 @@ function OverviewTab() {
 
       <KingdomSection title="Sealed worlds" count={sealedWorlds.length}>
         {sealedWorlds.length === 0 ? (
-          <KingdomEmpty>No keyholes sealed yet.</KingdomEmpty>
+          <KingdomEmpty>No realms sealed yet.</KingdomEmpty>
         ) : (
           <ul className={KINGDOM_LIST_CLASS}>
             {sealedWorlds.map((w) => {
@@ -330,7 +330,7 @@ function OverviewTab() {
             <AlertDialogHeader>
               <AlertDialogTitle>Reset the kingdom?</AlertDialogTitle>
               <AlertDialogDescription>
-                Lifetime stats, sealed-keyhole history, and Renown all clear.
+                Lifetime stats, sealed-realm history, and Renown all clear.
                 Active sessions are not killed.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -344,7 +344,7 @@ function OverviewTab() {
         </AlertDialog>
         <KingdomFooterNote>
           Drops persisted state in{" "}
-          <Code>~/Library/Application Support/keykeeper/state.json</Code>.
+          <Code>~/Library/Application Support/realmkeeper/state.json</Code>.
           Active sessions stay running.
         </KingdomFooterNote>
       </KingdomSection>
@@ -416,7 +416,7 @@ function HookBridgeSection(props: HookBridgeProps) {
   );
 }
 
-/** Call an optional `window.kh.*` method safely. Returns null if the
+/** Call an optional `window.rw.*` method safely. Returns null if the
  * binding isn't present in the loaded preload (which happens after a
  * preload-shape change without restarting electron — main + preload
  * don't hot-reload, so the renderer can momentarily race ahead).
@@ -447,19 +447,19 @@ function ConnectionTab() {
   const [geminiBusy, setGeminiBusy] = useState(false);
 
   useEffect(() => {
-    void safeIpc(window.kh.hooksStatus?.bind(window.kh)).then((r) => {
+    void safeIpc(window.rw.hooksStatus?.bind(window.rw)).then((r) => {
       if (r) setClaudeStatus(r);
       else setClaudeMissing(true);
     });
-    void safeIpc(window.kh.cursorHooksStatus?.bind(window.kh)).then((r) => {
+    void safeIpc(window.rw.cursorHooksStatus?.bind(window.rw)).then((r) => {
       if (r) setCursorStatus(r);
       else setCursorMissing(true);
     });
-    void safeIpc(window.kh.codexHooksStatus?.bind(window.kh)).then((r) => {
+    void safeIpc(window.rw.codexHooksStatus?.bind(window.rw)).then((r) => {
       if (r) setCodexStatus(r);
       else setCodexMissing(true);
     });
-    void safeIpc(window.kh.geminiHooksStatus?.bind(window.kh)).then((r) => {
+    void safeIpc(window.rw.geminiHooksStatus?.bind(window.rw)).then((r) => {
       if (r) setGeminiStatus(r);
       else setGeminiMissing(true);
     });
@@ -470,8 +470,8 @@ function ConnectionTab() {
     setClaudeBusy(true);
     try {
       const next = claudeStatus.installed
-        ? await window.kh.uninstallHooks()
-        : await window.kh.installHooks();
+        ? await window.rw.uninstallHooks()
+        : await window.rw.installHooks();
       setClaudeStatus(next);
     } finally {
       setClaudeBusy(false);
@@ -483,8 +483,8 @@ function ConnectionTab() {
     setCursorBusy(true);
     try {
       const next = cursorStatus.installed
-        ? await window.kh.uninstallCursorHooks()
-        : await window.kh.installCursorHooks();
+        ? await window.rw.uninstallCursorHooks()
+        : await window.rw.installCursorHooks();
       setCursorStatus(next);
     } finally {
       setCursorBusy(false);
@@ -496,8 +496,8 @@ function ConnectionTab() {
     setCodexBusy(true);
     try {
       const next = codexStatus.installed
-        ? await window.kh.uninstallCodexHooks()
-        : await window.kh.installCodexHooks();
+        ? await window.rw.uninstallCodexHooks()
+        : await window.rw.installCodexHooks();
       setCodexStatus(next);
     } finally {
       setCodexBusy(false);
@@ -509,8 +509,8 @@ function ConnectionTab() {
     setGeminiBusy(true);
     try {
       const next = geminiStatus.installed
-        ? await window.kh.uninstallGeminiHooks()
-        : await window.kh.installGeminiHooks();
+        ? await window.rw.uninstallGeminiHooks()
+        : await window.rw.installGeminiHooks();
       setGeminiStatus(next);
     } finally {
       setGeminiBusy(false);
@@ -587,11 +587,11 @@ function ConnectionTab() {
           description={
             <>
               Forwards Gemini CLI session, prompt, tool, result, and response
-              events for any session on this machine. Keykeeper owns Gemini tool
-              approvals via a fail-closed BeforeTool hook and a managed user
-              policy that suppresses Gemini's native prompt. Entries live in{" "}
-              <Code>~/.gemini/settings.json</Code> and{" "}
-              <Code>~/.gemini/policies/keykeeper-managed.toml</Code>.
+              events for any session on this machine. Realmkeeper owns Gemini
+              tool approvals via a fail-closed BeforeTool hook and a managed
+              user policy that suppresses Gemini's native prompt. Entries live
+              in <Code>~/.gemini/settings.json</Code> and{" "}
+              <Code>~/.gemini/policies/realmkeeper-managed.toml</Code>.
             </>
           }
         />
@@ -623,7 +623,7 @@ function DemosTab() {
       // so the new world isn't pre-targeted.
       selectWorld(null);
     }
-    void window.kh.playFixture({ scenario: id as never });
+    void window.rw.playFixture({ scenario: id as never });
   };
   return (
     <KingdomTab>
@@ -673,7 +673,7 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
       </TabsContent>
       <TabsContent value="settings">
         <SettingsPanelBody
-          onSaved={() => window.dispatchEvent(new Event("kh:settings-changed"))}
+          onSaved={() => window.dispatchEvent(new Event("rw:settings-changed"))}
         />
       </TabsContent>
       <TabsContent value="connection">

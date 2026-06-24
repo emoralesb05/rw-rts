@@ -1,8 +1,8 @@
 /**
  * Speech-bubble lines for canvas wielders. Per-archetype pools so each
- * keyblader role has a distinct voice — twilight-purple keyblader1
- * sounds brooding, dream-pink keyblader2 sounds gentle, forge-orange
- * keyblader3 sounds bold, tide-cyan keyblader4 sounds balanced. KH-
+ * warden role has a distinct voice — dusk-purple warden1
+ * sounds brooding, dream-pink warden2 sounds gentle, forge-orange
+ * warden3 sounds bold, tide-cyan warden4 sounds balanced. RW-
  * flavored throughout.
  *
  * Triggers (per design discussion 2026-04-29):
@@ -24,8 +24,8 @@ export type BarkKind =
 
 type Pool = Record<BarkKind, readonly string[]>;
 
-/** Vaelen — twilight purple, Riku-coded brooding/searching. */
-const KEYBLADER1_LINES: Pool = {
+/** Vaelen — dusk purple, brooding brooding/searching. */
+const WARDEN1_LINES: Pool = {
   session_start: [
     "Darkness or light, I serve.",
     "The path opens. I follow.",
@@ -65,8 +65,8 @@ const KEYBLADER1_LINES: Pool = {
   ],
 };
 
-/** Selene — dream petal pink, Aqua/Kairi-coded gentle/hopeful. */
-const KEYBLADER2_LINES: Pool = {
+/** Selene — dream petal pink, gentle gentle/hopeful. */
+const WARDEN2_LINES: Pool = {
   session_start: [
     "Hello, your majesty!",
     "Ready, with a smile.",
@@ -106,8 +106,8 @@ const KEYBLADER2_LINES: Pool = {
   ],
 };
 
-/** Ryder — forge orange, Terra/Roxas-coded bold/determined. */
-const KEYBLADER3_LINES: Pool = {
+/** Ryder — forge orange, bold and determined. */
+const WARDEN3_LINES: Pool = {
   session_start: [
     "Let's do this.",
     "Steel ready. Heart steady.",
@@ -147,8 +147,8 @@ const KEYBLADER3_LINES: Pool = {
   ],
 };
 
-/** Lyris — tide cyan, Aqua/Ven-coded brave/balanced wayfinder. */
-const KEYBLADER4_LINES: Pool = {
+/** Lyris — tide cyan, brave and balanced wayfinder. */
+const WARDEN4_LINES: Pool = {
   session_start: [
     "I'll see this through.",
     "Path of the wayfinder.",
@@ -189,10 +189,10 @@ const KEYBLADER4_LINES: Pool = {
 };
 
 const LINES_BY_ROLE: Record<UnitRole, Pool> = {
-  keyblader1: KEYBLADER1_LINES,
-  keyblader2: KEYBLADER2_LINES,
-  keyblader3: KEYBLADER3_LINES,
-  keyblader4: KEYBLADER4_LINES,
+  warden1: WARDEN1_LINES,
+  warden2: WARDEN2_LINES,
+  warden3: WARDEN3_LINES,
+  warden4: WARDEN4_LINES,
 };
 
 /** Pick a random line from the pool for a given (kind, role). */

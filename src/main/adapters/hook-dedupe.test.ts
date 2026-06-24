@@ -51,7 +51,7 @@ describe("hook dedupe", () => {
     expect(dedupe.isDuplicate(payload, "UserPromptSubmit", 14_000)).toBe(false);
   });
 
-  it("does not let the Keykeeper permission marker affect the dedupe key", () => {
+  it("does not let the Realmkeeper permission marker affect the dedupe key", () => {
     const dedupe = createHookDedupe();
     const base = {
       hook_event_name: "PreToolUse",
@@ -62,14 +62,14 @@ describe("hook dedupe", () => {
 
     expect(
       dedupe.isDuplicate(
-        { ...base, __kh_permission_request_id: "req-1" },
+        { ...base, __rw_permission_request_id: "req-1" },
         "PreToolUse",
         1000
       )
     ).toBe(false);
     expect(
       dedupe.isDuplicate(
-        { ...base, __kh_permission_request_id: "req-2" },
+        { ...base, __rw_permission_request_id: "req-2" },
         "PreToolUse",
         1200
       )

@@ -1,8 +1,9 @@
 {
-  "name": "keykeeper",
+  "name": "realmkeeper",
   "version": "0.7.0",
   "private": true,
-  "description": "Kingdom Hearts themed agent watch room — Sims-style spectator strategy for Claude / Cursor / Codex sessions",
+  "license": "MIT",
+  "description": "Realm Wardens themed agent watch room — Sims-style spectator strategy for Claude / Cursor / Codex sessions",
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -23,8 +24,8 @@
     "dist": "bun run build && electron-builder --mac"
   },
   "build": {
-    "appId": "com.keykeeper.app",
-    "productName": "Keykeeper",
+    "appId": "com.realmkeeper.app",
+    "productName": "Realmkeeper",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -38,7 +39,7 @@
         "from": "bin",
         "to": "bin",
         "filter": [
-          "keykeeper-hook"
+          "realmkeeper-hook"
         ]
       }
     ],
@@ -66,7 +67,7 @@
       "identity": null
     },
     "dmg": {
-      "title": "Keykeeper ${version}",
+      "title": "Realmkeeper ${version}",
       "iconSize": 96,
       "contents": [
         {

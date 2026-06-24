@@ -7,7 +7,7 @@ import { usePanels } from "./panel-store";
 import { AppToastProvider } from "../components/kit/ToastLayer";
 import type { AppSettings, WorkspaceRootValidation } from "@shared/schemas";
 
-function installKh({
+function installRw({
   settings = { workspaceRoot: "/Users/ed/Github", exclude: ["node_modules"] },
   validation = { valid: true, expanded: "/Users/ed/Github" },
   saveSettings = vi.fn(() => Promise.resolve(true)),
@@ -16,19 +16,19 @@ function installKh({
   validation?: WorkspaceRootValidation;
   saveSettings?: ReturnType<typeof vi.fn>;
 } = {}) {
-  const kh = {
+  const rw = {
     getSettings: vi.fn(() => Promise.resolve(settings)),
     validateWorkspaceRoot: vi.fn(() => Promise.resolve(validation)),
     saveSettings,
   };
 
-  Object.defineProperty(window, "kh", {
+  Object.defineProperty(window, "rw", {
     configurable: true,
     writable: true,
-    value: kh,
+    value: rw,
   });
 
-  return kh;
+  return rw;
 }
 
 function renderSettings(onSaved = vi.fn()) {
@@ -64,7 +64,7 @@ describe("SettingsPanelBody", () => {
   });
 
   it("loads, validates, saves normalized settings, and closes the panel", async () => {
-    const kh = installKh();
+    const rw = installRw();
     const user = userEvent.setup();
     const { onSaved } = renderSettings();
 
@@ -72,7 +72,7 @@ describe("SettingsPanelBody", () => {
     expect(screen.getByDisplayValue("node_modules")).toBeVisible();
 
     await waitFor(() => {
-      expect(kh.validateWorkspaceRoot).toHaveBeenCalledWith("/Users/ed/Github");
+      expect(rw.validateWorkspaceRoot).toHaveBeenCalledWith("/Users/ed/Github");
     });
     expect(screen.getByText(/resolves to \/Users\/ed\/Github/i)).toBeVisible();
 
@@ -82,7 +82,7 @@ describe("SettingsPanelBody", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(kh.saveSettings).toHaveBeenCalledWith({
+      expect(rw.saveSettings).toHaveBeenCalledWith({
         workspaceRoot: "/Users/ed/Github",
         exclude: ["node_modules", "forks/*"],
       });
@@ -93,7 +93,7 @@ describe("SettingsPanelBody", () => {
   });
 
   it("keeps save disabled when workspace validation fails", async () => {
-    const kh = installKh({
+    const rw = installRw({
       validation: {
         valid: false,
         expanded: "/missing",
@@ -105,15 +105,15 @@ describe("SettingsPanelBody", () => {
     expect(await screen.findByDisplayValue("/Users/ed/Github")).toBeVisible();
 
     await waitFor(() => {
-      expect(kh.validateWorkspaceRoot).toHaveBeenCalledWith("/Users/ed/Github");
+      expect(rw.validateWorkspaceRoot).toHaveBeenCalledWith("/Users/ed/Github");
     });
     expect(screen.getByText(/directory doesn't exist/i)).toBeVisible();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    expect(kh.saveSettings).not.toHaveBeenCalled();
+    expect(rw.saveSettings).not.toHaveBeenCalled();
   });
 
   it("reports save failures without closing settings", async () => {
-    const kh = installKh({
+    const rw = installRw({
       saveSettings: vi.fn(() => Promise.reject(new Error("disk full"))),
     });
     const user = userEvent.setup();
@@ -121,7 +121,7 @@ describe("SettingsPanelBody", () => {
 
     await screen.findByDisplayValue("/Users/ed/Github");
     await waitFor(() => {
-      expect(kh.validateWorkspaceRoot).toHaveBeenCalled();
+      expect(rw.validateWorkspaceRoot).toHaveBeenCalled();
     });
 
     await user.click(screen.getByRole("button", { name: "Save" }));

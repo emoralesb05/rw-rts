@@ -1,7 +1,7 @@
 /**
  * Standing Order loop runner — Phase 2B item #14b.
  *
- * Active orders fire their prompt at intervalMs cadence via window.kh.sendPrompt.
+ * Active orders fire their prompt at intervalMs cadence via window.rw.sendPrompt.
  * Each tick records ok/fail in the store; the store auto-flips status to
  * "exhausted" after maxIterations or "failed" after 3 consecutive failures.
  *
@@ -38,7 +38,7 @@ export function attachStandingOrderRunner(): () => void {
       return;
     }
     try {
-      await window.kh.sendPrompt({
+      await window.rw.sendPrompt({
         unitId: order.unitId,
         prompt: `[Standing Order — iteration ${order.iterationsRun + 1}/${order.maxIterations}]\n\n${order.prompt}`,
       });

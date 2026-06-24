@@ -4,12 +4,12 @@ import { KingdomScene } from "./scenes/Kingdom";
 
 type PhaserDevWindow = Window & {
   __phaser?: Phaser.Game;
-  __keykeeperPhaser?: Phaser.Game;
+  __realmkeeperPhaser?: Phaser.Game;
 };
 
 /**
  * Single Phaser game hosting the unified KingdomScene (per Q40 — see
- * .docs/plans/vision.md). Replaces the previous Throne/Gummi/Arena
+ * .docs/plans/vision.md). Replaces the previous Throne/Realm/Arena
  * 3-scene drill-down with one pan/zoom canvas.
  *
  * KingdomScene is the only Phaser scene. The legacy WorldScene +
@@ -25,8 +25,8 @@ export function PhaserGame() {
     const host = hostRef.current;
     const devWindow = window as PhaserDevWindow;
     if (import.meta.env.DEV) {
-      devWindow.__keykeeperPhaser?.destroy(true);
-      devWindow.__keykeeperPhaser = undefined;
+      devWindow.__realmkeeperPhaser?.destroy(true);
+      devWindow.__realmkeeperPhaser = undefined;
       devWindow.__phaser = undefined;
     }
     host.replaceChildren();
@@ -47,7 +47,7 @@ export function PhaserGame() {
     gameRef.current = game;
     if (import.meta.env.DEV) {
       devWindow.__phaser = game;
-      devWindow.__keykeeperPhaser = game;
+      devWindow.__realmkeeperPhaser = game;
     }
 
     // Phaser RESIZE mode only watches window.resize. Our stage size shifts
@@ -63,8 +63,8 @@ export function PhaserGame() {
 
     return () => {
       ro.disconnect();
-      if (import.meta.env.DEV && devWindow.__keykeeperPhaser === game) {
-        devWindow.__keykeeperPhaser = undefined;
+      if (import.meta.env.DEV && devWindow.__realmkeeperPhaser === game) {
+        devWindow.__realmkeeperPhaser = undefined;
         devWindow.__phaser = undefined;
       }
       game.destroy(true);

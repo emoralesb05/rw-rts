@@ -18,9 +18,9 @@ function world(overrides: Partial<WorldState> = {}): WorldState {
     path: "/repo",
     label: "Repo",
     unitIds: ["unit-1"],
-    heartless: [],
+    riftling: [],
     alertLevel: "idle",
-    munny: 100,
+    glimmer: 100,
     ...overrides,
   };
 }
@@ -30,7 +30,7 @@ function unit(overrides: Partial<UnitState> = {}): UnitState {
     id: "unit-1",
     sessionId: "unit-1",
     tool: "claude",
-    role: "keyblader1",
+    role: "warden1",
     displayName: "Vaelen",
     cwd: "/repo",
     repoRoot: "/repo",

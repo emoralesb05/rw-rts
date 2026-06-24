@@ -214,7 +214,7 @@ export function CommandPalette() {
         detail: `${summary} · ${path}`,
         keywords: `file path open ${path} ${summary}`,
         icon: <FileCode size={14} aria-hidden />,
-        run: () => void window.kh.openPath(path).catch(() => {}),
+        run: () => void window.rw.openPath(path).catch(() => {}),
       });
       if (seenPaths.size >= 12) break;
     }

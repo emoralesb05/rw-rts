@@ -24,7 +24,7 @@ export function PanelLayer() {
           ) : p.kind === "settings" ? (
             <SettingsPanelBody
               onSaved={() =>
-                window.dispatchEvent(new Event("kh:settings-changed"))
+                window.dispatchEvent(new Event("rw:settings-changed"))
               }
             />
           ) : p.kind === "kingdom" ? (

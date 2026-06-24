@@ -27,8 +27,8 @@ describe("hook bridge normalization", () => {
   it("normalizes Gemini BeforeTool as an actionable permission request", () => {
     const event = normalizeHookPayload({
       hook_event_name: "BeforeTool",
-      __kh_tool: "gemini",
-      __kh_permission_request_id: "req-1",
+      __rw_tool: "gemini",
+      __rw_permission_request_id: "req-1",
       session_id: "gemini-session",
       cwd: "/repo",
       tool_name: "run_shell_command",
@@ -58,7 +58,7 @@ describe("hook bridge normalization", () => {
       conversation_id: "chat-1",
       cwd: "/repo",
       command: "npm test",
-      __kh_permission_request_id: "req-cursor",
+      __rw_permission_request_id: "req-cursor",
     });
 
     expect(event).toMatchObject({

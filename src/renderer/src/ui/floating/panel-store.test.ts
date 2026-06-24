@@ -87,12 +87,12 @@ describe("panel store", () => {
     usePanels.getState().setDrawerWidth(1200);
 
     expect(usePanels.getState().drawer?.width).toBe(800);
-    expect(window.localStorage.getItem("keykeeper:drawer:width")).toBe("800");
+    expect(window.localStorage.getItem("realmkeeper:drawer:width")).toBe("800");
 
     usePanels.getState().setDrawerWidth(100);
 
     expect(usePanels.getState().drawer?.width).toBe(360);
-    expect(window.localStorage.getItem("keykeeper:drawer:width")).toBe("360");
+    expect(window.localStorage.getItem("realmkeeper:drawer:width")).toBe("360");
   });
 
   it("tracks alert focus in the shared z-stack", () => {

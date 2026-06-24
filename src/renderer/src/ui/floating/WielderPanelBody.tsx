@@ -19,7 +19,7 @@ import {
 import { usePanels } from "./panel-store";
 import { useStore, unitIdentityForUnit } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
-import { themeFor, themeLabel } from "../../game/gummi-worlds";
+import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { classifyArchetype, ARCHETYPE_TITLE } from "../role-archetype";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { ArchetypeChip } from "../ArchetypeChip";
@@ -47,7 +47,7 @@ function moodFor(unit: UnitState): string {
   if (unit.status === "fallen") return "fallen";
   if (unit.status === "complete") return "complete";
   if (unit.hp < 25) return "desperate";
-  if (unit.driveForm) return "triumphant";
+  if (unit.auraState) return "triumphant";
   if (unit.status === "casting" || unit.status === "working") return "focused";
   if (unit.hp < 60) return "fatigued";
   return "eager";
@@ -118,9 +118,9 @@ export function WielderPanelBody({ unitId }: Props) {
   const themeName = world ? themeLabel(themeFor(world.id)) : "—";
   const hpPct = Math.max(0, Math.min(100, unit.hp));
   const mpPct = Math.max(0, Math.min(100, unit.mp));
-  const focusPct = unit.driveForm ? 100 : 35;
+  const focusPct = unit.auraState ? 100 : 35;
   const ghosted = unit.status === "complete" || unit.status === "fallen";
-  const canComfort = !ghosted && unit.hp < 100 && (world?.munny ?? 0) >= 50;
+  const canComfort = !ghosted && unit.hp < 100 && (world?.glimmer ?? 0) >= 50;
 
   return (
     <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
@@ -132,7 +132,7 @@ export function WielderPanelBody({ unitId }: Props) {
           >
             <img
               className="size-full object-cover [image-rendering:pixelated]"
-              src={`/sprites/kh-default/${unit.role}.png`}
+              src={`/sprites/rw-default/${unit.role}.png`}
               alt=""
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -149,7 +149,7 @@ export function WielderPanelBody({ unitId }: Props) {
             <TooltipHint
               label={
                 unit.spawnedHere
-                  ? "spawned by keykeeper — you can send prompts here"
+                  ? "spawned by Realmkeeper — you can send prompts here"
                   : "observed terminal session — read-only"
               }
             >
@@ -242,7 +242,7 @@ export function WielderPanelBody({ unitId }: Props) {
             aria-label={`${unit.displayName} focus`}
           />
           <span className="text-text text-right tabular-nums">
-            {unit.driveForm ?? "—"}
+            {unit.auraState ?? "—"}
           </span>
         </div>
       </div>
@@ -284,7 +284,7 @@ export function WielderPanelBody({ unitId }: Props) {
         <TooltipHint
           label={
             !unit.spawnedHere
-              ? "observed-only — keykeeper didn't spawn this wielder"
+              ? "observed-only — Realmkeeper didn't spawn this wielder"
               : "decree — directive command (file/function/shell)"
           }
         >
@@ -295,7 +295,7 @@ export function WielderPanelBody({ unitId }: Props) {
               disabled={ghosted || !unit.spawnedHere}
               onClick={() => useStore.getState().openDecreeFor(unit.id)}
             >
-              {/* ⚜ stays as the gold royal sigil — KH-themed and intentional. */}
+              {/* ⚜ stays as the gold royal sigil — RW-themed and intentional. */}
               ⚜ decree
             </Button>
           </span>
@@ -303,12 +303,12 @@ export function WielderPanelBody({ unitId }: Props) {
         <TooltipHint
           label={
             canComfort
-              ? "restore +30 HP for 50µ"
+              ? "restore +30 HP for 50✧"
               : ghosted
                 ? "this wielder is no longer active"
                 : unit.hp >= 100
                   ? "already at full HP"
-                  : "not enough munny in this world (need 50µ)"
+                  : "not enough glimmer in this world (need 50✧)"
           }
         >
           <span className="inline-flex w-full">
@@ -326,7 +326,7 @@ export function WielderPanelBody({ unitId }: Props) {
           <TooltipHint
             label={
               !unit.spawnedHere
-                ? "observed-only — keykeeper didn't spawn this wielder, no process to recall"
+                ? "observed-only — Realmkeeper didn't spawn this wielder, no process to recall"
                 : "recall — end this session"
             }
           >
@@ -336,8 +336,8 @@ export function WielderPanelBody({ unitId }: Props) {
                   type="button"
                   variant="danger"
                   className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
-                  // Recall calls window.kh.killAgent, which only knows about
-                  // processes keykeeper spawned. For hook-observed wielders it
+                  // Recall calls window.rw.killAgent, which only knows about
+                  // processes Realmkeeper spawned. For hook-observed wielders it
                   // would silently no-op; gate the same way decree does so the
                   // button reflects what's actually possible.
                   disabled={ghosted || !unit.spawnedHere}
@@ -352,14 +352,14 @@ export function WielderPanelBody({ unitId }: Props) {
               <AlertDialogTitle>Recall {unit.displayName}?</AlertDialogTitle>
               <AlertDialogDescription>
                 This ends the spawned session. Hook-observed sessions cannot be
-                recalled from Keykeeper.
+                recalled from Realmkeeper.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() =>
-                  void window.kh.killAgent(unit.id).catch(() => {})
+                  void window.rw.killAgent(unit.id).catch(() => {})
                 }
               >
                 Recall

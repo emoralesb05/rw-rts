@@ -1,8 +1,8 @@
-import type { KhApi } from "./index";
+import type { RwApi } from "./index";
 
 declare global {
   interface Window {
-    kh: KhApi;
+    rw: RwApi;
   }
 }
 

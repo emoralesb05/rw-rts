@@ -1,10 +1,10 @@
 # Architecture
 
-How keykeeper is built. Slow-changing reference for our internal design.
+How Realmkeeper is built. Slow-changing reference for our internal design.
 
 For external-tool quirks and integration notes, see [`.docs/providers/`](../providers/).
 For tactical per-feature plans, see [`.docs/plans/`](../plans/).
-Vocabulary (KH terms + technical) is centralized in [`.docs/glossary.md`](../glossary.md) — skim that before reading the rest.
+Vocabulary (RW terms + technical) is centralized in [`.docs/glossary.md`](../glossary.md) — skim that before reading the rest.
 
 ## Files
 

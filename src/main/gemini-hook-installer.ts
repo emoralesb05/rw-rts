@@ -6,7 +6,7 @@
  *   - events are PascalCase: SessionStart, BeforeAgent, BeforeTool, etc.
  *   - hook commands should return JSON on stdout even for no-op
  *   - BeforeTool is the only hook that can block execution; Notification is
- *     observational only and is not rendered as a Keykeeper decision
+ *     observational only and is not rendered as a Realmkeeper decision
  *
  * We tag every command with `--tool gemini` so the bridge can disambiguate
  * Gemini's PascalCase events from Claude and Codex.
@@ -36,9 +36,9 @@ const GEMINI_POLICY_PATH = join(
   homedir(),
   ".gemini",
   "policies",
-  "keykeeper-managed.toml"
+  "realmkeeper-managed.toml"
 );
-const HOOK_MARKER = "keykeeper-managed";
+const HOOK_MARKER = "realmkeeper-managed";
 const GEMINI_OBSERVE_TIMEOUT_MS = 5000;
 const GEMINI_PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
 const GEMINI_HOOK_EVENTS = [
@@ -55,11 +55,11 @@ const GEMINI_HOOK_EVENTS = [
   "Notification",
 ] as const;
 
-const GEMINI_POLICY = `# keykeeper-managed
-# Keykeeper owns Gemini tool approval. The user policy suppresses Gemini's
+const GEMINI_POLICY = `# realmkeeper-managed
+# Realmkeeper owns Gemini tool approval. The user policy suppresses Gemini's
 # native confirmation prompt after the BeforeTool hook has already asked
-# Keykeeper. The managed hook command sets KEYKEEPER_GEMINI_FAIL_CLOSED=1,
-# so tool execution is denied if Keykeeper is unavailable.
+# Realmkeeper. The managed hook command sets REALMKEEPER_GEMINI_FAIL_CLOSED=1,
+# so tool execution is denied if Realmkeeper is unavailable.
 
 [[rule]]
 toolName = "run_shell_command"
@@ -104,7 +104,7 @@ function isFailClosedEntry(entry: JsonHookEntry): boolean {
   return (entry.hooks ?? []).some(
     (h) =>
       h.command?.includes(HOOK_MARKER) &&
-      h.command.includes("KEYKEEPER_GEMINI_FAIL_CLOSED=1")
+      h.command.includes("REALMKEEPER_GEMINI_FAIL_CLOSED=1")
   );
 }
 
@@ -140,7 +140,7 @@ export function isGeminiInstalled(): boolean {
 export function installGeminiHooks() {
   ensureHookScriptExecutable();
   const scriptPath = getHookScriptPath();
-  const command = `KEYKEEPER_GEMINI_FAIL_CLOSED=1 ${scriptPath} --tool gemini # ${HOOK_MARKER}`;
+  const command = `REALMKEEPER_GEMINI_FAIL_CLOSED=1 ${scriptPath} --tool gemini # ${HOOK_MARKER}`;
   const settings = loadSettings();
   settings.hooks = settings.hooks ?? {};
 
@@ -151,11 +151,11 @@ export function installGeminiHooks() {
       matcher: "*",
       hooks: [
         {
-          name: "keykeeper",
+          name: "realmkeeper",
           type: "command",
           command,
           timeout: timeoutForEvent(evt),
-          description: "Forward Gemini CLI activity to Keykeeper.",
+          description: "Forward Gemini CLI activity to Realmkeeper.",
         },
       ],
     });

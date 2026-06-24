@@ -15,7 +15,7 @@ import { permissionOptionsForPayload } from "@shared/provider-permissions";
 import { createHookDedupe } from "./hook-dedupe";
 import { normalizeHookPayload } from "./hook-normalizer";
 
-export const SOCKET_PATH = join(homedir(), ".keykeeper", "keykeeper.sock");
+export const SOCKET_PATH = join(homedir(), ".realmkeeper", "realmkeeper.sock");
 
 let server: Server | null = null;
 
@@ -82,7 +82,7 @@ function emitPermissionResolved(
  */
 export function startHookBridge() {
   if (server) return;
-  // Ensure ~/.keykeeper/ exists before binding the socket inside it.
+  // Ensure ~/.realmkeeper/ exists before binding the socket inside it.
   try {
     mkdirSync(dirname(SOCKET_PATH), { recursive: true });
   } catch {
@@ -135,9 +135,9 @@ export function startHookBridge() {
       // Per-event log is high-volume (fires every tool call across
       // every wielder) — gated behind an env var so it doesn't spam
       // dev output and can't trigger EPIPE storms when stdio is dodgy.
-      if (process.env.KEYKEEPER_DEBUG_BRIDGE) {
+      if (process.env.REALMKEEPER_DEBUG_BRIDGE) {
         console.log(
-          `[keykeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
+          `[realmkeeper/bridge] hook ${eventName} sid=${sid.slice(0, 12)} → ${
             ev ? `${ev.tool}/${ev.kind}${dup ? " DEDUP" : ""}` : "DROPPED"
           }`
         );
@@ -202,7 +202,7 @@ export function startHookBridge() {
     });
   });
   server.listen(SOCKET_PATH, () => {
-    console.log("[keykeeper] hook bridge listening on", SOCKET_PATH);
+    console.log("[realmkeeper] hook bridge listening on", SOCKET_PATH);
   });
 }
 
@@ -244,19 +244,19 @@ export function resolvePermissionRequest(
   const p = pending.get(requestId);
   if (!p) {
     console.log(
-      `[keykeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
+      `[realmkeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
     );
     return false;
   }
   if (!isAllowedPendingDecision(p.options, decision, optionId)) {
     console.log(
-      `[keykeeper/bridge] resolve ${requestId} = ${decision} option=${optionId ?? "(none)"} — UNSUPPORTED OPTION`
+      `[realmkeeper/bridge] resolve ${requestId} = ${decision} option=${optionId ?? "(none)"} — UNSUPPORTED OPTION`
     );
     return false;
   }
   pending.delete(requestId);
   try {
-    // denyMessage is read by bin/keykeeper-hook and only emitted to the
+    // denyMessage is read by bin/realmkeeper-hook and only emitted to the
     // upstream when behavior=deny — Claude's PermissionRequest contract
     // has no message field for allow, and Cursor's shape uses
     // user_message/agent_message instead.
@@ -267,11 +267,11 @@ export function resolvePermissionRequest(
     });
 
     console.log(
-      `[keykeeper/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
+      `[realmkeeper/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
     );
     p.socket.end(reply);
   } catch (e) {
-    console.log(`[keykeeper/bridge] resolve ${requestId} write FAILED:`, e);
+    console.log(`[realmkeeper/bridge] resolve ${requestId} write FAILED:`, e);
   }
   return true;
 }

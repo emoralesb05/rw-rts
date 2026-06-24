@@ -207,13 +207,13 @@ export function startClaudeTranscriptWatcher(intervalMs = 2000) {
   if (pollTimer) return;
   if (!existsSync(PROJECTS_ROOT)) {
     console.log(
-      `[keykeeper/claude-transcript] no projects dir at ${PROJECTS_ROOT}; watcher disabled`
+      `[realmkeeper/claude-transcript] no projects dir at ${PROJECTS_ROOT}; watcher disabled`
     );
     return;
   }
 
   console.log(
-    `[keykeeper/claude-transcript] watcher started, polling every ${intervalMs}ms`
+    `[realmkeeper/claude-transcript] watcher started, polling every ${intervalMs}ms`
   );
   pollOnce();
   pollTimer = setInterval(pollOnce, intervalMs);

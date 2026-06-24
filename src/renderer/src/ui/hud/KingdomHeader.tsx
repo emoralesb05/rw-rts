@@ -1,6 +1,6 @@
 /**
  * Translucent floating strip at top-center — the de-facto top HUD.
- * Shows kingdom-level info (sealed / wielders / munny / age) plus the
+ * Shows kingdom-level info (sealed / wielders / glimmer / age) plus the
  * two persistent action icons (mute toggle, Kingdom panel).
  *
  * The pill replaced the old topbar; window-drag has moved to a
@@ -22,7 +22,7 @@ import { Toolbar } from "../components/kit/Toolbar";
 
 function fmtDays(foundedAt: number): string {
   const days = Math.max(0, Math.floor((Date.now() - foundedAt) / 86400_000));
-  return days === 0 ? "today" : `${days}d`;
+  return days === 0 ? "today" : `${days}d ago`;
 }
 
 export function KingdomHeader() {
@@ -37,15 +37,15 @@ export function KingdomHeader() {
   const sealedLifetime = Object.values(persisted.worlds).filter(
     (w) => w.sealedAt
   ).length;
-  const sessionMunny = Object.values(worlds).reduce(
-    (sum, w) => sum + (w.munny ?? 0),
+  const sessionGlimmer = Object.values(worlds).reduce(
+    (sum, w) => sum + (w.glimmer ?? 0),
     0
   );
-  const totalMunny = Math.max(persisted.totalMunnyEver, sessionMunny);
+  const totalGlimmer = Math.max(persisted.totalGlimmerEver, sessionGlimmer);
   return (
     <div className="rounded-pill border-accent-alt/18 font-ui text-text absolute top-[38px] left-1/2 z-[51] flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2.5 overflow-hidden border bg-[#0a1130]/48 px-4 py-1.5 text-xs whitespace-nowrap shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-md">
       <span className="text-accent-alt text-[11px] font-bold tracking-[1.2px] uppercase">
-        ⌬ Keykeeper
+        ⌬ Realmkeeper
       </span>
       <span className="text-muted opacity-50">·</span>
       <Tooltip>
@@ -54,7 +54,7 @@ export function KingdomHeader() {
             ✦ {sealedLifetime} sealed
           </span>
         </TooltipTrigger>
-        <TooltipContent>sealed keyholes (lifetime)</TooltipContent>
+        <TooltipContent>sealed realms (lifetime)</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -67,14 +67,14 @@ export function KingdomHeader() {
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="text-text tabular-nums">
-            µ {totalMunny.toLocaleString()}
+            ✧ {totalGlimmer.toLocaleString()}
           </span>
         </TooltipTrigger>
-        <TooltipContent>total munny earned</TooltipContent>
+        <TooltipContent>total glimmer earned</TooltipContent>
       </Tooltip>
       <span className="text-muted opacity-50">·</span>
       <span className="text-muted text-[11px] italic">
-        founded {fmtDays(persisted.kingdomFoundedAt)} ago
+        founded {fmtDays(persisted.kingdomFoundedAt)}
       </span>
       <Toolbar
         className="ml-1 border-l border-white/10 pl-2.5"

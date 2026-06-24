@@ -20,7 +20,7 @@ function installRendererGlobals() {
     },
   };
 
-  const kh = {
+  const rw = {
     killAgent: vi.fn(() => Promise.resolve()),
     resolvePermission: vi.fn(() => Promise.resolve(true)),
     savePersisted: vi.fn(() => Promise.resolve()),
@@ -28,7 +28,7 @@ function installRendererGlobals() {
       Promise.resolve({
         schemaVersion: 2,
         kingdomFoundedAt: 0,
-        totalMunnyEver: 0,
+        totalGlimmerEver: 0,
         standingOrders: [],
         wielders: {},
         worlds: {},
@@ -37,13 +37,13 @@ function installRendererGlobals() {
   };
 
   vi.stubGlobal("localStorage", localStorage);
-  vi.stubGlobal("window", { kh });
+  vi.stubGlobal("window", { rw });
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
     cb(0);
     return 1;
   });
 
-  return { kh };
+  return { rw };
 }
 
 async function loadStore() {
@@ -75,7 +75,7 @@ describe("store letter action shell", () => {
   });
 
   it("resolves allow permission actions through IPC and dismisses the letter", async () => {
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const letter = letterWithAction({
       kind: "permission-allow",
@@ -85,7 +85,7 @@ describe("store letter action shell", () => {
     useStore.setState({ letters: [letter] });
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
-    expect(kh.resolvePermission).toHaveBeenCalledWith({
+    expect(rw.resolvePermission).toHaveBeenCalledWith({
       requestId: "req-1",
       decision: "allow",
     });
@@ -93,7 +93,7 @@ describe("store letter action shell", () => {
   });
 
   it("passes selected permission option ids through IPC", async () => {
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const letter = letterWithAction({
       kind: "permission-allow",
@@ -104,7 +104,7 @@ describe("store letter action shell", () => {
     useStore.setState({ letters: [letter] });
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
-    expect(kh.resolvePermission).toHaveBeenCalledWith({
+    expect(rw.resolvePermission).toHaveBeenCalledWith({
       requestId: "req-option",
       decision: "allow",
       optionId: "allow-once",
@@ -113,7 +113,7 @@ describe("store letter action shell", () => {
   });
 
   it("resolves deny permission actions with a message", async () => {
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const letter = letterWithAction({
       kind: "permission-deny",
@@ -124,7 +124,7 @@ describe("store letter action shell", () => {
     useStore.setState({ letters: [letter] });
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
-    expect(kh.resolvePermission).toHaveBeenCalledWith({
+    expect(rw.resolvePermission).toHaveBeenCalledWith({
       requestId: "req-2",
       decision: "deny",
       message: "not safe",
@@ -133,7 +133,7 @@ describe("store letter action shell", () => {
   });
 
   it("observes permission handoff letters without sending an IPC resolution", async () => {
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const letter = letterWithAction({
       kind: "permission-observe",
@@ -143,7 +143,7 @@ describe("store letter action shell", () => {
     useStore.setState({ letters: [letter] });
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
-    expect(kh.resolvePermission).not.toHaveBeenCalled();
+    expect(rw.resolvePermission).not.toHaveBeenCalled();
     expect(useStore.getState().letters).toEqual([]);
   });
 
@@ -169,14 +169,14 @@ describe("store letter action shell", () => {
   });
 
   it("routes recall actions through killAgent and dismisses the letter", async () => {
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const letter = letterWithAction({ kind: "recall", sessionId: "unit-1" });
 
     useStore.setState({ letters: [letter] });
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
-    expect(kh.killAgent).toHaveBeenCalledWith("unit-1");
+    expect(rw.killAgent).toHaveBeenCalledWith("unit-1");
     expect(useStore.getState().letters).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 # Design Tokens
 
-Keykeeper's React DOM design tokens live in
+Realmkeeper's React DOM design tokens live in
 `src/renderer/src/styles.css` inside Tailwind v4's `@theme` block.
 The legacy `:root` alias bridge has been removed; component styling
 should reference these tokens through Tailwind utilities such as

@@ -3,7 +3,7 @@ import { EMPTY_PERSISTED } from "@shared/events";
 import type { AgentEvent, PersistedState, WorldState } from "@shared/events";
 
 type RendererGlobals = {
-  kh: {
+  rw: {
     killAgent: ReturnType<typeof vi.fn>;
     resolvePermission: ReturnType<typeof vi.fn>;
     savePersisted: ReturnType<typeof vi.fn>;
@@ -36,12 +36,12 @@ function installRendererGlobals({ autoFrame = false } = {}): RendererGlobals {
   const freshPersisted: PersistedState = {
     schemaVersion: 2,
     kingdomFoundedAt: 0,
-    totalMunnyEver: 0,
+    totalGlimmerEver: 0,
     standingOrders: [],
     wielders: {},
     worlds: {},
   };
-  const kh = {
+  const rw = {
     killAgent: vi.fn(() => Promise.resolve()),
     resolvePermission: vi.fn(() => Promise.resolve(true)),
     savePersisted: vi.fn(() => Promise.resolve()),
@@ -49,7 +49,7 @@ function installRendererGlobals({ autoFrame = false } = {}): RendererGlobals {
   };
 
   vi.stubGlobal("localStorage", localStorage);
-  vi.stubGlobal("window", { kh });
+  vi.stubGlobal("window", { rw });
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
     frames.push(cb);
     if (autoFrame) {
@@ -59,7 +59,7 @@ function installRendererGlobals({ autoFrame = false } = {}): RendererGlobals {
   });
 
   return {
-    kh,
+    rw,
     flushNextFrame(timestamp = 0) {
       const cb = frames.shift();
       if (!cb) {
@@ -149,7 +149,7 @@ describe("store event ingestion", () => {
   });
 
   it("persists first session visits with repo-root wielder identity", async () => {
-    const { kh } = installRendererGlobals({ autoFrame: true });
+    const { rw } = installRendererGlobals({ autoFrame: true });
     const { useStore } = await loadStore();
 
     useStore.getState().ingest(
@@ -160,7 +160,7 @@ describe("store event ingestion", () => {
       })
     );
 
-    expect(kh.savePersisted).toHaveBeenCalledWith(
+    expect(rw.savePersisted).toHaveBeenCalledWith(
       expect.objectContaining({
         wielders: expect.objectContaining({
           "gemini::/repo": expect.objectContaining({
@@ -249,7 +249,7 @@ describe("store event ingestion", () => {
     ).toBe(false);
   });
 
-  it("updates combat, heartless, and munny state through tool events", async () => {
+  it("updates combat, riftling, and glimmer state through tool events", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0.1);
     installRendererGlobals({ autoFrame: true });
     const { useStore } = await loadStore();
@@ -267,8 +267,8 @@ describe("store event ingestion", () => {
     });
     expect(useStore.getState().worlds._repo).toMatchObject({
       alertLevel: "warning",
-      heartless: [expect.objectContaining({ targetUnitId: "session-1" })],
-      munny: 0,
+      riftling: [expect.objectContaining({ targetUnitId: "session-1" })],
+      glimmer: 0,
     });
 
     useStore.getState().ingest(
@@ -285,26 +285,26 @@ describe("store event ingestion", () => {
     );
 
     expect(useStore.getState().worlds._repo).toMatchObject({
-      heartless: [],
-      munny: 5,
+      riftling: [],
+      glimmer: 5,
     });
     expect(useStore.getState().units["session-1"]).toMatchObject({
       status: "idle",
     });
   });
 
-  it("debounces persisted total munny updates from store subscriptions", async () => {
+  it("debounces persisted total glimmer updates from store subscriptions", async () => {
     vi.useFakeTimers();
-    const { kh } = installRendererGlobals();
+    const { rw } = installRendererGlobals();
     const { useStore } = await loadStore();
     const world: WorldState = {
       id: "_repo",
       path: "/repo",
       label: "repo",
       unitIds: [],
-      heartless: [],
+      riftling: [],
       alertLevel: "idle",
-      munny: 25,
+      glimmer: 25,
     };
 
     useStore.setState({
@@ -313,15 +313,15 @@ describe("store event ingestion", () => {
       persisted: EMPTY_PERSISTED,
     });
 
-    expect(kh.savePersisted).not.toHaveBeenCalled();
+    expect(rw.savePersisted).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(999);
-    expect(kh.savePersisted).not.toHaveBeenCalled();
+    expect(rw.savePersisted).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
-    expect(kh.savePersisted).toHaveBeenCalledWith(
-      expect.objectContaining({ totalMunnyEver: 25 })
+    expect(rw.savePersisted).toHaveBeenCalledWith(
+      expect.objectContaining({ totalGlimmerEver: 25 })
     );
-    expect(useStore.getState().persisted.totalMunnyEver).toBe(25);
+    expect(useStore.getState().persisted.totalGlimmerEver).toBe(25);
   });
 });

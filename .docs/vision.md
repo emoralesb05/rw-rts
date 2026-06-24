@@ -1,4 +1,4 @@
-# keykeeper — Vision & Open Questions
+# Realmkeeper — Vision & Open Questions
 
 The strategic north star — philosophy, design model, locked decisions
 Q1–Q44, open questions, known gaps, and backlog. Forward-looking.
@@ -8,7 +8,7 @@ For **tactical per-feature plans**, see [`./plans/`](./plans/).
 For **how things are built today**, see [`./architecture/`](./architecture/) and [`./providers/`](./providers/).
 For **vocabulary**, see [`./glossary.md`](./glossary.md).
 
-> Repo dir on disk is still `kh-rts/` — npm package is `keykeeper`.
+> Repo directory name is the checkout owner's call — npm package is `realmkeeper`.
 
 ## Table of contents
 
@@ -30,18 +30,18 @@ For **vocabulary**, see [`./glossary.md`](./glossary.md).
 
 ## TL;DR
 
-**keykeeper is a Kingdom-Hearts-themed *agent watch room* — a Sims-style
-spectator strategy app where the player is the King at Disney Castle, their
-keyblade wielders (Claude / Cursor / Codex sessions) are out clearing worlds
+**Realmkeeper is a Realm Wardens-themed *agent watch room* — a Sims-style
+spectator strategy app where the player is the King at Crown Citadel, their
+realm wardens (Claude / Cursor / Codex sessions) are out clearing worlds
 (repos), and the player nudges, dispatches, and witnesses rather than
 commanding tick-by-tick.**
 
-Real agent activity drives autonomous Sim behavior. v1 verbs are strictly
+Real agent activity auras autonomous Sim behavior. v1 verbs are strictly
 gentle (Dispatch, Send word, Comfort, Recall, Seal). Phase 2B adds a
 sixth — **Decree** (directive: target file/function/command) — kept
 visually distinct so the spectator-strategy tone holds while the directive
 flow is first-class. The visual goal is a distinctive, atmospheric stylized
-2D look (currently: hi-res painterly pixel-art keybladers on a 2D iso plane,
+2D look (currently: hi-res painterly pixel-art wardens on a 2D iso plane,
 with CRT + bloom + vignette filter pipeline).
 
 ---
@@ -77,20 +77,20 @@ Explicitly **not** building, even if adjacent products do:
   workflow today; shared kingdoms is deferred until a real teammate use
   case emerges (Q33–Q35).
 - **Skill Scrolls / Achievements / Race Skins gamification** — too gamey
-  for the KH-Sims tone.
+  for the RW-Sims tone.
 - **Integrated PTY terminal in the HUD** — the King doesn't open a
   shell; wielders do.
 - **Cross-platform investment** — macOS-first (Q3); other platforms
   work but untested.
-- **Real-time win/lose mechanics** — Heartless and Drives are flavor
+- **Real-time win/lose mechanics** — Riftling and Auras are flavor
   for narrative texture, not balanced game systems.
 
 ### Player fantasy
 
-> *You are the King at Disney Castle. Your kingdom is your repos. Each
-> world's heart is clouded by tasks; Heartless are the errors and blockers.
-> You dispatch keyblade wielders to clear them, receive their reports, summon
-> help when worlds fall, and seal each cleared world's keyhole when its
+> *You are the King at Crown Citadel. Your kingdom is your repos. Each
+> world's heart is clouded by tasks; Riftling are the errors and blockers.
+> You dispatch realm wardens to clear them, receive their reports, summon
+> help when worlds fall, and seal each cleared world's realm seal when its
 > story is done.*
 
 ---
@@ -114,7 +114,7 @@ work as a thing-in-the-corner-of-your-monitor, not a thing-you-stare-at.
 
 ## Scenes
 
-> **Q40 (2026-04-28):** the original three scenes (Throne / Gummi /
+> **Q40 (2026-04-28):** the original three scenes (Throne / Realm /
 > Arena) collapsed into a single unified Star Chart canvas. The
 > KingdomScene below is what runs today.
 
@@ -135,19 +135,19 @@ Filter pipeline runs scene-wide:
 - **Tier 1 (always on):** scanline + bloom + per-scene color grade +
   vignette
 - **Tier 2 (per-world atmospherics):** drifting cyan ribbons in
-  Destiny Islands, flickering ember pools in Halloween Town, counter-
-  rotating purple arcs in Hollow Bastion
+  Tide Isles, flickering ember pools in Lantern Hollow, counter-
+  rotating purple arcs in Glass Bastion
 - **Tier 3 (event pulses):** barrel-pinch + pixelate spike on KO,
-  golden bloom flare on keyhole seal
+  golden bloom flare on realm seal
 
 Per-wielder rendering: hi-res painterly pixel-art sprite (~290×200,
-scaled to fit the iso plane), drive-form aura, FF14 nameplate-style
+scaled to fit the iso plane), aura ring, MMO-style
 HP/MP bars at the feet (multi-modal critical-HP feedback: red fill +
-red border + bobbing "!" alert), KH-flavored speech bubbles per
+red border + bobbing "!" alert), Realm Wardens speech bubbles per
 archetype (Vaelen brooding / Selene gentle / Ryder bold / Lyris
 wayfinder) on session_start / subagent_spawn / permission_request /
-session_end success / KO / error. Drive forms (Valor / Wisdom /
-Final) trigger activation flashes; subagent tether visualizes parent-
+session_end success / KO / error. Aura states (Guard / Focus /
+Link) trigger activation flashes; subagent tether visualizes parent-
 child relationships.
 
 ### HUD overlay
@@ -155,14 +155,14 @@ child relationships.
 FFXIV-style four-corner HUD on top of the canvas. Each widget is an
 absolute-positioned glass pane (translucent dark panel + accent
 border) with a collapsible header. State persists per widget via
-localStorage (`keykeeper:hud:collapsed:<title>`).
+localStorage (`realmkeeper:hud:collapsed:<title>`).
 
-- **Top-center: KingdomHeader pill** — `⌬ Keykeeper · ✦ N sealed · ⚔ N
-  wielders · µ N · founded Nd ago · 🔊 ⚙`. Mute toggle + ⚙ opens the
+- **Top-center: KingdomHeader pill** — `⌬ Realmkeeper · ✦ N sealed · ⚔ N
+  wielders · ✧ N · founded Nd ago · 🔊 ⚙`. Mute toggle + ⚙ opens the
   Kingdom panel. Replaces the old top toolbar.
 - **Top-left: WielderHUD** — party list with role-colored portrait,
   name, tool pill, behavior-class chip (Tank/Healer/DPS/Roamer), HP/
-  MP stacked bars, status icons (drive / casting / standing-order /
+  MP stacked bars, status icons (aura / casting / standing-order /
   HP-critical), live cast bar, 💬 chat shortcut, `+ DISPATCH` button.
   Hides ghosted wielders by default with a `✦ N` toggle.
 - **Top-right: AlertsHUD** — orange-toned. Permission-request letters
@@ -204,8 +204,8 @@ Cmd+Shift+W or the `✕ close N` chip closes all open panels.
 
 ### Worlds
 
-6 themed worlds assigned by hash of repo root: Disney Castle, Hollow
-Bastion, Traverse Town, Destiny Islands, Twilight Town, Halloween
+6 themed worlds assigned by hash of repo root: Crown Citadel, Hollow
+Bastion, Crossroads Ward, Tide Isles, Dusk Borough, Halloween
 Town. Pixel-art landmarks at 64×64. Per-theme atmospherics + signature
 decorations + color grade.
 
@@ -226,15 +226,15 @@ decorations + color grade.
 |---|---|
 | **Dispatch a wielder** | spawn agent (claude/cursor/codex) with prompt |
 | **Send word** | gentle follow-up prompt to a working agent (free-text only) |
-| **⚜ Decree** | directive command — pick file / function / shell command, send as structured prompt. **Standing Order** sub-mode: same composer with an interval picker → recurring decree (cron-for-prompts). KH-flavored as a royal proclamation. |
-| **Comfort** | restore HP/MP for a small munny cost |
+| **⚜ Decree** | directive command — pick file / function / shell command, send as structured prompt. **Standing Order** sub-mode: same composer with an interval picker → recurring decree (cron-for-prompts). Realm Wardens as a royal proclamation. |
+| **Comfort** | restore HP/MP for a small glimmer cost |
 | **Recall** | kill agent |
-| **Seal the keyhole** | mark world done — manual seal button or session_end prompt |
+| **Seal the realm** | mark world done — manual seal button or session_end prompt |
 
 **Decision moments** (small simulation layer that watches the event stream
 for signals that *require* the player's attention):
 
-- HP critical (< 25%) → modal: *Comfort Sora? (50µ)* or let them KO
+- HP critical (< 25%) → modal: *Comfort this wielder? (50✧)* or let them KO
 - Stuck loop (3+ same tool with no progress) → *Send a Hint?* prompt
 - Subagent timeout → *Recall or wait?*
 
@@ -249,15 +249,15 @@ it's a screensaver.
 |---|---|
 | World | Repo (resolved by `.git/` ancestor walk) |
 | Wielder | Agent session — identity = `(tool, repoRoot)` tuple |
-| Wielder visual role | One of **4 keybladers**: Vaelen (purple, Guardian of Twilight) / Selene (pink, Dreamweaver) / Ryder (orange, Warden of Iron) / Lyris (cyan, Wanderer of the Sea). Hash-assigned per `(tool, repoRoot)`. |
-| Heartless | Errors — Shadow / Soldier / Large Body, mix per-theme |
-| Munny | Successful tool-call count × 5 |
-| Drive Form | Tool-streak reward (transient flash — Valor / Wisdom / Final) |
+| Wielder visual role | One of **4 wardens**: Vaelen (purple, Guardian of Twilight) / Selene (pink, Dreamweaver) / Ryder (orange, Warden of Iron) / Lyris (cyan, Wanderer of the Sea). Hash-assigned per `(tool, repoRoot)`. |
+| Riftling | Errors — Shadow / Soldier / Bulwark, mix per-theme |
+| Glimmer | Successful tool-call count × 5 |
+| Aura state | Tool-streak reward (transient flash — Guard / Focus / Link) |
 | Focus | Steady gauge — visible on Throne Room card |
 | Mood | `eager / focused / fatigued / desperate / triumphant / fallen / complete` — drives idle anim and Throne card display |
-| Keyhole sealed | Manual seal button or session_end prompt → fanfare + permanent gold-keyhole on planet |
+| Realm sealed | Manual seal button or session_end prompt → fanfare + permanent gold realm-seal on planet |
 | Bond | Subagent parent-child relationship → tether visual, throne nesting, shared Focus regen, composite-form banners |
-| Memory | Per-wielder persistent log: visit / seal / fall counts + lifetime munny |
+| Memory | Per-wielder persistent log: visit / seal / fall counts + lifetime glimmer |
 | Renown | Derived stat (`visit + seal×3 − fall×2`), star-rank tiers New / Apprentice / Veteran / Hero |
 | **Quest** | Per-prompt heroic-named task with summary on completion. Tracks duration / tokens / lines / subagents. Persisted indefinitely. (Phase 2A polish, deferred — see Backlog.) |
 | **Standing Order** | Persisted recurring Decree (interval, prompt, optional max-iterations / cost cap). |
@@ -268,15 +268,15 @@ For exact TypeScript shapes (`UnitState`, `PersistedState`, etc.) see [`./archit
 
 ## Visual direction
 
-Distinctive, atmospheric stylized 2D look. Painterly hi-res keybladers
-+ 32×32 pixel-art Heartless + 64×64 pixel-art landmarks + iso ground
+Distinctive, atmospheric stylized 2D look. Painterly hi-res wardens
++ 32×32 pixel-art Riftling + 64×64 pixel-art landmarks + iso ground
 tiles. Per-world theme swap. Time-of-day cycle. Global filter pipeline
 (CRT + bloom + vignette) ties the mixed resolutions together.
 
 **Implementation diverged from Q15's locked plan.** Q15 said "true 32×32
-pixel-art keybladers"; in practice the keybladers are hi-res painterly
+pixel-art wardens"; in practice the wardens are hi-res painterly
 (~290×200 per frame, 32-frame sheets), closer to the original Path B
-recommendation. The Heartless and landmarks are 32×32 pixel-art as
+recommendation. The Riftling and landmarks are 32×32 pixel-art as
 specified. Q15 is treated as superseded by the actual shipped pipeline.
 
 ### Tier 1 — Atmosphere (always-on)
@@ -288,21 +288,21 @@ signature decoration).
 
 ### Tier 2 — Per-world atmospherics
 
-Water for Destiny Islands, fire for Halloween Town, magic energy for
-drives + casts.
+Water for Tide Isles, fire for Lantern Hollow, magic energy for
+auras + casts.
 
 ### Tier 3 — Event pulses
 
 Heat haze (seal fanfare, summons), chromatic aberration (KO,
 critical HP pulse), barrel-pinch spike on KO, golden bloom flare on
-keyhole seal.
+realm seal.
 
 ### Sprite paths
 
-- **Keybladers**: painterly hi-res pixel-art at ~290×200/frame, 32-frame
+- **Wardens**: painterly hi-res pixel-art at ~290×200/frame, 32-frame
   sheets (idle × 3 facings, walk × 3 facings, attack, cast). Sourced via
   AI generation + concept-art extraction pipeline.
-- **Heartless**: 32×32 pixel-art per Path A. 8-frame sheets (idle bob,
+- **Riftling**: 32×32 pixel-art per Path A. 8-frame sheets (idle bob,
   swing/lunge).
 - **Landmarks**: 64×64 pixel-art per Path A. One per theme.
 - **Tiles**: iso diamond pixel-art per Path A.
@@ -346,7 +346,7 @@ flagged as superseded with a pointer).
 
 ### Direction & framing
 
-1. **Sims-KH or something else?** — **Sims-KH locked for v1; expanded
+1. **Sims-RW or something else?** — **Sims-RW locked for v1; expanded
    for Phase 2B.** Player nudges autonomous wielders. Original v1 verbs
    were strictly gentle (suggest, comfort, dispatch). Updated 2026-04-28:
    real workflow has a directive component (target files/functions/
@@ -354,9 +354,9 @@ flagged as superseded with a pointer).
    **Decree** as a sixth verb — kept visually distinct from gentle verbs
    (gold sigil, formal framing). Still not tick-by-tick RTS commanding;
    closer to a King issuing formal proclamations.
-2. **Name?** — **`keykeeper` locked.** Renames `package.json` "name",
-   user-data path, README copy. Repo directory name is the user's call —
-   can stay `kh-rts` on disk.
+2. **Name?** — **Realmkeeper locked.** Package name is `realmkeeper`;
+   user-data path, README copy, and app title use the same product
+   spelling. Repo directory name is the user's call.
 3. **Audience?** — **Hybrid (private but tidy) locked.** Built for
    personal use, but commit cleanly with an honest README. macOS-first,
    no cross-platform investment, no elaborate onboarding. Re-opened by
@@ -370,7 +370,7 @@ flagged as superseded with a pointer).
    (no separate Throne canvas). React side panel + Phaser unified map
    share the Zustand store.
 5. **Default scene on app open** — **Superseded by Q40.** Original v1
-   design (3-scene Throne / Gummi / Arena with cinematic dive) replaced
+   design (3-scene Throne / Realm / Arena with cinematic dive) replaced
    with a single pan/zoom unified-map. See Q40.
 6. **Letter feed** — **Locked.** Three tiers:
    - **Critical** (red, pulses throne attention indicator): error, HP <
@@ -378,7 +378,7 @@ flagged as superseded with a pointer).
    - **Important** (gold, no pulse): session_end, world cleared, world →
      danger, subagent_spawn
    - **Notable** (cyan, only if no critical/important in last 60s):
-     drive activated, session_start, stuck-loop detected (offers "Send a
+     aura activated, session_start, stuck-loop detected (offers "Send a
      Hint?")
    - Background events (tool_use / result / assistant_text / user_prompt)
      never become letters; they live in the chat panel.
@@ -393,28 +393,28 @@ flagged as superseded with a pointer).
    - Top of Throne Room: **Dispatch** (kingdom-wide spawn — opens
      world/tool/role picker)
    - Per-wielder card: **Send word**, **♥ Comfort**, **× Recall**
-   - Per-world (in throne, gummi map, world arena header): **Seal**
+   - Per-world (in throne, realm map, world arena header): **Seal**
      verb when the world is eligible.
    The card layout is its own command panel — actions sit where you're
    already looking. No modal-soup of "pick a wielder, pick an action".
 
 ### Player verbs
 
-8. **Comfort cost & cooldown** — **Defaults locked.** 50µ per use,
+8. **Comfort cost & cooldown** — **Defaults locked.** 50✧ per use,
    +30 HP, 30s cooldown per wielder. Available when HP < 100 and status
-   ≠ fallen. KH Cure chime + small green bell + sparkles visual.
+   ≠ fallen. RW Cure chime + small green bell + sparkles visual.
    Cura/Curaga tiers deferred to polish phase.
-9. **Seal the keyhole trigger** — **Locked. No git/PR auto-detection.**
+9. **Seal the realm trigger** — **Locked. No git/PR auto-detection.**
    The King decides. Flow:
-   - **session_end (HP > 0)**: Important letter — *"Sora finished session
-     in kh-rts. Plan complete?"* with `[✦ Seal keyhole]` and `[↻ Iterate]`.
-     Seal → cinematic fanfare + permanent gold keyhole. Iterate → opens
+   - **session_end (HP > 0)**: Important letter — *"The wielder finished
+     the session in realmkeeper. Plan complete?"* with `[✦ Seal realm]` and
+     `[↻ Iterate]`. Seal → cinematic fanfare + permanent gold sigil. Iterate → opens
      "Send word" modal pre-filled with a clarification template.
-   - **session_end (HP = 0)**: Critical letter — *"Sora fell in kh-rts.
-     World needs help."* with `[Dispatch new wielder]` and `[Dismiss]`.
-     World stays unsealed + visibly fallen on gummi map.
+   - **session_end (HP = 0)**: Critical letter — *"The wielder fell in
+     realmkeeper. World needs help."* with `[Dispatch new wielder]` and `[Dismiss]`.
+     World stays unsealed + visibly fallen on realm map.
    - **Per-world Seal button** always available as manual fallback.
-   - **Visual**: KH light beam + gold keyhole materialization + chime.
+   - **Visual**: RW light beam + gold realm seal materialization + chime.
 10. **Decision moment thresholds** — **Locked starter values.** Easy to
     tune later by feel.
     - HP < 25% → Critical letter, suggests Comfort
@@ -423,28 +423,28 @@ flagged as superseded with a pointer).
       *"Send a Hint?"* with Send word action
     - Subagent quiet > 5 min → Important letter `[Recall] [Wait]`
     - World alert → danger transition → Important letter (one-shot)
-    - Drive activated → Notable letter (info, no action needed)
+    - Aura activated → Notable letter (info, no action needed)
 
 ### State & persistence
 
 11. **Where does persistent state live?** — **JSON file locked.** Path:
-    `~/.keykeeper/state.json`. Read on
+    `~/.realmkeeper/state.json`. Read on
     startup, debounced writes (200ms after last change). SQLite reserved
     for if/when we add replay or leaderboards.
 12. **What persists across sessions?** — **Locked.**
     - **Wielder identity** = `(tool, cwd-resolved-to-repo-root)` tuple.
-    - **Per wielder**: visit count, seal count, fall count, total munny
+    - **Per wielder**: visit count, seal count, fall count, total glimmer
       earned, last seen
     - **Per world**: sealed state, total seals, last visit, total
       clears, total falls
-    - **Kingdom-wide**: total munny vault (lifetime), sealed-worlds
+    - **Kingdom-wide**: total glimmer vault (lifetime), sealed-worlds
       count, kingdom founded timestamp
     - **Mute list** stays in localStorage (renderer-only)
     - **Not persisted**: live HP / MP / Focus, active sessions, live
-      heartless, active letters, selection
+      riftling, active letters, selection
     - **Renown stat** (derived from persisted fields).
     - **Reset path**: a "Reset Kingdom" verb in settings, or `rm
-      ~/.keykeeper/state.json`.
+      ~/.realmkeeper/state.json`.
 
     > **Phase 2B addition**: **Quests** persist indefinitely as a per-
     > `(tool, repoRoot)` array of records. Cap at e.g. 200 most-recent
@@ -461,14 +461,14 @@ flagged as superseded with a pointer).
     - 0–3 min: bright daylight, cool blue tint
     - 3–10 min: warm afternoon, amber
     - 10–20 min: sunset orange, long shadows
-    - 20+ min: dusk/night, lamp posts brighter, drive auras pop more
+    - 20+ min: dusk/night, lamp posts brighter, aura rings pop more
 
 ### Visuals
 
 15. **Sprite path** — **A (pixel art) locked → SUPERSEDED in
-    practice.** Original lock: true 32×32 pixel-art keybladers. Actual
-    implementation diverged: keybladers are hi-res painterly pixel-art
-    sourced via AI-generation + concept-art extraction. Heartless,
+    practice.** Original lock: true 32×32 pixel-art wardens. Actual
+    implementation diverged: wardens are hi-res painterly pixel-art
+    sourced via AI-generation + concept-art extraction. Riftling,
     landmarks, and iso tiles followed Path A. Treat Q15 as historical
     context.
 16. **Atmosphere pass first?** — **Yes, locked.** Path-agnostic visual
@@ -486,7 +486,7 @@ flagged as superseded with a pointer).
 ### Audio
 
 19. **Music style** — **Chiptune via Web Audio synth locked.** Pairs
-    with path A pixel art (KH:CoM GBA precedent). Ambient-leaning,
+    with path A pixel art (RW:CoM GBA precedent). Ambient-leaning,
     sparse phrases. Default volume 30% for ambient, mutable via 🔊
     toggle.
 20. **SFX** — **Web Audio synth locked, library expanded.** Cohesive
@@ -505,7 +505,7 @@ flagged as superseded with a pointer).
 ### Engineering
 
 25. **Renderer / process model** — No change. Throne Room is React/
-    HTML, gummi + arena are Phaser canvas. Already mixed cleanly via
+    HTML, realm + arena are Phaser canvas. Already mixed cleanly via
     App.tsx.
 26. **Phaser 4 filter pipeline** — Will validate as the first task of
     the atmosphere pass.
@@ -547,7 +547,7 @@ open questions go below.
     architected via the **Vercel AI SDK** as a provider-agnostic
     abstraction. Quest naming lives in `src/main/quest-namer.ts` with
     one function: `nameQuest(prompt, eventLog) → { name, recap }`.
-    User provides Anthropic API key in keykeeper settings; if missing,
+    User provides Anthropic API key in Realmkeeper settings; if missing,
     fall back to raw-prompt-as-name. ~½¢/quest.
 37. **Standing Order — guardrails?** — **Locked.**
     - **Max iterations**: hard cap, default 24, overridable per Order.
@@ -561,7 +561,7 @@ open questions go below.
     primary; `@` opens file palette, `/` opens command palette. Decree
     owns its own composer distinct from Send word.
 40. **Unified-map architecture (replaces 3-scene drill-down)** —
-    **Locked 2026-04-28.** Replace Throne / Gummi / Arena tabs with a
+    **Locked 2026-04-28.** Replace Throne / Realm / Arena tabs with a
     single pan/zoom canvas (the "Star Chart").
 
     **Sub-decisions:**
@@ -649,7 +649,7 @@ The renderer drives high-impact APIs (spawn agents, install hooks,
 modify settings, resolve permissions). Today's hardening:
 
 - `will-navigate` + `setWindowOpenHandler` so external URLs open in
-  the OS browser, never inside the keykeeper renderer
+  the OS browser, never inside the Realmkeeper renderer
 - A `safeHandle` wrapper around every `ipcMain.handle` call that
   rejects requests originating from any frame other than our main
   window's top-level frame
@@ -684,9 +684,9 @@ Not urgent. Wait until cold-start time becomes annoying.
 
 ### Hook-observed sessions can't be controlled
 
-Today, send-word / recall / dispatch only work for sessions keykeeper
+Today, send-word / recall / dispatch only work for sessions realmkeeper
 spawned itself (`AgentManager.spawn` registers the proc). Hook-observed
-wielders (Claude/Cursor/Codex sessions started outside keykeeper) show
+wielders (Claude/Cursor/Codex sessions started outside realmkeeper) show
 up in the party list with full event history but the control verbs are
 no-ops — there's no proc handle to send into.
 
@@ -727,7 +727,7 @@ async would be a small perf win.
 Cursor's `cursor-agent --print --resume <chatId>` mode only fires
 `sessionEnd` — no `beforeSubmitPrompt`, no `afterAgentResponse`, no
 `preToolUse`/`postToolUse`. The conversation lands correctly in the
-chat database but keykeeper sees nothing of the live event stream.
+chat database but Realmkeeper sees nothing of the live event stream.
 
 Workaround in [`./plans/observed-resume.md`](./plans/observed-resume.md):
 capture the assistant reply on stdout from `--print`, synthesize

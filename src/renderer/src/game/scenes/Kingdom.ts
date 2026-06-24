@@ -1,7 +1,7 @@
 /**
  * KingdomScene — the unified Star Chart.
  *
- * Replaces the old 3-scene drill-down (Throne / Gummi / Arena) with a single
+ * Replaces the old 3-scene drill-down (Throne / Realm / Arena) with a single
  * pan/zoom canvas where a central base, every world, and active agents are
  * visible simultaneously. Camera controls: drag-pan with mouse, scroll-wheel
  * zoom. Click a world to select its first wielder + pan camera to it.
@@ -13,7 +13,7 @@
  * - Q40.4 Zoom-out rendering: single rendering scaled by camera (no LoD steps).
  *
  * Spike scope: planet rendering + atmosphere + camera control. Iso-plane
- * rendering + wielder sprites + heartless will be ported from World.ts in
+ * rendering + wielder sprites + riftling will be ported from World.ts in
  * subsequent iterations (tasks #14, #15, #16).
  */
 
@@ -26,9 +26,9 @@ import type {
   WielderStats,
   WorldState,
   WorldAlertLevel,
-  DriveForm,
+  WardenAura,
 } from "@shared/events";
-import { themeFor, themeLabel, type WorldTheme } from "../gummi-worlds";
+import { themeFor, themeLabel, type WorldTheme } from "../realm-worlds";
 import { ROLE_PALETTE } from "../units";
 import {
   UNIT_ROLES,
@@ -45,7 +45,7 @@ import {
   hasOverride,
   ANIM,
 } from "../sprite-assets";
-import { drawShadow, type HeartlessRef } from "../heartless";
+import { drawShadow, type RiftlingRef } from "../riftling";
 import { pickBarkLine, type BarkKind } from "../wielder-barks";
 import {
   activityColorForTheme,
@@ -65,16 +65,16 @@ import {
   type TacticalPoint,
   type TacticalRect,
 } from "../tactical-map";
-import type { Heartless } from "@shared/events";
+import type { Riftling } from "@shared/events";
 
-// Drive form aura colors — match the KH visual language.
-const DRIVE_COLORS: Record<DriveForm, number> = {
-  valor: 0xff5a3c, // red
-  wisdom: 0x6cc6ff, // blue
-  final: 0xffd86b, // gold
+// Aura-state colors — match the RW visual language.
+const AURA_COLORS: Record<WardenAura, number> = {
+  guard: 0xff5a3c,
+  focus: 0x6cc6ff,
+  link: 0xffd86b,
 };
 
-const SCANLINE_TEX = "kh-kingdom-scanlines";
+const SCANLINE_TEX = "rw-realm-scanlines";
 
 // Per-world iso plane geometry. Smaller than the legacy WorldScene grid
 // (was 12×12 with TILE_W=96/TILE_H=48); shrunk to fit cluster spacing.
@@ -111,12 +111,12 @@ const CAMERA_WORLD_PAD_X = 140;
 const CAMERA_WORLD_PAD_Y = 120;
 const ORDER_DASH = 14;
 const ORDER_GAP = 9;
-const HEARTLESS_ATTACK_COOLDOWN_MS = 1500;
-const HEARTLESS_ATTACK_RANGE = 34;
-const HEARTLESS_SPEED: Record<Heartless["type"], number> = {
+const RIFTLING_ATTACK_COOLDOWN_MS = 1500;
+const RIFTLING_ATTACK_RANGE = 34;
+const RIFTLING_SPEED: Record<Riftling["type"], number> = {
   shadow: 44,
   soldier: 34,
-  large_body: 23,
+  bulwark: 23,
 };
 
 const ORDER_LABELS: Record<WorldActivityKind, string> = {
@@ -157,37 +157,37 @@ type BiomePalette = {
 };
 
 const THEME_BIOMES: Record<WorldTheme, BiomePalette> = {
-  disney: {
+  citadel: {
     ground: 0x244d83,
     accent: 0xffd86b,
     lane: 0x9fd4ff,
     shadow: 0x09152b,
   },
-  hollow: {
+  bastion: {
     ground: 0x251448,
     accent: 0xc9a4ff,
     lane: 0xffd86b,
     shadow: 0x070718,
   },
-  traverse: {
+  crossroads: {
     ground: 0x3c2831,
     accent: 0xffb86c,
     lane: 0xffd86b,
     shadow: 0x120b17,
   },
-  destiny: {
+  tide: {
     ground: 0x123b58,
     accent: 0x6cc6ff,
     lane: 0xf6d6a8,
     shadow: 0x061522,
   },
-  twilight: {
+  dusk: {
     ground: 0x4a223a,
     accent: 0xff9fb5,
     lane: 0xffd86b,
     shadow: 0x180a1c,
   },
-  halloween: {
+  lantern: {
     ground: 0x281239,
     accent: 0xff7a4a,
     lane: 0xc9a4ff,
@@ -196,12 +196,12 @@ const THEME_BIOMES: Record<WorldTheme, BiomePalette> = {
 };
 
 const THEME_TILE_TINT: Record<WorldTheme, [number, number]> = {
-  disney: [0xc9ddff, 0x9fc2ff],
-  hollow: [0x7a5db7, 0x4b367f],
-  traverse: [0xd08a4f, 0x9d5f36],
-  destiny: [0xf4d5a4, 0x8ed5ff],
-  twilight: [0xf2a0ad, 0xb77aa0],
-  halloween: [0x7c5a9f, 0x4c2c66],
+  citadel: [0xc9ddff, 0x9fc2ff],
+  bastion: [0x7a5db7, 0x4b367f],
+  crossroads: [0xd08a4f, 0x9d5f36],
+  tide: [0xf4d5a4, 0x8ed5ff],
+  dusk: [0xf2a0ad, 0xb77aa0],
+  lantern: [0x7c5a9f, 0x4c2c66],
 };
 
 // Per-theme landmark: at the center of the iso plane. Texture key
@@ -216,41 +216,41 @@ const THEME_ACCENTS: Record<
   WorldTheme,
   { tx: number; ty: number; scale: number; alpha: number }[]
 > = {
-  disney: [
+  citadel: [
     { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
     { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
     { tx: 0.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
     { tx: 4.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
     { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
   ],
-  hollow: [
+  bastion: [
     { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
     { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
     { tx: 1.2, ty: 1.2, scale: 0.5, alpha: 0.75 },
     { tx: 3.8, ty: 1.2, scale: 0.5, alpha: 0.75 },
   ],
-  traverse: [
+  crossroads: [
     { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
     { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
     { tx: 0.6, ty: 0.6, scale: 0.5, alpha: 0.7 },
     { tx: 4.4, ty: 0.6, scale: 0.5, alpha: 0.7 },
     { tx: 2.5, ty: 5.5, scale: 0.55, alpha: 0.75 },
   ],
-  destiny: [
+  tide: [
     { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
     { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
     { tx: 0.4, ty: 2.5, scale: 0.4, alpha: 0.65 },
     { tx: 4.6, ty: 2.5, scale: 0.4, alpha: 0.65 },
     { tx: 2.5, ty: 5.6, scale: 0.5, alpha: 0.7 },
   ],
-  twilight: [
+  dusk: [
     { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
     { tx: 4, ty: 4, scale: 0.6, alpha: 0.85 },
     { tx: 1.2, ty: 1.5, scale: 0.45, alpha: 0.65 },
     { tx: 3.8, ty: 1.5, scale: 0.45, alpha: 0.65 },
     { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
   ],
-  halloween: [
+  lantern: [
     { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
     { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
     { tx: 0.5, ty: 1, scale: 0.5, alpha: 0.8 },
@@ -269,12 +269,12 @@ type ThemeParticle = {
   size: number;
 };
 const THEME_PARTICLES: Record<WorldTheme, ThemeParticle> = {
-  disney: { color: 0xffd86b, count: 8, speed: 0.04, size: 1.2 }, // gold sparkle
-  hollow: { color: 0xc9a4ff, count: 12, speed: 0.06, size: 1.0 }, // dark embers
-  traverse: { color: 0xffd86b, count: 6, speed: 0.05, size: 1.2 }, // lamp dust
-  destiny: { color: 0xb3e0ff, count: 10, speed: 0.05, size: 1.0 }, // sea spray
-  twilight: { color: 0xffb86c, count: 8, speed: 0.05, size: 1.2 }, // dusk fireflies
-  halloween: { color: 0xff7a4a, count: 14, speed: 0.07, size: 1.2 }, // ash flecks
+  citadel: { color: 0xffd86b, count: 8, speed: 0.04, size: 1.2 }, // gold sparkle
+  bastion: { color: 0xc9a4ff, count: 12, speed: 0.06, size: 1.0 }, // dark embers
+  crossroads: { color: 0xffd86b, count: 6, speed: 0.05, size: 1.2 }, // lamp dust
+  tide: { color: 0xb3e0ff, count: 10, speed: 0.05, size: 1.0 }, // sea spray
+  dusk: { color: 0xffb86c, count: 8, speed: 0.05, size: 1.2 }, // dusk fireflies
+  lantern: { color: 0xff7a4a, count: 14, speed: 0.07, size: 1.2 }, // ash flecks
 };
 
 const ALERT_RING_COLOR: Record<WorldAlertLevel, number> = {
@@ -310,7 +310,7 @@ type WielderRef = {
   body: Phaser.GameObjects.Container;
   sprite?: Phaser.GameObjects.Sprite;
   glow: Phaser.GameObjects.Arc;
-  driveAura: Phaser.GameObjects.Arc;
+  auraRing: Phaser.GameObjects.Arc;
   // FF14 nameplate-style HP/MP bars stacked below the wielder. Each
   // bar is a dark track + a colored fill rectangle whose width we
   // scale per frame based on the unit's hp/mp fraction.
@@ -355,7 +355,7 @@ type WielderRef = {
   patrolNextSwitchAt: number;
   // Last-known status, for change detection (death/victory pose, etc).
   lastStatus: UnitState["status"];
-  lastDriveForm?: DriveForm;
+  lastWardenAura?: WardenAura;
   // Animation lockout — most recent event-driven anim trigger time.
   // Per-wielder so we don't spam attack/cast frames during bursts.
   lastEventAnimAt: number;
@@ -389,7 +389,7 @@ type WorldRef = {
   alertLevel: WorldAlertLevel;
   spawnedAt: number;
   wielders: Map<string, WielderRef>;
-  heartless: Map<string, HeartlessRef>;
+  riftling: Map<string, RiftlingRef>;
   particles: {
     circle: Phaser.GameObjects.Arc;
     vx: number;
@@ -488,21 +488,21 @@ export class KingdomScene extends Phaser.Scene {
     // Pixel-art landmarks (one per theme) + iso ground tiles. Same files
     // the legacy WorldScene loaded; KingdomScene now owns them.
     const themes: WorldTheme[] = [
-      "disney",
-      "hollow",
-      "traverse",
-      "destiny",
-      "twilight",
-      "halloween",
+      "citadel",
+      "bastion",
+      "crossroads",
+      "tide",
+      "dusk",
+      "lantern",
     ];
     for (const t of themes) {
       this.load.image(
         LANDMARK_TEX(t),
-        `/sprites/kh-default/${LANDMARK_TEX(t)}.png`
+        `/sprites/rw-default/${LANDMARK_TEX(t)}.png`
       );
     }
-    this.load.image("tile-iso-a", "/sprites/kh-default/tile-iso-a.png");
-    this.load.image("tile-iso-b", "/sprites/kh-default/tile-iso-b.png");
+    this.load.image("tile-iso-a", "/sprites/rw-default/tile-iso-a.png");
+    this.load.image("tile-iso-b", "/sprites/rw-default/tile-iso-b.png");
 
     // Wielder stills + animated spritesheets. Always load shipped
     // defaults; only attempt user override when the probe confirmed it
@@ -515,20 +515,20 @@ export class KingdomScene extends Phaser.Scene {
     }
     registerSpritesheetPreload(this);
 
-    // Heartless sheets — 32×32 frames, 8 per sheet.
+    // Riftling sheets — 32×32 frames, 8 per sheet.
     this.load.spritesheet(
-      "heartless-shadow-sheet",
-      "/sprites/kh-default/heartless-shadow_sheet.png",
+      "riftling-shadow-sheet",
+      "/sprites/rw-default/riftling-shadow_sheet.png",
       { frameWidth: 32, frameHeight: 32 }
     );
     this.load.spritesheet(
-      "heartless-soldier-sheet",
-      "/sprites/kh-default/heartless-soldier_sheet.png",
+      "riftling-soldier-sheet",
+      "/sprites/rw-default/riftling-soldier_sheet.png",
       { frameWidth: 32, frameHeight: 32 }
     );
     this.load.spritesheet(
-      "heartless-largebody-sheet",
-      "/sprites/kh-default/heartless-largebody_sheet.png",
+      "riftling-bulwark-sheet",
+      "/sprites/rw-default/riftling-bulwark_sheet.png",
       { frameWidth: 32, frameHeight: 32 }
     );
   }
@@ -716,10 +716,10 @@ export class KingdomScene extends Phaser.Scene {
         }
       });
     };
-    window.addEventListener("kh:event", eventHandler as EventListener);
+    window.addEventListener("rw:event", eventHandler as EventListener);
 
     this.events.once("shutdown", () => {
-      window.removeEventListener("kh:event", eventHandler as EventListener);
+      window.removeEventListener("rw:event", eventHandler as EventListener);
       this.worlds.clear();
       this.stars = [];
       this.base = undefined;
@@ -768,7 +768,7 @@ export class KingdomScene extends Phaser.Scene {
       ref.countText.setVisible(w.unitIds.length > 0);
       if (w.alertLevel !== ref.alertLevel) {
         ref.alertRing.setStrokeStyle(2.5, ALERT_RING_COLOR[w.alertLevel], 1);
-        // Tier 3 — golden bloom flare on keyhole seal (any → cleared).
+        // Tier 3 — golden bloom flare on realm seal seal (any → cleared).
         if (w.alertLevel === "cleared" && ref.alertLevel !== "cleared") {
           this.pulseSeal();
         }
@@ -790,11 +790,11 @@ export class KingdomScene extends Phaser.Scene {
       }
       this.tickWorldStateLayer(ref, w, units);
 
-      // Sync wielders + heartless for this world.
+      // Sync wielders + riftling for this world.
       this.syncWieldersFor(ref, w, units, delta);
-      this.syncHeartlessFor(ref, w);
+      this.syncRiftlingFor(ref, w);
       if (this.isWorldNearViewport(ref)) {
-        this.tickHeartlessCombat(ref, w, units, delta);
+        this.tickRiftlingCombat(ref, w, units, delta);
         // Time-of-day tint per-world based on session age.
         this.updateTimeOfDay(ref);
         // Drift particles inside this world's iso footprint.
@@ -879,7 +879,7 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
-  // Golden bloom flare when a world's keyhole is sealed.
+  // Golden bloom flare when a world's realm seal is sealed.
   private pulseSeal() {
     const bloom = this.bloomFilter;
     if (!bloom) return;
@@ -1402,7 +1402,7 @@ export class KingdomScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(69);
     const wave = kind === "error" ? 0.3 : kind === "success" ? 0.85 : 0.55;
 
-    if (ref.role === "keyblader1") {
+    if (ref.role === "warden1") {
       g.lineStyle(5, 0x020713, 0.42);
       g.lineBetween(fromX, fromY, toX, toY);
       g.lineStyle(2.2, color, 0.78);
@@ -1413,7 +1413,7 @@ export class KingdomScene extends Phaser.Scene {
         Phaser.Math.Linear(fromY, toY, wave),
         3
       );
-    } else if (ref.role === "keyblader2") {
+    } else if (ref.role === "warden2") {
       g.lineStyle(1.6, color, 0.52);
       for (let i = 0; i < 3; i++) {
         g.strokeCircle(fromX, fromY + 10, 12 + i * 9);
@@ -1422,7 +1422,7 @@ export class KingdomScene extends Phaser.Scene {
       g.fillCircle(toX, toY, 20);
       g.lineStyle(2, color, 0.54);
       g.strokeCircle(toX, toY, 24);
-    } else if (ref.role === "keyblader3") {
+    } else if (ref.role === "warden3") {
       const angle = Math.atan2(toY - fromY, toX - fromX);
       const slashX = fromX + Math.cos(angle) * 28;
       const slashY = fromY + Math.sin(angle) * 18;
@@ -1649,14 +1649,14 @@ export class KingdomScene extends Phaser.Scene {
       centroid.y /= members.length;
       centroids.push({ key, ...centroid });
 
-      const theme = this.worlds.get(members[0].id)?.theme ?? "disney";
+      const theme = this.worlds.get(members[0].id)?.theme ?? "citadel";
       const palette = THEME_BIOMES[theme];
-      this.strokeGummiLane(g, 0, 0, centroid.x, centroid.y, palette.lane, 0.22);
+      this.strokeRealmLane(g, 0, 0, centroid.x, centroid.y, palette.lane, 0.22);
 
       if (members.length < 2) continue;
       for (const member of members) {
         const memberTheme = this.worlds.get(member.id)?.theme ?? theme;
-        this.strokeGummiLane(
+        this.strokeRealmLane(
           g,
           centroid.x,
           centroid.y,
@@ -1669,7 +1669,7 @@ export class KingdomScene extends Phaser.Scene {
       for (let i = 0; i < members.length; i++) {
         const a = members[i];
         const b = members[(i + 1) % members.length];
-        this.strokeGummiLane(g, a.x, a.y, b.x, b.y, 0x6cc6ff, 0.12, 1.2);
+        this.strokeRealmLane(g, a.x, a.y, b.x, b.y, 0x6cc6ff, 0.12, 1.2);
       }
     }
 
@@ -1678,11 +1678,11 @@ export class KingdomScene extends Phaser.Scene {
     for (let i = 0; i < centroids.length - 1; i++) {
       const a = centroids[i];
       const b = centroids[i + 1];
-      this.strokeGummiLane(g, a.x, a.y, b.x, b.y, 0xc9a4ff, 0.1, 1);
+      this.strokeRealmLane(g, a.x, a.y, b.x, b.y, 0xc9a4ff, 0.1, 1);
     }
   }
 
-  private strokeGummiLane(
+  private strokeRealmLane(
     g: Phaser.GameObjects.Graphics,
     x1: number,
     y1: number,
@@ -1742,7 +1742,7 @@ export class KingdomScene extends Phaser.Scene {
       if (
         read.state === "idle" &&
         world.unitIds.length === 0 &&
-        world.heartless.length === 0
+        world.riftling.length === 0
       ) {
         continue;
       }
@@ -1779,7 +1779,7 @@ export class KingdomScene extends Phaser.Scene {
       g.lineBetween(ux * start, uy * start, ux * end, uy * end);
 
       const packetCount = Phaser.Math.Clamp(
-        activeCount + world.heartless.length + (read.state === "hold" ? 2 : 1),
+        activeCount + world.riftling.length + (read.state === "hold" ? 2 : 1),
         read.state === "idle" ? 1 : 3,
         7
       );
@@ -1963,7 +1963,7 @@ export class KingdomScene extends Phaser.Scene {
       g.fillEllipse(x, y, 34 + (i % 4) * 12, 10 + (i % 3) * 5);
     }
 
-    if (theme === "destiny") {
+    if (theme === "tide") {
       g.lineStyle(1.4, palette.accent, 0.2);
       for (let band = 0; band < 4; band++) {
         const yBase = cy + radiusY * (-0.34 + band * 0.2);
@@ -1975,7 +1975,7 @@ export class KingdomScene extends Phaser.Scene {
         }
         g.strokePath();
       }
-    } else if (theme === "traverse") {
+    } else if (theme === "crossroads") {
       g.lineStyle(2, palette.accent, 0.16);
       g.lineBetween(cx - radiusX * 0.66, cy, cx + radiusX * 0.66, cy);
       g.lineBetween(cx, cy - radiusY * 0.42, cx, cy + radiusY * 0.42);
@@ -1988,7 +1988,7 @@ export class KingdomScene extends Phaser.Scene {
           cy + i * 28
         );
       }
-    } else if (theme === "hollow") {
+    } else if (theme === "bastion") {
       for (let i = 0; i < 7; i++) {
         const a = (i / 7) * Math.PI * 2 + seed * 0.001;
         const x = cx + Math.cos(a) * radiusX * 0.46;
@@ -1996,7 +1996,7 @@ export class KingdomScene extends Phaser.Scene {
         g.fillStyle(i % 2 === 0 ? palette.accent : palette.lane, 0.16);
         g.fillTriangle(x, y - 22, x - 10, y + 14, x + 11, y + 10);
       }
-    } else if (theme === "twilight") {
+    } else if (theme === "dusk") {
       g.lineStyle(1.2, palette.accent, 0.18);
       for (let i = 0; i < 3; i++) {
         g.strokeCircle(cx, cy, 42 + i * 34);
@@ -2004,7 +2004,7 @@ export class KingdomScene extends Phaser.Scene {
       g.lineStyle(2, palette.lane, 0.14);
       g.lineBetween(cx, cy, cx + radiusX * 0.24, cy - radiusY * 0.22);
       g.lineBetween(cx, cy, cx - radiusX * 0.15, cy + radiusY * 0.3);
-    } else if (theme === "halloween") {
+    } else if (theme === "lantern") {
       g.lineStyle(1.6, palette.accent, 0.2);
       for (let i = 0; i < 5; i++) {
         const x = cx - radiusX * 0.55 + i * radiusX * 0.28;
@@ -2205,7 +2205,7 @@ export class KingdomScene extends Phaser.Scene {
     }
 
     const center = this.baseIsoToLocal(BASE_GRID_W / 2, BASE_GRID_H / 2);
-    const tex = LANDMARK_TEX("disney");
+    const tex = LANDMARK_TEX("citadel");
     if (this.textures.exists(tex)) {
       const castle = this.add.image(center.x, center.y - 8, tex);
       castle.setOrigin(0.5, 1);
@@ -2614,7 +2614,7 @@ export class KingdomScene extends Phaser.Scene {
     const container = this.add.container(pos.x, pos.y);
 
     // Iso plane container — scaled down to fit cluster spacing. Holds
-    // tiles, landmark, atmospherics, and heartless. Wielders live on
+    // tiles, landmark, atmospherics, and riftling. Wielders live on
     // the scene-global agent layer and stage beside the world.
     const isoPlane = this.add.container(0, 0);
     isoPlane.setScale(ISO_CONTAINER_SCALE);
@@ -2737,7 +2737,7 @@ export class KingdomScene extends Phaser.Scene {
     // Drawn into a Graphics that's redrawn each frame from the theme's
     // routine. Themes without a signature treatment leave this undefined.
     let atmospherics: Phaser.GameObjects.Graphics | undefined;
-    if (theme === "destiny" || theme === "halloween" || theme === "hollow") {
+    if (theme === "tide" || theme === "lantern" || theme === "bastion") {
       atmospherics = this.add.graphics();
       atmospherics.setDepth(-12);
       isoPlane.add(atmospherics);
@@ -2764,7 +2764,7 @@ export class KingdomScene extends Phaser.Scene {
       alertLevel: world.alertLevel,
       spawnedAt: this.time.now,
       wielders: new Map(),
-      heartless: new Map(),
+      riftling: new Map(),
       particles: this.spawnWorldParticles(isoPlane, theme),
       atmospherics,
       atmosPhase: Math.random() * Math.PI * 2,
@@ -2793,7 +2793,7 @@ export class KingdomScene extends Phaser.Scene {
     g.lineStyle(1.4, palette.lane, 0.32);
     g.strokeEllipse(0, 10, ringRadius * 1.56, ringRadius * 0.68);
 
-    if (theme === "destiny") {
+    if (theme === "tide") {
       g.lineStyle(1.2, palette.accent, 0.38);
       for (let i = 0; i < 3; i++) {
         const yBase = 25 + i * 8;
@@ -2805,21 +2805,21 @@ export class KingdomScene extends Phaser.Scene {
         }
         g.strokePath();
       }
-    } else if (theme === "traverse") {
+    } else if (theme === "crossroads") {
       g.lineStyle(1.5, palette.accent, 0.28);
       g.lineBetween(-ringRadius * 0.7, 8, ringRadius * 0.7, 8);
       g.lineBetween(0, -ringRadius * 0.32, 0, ringRadius * 0.42);
-    } else if (theme === "hollow") {
+    } else if (theme === "bastion") {
       g.fillStyle(palette.accent, 0.22);
       g.fillTriangle(-42, 4, -28, -28, -12, 8);
       g.fillTriangle(38, 8, 50, -20, 62, 12);
-    } else if (theme === "twilight") {
+    } else if (theme === "dusk") {
       g.lineStyle(1.2, palette.accent, 0.24);
       g.strokeCircle(0, 2, 44);
       g.strokeCircle(0, 2, 62);
       g.lineBetween(0, 2, 26, -24);
       g.lineBetween(0, 2, -18, 30);
-    } else if (theme === "halloween") {
+    } else if (theme === "lantern") {
       g.lineStyle(1.4, palette.accent, 0.32);
       g.beginPath();
       g.moveTo(-64, 28);
@@ -2884,7 +2884,7 @@ export class KingdomScene extends Phaser.Scene {
     }
     if (
       world.alertLevel === "danger" ||
-      world.heartless.length >= 3 ||
+      world.riftling.length >= 3 ||
       fallenCount > 0 ||
       recentKind === "error"
     ) {
@@ -2892,7 +2892,7 @@ export class KingdomScene extends Phaser.Scene {
         state: "pressure",
         color: WORLD_STATE_COLORS.pressure,
         intensity: Phaser.Math.Clamp(
-          0.42 + world.heartless.length * 0.08 + fallenCount * 0.14,
+          0.42 + world.riftling.length * 0.08 + fallenCount * 0.14,
           0.42,
           0.9
         ),
@@ -2907,7 +2907,7 @@ export class KingdomScene extends Phaser.Scene {
     }
     if (
       world.alertLevel === "warning" ||
-      world.heartless.length > 0 ||
+      world.riftling.length > 0 ||
       activeCount > 0
     ) {
       return {
@@ -3100,7 +3100,7 @@ export class KingdomScene extends Phaser.Scene {
     const danger =
       world.alertLevel === "danger" ||
       world.alertLevel === "warning" ||
-      world.heartless.length > 0;
+      world.riftling.length > 0;
     const fineAlpha = this.fineDetailAlpha();
     if (fineAlpha < 0.08 && !danger) return;
     g.setAlpha(Math.max(fineAlpha, danger ? 0.34 : 0));
@@ -3156,7 +3156,7 @@ export class KingdomScene extends Phaser.Scene {
     if (danger) {
       g.lineStyle(1.4, 0xff5a3c, 0.16 + worldPulse * 0.18);
       g.strokeEllipse(0, 12, 236 + worldPulse * 22, 116 + worldPulse * 10);
-      for (let i = 0; i < Math.min(world.heartless.length, 5); i++) {
+      for (let i = 0; i < Math.min(world.riftling.length, 5); i++) {
         const a = this.t * 1.4 + i * ((Math.PI * 2) / 5);
         g.fillStyle(0xff5a3c, 0.3 + worldPulse * 0.2);
         g.fillTriangle(
@@ -3184,7 +3184,7 @@ export class KingdomScene extends Phaser.Scene {
     const halfW = (ISO_GRID * ISO_TILE_W) / 2;
     const halfH = (ISO_GRID * ISO_TILE_H) / 2;
     const phase = worldRef.atmosPhase;
-    if (worldRef.theme === "destiny") {
+    if (worldRef.theme === "tide") {
       // Water — three sine wave ribbons drifting along the bottom edge.
       // Cyan, low alpha. Period staggered between ribbons so they don't
       // pulse in lockstep.
@@ -3202,7 +3202,7 @@ export class KingdomScene extends Phaser.Scene {
         }
         g.strokePath();
       }
-    } else if (worldRef.theme === "halloween") {
+    } else if (worldRef.theme === "lantern") {
       // Fire — two flickering ember pools at the landmark base, plus a
       // jittery glow ring.
       const flick1 = 0.7 + 0.3 * Math.sin(phase * 6);
@@ -3218,7 +3218,7 @@ export class KingdomScene extends Phaser.Scene {
       // Heat shimmer outline around landmark.
       g.lineStyle(1, 0xff5a3c, 0.18 + 0.12 * Math.sin(phase * 4));
       g.strokeCircle(0, 0, 32 + 2 * Math.sin(phase * 5));
-    } else if (worldRef.theme === "hollow") {
+    } else if (worldRef.theme === "bastion") {
       // Magic energy — two counter-rotating arcs above the landmark.
       const radius = 30;
       const cy = -8;
@@ -3389,7 +3389,7 @@ export class KingdomScene extends Phaser.Scene {
   /**
    * Per-frame visual update for a wielder. Handles:
    * - HP/MP ring fill
-   * - Drive-form aura visibility + activation flash
+   * - Aura visibility + activation flash
    * - Status pose (death tilt, victory pulse)
    * - Patrol step (walk toward target tile, idle, pick new)
    * - Subagent tether to parent
@@ -3432,40 +3432,37 @@ export class KingdomScene extends Phaser.Scene {
       ref.criticalAlert.setVisible(false);
     }
 
-    // ── Drive aura ──────────────────────────────────────────────────
-    if (unit.driveForm !== ref.lastDriveForm) {
-      if (unit.driveForm) {
-        const color = DRIVE_COLORS[unit.driveForm];
-        ref.driveAura
-          .setVisible(true)
-          .setStrokeStyle(3, color, 1)
-          .setScale(0.4);
+    // ── Warden aura ─────────────────────────────────────────────────
+    if (unit.auraState !== ref.lastWardenAura) {
+      if (unit.auraState) {
+        const color = AURA_COLORS[unit.auraState];
+        ref.auraRing.setVisible(true).setStrokeStyle(3, color, 1).setScale(0.4);
         // Activation flash: scale up + fade in.
         this.tweens.add({
-          targets: ref.driveAura,
+          targets: ref.auraRing,
           scale: 1,
           duration: 280,
           ease: "Back.easeOut",
         });
         // Persistent glow pulse while active.
         this.tweens.add({
-          targets: ref.driveAura,
+          targets: ref.auraRing,
           alpha: { from: 0.95, to: 0.45 },
           yoyo: true,
           repeat: -1,
           duration: 800,
         });
       } else {
-        // Drive ended — fade aura out.
-        this.tweens.killTweensOf(ref.driveAura);
+        // Aura ended — fade ring out.
+        this.tweens.killTweensOf(ref.auraRing);
         this.tweens.add({
-          targets: ref.driveAura,
+          targets: ref.auraRing,
           alpha: 0,
           duration: 220,
-          onComplete: () => ref.driveAura.setVisible(false),
+          onComplete: () => ref.auraRing.setVisible(false),
         });
       }
-      ref.lastDriveForm = unit.driveForm;
+      ref.lastWardenAura = unit.auraState;
     }
 
     if (this.hasMissionStatus(unit)) {
@@ -4248,9 +4245,9 @@ export class KingdomScene extends Phaser.Scene {
 
     const glow = this.add.circle(0, 6, 16, palette.color, 0.28);
 
-    // Drive aura — a colored ring that fades in when a drive form
+    // Warden aura — a colored ring that fades in when an aura state
     // activates and pulses while active. Hidden by default.
-    const driveAura = this.add
+    const auraRing = this.add
       .circle(0, 4, 30, 0xffffff, 0)
       .setStrokeStyle(2.5, 0xffffff, 0)
       .setVisible(false);
@@ -4322,11 +4319,11 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(false);
 
-    // Layer order matters: drive aura behind, body in middle, bars
+    // Layer order matters: aura behind, body in middle, bars
     // on top so they read against the painterly hi-res sprite. The
     // critical "!" alert sits above everything so it always reads.
     const container = this.add.container(start.x, start.y, [
-      driveAura,
+      auraRing,
       orderRing,
       glow,
       idleGfx,
@@ -4361,7 +4358,7 @@ export class KingdomScene extends Phaser.Scene {
       body,
       sprite,
       glow,
-      driveAura,
+      auraRing,
       hpBarBg,
       hpBarFill,
       mpBarBg,
@@ -4397,7 +4394,7 @@ export class KingdomScene extends Phaser.Scene {
       patrolState: "scouting",
       patrolNextSwitchAt: this.time.now + 600 + Math.random() * 1800,
       lastStatus: unit.status,
-      lastDriveForm: unit.driveForm,
+      lastWardenAura: unit.auraState,
       lastEventAnimAt: 0,
       currentAnim: undefined,
       parentSessionId: unit.parentSessionId,
@@ -4405,47 +4402,42 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   /**
-   * Add/remove heartless mob sprites for a world based on its current
-   * heartless array. Heartless live inside the world's isoPlane container
+   * Add/remove riftling mob sprites for a world based on its current
+   * riftling array. Riftling live inside the world's isoPlane container
    * so they share its scaling.
    */
-  private syncHeartlessFor(worldRef: WorldRef, world: WorldState) {
+  private syncRiftlingFor(worldRef: WorldRef, world: WorldState) {
     const seen = new Set<string>();
-    for (const h of world.heartless) {
+    for (const h of world.riftling) {
       seen.add(h.id);
-      if (worldRef.heartless.has(h.id)) continue;
-      worldRef.heartless.set(h.id, this.spawnHeartlessIn(worldRef, h));
+      if (worldRef.riftling.has(h.id)) continue;
+      worldRef.riftling.set(h.id, this.spawnRiftlingIn(worldRef, h));
     }
-    for (const [id, ref] of worldRef.heartless) {
+    for (const [id, ref] of worldRef.riftling) {
       if (!seen.has(id)) {
-        this.poofHeartless(ref);
-        worldRef.heartless.delete(id);
+        this.poofRiftling(ref);
+        worldRef.riftling.delete(id);
       }
     }
   }
 
-  private tickHeartlessCombat(
+  private tickRiftlingCombat(
     worldRef: WorldRef,
     world: WorldState,
     units: Record<string, UnitState>,
     delta: number
   ) {
     const dt = delta / 1000;
-    for (const heartless of worldRef.heartless.values()) {
-      heartless.bobOffset += delta * 0.004;
-      heartless.shadow.setAlpha(0.42 + 0.18 * Math.sin(heartless.bobOffset));
-      const target = this.pickHeartlessTarget(
-        worldRef,
-        world,
-        heartless,
-        units
-      );
+    for (const riftling of worldRef.riftling.values()) {
+      riftling.bobOffset += delta * 0.004;
+      riftling.shadow.setAlpha(0.42 + 0.18 * Math.sin(riftling.bobOffset));
+      const target = this.pickRiftlingTarget(worldRef, world, riftling, units);
       if (!target) {
-        this.nudgeHeartlessToward(
-          heartless,
-          Math.sin(heartless.bobOffset * 0.4) * 28,
-          Math.cos(heartless.bobOffset * 0.35) * 18,
-          HEARTLESS_SPEED[heartless.type] * 0.45 * dt
+        this.nudgeRiftlingToward(
+          riftling,
+          Math.sin(riftling.bobOffset * 0.4) * 28,
+          Math.cos(riftling.bobOffset * 0.35) * 18,
+          RIFTLING_SPEED[riftling.type] * 0.45 * dt
         );
         continue;
       }
@@ -4454,23 +4446,23 @@ export class KingdomScene extends Phaser.Scene {
         (target.ref.container.x - worldRef.container.x) / ISO_CONTAINER_SCALE;
       const targetY =
         (target.ref.container.y - worldRef.container.y) / ISO_CONTAINER_SCALE;
-      const dist = this.nudgeHeartlessToward(
-        heartless,
+      const dist = this.nudgeRiftlingToward(
+        riftling,
         targetX,
         targetY,
-        HEARTLESS_SPEED[heartless.type] * dt
+        RIFTLING_SPEED[riftling.type] * dt
       );
-      heartless.body.setScale(targetX < heartless.container.x ? -1 : 1, 1);
+      riftling.body.setScale(targetX < riftling.container.x ? -1 : 1, 1);
 
       if (
-        dist < HEARTLESS_ATTACK_RANGE &&
-        this.time.now - heartless.lastLungeAt > HEARTLESS_ATTACK_COOLDOWN_MS
+        dist < RIFTLING_ATTACK_RANGE &&
+        this.time.now - riftling.lastLungeAt > RIFTLING_ATTACK_COOLDOWN_MS
       ) {
-        heartless.lastLungeAt = this.time.now;
+        riftling.lastLungeAt = this.time.now;
         this.tweens.add({
-          targets: heartless.body,
-          x: { from: 0, to: (targetX - heartless.container.x) * 0.18 },
-          y: { from: 0, to: (targetY - heartless.container.y) * 0.18 },
+          targets: riftling.body,
+          x: { from: 0, to: (targetX - riftling.container.x) * 0.18 },
+          y: { from: 0, to: (targetY - riftling.container.y) * 0.18 },
           yoyo: true,
           duration: 180,
           ease: "Sine.easeOut",
@@ -4480,7 +4472,7 @@ export class KingdomScene extends Phaser.Scene {
           target.ref.container.y - 16,
           0xff5a3c
         );
-        this.spawnHeartlessPressure(worldRef, heartless, target.ref);
+        this.spawnRiftlingPressure(worldRef, riftling, target.ref);
         if (target.unit.status !== "fallen") {
           const attackAnim = ANIM.attack(target.unit.role);
           if (
@@ -4496,22 +4488,22 @@ export class KingdomScene extends Phaser.Scene {
             });
           }
           this.time.delayedCall(150, () => {
-            if (!heartless.container.scene || !target.ref.container.scene)
+            if (!riftling.container.scene || !target.ref.container.scene)
               return;
-            this.spawnCounterStrike(worldRef, heartless, target.ref);
+            this.spawnCounterStrike(worldRef, riftling, target.ref);
           });
         }
       }
     }
   }
 
-  private pickHeartlessTarget(
+  private pickRiftlingTarget(
     worldRef: WorldRef,
     world: WorldState,
-    heartless: HeartlessRef,
+    riftling: RiftlingRef,
     units: Record<string, UnitState>
   ) {
-    const preferredId = heartless.targetUnitId;
+    const preferredId = riftling.targetUnitId;
     const preferredRef = preferredId
       ? worldRef.wielders.get(preferredId)
       : undefined;
@@ -4531,19 +4523,19 @@ export class KingdomScene extends Phaser.Scene {
     return undefined;
   }
 
-  private nudgeHeartlessToward(
-    heartless: HeartlessRef,
+  private nudgeRiftlingToward(
+    riftling: RiftlingRef,
     targetX: number,
     targetY: number,
     maxStep: number
   ) {
-    const dx = targetX - heartless.container.x;
-    const dy = targetY - heartless.container.y;
+    const dx = targetX - riftling.container.x;
+    const dy = targetY - riftling.container.y;
     const dist = Math.hypot(dx, dy);
     if (dist > 1) {
       const step = Math.min(dist, maxStep);
-      heartless.container.x += (dx / dist) * step;
-      heartless.container.y += (dy / dist) * step;
+      riftling.container.x += (dx / dist) * step;
+      riftling.container.y += (dy / dist) * step;
     }
     return dist;
   }
@@ -4570,19 +4562,19 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
-  private heartlessScenePosition(worldRef: WorldRef, heartless: HeartlessRef) {
+  private riftlingScenePosition(worldRef: WorldRef, riftling: RiftlingRef) {
     return {
-      x: worldRef.container.x + heartless.container.x * ISO_CONTAINER_SCALE,
-      y: worldRef.container.y + heartless.container.y * ISO_CONTAINER_SCALE,
+      x: worldRef.container.x + riftling.container.x * ISO_CONTAINER_SCALE,
+      y: worldRef.container.y + riftling.container.y * ISO_CONTAINER_SCALE,
     };
   }
 
-  private spawnHeartlessPressure(
+  private spawnRiftlingPressure(
     worldRef: WorldRef,
-    heartless: HeartlessRef,
+    riftling: RiftlingRef,
     target: WielderRef
   ) {
-    const from = this.heartlessScenePosition(worldRef, heartless);
+    const from = this.riftlingScenePosition(worldRef, riftling);
     const to = { x: target.container.x, y: target.container.y - 10 };
     const g = this.add.graphics().setDepth(71);
     g.lineStyle(5, 0x020713, 0.42);
@@ -4606,10 +4598,10 @@ export class KingdomScene extends Phaser.Scene {
 
   private spawnCounterStrike(
     worldRef: WorldRef,
-    heartless: HeartlessRef,
+    riftling: RiftlingRef,
     target: WielderRef
   ) {
-    const to = this.heartlessScenePosition(worldRef, heartless);
+    const to = this.riftlingScenePosition(worldRef, riftling);
     const from = { x: target.container.x, y: target.container.y - 14 };
     const color = ROLE_PALETTE[target.role].color;
     const g = this.add.graphics().setDepth(73);
@@ -4631,16 +4623,16 @@ export class KingdomScene extends Phaser.Scene {
       onComplete: () => g.destroy(),
     });
     this.tweens.add({
-      targets: heartless.body,
+      targets: riftling.body,
       alpha: { from: 0.45, to: 1 },
       duration: 180,
       ease: "Sine.easeOut",
     });
   }
 
-  private createHeartlessTypeMark(type: Heartless["type"]) {
+  private createRiftlingTypeMark(type: Riftling["type"]) {
     const g = this.add.graphics();
-    if (type === "large_body") {
+    if (type === "bulwark") {
       g.fillStyle(0x020713, 0.46);
       g.fillEllipse(0, 4, 34, 22);
       g.lineStyle(1.4, 0xffb86c, 0.62);
@@ -4662,7 +4654,7 @@ export class KingdomScene extends Phaser.Scene {
     return g;
   }
 
-  private spawnHeartlessIn(worldRef: WorldRef, h: Heartless): HeartlessRef {
+  private spawnRiftlingIn(worldRef: WorldRef, h: Riftling): RiftlingRef {
     // Spawn at a random edge tile (so they crawl in from the dark border).
     const edge = Math.floor(Math.random() * 4);
     let tx = 0,
@@ -4690,25 +4682,25 @@ export class KingdomScene extends Phaser.Scene {
     const y = offsetY + (tx + ty) * (ISO_TILE_H / 2);
 
     const shadowSize =
-      h.type === "large_body"
+      h.type === "bulwark"
         ? { w: 24, h: 7 }
         : h.type === "soldier"
           ? { w: 18, h: 5 }
           : { w: 16, h: 4 };
     const shadow = this.add.ellipse(
       0,
-      h.type === "large_body" ? 17 : 14,
+      h.type === "bulwark" ? 17 : 14,
       shadowSize.w,
       shadowSize.h,
       0x000000,
       0.55
     );
     const body = this.add.container(0, 0);
-    const sheetKey = `heartless-${h.type.replace(/_/g, "")}-sheet`;
+    const sheetKey = `riftling-${h.type.replace(/_/g, "")}-sheet`;
     if (this.textures.exists(sheetKey)) {
       const spr = this.add.sprite(0, 0, sheetKey, 0);
       const spriteScale =
-        h.type === "large_body" ? 2.05 : h.type === "soldier" ? 1.74 : 1.5;
+        h.type === "bulwark" ? 2.05 : h.type === "soldier" ? 1.74 : 1.5;
       spr.setScale(spriteScale);
       this.tweens.add({
         targets: spr,
@@ -4719,7 +4711,7 @@ export class KingdomScene extends Phaser.Scene {
         ease: "Sine.easeInOut",
       });
       body.add(spr);
-      body.add(this.createHeartlessTypeMark(h.type));
+      body.add(this.createRiftlingTypeMark(h.type));
     } else {
       body.add(drawShadow(this, h.type));
     }
@@ -4747,7 +4739,7 @@ export class KingdomScene extends Phaser.Scene {
     };
   }
 
-  private poofHeartless(ref: HeartlessRef) {
+  private poofRiftling(ref: RiftlingRef) {
     if (!ref.container.scene) return;
     this.tweens.add({
       targets: ref.container,
@@ -4831,7 +4823,7 @@ export class KingdomScene extends Phaser.Scene {
     const g = this.add.graphics();
     const palette = THEME_BIOMES[theme];
     const center = isoToLocal(ISO_GRID / 2, ISO_GRID / 2);
-    if (theme === "destiny") {
+    if (theme === "tide") {
       g.fillStyle(0x6cc6ff, 0.2);
       g.fillEllipse(center.x, center.y + 46, 190, 26);
       g.lineStyle(1.4, 0xb3e0ff, 0.58);
@@ -4845,7 +4837,7 @@ export class KingdomScene extends Phaser.Scene {
         }
         g.strokePath();
       }
-    } else if (theme === "traverse") {
+    } else if (theme === "crossroads") {
       g.lineStyle(5, 0x2a1720, 0.42);
       g.lineBetween(
         center.x - 114,
@@ -4863,7 +4855,7 @@ export class KingdomScene extends Phaser.Scene {
           center.y + i * 18
         );
       }
-    } else if (theme === "hollow") {
+    } else if (theme === "bastion") {
       for (let i = 0; i < 6; i++) {
         const a = i * ((Math.PI * 2) / 6);
         const x = center.x + Math.cos(a) * 78;
@@ -4873,7 +4865,7 @@ export class KingdomScene extends Phaser.Scene {
         g.lineStyle(1, 0xffd86b, 0.3);
         g.strokeTriangle(x, y - 20, x - 9, y + 12, x + 10, y + 10);
       }
-    } else if (theme === "twilight") {
+    } else if (theme === "dusk") {
       g.lineStyle(1.5, palette.accent, 0.4);
       g.strokeCircle(center.x, center.y - 10, 44);
       g.strokeCircle(center.x, center.y - 10, 66);
@@ -4884,7 +4876,7 @@ export class KingdomScene extends Phaser.Scene {
         const x = center.x - 72 + i * 24;
         g.lineBetween(x, center.y + 42 - i * 4, x + 10, center.y + 34 - i * 4);
       }
-    } else if (theme === "halloween") {
+    } else if (theme === "lantern") {
       g.lineStyle(1.6, 0xff7a4a, 0.48);
       for (let i = 0; i < 7; i++) {
         const x = center.x - 92 + i * 30;
@@ -5518,9 +5510,9 @@ export class KingdomScene extends Phaser.Scene {
  * the outer ring at their hash position, no inner ring offset.
  */
 function idleQuirkForRole(role: UnitState["role"]): IdleQuirkKind {
-  if (role === "keyblader1") return "watch";
-  if (role === "keyblader2") return "garden";
-  if (role === "keyblader3") return "forge";
+  if (role === "warden1") return "watch";
+  if (role === "warden2") return "garden";
+  if (role === "warden3") return "forge";
   return "tide";
 }
 

@@ -18,17 +18,17 @@ belongs in `ui` because it knows about Claude/Codex/Cursor/Gemini.
 | Layer | Path | Purpose |
 |---|---|---|
 | Primitives | `ui/components/primitives/` | Thin wrappers around behavior/accessibility libraries such as Radix UI and cmdk. |
-| Kit | `ui/components/kit/` | Keykeeper-styled reusable controls and atoms: buttons, badges, fields, bars, inputs, toasts. |
+| Kit | `ui/components/kit/` | Realmkeeper-styled reusable controls and atoms: buttons, badges, fields, bars, inputs, toasts. |
 | Product UI | `ui/` | Domain-specific application surfaces built from primitives and kit components. |
 
 ## Naming
 
 `kit` replaced the older `chrome` folder name. The old meaning was
 "app chrome controls", but it was too easy to confuse with Chromium or
-browser chrome. `kit` now means "styled Keykeeper building blocks."
+browser chrome. `kit` now means "styled Realmkeeper building blocks."
 
 `primitives` means "behavior primitives", not "unstyled forever."
-They may carry baseline styling, but they should not know Keykeeper
+They may carry baseline styling, but they should not know Realmkeeper
 domain concepts.
 
 ## Import Rule

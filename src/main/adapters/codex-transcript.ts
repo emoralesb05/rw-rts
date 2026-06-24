@@ -219,13 +219,13 @@ export function startCodexTranscriptWatcher(intervalMs = 2000) {
   if (pollTimer) return;
   if (!existsSync(SESSIONS_ROOT)) {
     console.log(
-      `[keykeeper/codex-transcript] no sessions dir at ${SESSIONS_ROOT}; watcher disabled`
+      `[realmkeeper/codex-transcript] no sessions dir at ${SESSIONS_ROOT}; watcher disabled`
     );
     return;
   }
 
   console.log(
-    `[keykeeper/codex-transcript] watcher started, polling every ${intervalMs}ms`
+    `[realmkeeper/codex-transcript] watcher started, polling every ${intervalMs}ms`
   );
   pollOnce();
   pollTimer = setInterval(pollOnce, intervalMs);

@@ -1,5 +1,5 @@
 /**
- * User-editable settings file at ~/.keykeeper/config.json (sibling to
+ * User-editable settings file at ~/.realmkeeper/config.json (sibling to
  * state.json and the unix socket). Auto-created on first launch with
  * defaults. Hand-editable; reloaded on every read so changes take
  * effect immediately without restarting the app.
@@ -17,7 +17,7 @@
  *   }
  *
  * Back-compat:
- *   - old top-level file at ~/.keykeeper.json is read once and
+ *   - old top-level file at ~/.realmkeeper.json is read once and
  *     migrated forward; left in place as a backup the user can delete
  *   - the key "excludeRepos" is still honored if "exclude" isn't set,
  *     so older config files keep working
@@ -33,9 +33,9 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { RawSettingsSchema } from "@shared/schemas";
 
-const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
-const SETTINGS_PATH = join(KEYKEEPER_DIR, "config.json");
-const LEGACY_SETTINGS_PATH = join(homedir(), ".keykeeper.json");
+const REALMKEEPER_DIR = join(homedir(), ".realmkeeper");
+const SETTINGS_PATH = join(REALMKEEPER_DIR, "config.json");
+const LEGACY_SETTINGS_PATH = join(homedir(), ".realmkeeper.json");
 
 export type Settings = {
   workspaceRoot: string;
@@ -58,7 +58,7 @@ function expandTilde(p: string): string {
 
 export function loadSettings(): Settings {
   // Pick the read source: prefer the new path; fall back to the legacy
-  // ~/.keykeeper.json once. If neither exists, write defaults to the
+  // ~/.realmkeeper.json once. If neither exists, write defaults to the
   // new path.
   let readPath = SETTINGS_PATH;
   if (!existsSync(SETTINGS_PATH)) {
@@ -67,7 +67,7 @@ export function loadSettings(): Settings {
     } else {
       const def = defaults();
       try {
-        mkdirSync(KEYKEEPER_DIR, { recursive: true });
+        mkdirSync(REALMKEEPER_DIR, { recursive: true });
         writeFileSync(
           SETTINGS_PATH,
           JSON.stringify(def, null, 2) + "\n",
@@ -97,7 +97,7 @@ export function loadSettings(): Settings {
     // backup the user can delete manually.
     if (readPath === LEGACY_SETTINGS_PATH) {
       try {
-        mkdirSync(KEYKEEPER_DIR, { recursive: true });
+        mkdirSync(REALMKEEPER_DIR, { recursive: true });
         writeFileSync(
           SETTINGS_PATH,
           JSON.stringify(settings, null, 2) + "\n",
@@ -112,7 +112,7 @@ export function loadSettings(): Settings {
     // Malformed file — log once, fall through to defaults. Don't
     // overwrite the user's broken file; let them fix it.
 
-    console.warn(`[keykeeper] failed to parse ${readPath}; using defaults`);
+    console.warn(`[realmkeeper] failed to parse ${readPath}; using defaults`);
     return defaults();
   }
 }
@@ -133,7 +133,7 @@ export function saveSettings(next: Settings): Settings {
           .filter((s) => s.length > 0)
       : [],
   };
-  mkdirSync(KEYKEEPER_DIR, { recursive: true });
+  mkdirSync(REALMKEEPER_DIR, { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(cleaned, null, 2) + "\n", "utf8");
   return cleaned;
 }
@@ -189,7 +189,7 @@ export function isExcluded(
       } else {
         // Relative prefix — match label first segment(s) OR any
         // path segment chain (so "forks/*" hits both label "forks/x"
-        // and a deeper path that happens to traverse a "forks" dir).
+        // and a deeper path that happens to crossroads a "forks" dir).
         if (repo.label === prefix || repo.label.startsWith(prefix + "/"))
           return true;
         if (repo.path.includes(`/${prefix}/`)) return true;

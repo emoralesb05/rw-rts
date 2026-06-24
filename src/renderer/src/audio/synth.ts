@@ -1,6 +1,6 @@
 /**
  * Tiny Web Audio synth — short original tones used as default cues when
- * the user hasn't dropped real audio files into assets/sounds/kh/.
+ * the user hasn't dropped real audio files into assets/sounds/rw/.
  *
  * Kept deliberately minimal: each cue is a 1–3 oscillator burst with an
  * envelope, ~30–250ms. The aim is "subtle game UI feedback", not music.
@@ -84,7 +84,7 @@ export type SynthCue =
   | "select"
   | "seal"
   | "ko"
-  | "drive"
+  | "aura"
   | "comfort"
   | "letter";
 
@@ -94,7 +94,7 @@ export function playCue(cue: SynthCue) {
       playTone({ freq: 660, durationMs: 60, type: "sine" });
       return;
     case "edit":
-      // bright two-tone "ping" — keyblade hit
+      // bright two-tone "ping" — focus relic hit
       playSequence(
         [
           { freq: 880, durationMs: 70, type: "triangle" },
@@ -104,14 +104,14 @@ export function playCue(cue: SynthCue) {
       );
       return;
     case "bash":
-      // low boom — Bash / shell call (Riku magic feel)
+      // low boom — Bash / shell call (dusky magic feel)
       playChord([
         { freq: 110, durationMs: 220, type: "square", releaseMs: 120 },
         { freq: 165, durationMs: 220, type: "sine", releaseMs: 120 },
       ]);
       return;
     case "web":
-      // shimmer arpeggio — Donald magic
+      // shimmer arpeggio — arcane support magic
       playSequence(
         [
           { freq: 880, durationMs: 60, type: "sine" },
@@ -122,7 +122,7 @@ export function playCue(cue: SynthCue) {
       );
       return;
     case "summon":
-      // ascending octave — Kairi/Mickey court summon
+      // ascending octave — realm-court summon
       playSequence(
         [
           { freq: 440, durationMs: 80, type: "triangle" },
@@ -155,7 +155,7 @@ export function playCue(cue: SynthCue) {
       );
       return;
     case "world_warp":
-      // gummi-ship style swoop — descending sine sweep
+      // realm-ship style swoop — descending sine sweep
       {
         const c = getCtx();
         if (!c || !masterGain) return;
@@ -175,7 +175,7 @@ export function playCue(cue: SynthCue) {
       }
       return;
     case "error":
-      // dissonant low — heartless emerge
+      // dissonant low — riftling emerge
       playChord([
         { freq: 130, durationMs: 200, type: "sawtooth", releaseMs: 140 },
         {
@@ -197,7 +197,7 @@ export function playCue(cue: SynthCue) {
       });
       return;
     case "seal":
-      // Triumphant rising 5th + sustained tone — KH "Dearly Beloved" flavor.
+      // Triumphant rising 5th + sustained tone — RW "Dearly Beloved" flavor.
       playSequence(
         [
           { freq: 523, durationMs: 130, type: "triangle" }, // C5
@@ -219,8 +219,8 @@ export function playCue(cue: SynthCue) {
         90
       );
       return;
-    case "drive":
-      // Sharp ascending arpeggio — drive form transformation.
+    case "aura":
+      // Sharp ascending arpeggio — aura state transformation.
       playSequence(
         [
           { freq: 587, durationMs: 50, type: "square" },
@@ -232,7 +232,7 @@ export function playCue(cue: SynthCue) {
       );
       return;
     case "comfort":
-      // Soft healing chime — KH Cure flavor.
+      // Soft healing chime — RW Cure flavor.
       playChord([
         { freq: 880, durationMs: 220, type: "sine", releaseMs: 160 },
         { freq: 1109, durationMs: 220, type: "sine", releaseMs: 160 },

@@ -1,6 +1,6 @@
 /**
- * Persistent kingdom state — wielder memory, sealed keyholes, lifetime
- * counters. JSON file in `~/.keykeeper/state.json` (sibling to
+ * Persistent kingdom state — wielder memory, sealed realms, lifetime
+ * counters. JSON file in `~/.realmkeeper/state.json` (sibling to
  * `~/.claude/`, `~/.cursor/`, `~/.codex/`).
  *
  * Identity:
@@ -13,7 +13,7 @@
  * `kingdomFoundedAt = Date.now()`.
  *
  * Back-compat: if the legacy path exists at
- * `~/Library/Application Support/keykeeper/state.json` (Electron's
+ * `~/Library/Application Support/realmkeeper/state.json` (Electron's
  * `userData/state.json` from before the move) and the new path does
  * not, read the legacy file once, write to the new path, and leave the
  * legacy file alone.
@@ -32,8 +32,8 @@ import { dirname, join } from "node:path";
 import { type PersistedState, EMPTY_PERSISTED } from "@shared/events";
 import { PersistedStateSchema } from "@shared/schemas";
 
-const KEYKEEPER_DIR = join(homedir(), ".keykeeper");
-const FILE = () => join(KEYKEEPER_DIR, "state.json");
+const REALMKEEPER_DIR = join(homedir(), ".realmkeeper");
+const FILE = () => join(REALMKEEPER_DIR, "state.json");
 const LEGACY_FILE = () => join(app.getPath("userData"), "state.json");
 
 let cache: PersistedState | null = null;
@@ -126,7 +126,7 @@ function persistNow() {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(cache, null, 2), "utf8");
   } catch (err) {
-    console.error("[keykeeper] persist failed:", err);
+    console.error("[realmkeeper] persist failed:", err);
   }
 }
 

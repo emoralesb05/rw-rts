@@ -53,9 +53,9 @@ We don't currently parse this store. We rely on hooks for visibility.
 
 Cursor's default `approvalMode: "allowlist"` makes hook responses **advisory only** for permissions. A hook returning `permission: "allow"` does not bypass the allowlist — the user still gets prompted in the IDE. To make hooks authoritative for approval you need `--force` or `--yolo`.
 
-This is why our Cursor permission flow is **observation-only**: we return `"ask"` immediately, present a letter in keykeeper for awareness, no decision power.
+This is why our Cursor permission flow is **observation-only**: we return `"ask"` immediately, present a letter in realmkeeper for awareness, no decision power.
 
-## Spawn pattern (when keykeeper starts the session)
+## Spawn pattern (when realmkeeper starts the session)
 
 `src/main/adapters/cursor-cli.ts` does it in two steps:
 
@@ -68,7 +68,7 @@ Pre-creating the chat means we know the chatId before the agent runs — we can 
 
 Follow-up prompts in the same wielder spawn another `cursor-agent` invocation against the same chatId (same pattern as resume below).
 
-Keykeeper-spawned Cursor sessions intentionally use `--force --trust` today. That makes Keykeeper-controlled Cursor sessions more autonomous than observed IDE sessions, where permission letters remain observation-only and Cursor's native UI decides. Before distributing this broadly, make this behavior a visible setting or at least a launch-time warning.
+Realmkeeper-spawned Cursor sessions intentionally use `--force --trust` today. That makes Realmkeeper-controlled Cursor sessions more autonomous than observed IDE sessions, where permission letters remain observation-only and Cursor's native UI decides. Before distributing this broadly, make this behavior a visible setting or at least a launch-time warning.
 
 ## Resume
 
@@ -81,13 +81,13 @@ cursor-agent --print --resume <chatId> "<prompt>"
 ## MCP, rules, plans, modes (we observe, don't drive)
 
 - **MCP-provided tools** appear as normal `tool_use` events. We don't introspect or drive Cursor's MCP servers; users manage them via `cursor-agent mcp`.
-- **Cursor rules** (per-project rules from `.cursor/rules/` and global rules) influence the model's behavior but don't fire any keykeeper-visible events. We see only the resulting tool calls.
+- **Cursor rules** (per-project rules from `.cursor/rules/` and global rules) influence the model's behavior but don't fire any realmkeeper-visible events. We see only the resulting tool calls.
 - **Cursor plans** (CTRL+K plan mode artifacts) are stored in `~/.cursor/plans/` — separate from chats. Out of scope for the hook flow.
 - **`--mode plan` / `--mode ask`** are read-only execution modes. If a user starts a wielder in plan mode, no edits will happen — they'll see only `tool_use` events for read tools. Worth knowing if "wielder seems to be doing nothing."
 
 ## Gaps & quirks
 
-- **`--print --resume` strips MOST hooks.** Only `sessionEnd` fires. No `beforeSubmitPrompt`, no `afterAgentResponse`, no `preToolUse`/`postToolUse`. So keykeeper sees nothing of the live event stream — even though the conversation lands correctly in the chat database.
+- **`--print --resume` strips MOST hooks.** Only `sessionEnd` fires. No `beforeSubmitPrompt`, no `afterAgentResponse`, no `preToolUse`/`postToolUse`. So Realmkeeper sees nothing of the live event stream — even though the conversation lands correctly in the chat database.
   - **Workaround**: capture the assistant reply on stdout from `--print`, synthesize `user_prompt` + `assistant_text` events ourselves (using chatId as sessionId), inject into the bus. Tool calls during the reply remain invisible (no PostToolUse fires).
 - **Allowlist mode advisory.** Hook-allow doesn't bypass the IDE prompt unless `--force`/`--yolo`. We're observational by design.
 - **Process sessionId vs chatId.** When the user opens a fresh Cursor IDE session against an existing chat, the events come in under a NEW process sessionId. We currently see this as a new wielder; aggregating by chatId would require a Cursor-specific mapping (chatId is not in every hook payload).

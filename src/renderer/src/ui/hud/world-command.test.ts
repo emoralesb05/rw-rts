@@ -8,9 +8,9 @@ function world(overrides: Partial<WorldState> = {}): WorldState {
     path: "/repo",
     label: "Repo",
     unitIds: ["unit-1"],
-    heartless: [],
+    riftling: [],
     alertLevel: "idle",
-    munny: 100,
+    glimmer: 100,
     ...overrides,
   };
 }
@@ -20,7 +20,7 @@ function unit(overrides: Partial<UnitState> = {}): UnitState {
     id: "unit-1",
     sessionId: "unit-1",
     tool: "claude",
-    role: "keyblader1",
+    role: "warden1",
     displayName: "Vaelen",
     cwd: "/repo",
     repoRoot: "/repo",
@@ -82,12 +82,12 @@ describe("createWorldCommandBrief", () => {
     expect(brief.objective).toContain("Permission hold");
   });
 
-  it("prioritizes pressure when heartless or fallen units are present", () => {
+  it("prioritizes pressure when riftling or fallen units are present", () => {
     const brief = createWorldCommandBrief({
       world: world({
-        heartless: [
+        riftling: [
           {
-            id: "heartless-1",
+            id: "riftling-1",
             type: "shadow",
             worldId: "world-1",
             hp: 1,
@@ -106,7 +106,7 @@ describe("createWorldCommandBrief", () => {
     expect(brief.canSeal).toBe(false);
   });
 
-  it("allows sealing when the world has units and no heartless", () => {
+  it("allows sealing when the world has units and no riftling", () => {
     const brief = createWorldCommandBrief({
       world: world(),
       units: { "unit-1": unit({ status: "complete" }) },

@@ -1,5 +1,5 @@
 import type { AgentEvent } from "@shared/events";
-import type { WorldTheme } from "./gummi-worlds";
+import type { WorldTheme } from "./realm-worlds";
 
 export type WorldActivityKind =
   | "shell"
@@ -122,33 +122,33 @@ const BASE_ACTIVITY_COLOR: Record<WorldActivityKind, number> = {
 const THEME_COLOR_OVERRIDES: Partial<
   Record<WorldTheme, Partial<Record<WorldActivityKind, number>>>
 > = {
-  destiny: {
+  tide: {
     web: 0x6cd5ff,
     search: 0xb3e0ff,
     shell: 0x7af0c0,
     error: 0xff6b8a,
   },
-  hollow: {
+  bastion: {
     permission: 0xc9a4ff,
     subagent: 0xe6d8ff,
     search: 0xb88cff,
     error: 0xff5a3c,
   },
-  halloween: {
+  lantern: {
     shell: 0xffb86c,
     edit: 0xff7a4a,
     error: 0xff5a3c,
   },
-  twilight: {
+  dusk: {
     edit: 0xff89a3,
     prompt: 0xffb86c,
     subagent: 0xffd86b,
   },
-  disney: {
+  citadel: {
     success: 0xffd86b,
     edit: 0xffd86b,
   },
-  traverse: {
+  crossroads: {
     shell: 0xffb86c,
     web: 0xffd86b,
   },

@@ -4,7 +4,7 @@
 
 - Binary: `claude` (typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
 - Settings: `~/.claude/settings.json` (hooks live under `hooks.<EventName>`)
-- Install hooks via the keykeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
+- Install hooks via the realmkeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
 
 ## Hook events
 
@@ -72,13 +72,13 @@ claude --resume <sessionId> --print "<prompt>"
 - `--print` is one-shot, exits after streaming the response
 - All hooks fire normally on the resumed turn — events flow back through the bridge attributed to the original sessionId, so a wielder we already observe just appends a new turn
 
-Use this to drive an observed wielder from keykeeper without owning the original TUI process.
+Use this to drive an observed wielder from realmkeeper without owning the original TUI process.
 
 ## MCP, agents, plugins (we observe, don't drive)
 
 - **MCP-provided tools** appear as normal `tool_use` events with the MCP tool's name (no special prefix). We don't add MCP-specific handling — they flow through tool-name canonicalization like any built-in tool.
 - **Sub-agents** spawned by Claude (Agent tool / `--agents` JSON / configured agents) emit `SubagentStop` when finished and have a different `session_id` from the parent. We render them as nested under the parent in the conversation stream (see `chat-event-subagent` indent class). The parent-child link is via `parentSessionId` on the spawned session.
-- **Plugins** (configured in user settings.json) install hooks of their own. Multiple hooks per event are fine — Claude runs them all (e.g. peon-ping + keykeeper-hook). The order is the install order in settings.json.
+- **Plugins** (configured in user settings.json) install hooks of their own. Multiple hooks per event are fine — Claude runs them all (e.g. peon-ping + realmkeeper-hook). The order is the install order in settings.json.
 
 ## Gaps & quirks
 
@@ -86,6 +86,6 @@ Use this to drive an observed wielder from keykeeper without owning the original
 - **No `assistant_text` hook.** Transcript watcher is the only path. If Claude changes their on-disk format, the watcher breaks silently.
 - **PostToolUse doesn't fire on Read of a missing file.** Only PreToolUse fires; the tool fails internally. We can't observe the result, only the attempt. Live with it (Option C from earlier debugging).
 - **Live TUI doesn't watch its own JSONL.** If you `--resume` from another shell while the TUI is still open, the TUI keeps its in-memory state and is now stale. Reload (Ctrl-C, re-run `claude --resume <id>`) to re-sync.
-- **`--bare` mode disables hooks entirely.** A user running `claude --bare` (minimal mode for sandboxes / API-only workflows) is **invisible to keykeeper**. The flag also skips LSP, plugins, auto-memory, CLAUDE.md discovery. If a user complains "my session isn't showing up", check whether they invoked with `--bare`.
+- **`--bare` mode disables hooks entirely.** A user running `claude --bare` (minimal mode for sandboxes / API-only workflows) is **invisible to realmkeeper**. The flag also skips LSP, plugins, auto-memory, CLAUDE.md discovery. If a user complains "my session isn't showing up", check whether they invoked with `--bare`.
 - **IDE attach lock files** at `~/.claude/ide/<port>.lock` carry `{workspaceFolders, ideName}` — informational, not currently consumed.
-- **Worktree workflow.** `claude --worktree` and `--from-pr` are first-class but we don't model worktrees as separate keykeeper worlds (`resolveRepoRoot` walks to the worktree's `.git`, which is a file pointer back to the main repo). Sessions in worktrees end up under the main repo's world. Acceptable tradeoff; flagged here so future work knows.
+- **Worktree workflow.** `claude --worktree` and `--from-pr` are first-class but we don't model worktrees as separate realmkeeper worlds (`resolveRepoRoot` walks to the worktree's `.git`, which is a file pointer back to the main repo). Sessions in worktrees end up under the main repo's world. Acceptable tradeoff; flagged here so future work knows.

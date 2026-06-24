@@ -1,6 +1,6 @@
 import type {
   AgentEvent,
-  Heartless,
+  Riftling,
   Letter,
   PersistedState,
   UnitState,
@@ -8,7 +8,7 @@ import type {
   WorldState,
 } from "@shared/events";
 import type { AgentTool } from "@shared/schemas";
-import { WORLD_THEMES, themeFor, type WorldTheme } from "../game/gummi-worlds";
+import { WORLD_THEMES, themeFor, type WorldTheme } from "../game/realm-worlds";
 import { unitIdentityForUnit, useStore } from "../store";
 
 type SeedUnit = Pick<
@@ -21,7 +21,7 @@ type SeedUnit = Pick<
 
 type SeedWorld = {
   alertLevel: WorldAlertLevel;
-  heartless: Heartless["type"][];
+  riftling: Riftling["type"][];
   label: string;
   repoRoot: string;
   theme: WorldTheme;
@@ -62,18 +62,18 @@ function event(
   };
 }
 
-function seedHeartless(
+function seedRiftling(
   worldId: string,
-  types: Heartless["type"][],
+  types: Riftling["type"][],
   now: number,
   targetUnitId?: string
-): Heartless[] {
+): Riftling[] {
   return types.map((type, index) => ({
-    id: `${worldId}-heartless-${index}`,
+    id: `${worldId}-riftling-${index}`,
     type,
     worldId,
     targetUnitId,
-    hp: type === "large_body" ? 4 : type === "soldier" ? 2 : 1,
+    hp: type === "bulwark" ? 4 : type === "soldier" ? 2 : 1,
     spawnedAt: now - 15_000 + index * 1200,
   }));
 }
@@ -102,26 +102,26 @@ function createSeedUnit(
     lastTool: unit.lastTool,
     spawnedHere: false,
     parentSessionId: unit.parentSessionId,
-    driveForm: unit.parentSessionId ? "final" : undefined,
-    driveFormUntil: unit.parentSessionId ? now + 30_000 : undefined,
+    auraState: unit.parentSessionId ? "link" : undefined,
+    auraUntil: unit.parentSessionId ? now + 30_000 : undefined,
   };
 }
 
 export function createVisualQaSeed(now = Date.now()) {
   const worldsToSeed: SeedWorld[] = [
     {
-      theme: "traverse",
-      label: "Traverse Town Ops",
-      repoRoot: "/tmp/keykeeper-qa/traverse-town",
+      theme: "crossroads",
+      label: "Crossroads Ward Ops",
+      repoRoot: "/tmp/realmkeeper-qa/crossroads-town",
       alertLevel: "danger",
-      heartless: ["shadow", "soldier", "large_body"],
+      riftling: ["shadow", "soldier", "bulwark"],
       units: [
         {
           id: "qa-vaelen",
           tool: "gemini",
-          role: "keyblader1",
+          role: "warden1",
           displayName: "Vaelen",
-          repoRoot: "/tmp/keykeeper-qa/traverse-town",
+          repoRoot: "/tmp/realmkeeper-qa/crossroads-town",
           status: "working",
           hp: 88,
           mp: 64,
@@ -130,9 +130,9 @@ export function createVisualQaSeed(now = Date.now()) {
         {
           id: "qa-selene",
           tool: "codex",
-          role: "keyblader2",
+          role: "warden2",
           displayName: "Selene",
-          repoRoot: "/tmp/keykeeper-qa/traverse-town",
+          repoRoot: "/tmp/realmkeeper-qa/crossroads-town",
           status: "casting",
           hp: 74,
           mp: 82,
@@ -141,9 +141,9 @@ export function createVisualQaSeed(now = Date.now()) {
         {
           id: "qa-guard",
           tool: "claude",
-          role: "keyblader4",
+          role: "warden4",
           displayName: "Lyris",
-          repoRoot: "/tmp/keykeeper-qa/traverse-town",
+          repoRoot: "/tmp/realmkeeper-qa/crossroads-town",
           status: "working",
           hp: 72,
           mp: 58,
@@ -153,18 +153,18 @@ export function createVisualQaSeed(now = Date.now()) {
       ],
     },
     {
-      theme: "hollow",
-      label: "Hollow Bastion Gate",
-      repoRoot: "/tmp/keykeeper-qa/hollow-bastion",
+      theme: "bastion",
+      label: "Glass Bastion Gate",
+      repoRoot: "/tmp/realmkeeper-qa/bastion-bastion",
       alertLevel: "warning",
-      heartless: ["soldier", "shadow"],
+      riftling: ["soldier", "shadow"],
       units: [
         {
           id: "qa-ryder",
           tool: "claude",
-          role: "keyblader3",
+          role: "warden3",
           displayName: "Ryder",
-          repoRoot: "/tmp/keykeeper-qa/hollow-bastion",
+          repoRoot: "/tmp/realmkeeper-qa/bastion-bastion",
           status: "fallen",
           hp: 0,
           mp: 28,
@@ -173,18 +173,18 @@ export function createVisualQaSeed(now = Date.now()) {
       ],
     },
     {
-      theme: "destiny",
-      label: "Destiny Islands Build",
-      repoRoot: "/tmp/keykeeper-qa/destiny-islands",
+      theme: "tide",
+      label: "Tide Isles Build",
+      repoRoot: "/tmp/realmkeeper-qa/tide-islands",
       alertLevel: "active",
-      heartless: ["shadow"],
+      riftling: ["shadow"],
       units: [
         {
           id: "qa-marin",
           tool: "cursor",
-          role: "keyblader4",
+          role: "warden4",
           displayName: "Marin",
-          repoRoot: "/tmp/keykeeper-qa/destiny-islands",
+          repoRoot: "/tmp/realmkeeper-qa/tide-islands",
           status: "working",
           hp: 96,
           mp: 70,
@@ -193,18 +193,18 @@ export function createVisualQaSeed(now = Date.now()) {
       ],
     },
     {
-      theme: "disney",
-      label: "Disney Castle Archive",
-      repoRoot: "/tmp/keykeeper-qa/disney-castle",
+      theme: "citadel",
+      label: "Crown Citadel Archive",
+      repoRoot: "/tmp/realmkeeper-qa/citadel-castle",
       alertLevel: "cleared",
-      heartless: [],
+      riftling: [],
       units: [
         {
           id: "qa-aurelia",
           tool: "codex",
-          role: "keyblader2",
+          role: "warden2",
           displayName: "Aurelia",
-          repoRoot: "/tmp/keykeeper-qa/disney-castle",
+          repoRoot: "/tmp/realmkeeper-qa/citadel-castle",
           status: "complete",
           hp: 100,
           mp: 44,
@@ -213,18 +213,18 @@ export function createVisualQaSeed(now = Date.now()) {
       ],
     },
     {
-      theme: "twilight",
-      label: "Twilight Town Standby",
-      repoRoot: "/tmp/keykeeper-qa/twilight-town",
+      theme: "dusk",
+      label: "Dusk Borough Standby",
+      repoRoot: "/tmp/realmkeeper-qa/dusk-town",
       alertLevel: "idle",
-      heartless: [],
+      riftling: [],
       units: [
         {
           id: "qa-orion",
           tool: "gemini",
-          role: "keyblader1",
+          role: "warden1",
           displayName: "Orion",
-          repoRoot: "/tmp/keykeeper-qa/twilight-town",
+          repoRoot: "/tmp/realmkeeper-qa/dusk-town",
           status: "idle",
           hp: 100,
           mp: 100,
@@ -232,18 +232,18 @@ export function createVisualQaSeed(now = Date.now()) {
       ],
     },
     {
-      theme: "halloween",
-      label: "Halloween Town Review",
-      repoRoot: "/tmp/keykeeper-qa/halloween-town",
+      theme: "lantern",
+      label: "Lantern Hollow Review",
+      repoRoot: "/tmp/realmkeeper-qa/lantern-town",
       alertLevel: "active",
-      heartless: [],
+      riftling: [],
       units: [
         {
           id: "qa-noct",
           tool: "claude",
-          role: "keyblader3",
+          role: "warden3",
           displayName: "Noct",
-          repoRoot: "/tmp/keykeeper-qa/halloween-town",
+          repoRoot: "/tmp/realmkeeper-qa/lantern-town",
           status: "idle",
           hp: 92,
           mp: 90,
@@ -269,14 +269,14 @@ export function createVisualQaSeed(now = Date.now()) {
       path: seedWorld.repoRoot,
       label: seedWorld.label,
       unitIds: worldUnits.map((unit) => unit.id),
-      heartless: seedHeartless(
+      riftling: seedRiftling(
         worldId,
-        seedWorld.heartless,
+        seedWorld.riftling,
         now,
         worldUnits[0]?.id
       ),
       alertLevel: seedWorld.alertLevel,
-      munny: seedWorld.alertLevel === "cleared" ? 180 : 35,
+      glimmer: seedWorld.alertLevel === "cleared" ? 180 : 35,
     };
   }
 
@@ -335,13 +335,13 @@ export function createVisualQaSeed(now = Date.now()) {
       id: "visual-qa-seal-letter",
       createdAt: now - 16_000,
       severity: "important",
-      title: "Aurelia finished in Disney Castle Archive",
-      body: "Plan complete? Seal the keyhole or iterate.",
+      title: "Aurelia finished in Crown Citadel Archive",
+      body: "Plan complete? Seal the realm or iterate.",
       worldId: allUnits[5].worldId,
       sessionId: allUnits[5].id,
       actions: [
         {
-          label: "seal keyhole",
+          label: "seal realm",
           action: { kind: "seal", worldId: allUnits[5].worldId },
         },
         { label: "dismiss", action: { kind: "dismiss" } },
@@ -351,7 +351,7 @@ export function createVisualQaSeed(now = Date.now()) {
       id: "visual-qa-prompt-letter",
       createdAt: now - 2500,
       severity: "important",
-      title: "Noct needs direction in Halloween Town Review",
+      title: "Noct needs direction in Lantern Hollow Review",
       body: "The mission is waiting on a player instruction.",
       worldId: allUnits[7].worldId,
       sessionId: allUnits[7].id,
@@ -368,7 +368,7 @@ export function createVisualQaSeed(now = Date.now()) {
   const persisted: PersistedState = {
     schemaVersion: 2,
     kingdomFoundedAt: now - 3 * 86400_000,
-    totalMunnyEver: 420,
+    totalGlimmerEver: 420,
     standingOrders: [],
     worlds: Object.fromEntries(
       Object.values(worlds).map((world) => [
@@ -394,7 +394,7 @@ export function createVisualQaSeed(now = Date.now()) {
             visits: index === 0 ? 13 : index + 2,
             seals: unit.status === "complete" ? 2 : index % 2,
             falls: unit.status === "fallen" ? 1 : 0,
-            totalMunny: 30 + index * 12,
+            totalGlimmer: 30 + index * 12,
             lastSeen: now - index * 5000,
           },
         ];
@@ -444,7 +444,7 @@ export function seedVisualQaState(now = Date.now()) {
     }
   }
   window.dispatchEvent(
-    new CustomEvent("kh:visual-qa-seeded", { detail: seed })
+    new CustomEvent("rw:visual-qa-seeded", { detail: seed })
   );
   return seed;
 }

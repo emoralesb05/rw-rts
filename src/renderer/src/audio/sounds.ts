@@ -1,5 +1,5 @@
 /**
- * Sound loader. Probes /sounds/kh/{name}.{ext} for each sound name; if present,
+ * Sound loader. Probes /sounds/rw/{name}.{ext} for each sound name; if present,
  * plays via HTMLAudio. If absent, falls back to a synthesized cue from
  * audio/synth.ts so the app has audio feedback out of the box.
  */
@@ -18,18 +18,18 @@ export type SoundName =
   | "select"
   | "seal"
   | "ko"
-  | "drive"
+  | "aura"
   | "comfort"
   | "letter";
 
 const FORMATS = ["wav", "mp3", "ogg"];
 const cache = new Map<SoundName, HTMLAudioElement | null>();
-const muteKey = "keykeeper:muted";
+const muteKey = "realmkeeper:muted";
 let _muted = localStorage.getItem(muteKey) === "1";
 
 async function probe(name: SoundName): Promise<HTMLAudioElement | null> {
   for (const ext of FORMATS) {
-    const url = `/sounds/kh/${name}.${ext}`;
+    const url = `/sounds/rw/${name}.${ext}`;
     try {
       const head = await fetch(url, { method: "HEAD" });
       if (head.ok) {
@@ -58,7 +58,7 @@ export async function preloadSounds() {
     "select",
     "seal",
     "ko",
-    "drive",
+    "aura",
     "comfort",
     "letter",
   ];

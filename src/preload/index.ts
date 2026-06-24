@@ -37,7 +37,7 @@ function parseIpcResponse<T>(
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
     throw new Error(
-      `[keykeeper] invalid ${channel} response: ${formatSchemaIssues(parsed.error)}`
+      `[realmkeeper] invalid ${channel} response: ${formatSchemaIssues(parsed.error)}`
     );
   }
   return parsed.data;
@@ -61,7 +61,7 @@ const api = {
         return;
       }
       console.warn(
-        `[keykeeper] dropped invalid ${IPC.EventStream} payload: ${formatSchemaIssues(parsed.error)}`
+        `[realmkeeper] dropped invalid ${IPC.EventStream} payload: ${formatSchemaIssues(parsed.error)}`
       );
     };
     ipcRenderer.on(IPC.EventStream, wrapped);
@@ -164,6 +164,6 @@ const api = {
   },
 };
 
-contextBridge.exposeInMainWorld("kh", api);
+contextBridge.exposeInMainWorld("rw", api);
 
-export type KhApi = typeof api;
+export type RwApi = typeof api;

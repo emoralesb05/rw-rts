@@ -6,7 +6,7 @@
  * 4 idle frames, 4 attack frames, weapon detail, and palette).
  *
  * Output: per-character `<role>_sheet.png` (8 frames horizontal) +
- * `<role>.png` (still = frame 0) in `assets/sprites/kh/`.
+ * `<role>.png` (still = frame 0) in `assets/sprites/rw/`.
  *
  * Strategy: grid-detection. The script doesn't blindly slice — it auto-
  * trims each detected frame to its content bounding box, then places
@@ -23,7 +23,7 @@ import { dirname, resolve } from "node:path";
 // frames live (y row) and where the 4 attack frames live, plus the card
 // origin. Tuned visually; tweak if the source layout shifts.
 type CardSpec = {
-  role: string; // game slot identifier (sora, riku, etc.)
+  role: string; // game slot identifier (warden1, warden2, etc.)
   display: string; // character name for logging
   // Card bounds (top-left + size)
   cardX: number;
@@ -81,15 +81,15 @@ const BOT_FRAME_STRIDE = 80;
 
 const CARDS: CardSpec[] = [
   // Top row
-  topCard(0, "sora", "Vaelen"),
-  topCard(1, "aqua", "Lyris"),
-  topCard(2, "terra", "Ryder"),
-  topCard(3, "namine", "Selene"),
-  topCard(4, "ventus", "Orion"),
+  topCard(0, "warden1", "Vaelen"),
+  topCard(1, "warden4", "Lyris"),
+  topCard(2, "warden3", "Ryder"),
+  topCard(3, "warden2", "Selene"),
+  topCard(4, "warden5", "Orion"),
   // Bottom row
-  botCard(0, "yuffie", "Kaeda"),
-  botCard(1, "organization", "Niva"),
-  botCard(2, "unversed", "Tarro"),
+  botCard(0, "warden6", "Kaeda"),
+  botCard(1, "warden7", "Niva"),
+  botCard(2, "warden8", "Tarro"),
 ];
 
 function topCard(col: number, role: string, display: string): CardSpec {
@@ -178,7 +178,7 @@ async function main() {
   }
   const targetW = Number(process.env.TARGET_W ?? 64);
   const targetH = Number(process.env.TARGET_H ?? 96);
-  const outDir = process.env.OUT_DIR ?? "assets/sprites/kh";
+  const outDir = process.env.OUT_DIR ?? "assets/sprites/rw";
 
   const img = await loadImage(input);
   const W = img.width;

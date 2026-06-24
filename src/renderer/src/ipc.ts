@@ -22,12 +22,12 @@ function soundFor(ev: AgentEvent): SoundName | null {
 }
 
 export function attachEventStream() {
-  return window.kh.onEvent((event) => {
+  return window.rw.onEvent((event) => {
     useStore.getState().ingest(event);
-    window.dispatchEvent(new CustomEvent("kh:event", { detail: event }));
+    window.dispatchEvent(new CustomEvent("rw:event", { detail: event }));
     const s = soundFor(event);
     if (s) play(s);
   });
 }
 
-export const kh = window.kh;
+export const rw = window.rw;

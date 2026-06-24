@@ -91,7 +91,7 @@ function createWindow() {
     height: 900,
     backgroundColor: "#0a0e1a",
     titleBarStyle: "hiddenInset",
-    title: "Keykeeper",
+    title: "Realmkeeper",
     icon: iconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
@@ -108,7 +108,7 @@ function createWindow() {
   }
 
   mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
-    console.error("[keykeeper] preload failed:", preloadPath, error);
+    console.error("[realmkeeper] preload failed:", preloadPath, error);
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -166,7 +166,7 @@ function safeHandle<TArgs extends unknown[]>(
       event.senderFrame !== expected.mainFrame
     ) {
       throw new Error(
-        `[keykeeper] ipc rejected: untrusted sender for ${channel}`
+        `[realmkeeper] ipc rejected: untrusted sender for ${channel}`
       );
     }
     const result = await fn(event, ...(args as TArgs));
@@ -182,9 +182,9 @@ async function offerHookInstall() {
     buttons: ["Install hooks", "Skip"],
     defaultId: 0,
     cancelId: 1,
-    title: "keykeeper hook bridge",
+    title: "Realmkeeper hook bridge",
     message:
-      "Install Claude Code hooks so keykeeper can watch your other Claude sessions?",
+      "Install Claude Code hooks so Realmkeeper can watch your other Claude sessions?",
     detail:
       "Adds entries to ~/.claude/settings.json that forward tool-call events to a local socket. " +
       "Uninstall any time from the Settings menu.",
@@ -200,7 +200,7 @@ if (!app.isPackaged) {
 }
 
 void app.whenReady().then(async () => {
-  // Refresh the user-dir copy of bin/keykeeper-hook from the bundled
+  // Refresh the user-dir copy of bin/realmkeeper-hook from the bundled
   // source. Runs every boot — keeps the installed script in sync with
   // the app version. Must run before hook installers (so they
   // reference a present, executable file) and before the bridge (so
@@ -216,11 +216,11 @@ void app.whenReady().then(async () => {
     void (async () => {
       try {
         const img = await mainWindow.webContents.capturePage();
-        const path = "/tmp/keykeeper-frame.png";
+        const path = "/tmp/realmkeeper-frame.png";
         await writeFile(path, img.toPNG());
-        console.log(`[keykeeper] frame captured → ${path}`);
+        console.log(`[realmkeeper] frame captured → ${path}`);
       } catch (e) {
-        console.error("[keykeeper] capture failed:", e);
+        console.error("[realmkeeper] capture failed:", e);
       }
     })();
   });
@@ -253,7 +253,7 @@ void app.whenReady().then(async () => {
 
   safeHandle(IPC.KillAgent, (_e, unitId: unknown) => {
     if (typeof unitId !== "string" || !unitId) {
-      throw new Error(`[keykeeper] invalid ${IPC.KillAgent} payload`);
+      throw new Error(`[realmkeeper] invalid ${IPC.KillAgent} payload`);
     }
     AgentManager.kill(unitId);
   });

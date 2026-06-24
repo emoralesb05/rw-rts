@@ -8,7 +8,7 @@
  *
  * Output: a single horizontal frame strip at uniform dimensions, ready
  * for Phaser's spritesheet loader. Drops to
- * `assets/sprites/kh/<role>_sheet.png` plus a still for frame 0.
+ * `assets/sprites/rw/<role>_sheet.png` plus a still for frame 0.
  *
  * Strategy:
  *   1. Auto-detect content rows by scanning rows of non-background
@@ -25,7 +25,7 @@
  *
  * Run:
  *   bun scripts/extract-32-frame-sheet.ts <input.png> <role>
- *     [--bg-tol=24] [--out=assets/sprites/kh]
+ *     [--bg-tol=24] [--out=assets/sprites/rw]
  */
 import { createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -45,7 +45,7 @@ function parseArgs() {
   if (!input || !role) {
     console.error(
       "usage: bun scripts/extract-32-frame-sheet.ts <input.png> <role> " +
-        "[--rows=12,12,8] [--bg-tol=24] [--out=assets/sprites/kh]"
+        "[--rows=12,12,8] [--bg-tol=24] [--out=assets/sprites/rw]"
     );
     process.exit(1);
   }
@@ -56,7 +56,7 @@ function parseArgs() {
     frameW: 0,
     frameH: 0,
     bgTol: Number(flags.get("bg-tol") ?? 24),
-    outDir: flags.get("out") ?? "assets/sprites/kh",
+    outDir: flags.get("out") ?? "assets/sprites/rw",
   };
 }
 
@@ -186,7 +186,7 @@ function trimBox(
 // Returns the character bbox PLUS a body-axis anchor X (relative to bbox
 // left). Anchor = column-fill-weighted center of mass of the upper half
 // of the bbox — that captures the head/torso central axis, which is more
-// reliable than feet detection (a hanging keyblade or chain dips below
+// reliable than feet detection (a hanging focus relic or chain dips below
 // feet level and skews a feet-only center).
 type CharFrame = {
   sx: number;
@@ -280,7 +280,7 @@ function trimToCharacter(
 // Stage 3: reconcile against expected count.
 //   - If too few: split widest frame at its internal column-fill
 //     minimum (handles AI-gen packing two side-profile poses with
-//     zero column gap, e.g. keyblades touching).
+//     zero column gap, e.g. focus relics touching).
 //   - If too many: merge the pair with the narrowest gap between them
 //     (handles spurious mid-frame breaks when a character has a thin
 //     limb separated from the body by bg pixels).
@@ -411,7 +411,7 @@ async function main() {
   }
 
   // Per-row frame detection, reconciled to the user-specified count
-  // (default 12, 12, 8 for a 32-frame KH sheet). The reconciler handles
+  // (default 12, 12, 8 for a 32-frame RW sheet). The reconciler handles
   // touching characters (split) and over-broken silhouettes (merge).
   const frames: CharFrame[] = [];
   for (let r = 0; r < bands.length; r++) {
