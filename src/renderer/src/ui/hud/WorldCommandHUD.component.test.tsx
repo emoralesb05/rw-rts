@@ -117,7 +117,7 @@ describe("WorldCommandHUD", () => {
 
     const hud = screen.getByRole("region", { name: /repo world command/i });
     expect(hud).toHaveAttribute("data-placement", "above");
-    expect(hud).toHaveStyle({ left: "152px", top: "282px" });
+    expect(hud).toHaveStyle({ left: "232px", top: "312px" });
   });
 
   it("opens wielder status from mission-line agents", async () => {

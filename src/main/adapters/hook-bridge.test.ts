@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest";
+import {
+  cancelPermissionRequest,
+  pendingPermissionCount,
+  registerPermissionRequest,
+  resolvePermissionRequest,
+} from "./hook-bridge";
 import { normalizeHookPayload } from "./hook-normalizer";
 
 describe("hook bridge normalization", () => {
@@ -91,5 +97,52 @@ describe("hook bridge normalization", () => {
       kind: "assistant_text",
       payload: { text: "Done." },
     });
+  });
+
+  it("resolves callback-backed permission requests", () => {
+    let resolved:
+      | {
+          decision: string;
+          message?: string;
+          optionId?: string;
+        }
+      | undefined;
+
+    const registered = registerPermissionRequest(
+      {
+        sessionId: "codex-thread",
+        tool: "codex",
+        cwd: "/repo",
+        source: "spawned",
+      },
+      "req-callback",
+      [
+        {
+          id: "allow-once",
+          label: "allow",
+          decision: "allow",
+        },
+        {
+          id: "deny",
+          label: "deny",
+          decision: "deny",
+        },
+      ],
+      (resolution) => {
+        resolved = resolution;
+      }
+    );
+
+    expect(registered).toBe(true);
+    expect(pendingPermissionCount()).toBeGreaterThan(0);
+    expect(
+      resolvePermissionRequest("req-callback", "allow", undefined, "allow-once")
+    ).toBe(true);
+    expect(resolved).toEqual({
+      decision: "allow",
+      optionId: "allow-once",
+      message: undefined,
+    });
+    expect(cancelPermissionRequest("req-callback")).toBe(false);
   });
 });

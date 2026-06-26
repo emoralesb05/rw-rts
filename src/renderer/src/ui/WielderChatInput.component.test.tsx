@@ -55,6 +55,9 @@ describe("WielderChatInput", () => {
     await waitFor(() => {
       expect(rw.sendPrompt).toHaveBeenCalledWith({
         unitId: "unit-1",
+        sessionId: "unit-1",
+        tool: "claude",
+        cwd: "/repo",
         prompt: "please run the focused tests",
       });
     });
@@ -77,21 +80,41 @@ describe("WielderChatInput", () => {
     await waitFor(() => {
       expect(rw.sendPrompt).toHaveBeenCalledWith({
         unitId: "unit-1",
+        sessionId: "unit-1",
+        tool: "claude",
+        cwd: "/repo",
         prompt: "ship it",
       });
     });
   });
 
-  it("disables command input for observed-only and inactive units", () => {
+  it("can send prompts to observed-only units through resume metadata", async () => {
+    const rw = installRw();
+    const user = userEvent.setup();
+    render(<WielderChatInput unit={unit({ spawnedHere: false })} />);
+
+    const input = screen.getByPlaceholderText(/message vaelen/i);
+    await user.type(input, "continue from here");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    await waitFor(() => {
+      expect(rw.sendPrompt).toHaveBeenCalledWith({
+        unitId: "unit-1",
+        sessionId: "unit-1",
+        tool: "claude",
+        cwd: "/repo",
+        prompt: "continue from here",
+      });
+    });
+  });
+
+  it("disables command input for inactive units", () => {
     installRw();
     const { rerender } = render(
       <WielderChatInput unit={unit({ spawnedHere: false })} />
     );
 
-    expect(screen.getByPlaceholderText(/observed-only/i)).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: /send message/i })
-    ).toBeDisabled();
+    expect(screen.getByPlaceholderText(/message vaelen/i)).not.toBeDisabled();
 
     rerender(<WielderChatInput unit={unit({ status: "complete" })} />);
 

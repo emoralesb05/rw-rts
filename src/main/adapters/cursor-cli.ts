@@ -8,7 +8,7 @@
 
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { bus } from "../event-bus";
-import type { AgentEvent } from "@shared/events";
+import type { AgentEvent, AgentEventSource } from "@shared/events";
 import {
   parseProviderStreamMessage,
   type ProviderStreamMessage,
@@ -59,6 +59,12 @@ function spawnCursorProcess(prompt: string, cwd: string, chatId: string) {
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env },
   });
+}
+
+function chatIdForSession(sessionId: string): string {
+  return sessionId.startsWith("cursor-")
+    ? sessionId.slice("cursor-".length)
+    : sessionId;
 }
 
 function createChat(cwd: string): string {
@@ -124,11 +130,41 @@ export function spawnCursorAgent(opts: SpawnCursorOptions): SpawnedCursorAgent {
   return agent;
 }
 
+export function resumeCursorSession(opts: {
+  sessionId: string;
+  cwd: string;
+  prompt: string;
+}): ChildProcess {
+  bus.emitAgentEvent({
+    sessionId: opts.sessionId,
+    tool: "cursor",
+    cwd: opts.cwd,
+    timestamp: Date.now(),
+    kind: "user_prompt",
+    payload: { text: opts.prompt },
+    source: "realmkeeper",
+  });
+  const proc = spawnCursorProcess(
+    opts.prompt,
+    opts.cwd,
+    chatIdForSession(opts.sessionId)
+  );
+  attachStream(
+    proc,
+    () => opts.sessionId,
+    () => {},
+    opts.cwd,
+    "realmkeeper"
+  );
+  return proc;
+}
+
 function attachStream(
   proc: ChildProcess,
   getSessionId: () => string,
   setSessionId: (id: string) => void,
-  cwd: string
+  cwd: string,
+  source: AgentEventSource = "spawned"
 ) {
   let buf = "";
   proc.stdout?.on("data", (chunk: Buffer) => {
@@ -144,7 +180,12 @@ function attachStream(
       if (typeof sid === "string" && sid && getSessionId() !== sid) {
         setSessionId(sid);
       }
-      const events = normalizeCursorStreamMessage(msg, getSessionId(), cwd);
+      const events = normalizeCursorStreamMessage(
+        msg,
+        getSessionId(),
+        cwd,
+        source
+      );
       for (const ev of events) bus.emitAgentEvent(ev);
     }
   });
@@ -166,7 +207,7 @@ function attachStream(
       timestamp: Date.now(),
       kind: "error",
       payload: { error: text },
-      source: "spawned",
+      source,
     });
   });
   proc.on("exit", (code) => {
@@ -177,7 +218,7 @@ function attachStream(
       timestamp: Date.now(),
       kind: "session_end",
       payload: { text: `exit ${code ?? 0}` },
-      source: "spawned",
+      source,
     });
   });
 }
@@ -185,7 +226,8 @@ function attachStream(
 export function normalizeCursorStreamMessage(
   msg: ProviderStreamMessage,
   sessionId: string,
-  cwd: string
+  cwd: string,
+  source: AgentEventSource = "spawned"
 ): AgentEvent[] {
   // cursor-agent emits a richer stream than claude. We surface only the things
   // that map cleanly to AgentEvent kinds; thinking deltas, tool_call started,
@@ -195,7 +237,7 @@ export function normalizeCursorStreamMessage(
     sessionId,
     tool: "cursor" as const,
     cwd,
-    source: "spawned" as const,
+    source,
   };
   const out: AgentEvent[] = [];
 

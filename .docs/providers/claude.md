@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `claude` (typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
+- Binary: `claude` (verified locally 2026-06-25: `2.1.191 (Claude Code)`, typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
 - Settings: `~/.claude/settings.json` (hooks live under `hooks.<EventName>`)
 - Install hooks via the realmkeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
 
@@ -64,7 +64,7 @@ Watcher contract:
 ## Resume
 
 ```bash
-claude --resume <sessionId> --print "<prompt>"
+claude -p "<prompt>" --output-format stream-json --verbose --resume <sessionId>
 ```
 
 - Continues the **same** session id by default (verified: file appended in place, no fork)
@@ -73,6 +73,16 @@ claude --resume <sessionId> --print "<prompt>"
 - All hooks fire normally on the resumed turn — events flow back through the bridge attributed to the original sessionId, so a wielder we already observe just appends a new turn
 
 Use this to drive an observed wielder from realmkeeper without owning the original TUI process.
+
+## 2026-06-25 CLI notes
+
+Official CLI reference now documents several capabilities worth tracking:
+
+- `claude -p`, `claude -c -p`, and `claude -r "<session>" "query"` are the supported non-interactive/query and resume forms.
+- `--output-format stream-json`, `--verbose`, `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` are available for richer machine streams.
+- `--input-format stream-json` with `--replay-user-messages` could eventually support a persistent stdin/stdout Claude process for Realmkeeper-owned sessions; today Realmkeeper uses one-shot `-p` calls and emits its own `source: "realmkeeper"` user prompt while suppressing matching hook echoes.
+- `--bg`, `claude agents --json`, `claude attach`, `claude logs`, `claude stop`, and `claude respawn` expose first-class background sessions. Realmkeeper still treats Claude as hook/transcript-observed, but these commands are the best discovery/control path for already-running Claude background agents.
+- `--remote-control` and `claude remote-control` are a separate provider-native control surface. They are not integrated yet; they may be useful if Realmkeeper needs to coordinate local and Claude.ai-visible sessions.
 
 ## MCP, agents, plugins (we observe, don't drive)
 

@@ -1,8 +1,7 @@
 /**
  * Per-wielder send-prompt input. Lives at the bottom of the chat-
  * drawer's active tab. Every wielder gets its own focused input;
- * disabled (with a hint) for observed-only wielders since realmkeeper
- * can't drive them.
+ * observed wielders are driven through provider-specific session resume.
  */
 import { useCallback, useState } from "react";
 import { Send } from "lucide-react";
@@ -14,22 +13,27 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const ghosted = unit.status === "complete" || unit.status === "fallen";
-  const observed = !unit.spawnedHere;
-  const disabled = busy || ghosted || observed;
+  const disabled = busy || ghosted;
 
   const send = useCallback(async () => {
     const text = prompt.trim();
     if (!text || disabled) return;
     setBusy(true);
     try {
-      await window.rw.sendPrompt({ unitId: unit.id, prompt: text });
+      await window.rw.sendPrompt({
+        unitId: unit.id,
+        sessionId: unit.sessionId,
+        tool: unit.tool,
+        cwd: unit.cwd,
+        prompt: text,
+      });
       setPrompt("");
     } catch {
       // Keep the text in place so the user can retry.
     } finally {
       setBusy(false);
     }
-  }, [prompt, disabled, unit.id]);
+  }, [prompt, disabled, unit.id, unit.sessionId, unit.tool, unit.cwd]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Cmd/Ctrl+Enter sends; shift+enter inserts a newline; bare Enter
@@ -43,8 +47,6 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
 
   let placeholder: string;
   if (ghosted) placeholder = `${unit.displayName} is no longer active.`;
-  else if (observed)
-    placeholder = `${unit.displayName} is observed-only — can't be commanded.`;
   else placeholder = `Message ${unit.displayName}…  (⌘↵ to send)`;
 
   const canSend = !disabled && !!prompt.trim();

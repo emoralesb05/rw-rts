@@ -4,17 +4,16 @@
  * Gemini headless mode emits JSONL via:
  *   gemini --prompt "<text>" --output-format stream-json
  *
- * The first `init` event contains the generated session_id. Resume accepts
- * that UUID (`--resume <session_id>`), even though the help text emphasizes
- * numeric indexes and "latest".
+ * Realmkeeper starts new sessions with an explicit UUID via `--session-id`.
+ * Resume accepts that UUID (`--resume <session_id>`), even though the help
+ * text emphasizes numeric indexes and "latest".
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { bus } from "../event-bus";
 import { registerSpawnedSession, unregisterSpawnedSession } from "./claude-cli";
-import {
-  GeminiInitMessageSchema,
-  parseProviderStreamMessage,
-} from "@shared/schemas";
+import { parseProviderStreamMessage } from "@shared/schemas";
+import type { AgentEventSource } from "@shared/events";
 
 export type SpawnGeminiOptions = {
   prompt: string;
@@ -68,7 +67,10 @@ function errorMessage(raw: unknown, fallback: string): string {
   return String(raw ?? fallback);
 }
 
-function buildArgs(prompt: string, resumeId?: string): string[] {
+export function buildGeminiArgs(
+  prompt: string,
+  opts: { resumeId?: string; sessionId?: string } = {}
+): string[] {
   const args = [
     "--prompt",
     prompt,
@@ -77,35 +79,53 @@ function buildArgs(prompt: string, resumeId?: string): string[] {
     "--approval-mode",
     "yolo",
   ];
-  if (resumeId) args.push("--resume", resumeId);
+  if (opts.resumeId) args.push("--resume", opts.resumeId);
+  else if (opts.sessionId) args.push("--session-id", opts.sessionId);
   return args;
 }
 
-function spawnGeminiProcess(prompt: string, cwd: string, resumeId?: string) {
-  return spawn("gemini", buildArgs(prompt, resumeId), {
+function spawnGeminiProcess(
+  prompt: string,
+  cwd: string,
+  opts: { resumeId?: string; sessionId?: string } = {}
+) {
+  return spawn("gemini", buildGeminiArgs(prompt, opts), {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, REALMKEEPER_GEMINI_FAIL_CLOSED: "1" },
   });
 }
 
+export function resumeGeminiSession(opts: {
+  sessionId: string;
+  cwd: string;
+  prompt: string;
+}): ChildProcess {
+  registerSpawnedSession(opts.sessionId);
+  bus.emitAgentEvent({
+    sessionId: opts.sessionId,
+    tool: "gemini",
+    cwd: opts.cwd,
+    timestamp: Date.now(),
+    kind: "user_prompt",
+    payload: { text: opts.prompt },
+    source: "realmkeeper",
+  });
+  const proc = spawnGeminiProcess(opts.prompt, opts.cwd, {
+    resumeId: opts.sessionId,
+  });
+  attachStream(proc, opts.sessionId, opts.cwd, "realmkeeper");
+  proc.on("exit", () => unregisterSpawnedSession(opts.sessionId));
+  proc.on("error", () => unregisterSpawnedSession(opts.sessionId));
+  return proc;
+}
+
 export async function spawnGeminiAgent(
   opts: SpawnGeminiOptions
 ): Promise<SpawnedGeminiAgent> {
-  const proc = spawnGeminiProcess(opts.prompt, opts.cwd);
-  let sessionId: string;
-  try {
-    sessionId = await waitForSessionId(proc, 15000);
-  } catch (err) {
-    try {
-      proc.kill("SIGTERM");
-    } catch {
-      /* ignore */
-    }
-    throw err;
-  }
-
+  const sessionId = randomUUID();
   registerSpawnedSession(sessionId);
+  const proc = spawnGeminiProcess(opts.prompt, opts.cwd, { sessionId });
 
   bus.emitAgentEvent({
     sessionId,
@@ -132,7 +152,9 @@ export async function spawnGeminiAgent(
         payload: { text: prompt },
         source: "spawned",
       });
-      const followUp = spawnGeminiProcess(prompt, opts.cwd, sessionId);
+      const followUp = spawnGeminiProcess(prompt, opts.cwd, {
+        resumeId: sessionId,
+      });
       agent.proc = followUp;
       attachStream(followUp, sessionId, opts.cwd);
     },
@@ -148,66 +170,12 @@ export async function spawnGeminiAgent(
   return agent;
 }
 
-function waitForSessionId(
+function attachStream(
   proc: ChildProcess,
-  timeoutMs: number
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let buf = "";
-    let settled = false;
-    const cleanup = () => {
-      clearTimeout(timer);
-      proc.stdout?.off("data", onData);
-      proc.off("exit", onExit);
-      proc.off("error", onError);
-    };
-    const settle = (fn: () => void) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      fn();
-    };
-    const timer = setTimeout(() => {
-      settle(() => reject(new Error("gemini did not emit init in time")));
-    }, timeoutMs);
-    const onData = (chunk: Buffer) => {
-      buf += chunk.toString("utf8");
-      let nl: number;
-      while ((nl = buf.indexOf("\n")) !== -1) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        const msg = parseProviderStreamMessage(line);
-        if (msg) {
-          const init = GeminiInitMessageSchema.safeParse(msg);
-          if (init.success) {
-            const remaining = buf;
-            settle(() => {
-              if (remaining) {
-                setImmediate(() =>
-                  proc.stdout?.emit("data", Buffer.from(remaining))
-                );
-              }
-              resolve(init.data.session_id);
-            });
-            return;
-          }
-        }
-      }
-    };
-    const onExit = () => {
-      settle(() => reject(new Error("gemini exited before emitting init")));
-    };
-    const onError = (err: Error) => {
-      settle(() => reject(err));
-    };
-    proc.stdout?.on("data", onData);
-    proc.once("exit", onExit);
-    proc.once("error", onError);
-  });
-}
-
-function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
+  sessionId: string,
+  cwd: string,
+  source: AgentEventSource = "spawned"
+) {
   let buf = "";
   let assistantBuffer = "";
   let sawResult = false;
@@ -216,7 +184,7 @@ function attachStream(proc: ChildProcess, sessionId: string, cwd: string) {
     sessionId,
     tool: "gemini" as const,
     cwd,
-    source: "spawned" as const,
+    source,
   };
 
   const flushAssistant = () => {

@@ -591,9 +591,10 @@ trigger condition shows up. Order is rough priority (highest first).
 
 ### Active workstream — see plans/
 
-- **Drive observed wielders via session resume** — full plan in
-  [`./plans/observed-resume.md`](./plans/observed-resume.md). Empirically
-  verified for all 3 tools 2026-04-30; implementation pending.
+- **Drive observed wielders via session resume** — implemented for direct
+  per-wielder chat messages; notes live in
+  [`./plans/observed-resume.md`](./plans/observed-resume.md). Repeated
+  orders and recall for observed sessions remain separate follow-up work.
 - **Provider-neutral multi-choice permissions** — full plan in
   [`./plans/multi-choice-permissions.md`](./plans/multi-choice-permissions.md).
   Needed for confirmation prompts that expose multiple selectable options
@@ -682,16 +683,17 @@ but degrades cold-start time and memory. Two staged fixes:
 
 Not urgent. Wait until cold-start time becomes annoying.
 
-### Hook-observed sessions can't be controlled
+### Hook-observed sessions have partial control
 
-Today, send-word / recall / dispatch only work for sessions realmkeeper
-spawned itself (`AgentManager.spawn` registers the proc). Hook-observed
-wielders (Claude/Cursor/Codex sessions started outside realmkeeper) show
-up in the party list with full event history but the control verbs are
-no-ops — there's no proc handle to send into.
+Direct send-word now works for hook-observed wielders through
+provider-specific session resume (`source: "realmkeeper"` events).
+Recall, dispatch, decrees, and standing-order loops still only work for
+sessions Realmkeeper spawned itself (`AgentManager.spawn` registers the
+proc). Hook-observed wielders show up in the party list with full event
+history, but those higher-impact verbs remain intentionally scoped.
 
-**This is being addressed** — see [`./plans/observed-resume.md`](./plans/observed-resume.md).
-Resume mechanics empirically verified for all three tools 2026-04-30.
+See [`./plans/observed-resume.md`](./plans/observed-resume.md) for the
+implemented direct-message path and known live-UI divergence.
 
 ### Codex desktop-app version drift (informational)
 

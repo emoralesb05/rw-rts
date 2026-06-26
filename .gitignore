@@ -13,3 +13,5 @@ assets/sounds/rw/*
 !assets/sounds/rw/.gitkeep
 local-assets/
 .claude/scheduled_tasks.lock
+.docs/plans/probes/*
+

@@ -42,7 +42,7 @@ const STATE_TONE: Record<
   sealed: "success",
 };
 
-const COMMAND_POPOVER_FALLBACK = { width: 720, height: 220 };
+const COMMAND_POPOVER_FALLBACK = { width: 560, height: 190 };
 const COMMAND_POPOVER_MARGIN = 12;
 const COMMAND_POPOVER_TOP_MARGIN = 42;
 const COMMAND_POPOVER_GAP = 18;
@@ -374,7 +374,7 @@ export function WorldCommandHUD() {
     <section
       ref={panelRef}
       className={cn(
-        "z-hud pointer-events-auto absolute flex max-h-[calc(100vh-72px)] w-[min(720px,calc(100vw-32px))] min-w-0 flex-col overflow-visible rounded-md transition-opacity duration-150",
+        "z-hud pointer-events-auto absolute flex max-h-[calc(100vh-72px)] w-[min(560px,calc(100vw-32px))] min-w-0 flex-col overflow-visible rounded-md transition-opacity duration-150",
         "border-accent-alt/25 font-ui border bg-[#071025]/72 shadow-[0_18px_56px_rgba(0,0,0,0.46)] backdrop-blur-md",
         hideOffscreen && "pointer-events-none opacity-0"
       )}
@@ -394,7 +394,7 @@ export function WorldCommandHUD() {
           aria-hidden="true"
         />
       )}
-      <header className="bg-accent-alt/[0.05] flex min-w-0 items-start gap-2 border-b border-white/[0.07] px-3 py-2">
+      <header className="bg-accent-alt/[0.05] flex min-w-0 items-start gap-2 border-b border-white/[0.07] px-2.5 py-1.5">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <Badge
@@ -403,14 +403,14 @@ export function WorldCommandHUD() {
             >
               {STATE_LABEL[brief.readState]}
             </Badge>
-            <span className="text-text min-w-0 overflow-hidden text-[13px] font-bold text-ellipsis whitespace-nowrap">
+            <span className="text-text min-w-0 overflow-hidden text-[12px] font-bold text-ellipsis whitespace-nowrap">
               {world.label}
             </span>
             <span className="text-muted hidden shrink-0 font-mono text-[10px] sm:inline">
               {themeName}
             </span>
           </div>
-          <p className="text-muted mt-1 line-clamp-2 text-[11px] leading-relaxed">
+          <p className="text-muted mt-0.5 line-clamp-1 text-[10.5px] leading-relaxed">
             {brief.objective}
           </p>
         </div>
@@ -428,7 +428,7 @@ export function WorldCommandHUD() {
         </TooltipHint>
       </header>
 
-      <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_minmax(300px,1fr)] gap-2 p-2.5 max-lg:grid-cols-1">
+      <div className="grid min-h-0 grid-cols-[minmax(0,0.85fr)_minmax(240px,1fr)] gap-2 p-2 max-lg:grid-cols-1">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="grid grid-cols-4 gap-1.5">
             <Metric label="wielders" value={brief.unitCounts.live} />
@@ -487,7 +487,7 @@ export function WorldCommandHUD() {
               mission line
             </span>
           </div>
-          <div className="flex max-h-[184px] min-w-0 flex-col gap-1 overflow-y-auto pr-1">
+          <div className="flex max-h-[126px] min-w-0 flex-col gap-1 overflow-y-auto pr-1">
             {brief.worldUnits.length > 0 ? (
               brief.worldUnits.map((unit) => (
                 <UnitLine key={unit.id} unit={unit} />

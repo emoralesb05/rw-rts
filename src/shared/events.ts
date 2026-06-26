@@ -3,6 +3,7 @@ import type { AgentTool, PersistedState } from "./schemas";
 export type {
   AgentEvent,
   AgentEventKind,
+  AgentEventSource,
   AgentTool,
   PersistedStandingOrder,
   PersistedState,

@@ -55,11 +55,11 @@ If the provider's CLI supports a non-interactive resume:
 |---|---|---|
 | `src/main/adapters/<name>-cli.ts` | new fn | `resume<Name>Session(sessionId, cwd, prompt)` — spawns the one-shot CLI invocation. The hooks installed earlier do the work of streaming events back |
 | `src/main/agent-manager.ts` | edit | Dispatch `SendPrompt` to the resume function when `unit.spawnedHere === false` |
-| `src/renderer/src/ui/floating/WielderPanelBody.tsx` | edit | Drop the `!unit.spawnedHere` gate on the chat input |
+| `src/renderer/src/ui/WielderChatInput.tsx` | edit | Pass `sessionId`, `tool`, and `cwd` with `SendPrompt` so main can resume observed units |
 
 If `--print --resume` strips hooks (Cursor's case), additionally:
 - Parse the assistant text from stdout
-- Synthesize `user_prompt` + `assistant_text` events directly into the bus, attributed to the chat/session id
+- Synthesize `source: "realmkeeper"` events directly into the bus, attributed to the chat/session id
 
 ## What you can skip (DO NOT add unless needed)
 

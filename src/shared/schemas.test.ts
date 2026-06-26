@@ -17,6 +17,7 @@ import {
   PersistedStateSchema,
   ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
+  SendPromptRequestSchema,
   SpawnAgentRequestSchema,
   SpawnAgentResponseSchema,
   WorkspaceRootValidationSchema,
@@ -118,6 +119,23 @@ describe("runtime schemas", () => {
       sessionId: "s1",
       tool: "claude",
       kind: "tool_use",
+    });
+  });
+
+  it("accepts Realmkeeper-originated prompts for observed sessions", () => {
+    expect(
+      AgentEventSchema.parse({
+        sessionId: "s1",
+        tool: "claude",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "user_prompt",
+        payload: { text: "continue" },
+        source: "realmkeeper",
+      })
+    ).toMatchObject({
+      kind: "user_prompt",
+      source: "realmkeeper",
     });
   });
 
@@ -257,6 +275,16 @@ describe("runtime schemas", () => {
   });
 
   it("validates IPC response contracts exposed through preload", () => {
+    expect(
+      SendPromptRequestSchema.parse({
+        unitId: "unit-1",
+        sessionId: "session-1",
+        tool: "gemini",
+        cwd: "/repo",
+        prompt: "continue",
+      })
+    ).toMatchObject({ tool: "gemini" });
+
     expect(
       SpawnAgentResponseSchema.parse({
         unitId: "unit-1",

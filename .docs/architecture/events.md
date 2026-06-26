@@ -17,9 +17,9 @@ provider hook fires
 
 For details on the bridge and dispatch, see [`bridge.md`](./bridge.md).
 
-## The transcript fallback (when assistant text isn't a hook)
+## Provider streams and transcript fallback
 
-Claude and Codex don't fire any `assistant_text` / `afterAgentResponse` hook. To capture their replies we poll their on-disk session files:
+Realmkeeper-spawned Codex sessions use app-server notifications for assistant text and tool activity. Claude, plus passively observed Codex sessions that only arrive through hooks/transcripts, still need transcript polling because those hook surfaces do not fire an `assistant_text` / `afterAgentResponse` hook. To capture those replies we poll their on-disk session files:
 
 ```
 provider writes JSONL line
@@ -43,7 +43,9 @@ type AgentEvent = {
   timestamp: number;
   kind: AgentEventKind;
   payload: { /* see per-kind table below */ };
-  source: "spawned" | "hook";   // spawned = started by us; hook = observed
+  source: "spawned" | "hook" | "realmkeeper";
+  // spawned = started by us; hook = observed provider hook;
+  // realmkeeper = a resumed observed session turn originated by the app
 }
 ```
 
@@ -88,7 +90,7 @@ Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`
 
 ## Fixture replay (testing)
 
-`src/main/adapters/fixture.ts` lets you replay a recorded scenario as synthetic events on the bus. Fixtures currently emit `source: "spawned"` because `AgentEvent.source` only allows `"spawned" | "hook"`. Useful for iterating on the renderer without spinning up real provider sessions.
+`src/main/adapters/fixture.ts` lets you replay a recorded scenario as synthetic events on the bus. Fixtures currently emit `source: "spawned"` so they behave like Realmkeeper-started sessions. Useful for iterating on the renderer without spinning up real provider sessions.
 
 - Built-in scenarios: summon, combat, subagent, permission, etc.
 - IPC: `rw:play-fixture` with `{scenario, cwd}` triggers playback

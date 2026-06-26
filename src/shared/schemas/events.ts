@@ -16,7 +16,11 @@ export const AgentEventKindSchema = z.enum([
 ]);
 export type AgentEventKind = z.infer<typeof AgentEventKindSchema>;
 
-export const AgentEventSourceSchema = z.enum(["spawned", "hook"]);
+export const AgentEventSourceSchema = z.enum([
+  "spawned",
+  "hook",
+  "realmkeeper",
+]);
 export type AgentEventSource = z.infer<typeof AgentEventSourceSchema>;
 
 export const AgentEventPayloadSchema = z.looseObject({

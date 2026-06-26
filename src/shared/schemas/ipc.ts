@@ -32,6 +32,9 @@ export type ListUnitsResponse = z.infer<typeof ListUnitsResponseSchema>;
 export const SendPromptRequestSchema = z.object({
   unitId: z.string().min(1),
   prompt: z.string(),
+  sessionId: z.string().min(1).optional(),
+  tool: AgentToolSchema.optional(),
+  cwd: z.string().min(1).optional(),
 });
 export type SendPromptRequest = z.infer<typeof SendPromptRequestSchema>;
 

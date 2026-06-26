@@ -29,6 +29,11 @@ import type {
   WardenAura,
 } from "@shared/events";
 import { themeFor, themeLabel, type WorldTheme } from "../realm-worlds";
+import {
+  clusterDisplayName,
+  computeClusterLayout,
+  hashString,
+} from "../cluster-layout";
 import { ROLE_PALETTE } from "../units";
 import {
   UNIT_ROLES,
@@ -109,6 +114,11 @@ const CAMERA_SAFE_TOP_PX = 110;
 const CAMERA_SAFE_BOTTOM_PX = 270;
 const CAMERA_WORLD_PAD_X = 140;
 const CAMERA_WORLD_PAD_Y = 120;
+const TACTICAL_MAP_MIN_W = 176;
+const TACTICAL_MAP_MAX_W = 236;
+const TACTICAL_MAP_WIDTH_RATIO = 0.16;
+const TACTICAL_MAP_HEIGHT = 112;
+const TACTICAL_MAP_PAD = 10;
 const ORDER_DASH = 14;
 const ORDER_GAP = 9;
 const RIFTLING_ATTACK_COOLDOWN_MS = 1500;
@@ -893,13 +903,17 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private canCreateGameObjects() {
-    return Boolean(
-      this.add &&
-      this.tweens &&
-      this.time &&
-      this.scene &&
-      this.scene.isActive()
-    );
+    try {
+      return Boolean(
+        this.add &&
+        this.tweens &&
+        this.time &&
+        this.scene &&
+        this.scene.isActive()
+      );
+    } catch {
+      return false;
+    }
   }
 
   private triggerWorldEventVfx(
@@ -5105,8 +5119,11 @@ export class KingdomScene extends Phaser.Scene {
 
     const mainCam = this.cameras.main;
     const hudCam = this.hudCamera ?? mainCam;
-    const width = Math.min(292, Math.max(220, hudCam.width * 0.2));
-    const height = 148;
+    const width = Math.min(
+      TACTICAL_MAP_MAX_W,
+      Math.max(TACTICAL_MAP_MIN_W, hudCam.width * TACTICAL_MAP_WIDTH_RATIO)
+    );
+    const height = TACTICAL_MAP_HEIGHT;
     const defaultScreenX = hudCam.width / 2 - width / 2;
     const screenX = Phaser.Math.Clamp(
       defaultScreenX,
@@ -5126,13 +5143,13 @@ export class KingdomScene extends Phaser.Scene {
       ?.setVisible(true)
       .setText("TACTICAL MAP")
       .setScrollFactor(0)
-      .setPosition(screenX + 16, screenY + 11)
+      .setPosition(screenX + 14, screenY + 9)
       .setScale(1)
       .setAlpha(0.72);
 
     const x = 0;
     const y = 0;
-    const pad = 14;
+    const pad = TACTICAL_MAP_PAD;
     const bounds = this.getRealmBounds([...this.worlds.values()]);
     const layout = { width, height, pad };
     const plot = (wx: number, wy: number) => ({
@@ -5558,93 +5575,4 @@ function renownRank(tier: RenownTier): number {
   if (tier === "Veteran") return 2;
   if (tier === "Apprentice") return 1;
   return 0;
-}
-
-function computeClusterLayout(
-  worldsRecord: Record<string, WorldState>
-): Map<string, { x: number; y: number; clusterKey: string }> {
-  const out = new Map<string, { x: number; y: number; clusterKey: string }>();
-  const worlds = Object.values(worldsRecord);
-  if (worlds.length === 0) return out;
-
-  // Group by parent dir of world.path
-  const clusters = new Map<string, WorldState[]>();
-  for (const w of worlds) {
-    const key = clusterKeyFor(w.path);
-    let list = clusters.get(key);
-    if (!list) {
-      list = [];
-      clusters.set(key, list);
-    }
-    list.push(w);
-  }
-
-  // Walk clusters in deterministic order (sorted key) so positions stay
-  // stable across rebuilds.
-  const sortedKeys = [...clusters.keys()].sort();
-
-  for (const key of sortedKeys) {
-    const members = clusters
-      .get(key)!
-      .slice()
-      .sort((a, b) => a.id.localeCompare(b.id));
-    const ch = hashString(key);
-    // Outer ring: cluster centroids orbit the central base. Keep the
-    // radius compact enough to read as one kingdom, but outside the
-    // base footprint so missions feel like destinations.
-    const outerRadius = 520 + (Math.abs(ch) % 320);
-    const outerAngle = ((Math.abs(ch >> 8) % 360) * Math.PI) / 180;
-    const cx = Math.cos(outerAngle) * outerRadius;
-    const cy = Math.sin(outerAngle) * outerRadius;
-
-    if (members.length === 1) {
-      out.set(members[0].id, { x: cx, y: cy, clusterKey: key });
-      continue;
-    }
-
-    // Inner ring: tighter than the original layout, with enough spacing
-    // for the per-world iso plane + alert ring to remain legible.
-    const innerRadius = Math.min(280, 145 + members.length * 20);
-    members.forEach((w, i) => {
-      const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
-      out.set(w.id, {
-        x: cx + Math.cos(angle) * innerRadius,
-        y: cy + Math.sin(angle) * innerRadius,
-        clusterKey: key,
-      });
-    });
-  }
-
-  return out;
-}
-
-/**
- * Cluster key = parent directory of the repo path. Any repo with at least
- * 2 path segments clusters with its siblings (so `/tmp/foo` and
- * `/tmp/bar` both cluster under `/tmp`). Single-segment paths like `/repo`
- * are their own cluster.
- */
-function clusterKeyFor(repoPath: string): string {
-  const parts = repoPath.split("/").filter(Boolean);
-  if (parts.length < 2) return repoPath;
-  return "/" + parts.slice(0, -1).join("/");
-}
-
-/**
- * Friendly cluster label. Trims the path to the last 2 segments so e.g.
- * `/Users/ed/Github/emoralesb05` shows as "Github / emoralesb05".
- */
-function clusterDisplayName(clusterKey: string): string {
-  const parts = clusterKey.split("/").filter(Boolean);
-  if (parts.length === 0) return "/";
-  if (parts.length === 1) return parts[0];
-  return parts.slice(-2).join(" / ");
-}
-
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
-  }
-  return h;
 }

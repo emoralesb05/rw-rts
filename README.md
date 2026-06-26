@@ -122,7 +122,7 @@ workspace-root validation + exclude textarea).
 
 ## Multi-tool support
 
-Three agent providers are wired. All three observe via the same Unix
+Four agent providers are wired. All four observe via the same Unix
 socket bridge (`~/.realmkeeper/realmkeeper.sock`); a small Python script
 (`bin/realmkeeper-hook`) is installed into each tool's hook config and
 forwards events into the bridge.
@@ -131,7 +131,8 @@ forwards events into the bridge.
 | --------------------------------- | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Claude Code (`claude`)            | ✅ `claude -p` with `--session-id` | ✅ hooks in `~/.claude/settings.json`                     | ✅ Realmkeeper-authoritative; native terminal prompt races concurrently                                                         |
 | Cursor (`cursor-agent` / IDE)     | ✅ `cursor-agent create-chat`      | ✅ hooks in `~/.cursor/hooks.json`                        | ⚠ observational only — Cursor's allowlist mode requires user confirmation in its inline UI; Realmkeeper letter is informational |
-| Codex (`codex` CLI / desktop app) | ✅ `codex exec --json`             | ✅ hooks in `~/.codex/config.toml` (managed marker block) | ✅ Realmkeeper-authoritative; Codex never shows native UI when the hook decides                                                 |
+| Codex (`codex` CLI / desktop app) | ✅ `codex app-server --stdio`      | ✅ hooks in `~/.codex/config.toml` (managed marker block) | ✅ Realmkeeper-authoritative; app-server command/file/permission approvals use permission cards                                 |
+| Gemini CLI (`gemini`)             | ✅ `gemini --prompt`               | ✅ hooks in `~/.gemini/settings.json` + managed policy    | ✅ Realmkeeper-authoritative via `BeforeTool`; managed policy suppresses Gemini's duplicate native prompt                       |
 
 Hook installs are managed from the Kingdom panel → **Connection** tab:
 one toggle per tool. Each one reads/writes only its own config and
@@ -182,7 +183,7 @@ Painterly hi-res wardens were authored separately via AI generation
 Electron main (`src/main/`) hosts agent adapters that turn real CLI
 output and hook events into a uniform `AgentEvent` bus. The Unix-socket
 hook bridge (`adapters/hook-bridge.ts`) is the canonical observation
-channel for all three tools — Claude/Cursor/Codex install their own
+channel for all four tools — Claude/Cursor/Codex/Gemini install their own
 hook configs that pipe payloads into the same socket via
 `bin/realmkeeper-hook`. Spawned sessions also stream stdout JSON, with
 per-tool spawn-id registration so the bridge suppresses duplicate hook
@@ -213,7 +214,7 @@ Open the **Kingdom panel** (⚙ on the pill) → **Demos** tab. Two groups:
   into a fresh `/tmp` world. Useful for iterating on visuals.
 - **Flows** — `cursor-turn`, `codex-shell`, `subagent` (Claude with
   subagent + Link aura), `combat` (riftling raid), `stress` (30
-  events), `permission` (approval letter), `demo` (all 3 tools).
+  events), `permission` (approval letter), `demo` (all four tools).
 
 Use freely; they emit synthetic events, no API tokens spent.
 
@@ -224,9 +225,11 @@ Use freely; they emit synthetic events, no API tokens spent.
 **No events flowing for a tool.** Open Kingdom panel → **Connection**
 tab. Each tool has its own hook bridge toggle; click `Install hooks` for
 the relevant tool. Entries land in `~/.claude/settings.json` (Claude),
-`~/.cursor/hooks.json` (Cursor), or a managed marker block in
-`~/.codex/config.toml` (Codex). All three forward to the same local
-Unix socket (`~/.realmkeeper/realmkeeper.sock`). Uninstall reverts cleanly.
+`~/.cursor/hooks.json` (Cursor), a managed marker block in
+`~/.codex/config.toml` (Codex), or `~/.gemini/settings.json` plus
+`~/.gemini/policies/realmkeeper-managed.toml` (Gemini). All four forward
+to the same local Unix socket (`~/.realmkeeper/realmkeeper.sock`).
+Uninstall reverts cleanly.
 
 **Hooks installed but a tool's events still don't appear.** Tools read
 their hook config at session start. Quit the tool fully (Cmd+Q for the
@@ -285,9 +288,9 @@ replay mode (event-log scrubber), outbound MCP server, Quest system.
   shipped; the rest matters before public distribution.
 - Renderer bundle size (~10 MB) — Streamdown markdown stack loads
   Mermaid/math/Shiki eagerly. Lazy-load is the plan.
-- Send-word/recall on hook-observed sessions — currently only works for
-  sessions Realmkeeper spawned itself. Hook-observed wielders show up but
-  can't be controlled until AgentManager learns to register them.
+- Recall and standing-order loops on hook-observed sessions — direct
+  messages now resume observed sessions, but repeated orders and process
+  control stay scoped to sessions Realmkeeper spawned itself.
 
 See `.docs/vision.md` for the design rationale and the full
 question/decision history (Q1–Q44).

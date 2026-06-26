@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { bus } from "../event-bus";
-import type { AgentTool } from "@shared/events";
+import type { AgentEventSource, AgentTool } from "@shared/events";
 import {
   HookPayloadSchema,
   type HookPayload,
@@ -29,23 +29,35 @@ let server: Server | null = null;
  * the error handler emits permission_resolved("error") so the renderer
  * can drop the now-unanswerable letter.
  *
- * `tool` is captured so error-path events get the right tool stamp;
- * the Python script handles output-shape translation, so the bridge's
- * reply payload is the same generic shape for all providers with a
- * bidirectional permission path.
+ * `tool` is captured so error-path events get the right tool stamp.
+ * Hook requests hold a socket open; app-server requests register an
+ * in-process resolver callback. The renderer uses the same
+ * ResolvePermission IPC path for both.
  */
 type Pending = {
-  socket: Socket;
   sessionId: string;
   cwd: string;
   tool: AgentTool;
+  source: AgentEventSource;
   options: PermissionOption[];
+  socket?: Socket;
+  resolve?: (resolution: PendingPermissionResolution) => void | Promise<void>;
+};
+type PendingPermissionResolution = {
+  decision: PermissionDecision;
+  message?: string;
+  optionId?: string;
 };
 const pending = new Map<string, Pending>();
 const hookDedupe = createHookDedupe();
 
 function emitPermissionResolved(
-  ctx: { sessionId: string; cwd: string; tool: AgentTool },
+  ctx: {
+    sessionId: string;
+    cwd: string;
+    tool: AgentTool;
+    source?: AgentEventSource;
+  },
   requestId: string,
   resolution: "error"
 ) {
@@ -53,11 +65,42 @@ function emitPermissionResolved(
     sessionId: ctx.sessionId,
     tool: ctx.tool,
     cwd: ctx.cwd,
-    source: "hook",
+    source: ctx.source ?? "hook",
     timestamp: Date.now(),
     kind: "permission_resolved",
     payload: { requestId, resolution },
   });
+}
+
+export function registerPermissionRequest(
+  ctx: {
+    sessionId: string;
+    cwd: string;
+    tool: AgentTool;
+    source?: AgentEventSource;
+  },
+  requestId: string,
+  options: PermissionOption[],
+  resolve: (resolution: PendingPermissionResolution) => void | Promise<void>
+): boolean {
+  if (pending.has(requestId)) return false;
+  pending.set(requestId, {
+    sessionId: ctx.sessionId,
+    cwd: ctx.cwd,
+    tool: ctx.tool,
+    source: ctx.source ?? "realmkeeper",
+    options,
+    resolve,
+  });
+  return true;
+}
+
+export function cancelPermissionRequest(requestId: string): boolean {
+  const p = pending.get(requestId);
+  if (!p) return false;
+  pending.delete(requestId);
+  emitPermissionResolved(p, requestId, "error");
+  return true;
 }
 
 /**
@@ -160,6 +203,7 @@ export function startHookBridge() {
           sessionId: ev.sessionId,
           cwd: ev.cwd,
           tool: ev.tool,
+          source: ev.source,
           options: permissionOptionsForPayload(ev.tool, ev.payload),
         });
       } else {
@@ -173,11 +217,7 @@ export function startHookBridge() {
       for (const [id, p] of pending) {
         if (p.socket === socket) {
           pending.delete(id);
-          emitPermissionResolved(
-            { sessionId: p.sessionId, cwd: p.cwd, tool: p.tool },
-            id,
-            "error"
-          );
+          emitPermissionResolved(p, id, "error");
         }
       }
       socket.destroy();
@@ -192,11 +232,7 @@ export function startHookBridge() {
         if (p.socket !== socket) continue;
         pending.delete(id);
         if (p.tool !== "cursor") {
-          emitPermissionResolved(
-            { sessionId: p.sessionId, cwd: p.cwd, tool: p.tool },
-            id,
-            "error"
-          );
+          emitPermissionResolved(p, id, "error");
         }
       }
     });
@@ -209,12 +245,13 @@ export function startHookBridge() {
 export function stopHookBridge() {
   // Resolve any pending requests with a silent close so Python isn't
   // stuck waiting for us across a restart.
-  for (const [, p] of pending) {
+  for (const [id, p] of pending) {
     try {
-      p.socket.end();
+      p.socket?.end();
     } catch {
       /* ignore */
     }
+    if (!p.socket) emitPermissionResolved(p, id, "error");
   }
   pending.clear();
   server?.close();
@@ -255,6 +292,30 @@ export function resolvePermissionRequest(
     return false;
   }
   pending.delete(requestId);
+  if (p.resolve) {
+    try {
+      void Promise.resolve(p.resolve({ decision, message, optionId })).catch(
+        (err: unknown) => {
+          console.log(
+            `[realmkeeper/bridge] resolve ${requestId} callback FAILED:`,
+            err
+          );
+        }
+      );
+    } catch (e) {
+      console.log(
+        `[realmkeeper/bridge] resolve ${requestId} callback FAILED:`,
+        e
+      );
+    }
+    return true;
+  }
+  if (!p.socket) {
+    console.log(
+      `[realmkeeper/bridge] resolve ${requestId} = ${decision} — NO REPLY CHANNEL`
+    );
+    return false;
+  }
   try {
     // denyMessage is read by bin/realmkeeper-hook and only emitted to the
     // upstream when behavior=deny — Claude's PermissionRequest contract

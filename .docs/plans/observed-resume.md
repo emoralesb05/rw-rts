@@ -1,27 +1,31 @@
 # Plan: Drive observed wielders via session resume
 
-**Status**: planned, not started · **Owner**: TBD · **Phase**: 2B
+**Status**: implemented 2026-06-24 · **Owner**: Realmkeeper · **Phase**: 2B
 
 ## Goal
 
-Let the user send messages from realmkeeper's chat input to wielders that realmkeeper did **not** spawn — sessions started in a Claude TUI, Codex Desktop, or Cursor IDE. Today the chat input is gated on `unit.spawnedHere` and silently no-ops for observed wielders.
+Let the user send messages from realmkeeper's chat input to wielders that realmkeeper did **not** spawn — sessions started in a Claude TUI, Codex Desktop, Cursor IDE, or Gemini CLI.
 
-The mechanism is **session resume**: every supported provider has a non-interactive `--resume`-style invocation that appends a turn to an existing session. We've verified all three work; this plan turns that into a feature.
+The mechanism is **session resume**: every supported provider has a non-interactive `--resume`-style invocation that appends a turn to an existing session.
 
-## What we verified (2026-04-30)
+Implemented scope: direct per-wielder chat messages. Standing orders, decrees, and recall remain scoped to Realmkeeper-spawned sessions.
 
-| Provider | Resume command | Same session? | Hooks fire? | Notes |
-|---|---|---|---|---|
-| Claude | `claude --resume <id> --print "<prompt>"` | ✅ same id, append in place | ✅ all | Cleanest path. |
-| Codex | `codex exec resume <id> "<prompt>"` | ✅ same thread, append in place | ✅ all | Logs misleading `thread not found` error — harmless. |
-| Cursor | `cursor-agent --print --resume <chatId> "<prompt>"` | ✅ same chat, preserves context | ❌ only `sessionEnd` | `--print --resume` strips beforeSubmitPrompt/afterAgentResponse/preToolUse/postToolUse. |
+## What we verified
 
-Empirical evidence in this session: kangaroo / iguana / penguin (Codex), koala (Claude), falcon (Cursor) all landed in the expected files.
+| Provider | Resume command | Same session? | Events |
+|---|---|---|---|
+| Claude | `claude -p "<prompt>" --output-format stream-json --verbose --resume <id>` | ✅ same id, append in place | stdout stream, with hook echoes suppressed |
+| Codex | `codex app-server --stdio` + `thread/resume` + `turn/start` | ✅ same thread, append in place | app-server notifications, with hook echoes suppressed |
+| Cursor | `cursor-agent --print --output-format stream-json --resume <chatId> "<prompt>"` | ✅ same chat, preserves context | stdout stream; hooks are sparse |
+| Gemini | `gemini --prompt "<prompt>" --output-format stream-json --approval-mode yolo --resume <id>` | ✅ same session UUID | stdout stream, with hook echoes suppressed |
+
+Historical empirical evidence: kangaroo / iguana / penguin (Codex), koala (Claude), falcon (Cursor) all landed in the expected files. Gemini UUID resume is verified by the active-spawn adapter's follow-up path.
 
 ## Approach
 
-- **Claude / Codex** — spawn the one-shot CLI, let existing hooks + transcript watcher push events through the bridge attributed to the original sessionId. Zero special-case rendering.
-- **Cursor** — spawn the one-shot CLI, parse the assistant text from stdout, **synthesize** `user_prompt` + `assistant_text` AgentEvents and inject them into the bus with chatId as sessionId. Tool calls during the reply remain invisible (no PostToolUse hook).
+- **Claude / Gemini** — spawn the one-shot resume CLI and parse stdout as `source: "realmkeeper"` for that turn while suppressing hook echoes. Permission requests still pass through the hook bridge.
+- **Codex** — start an app-server stdio client, `thread/resume`, then `turn/start`. Realmkeeper-spawned Codex sessions keep the app-server client alive and use `turn/steer` for active-turn interjection.
+- **Cursor** — spawn the one-shot resume CLI, preserve the observed `cursor-...` session id in Realmkeeper, and parse `stream-json` stdout because resume hooks are sparse.
 - **Live TUI/IDE divergence** — known and accepted. Original UIs read once on session load and don't watch their JSONLs. User's reply lands in realmkeeper; original surface stays stale until reload. Documented in [`../providers/claude.md`](../providers/claude.md) and friends.
 
 ## Scope
@@ -29,17 +33,16 @@ Empirical evidence in this session: kangaroo / iguana / penguin (Codex), koala (
 ### In scope
 
 1. Drop the `!unit.spawnedHere` gate on the messages-dialog chat input
-2. Three resume adapter functions
+2. Four resume adapter functions
 3. Routing observed sends to those functions
-4. Cursor stdout → event synthesis
+4. Provider stdout → `source: "realmkeeper"` events for direct sends
 5. Subtle "via realmkeeper" badge on prompts we originated
-6. Disable send when wielder is in-flight (any tool/text event in last ~5s)
 
 ### Out of scope (explicit non-goals)
 
 - Driving the live TUI/IDE input box from outside (would need tmux send-keys / AppleScript / a shim wrapper — see [vision.md § Known gaps](../vision.md))
 - Bidirectional sync between realmkeeper and the live UI (TUI is read-once; we're not changing that)
-- Showing tool calls during a Cursor `--print --resume` turn (Cursor strips those hooks; would require parsing Cursor's stream-json output, larger effort)
+- Standing orders, decrees, and recall for observed sessions
 - A `--force`/`--yolo` Cursor mode toggle (separate decision; this plan leaves Cursor permissions observation-only)
 
 ## Implementation
@@ -48,47 +51,32 @@ Empirical evidence in this session: kangaroo / iguana / penguin (Codex), koala (
 
 | File | Change | Notes |
 |---|---|---|
-| `src/main/adapters/claude-cli.ts` | Add `resumeClaudeSession({sessionId, cwd, prompt})` | Spawns `claude --resume <id> --print <prompt>`. One-shot, exits when done. No process bookkeeping needed (each turn = fresh process) |
-| `src/main/adapters/codex-cli.ts` | Add `resumeCodexSession({sessionId, cwd, prompt})` | Spawns `codex exec resume <id> "<prompt>"`. Same one-shot pattern. Tolerate the misleading `thread not found` log |
-| `src/main/adapters/cursor-cli.ts` | Add `resumeCursorSession({chatId, cwd, prompt})` | Spawns `cursor-agent --print --resume <chatId> "<prompt>"`. Captures stdout, synthesizes events on completion |
+| `src/main/adapters/claude-cli.ts` | Add `resumeClaudeSession({sessionId, cwd, prompt})` | Spawns the `claude -p ... --resume` one-shot and parses stdout with `source: "realmkeeper"` |
+| `src/main/adapters/codex-cli.ts` / `codex-app-server.ts` | Add `resumeCodexSession({sessionId, cwd, prompt})` | Starts `codex app-server --stdio`, resumes the thread, then starts a turn. Realmkeeper-spawned Codex sessions keep the same app-server client alive and use `turn/steer` for active-turn interjection |
+| `src/main/adapters/cursor-cli.ts` | Add `resumeCursorSession({sessionId, cwd, prompt})` | Strips `cursor-` for the CLI chat id, then parses stream-json stdout back onto the observed unit |
+| `src/main/adapters/gemini-cli.ts` | Add `resumeGeminiSession({sessionId, cwd, prompt})` | Spawns `gemini --prompt ... --resume` and parses stdout with `source: "realmkeeper"` |
 | `src/main/agent-manager.ts` | Add `AgentManager.sendToObserved(unit, prompt)` | Looks at `unit.tool`, dispatches to the right `resume*Session` |
-| `src/main/index.ts` | Update `IPC.SendPrompt` handler | Branch on `unit.spawnedHere`: spawned → existing `AgentManager.send`; observed → `sendToObserved` |
-| `src/renderer/src/store.ts` | Drop `!unit.spawnedHere` gate from chat-input action | Single-line change |
-| `src/renderer/src/ui/floating/WielderPanelBody.tsx` | Drop disabled state on chat input for observed wielders | Add the in-flight guard (~5s window) |
-| `src/renderer/src/ui/ConversationStream.tsx` | Add "↳ via realmkeeper" badge | Render on `user_prompt` events whose `source` field marks them as realmkeeper-originated |
-| `src/shared/events.ts` | Extend `AgentEvent.source` union to include `"realmkeeper"` (or add a new field) | Used to distinguish hook-originated from synthesized prompts |
-| `src/main/event-bus.ts` | Helper to inject synthetic events from Cursor stdout | Called by `resumeCursorSession` |
-
-### Cursor stdout synthesis (the only non-trivial bit)
-
-`cursor-agent --print` streams the assistant text on stdout. We:
-
-1. Spawn the process, capture stdout
-2. On process exit, take the full stdout
-3. Emit two events on the bus:
-   - `user_prompt` with the prompt we sent
-   - `assistant_text` with the captured stdout
-4. Both with `sessionId = chatId`, `source = "realmkeeper"`, `tool = "cursor"`
-
-Idiomatic place: `resumeCursorSession()` in `cursor-cli.ts` → calls a small helper from `event-bus.ts` (`bus.emitSynthetic(event)`).
+| `src/main/index.ts` | Update `IPC.SendPrompt` handler | Existing managed agent → `AgentManager.send`; otherwise use resume metadata |
+| `src/renderer/src/ui/WielderChatInput.tsx` | Drop observed-only disabled state | Sends `unitId`, `sessionId`, `tool`, and `cwd` |
+| `src/renderer/src/ui/ConversationStream.tsx` | Add "via Realmkeeper" badge | Render on `user_prompt` events whose `source` field marks them as realmkeeper-originated |
+| `src/shared/schemas/events.ts` | Extend `AgentEvent.source` union to include `"realmkeeper"` | Used to distinguish hook-originated from Realmkeeper-originated prompts |
+| `src/main/event-bus.ts` | Suppress matching hook prompt echoes | Keeps resumed-turn prompt display single-sourced |
 
 ### Guardrails
 
 - **"via realmkeeper" badge** — a small chip on user-prompt bubbles whose `source === "realmkeeper"`. Visual only; no behavior change.
-- **In-flight guard** — disable the chat input if the wielder has emitted any `tool_use` / `tool_result` / `assistant_text` / `user_prompt` in the last 5 seconds. Prevents accidental interleaving with an active turn.
 - **No first-time notice popup** — initially scoped, decided to skip. The badge is enough; users will understand the divergence on their own. Revisit if usability testing says otherwise.
 
 ## Testing
 
 - **Manual smoke per provider** — start a session in the provider's native UI, observe in realmkeeper, type from realmkeeper, verify the reply appears in the wielder's chat-drawer tab. Verify the original UI does NOT update (expected divergence).
 - **Empirical resume verification** — see [`../providers/claude.md`](../providers/claude.md) § Resume for the JSONL diff procedure. Repeat per provider for any future regression.
-- **Synthetic-event integrity** — for Cursor, verify the synthesized `user_prompt` + `assistant_text` events render correctly in the chat-drawer tab and are deduped by the bridge if a (rare) hook also fires for the same content.
+- **Synthetic-event integrity** — verify `source: "realmkeeper"` user prompts render correctly in the chat-drawer tab and matching hook echoes are suppressed.
 
 ## Known limitations after shipping
 
 - Live TUI/IDE divergence (intentional; see [vision.md § Known gaps](../vision.md))
-- Cursor tool calls invisible during realmkeeper-driven turns
-- Codex's misleading `thread not found` log will appear in dev console every time we resume a Codex thread — harmless but noisy
+- Codex app-server command/file/permission approvals are routed through permission cards; richer user-input, MCP elicitation, and dynamic tool requests still fail closed until Realmkeeper has typed UI for those request shapes
 
 ## Estimated size
 

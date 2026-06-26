@@ -34,7 +34,7 @@ const HOOK_EVENTS = [
 ];
 
 /**
- * Path that the user's Claude/Cursor/Codex configs reference. Stable
+ * Path that the user's Claude/Cursor/Codex/Gemini configs reference. Stable
  * across app moves and updates because it's in the user's own home dir,
  * not inside the app bundle. Populated by `syncHookScript()` on every
  * boot from the bundled source.

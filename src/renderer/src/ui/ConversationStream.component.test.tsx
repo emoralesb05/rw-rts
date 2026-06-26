@@ -40,7 +40,8 @@ function event(
   sessionId: string,
   timestamp: number,
   kind: AgentEvent["kind"],
-  payload: AgentEvent["payload"]
+  payload: AgentEvent["payload"],
+  source: AgentEvent["source"] = "hook"
 ): AgentEvent {
   return {
     sessionId,
@@ -50,7 +51,7 @@ function event(
     timestamp,
     kind,
     payload,
-    source: "hook",
+    source,
   };
 }
 
@@ -99,5 +100,26 @@ describe("ConversationStream", () => {
     expect(screen.getByText("delegate this")).toBeInTheDocument();
     expect(screen.getByText("subagent answer")).toBeInTheDocument();
     expect(screen.queryByText("not this wielder")).not.toBeInTheDocument();
+  });
+
+  it("marks user prompts originated through Realmkeeper resume", () => {
+    useStore.setState({
+      units: { "s-1": unit("s-1", "Faolan") },
+      events: [
+        event(
+          "s-1",
+          1,
+          "user_prompt",
+          { text: "continue the investigation" },
+          "realmkeeper"
+        ),
+      ],
+      mutedSessionIds: {},
+    });
+
+    render(<ConversationStream sessionId="s-1" cap={10} />);
+
+    expect(screen.getByText("via Realmkeeper")).toBeInTheDocument();
+    expect(screen.getByText("continue the investigation")).toBeInTheDocument();
   });
 });

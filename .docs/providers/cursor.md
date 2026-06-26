@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `cursor-agent` (the agent CLI; the IDE itself runs the same agent under the hood)
+- Binary: `cursor-agent` (verified locally 2026-06-25: `2026.06.24-00-45-58-9f61de7`; the IDE itself runs the same agent under the hood)
 - Settings: `~/.cursor/hooks.json` (v1 schema, JSON, NOT TOML)
 - Install hooks via `installCursorHooks()` in `src/main/cursor-hook-installer.ts`. Additive — preserves any existing entries (e.g. peon-ping).
 
@@ -73,10 +73,23 @@ Realmkeeper-spawned Cursor sessions intentionally use `--force --trust` today. T
 ## Resume
 
 ```bash
-cursor-agent --print --resume <chatId> "<prompt>"
+cursor-agent --print --output-format stream-json --resume <chatId> "<prompt>"
 ```
 
-**Resume preserves the prior conversation** (verified — same `chatId` directory, same `store.db`, growing in place). Cursor uses the chatId as the sessionId in the limited hooks that DO fire here.
+**Resume preserves the prior conversation** (verified — same `chatId` directory, same `store.db`, growing in place). Cursor uses the chatId as the sessionId in the limited hooks that DO fire here. Realmkeeper parses `stream-json` stdout for realmkeeper-driven turns, so direct messages to observed Cursor chats can still render assistant text and completed tool calls even when hooks are sparse.
+
+## 2026-06-25 CLI notes
+
+Local `cursor-agent --help` exposes:
+
+- `--resume [chatId]` and `--continue` for conversation continuity.
+- `--print`, `--output-format text|json|stream-json`, and `--stream-partial-output` for headless/stdout operation.
+- `create-chat`, `resume`, `ls`, and `models` subcommands for chat lifecycle/discovery and model availability.
+- `--mode plan`, `--mode ask`, `--plan`, and parameterized `--model` values for read-only/planning sessions and model tuning.
+- `--force`/`--yolo`, `--auto-review`, `--sandbox enabled|disabled`, `--trust`, and `--workspace` for autonomy and workspace handling.
+- `--plugin-dir`, `mcp`, `generate-rule`, and `worker` for local plugin/MCP/rule workflows and private cloud worker mode.
+
+Realmkeeper still uses `--force --trust` only for sessions it starts itself. `--auto-review` is a candidate replacement if we want Cursor's server classifier to auto-run safe tool calls while asking for the rest, but that is a product decision because it changes current autonomy semantics. Observed IDE sessions keep Cursor's native allowlist/confirmation behavior; Realmkeeper's letters remain informational for those.
 
 ## MCP, rules, plans, modes (we observe, don't drive)
 
@@ -87,8 +100,7 @@ cursor-agent --print --resume <chatId> "<prompt>"
 
 ## Gaps & quirks
 
-- **`--print --resume` strips MOST hooks.** Only `sessionEnd` fires. No `beforeSubmitPrompt`, no `afterAgentResponse`, no `preToolUse`/`postToolUse`. So Realmkeeper sees nothing of the live event stream — even though the conversation lands correctly in the chat database.
-  - **Workaround**: capture the assistant reply on stdout from `--print`, synthesize `user_prompt` + `assistant_text` events ourselves (using chatId as sessionId), inject into the bus. Tool calls during the reply remain invisible (no PostToolUse fires).
+- **`--print --resume` strips MOST hooks.** Only `sessionEnd` fires. No `beforeSubmitPrompt`, no `afterAgentResponse`, no `preToolUse`/`postToolUse`. Use `--output-format stream-json` and parse stdout for realmkeeper-driven observed turns; don't rely on hooks for those events.
 - **Allowlist mode advisory.** Hook-allow doesn't bypass the IDE prompt unless `--force`/`--yolo`. We're observational by design.
 - **Process sessionId vs chatId.** When the user opens a fresh Cursor IDE session against an existing chat, the events come in under a NEW process sessionId. We currently see this as a new wielder; aggregating by chatId would require a Cursor-specific mapping (chatId is not in every hook payload).
 - **No equivalent of `--include-non-interactive`.** All resume paths assume an interactive UI eventually opens the chat — no first-class headless flow other than `--print`.

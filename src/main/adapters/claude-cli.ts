@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { bus } from "../event-bus";
-import type { AgentEvent } from "@shared/events";
+import type { AgentEvent, AgentEventSource } from "@shared/events";
 import {
   parseProviderStreamMessage,
   type ProviderStreamMessage,
@@ -44,7 +44,8 @@ export function unregisterSpawnedSession(sessionId: string) {
 function attachStdoutStream(
   proc: ChildProcess,
   sessionId: string,
-  cwd: string
+  cwd: string,
+  source: AgentEventSource = "spawned"
 ) {
   let buf = "";
   proc.stdout?.on("data", (chunk: Buffer) => {
@@ -56,7 +57,7 @@ function attachStdoutStream(
       if (!line) continue;
       const msg = parseProviderStreamMessage(line);
       if (!msg) continue;
-      const events = normalizeStreamMessage(msg, sessionId, cwd);
+      const events = normalizeStreamMessage(msg, sessionId, cwd, source);
       for (const ev of events) bus.emitAgentEvent(ev);
     }
   });
@@ -68,7 +69,7 @@ function attachStdoutStream(
       timestamp: Date.now(),
       kind: "error",
       payload: { error: chunk.toString("utf8") },
-      source: "spawned",
+      source,
     });
   });
   proc.on("exit", (code) => {
@@ -79,7 +80,7 @@ function attachStdoutStream(
       timestamp: Date.now(),
       kind: "session_end",
       payload: { text: `exit ${code ?? 0}` },
-      source: "spawned",
+      source,
     });
   });
 }
@@ -150,6 +151,28 @@ export function spawnClaudeAgent(opts: SpawnOptions): SpawnedAgent {
   return agent;
 }
 
+export function resumeClaudeSession(opts: {
+  sessionId: string;
+  cwd: string;
+  prompt: string;
+}): ChildProcess {
+  registerSpawnedSession(opts.sessionId);
+  bus.emitAgentEvent({
+    sessionId: opts.sessionId,
+    tool: "claude",
+    cwd: opts.cwd,
+    timestamp: Date.now(),
+    kind: "user_prompt",
+    payload: { text: opts.prompt },
+    source: "realmkeeper",
+  });
+  const proc = spawnOneShot(opts.prompt, opts.sessionId, opts.cwd, true);
+  attachStdoutStream(proc, opts.sessionId, opts.cwd, "realmkeeper");
+  proc.on("exit", () => unregisterSpawnedSession(opts.sessionId));
+  proc.on("error", () => unregisterSpawnedSession(opts.sessionId));
+  return proc;
+}
+
 export function getAgent(unitId: string): SpawnedAgent | undefined {
   return agents.get(unitId);
 }
@@ -179,13 +202,14 @@ function messageContentBlocks(
 export function normalizeStreamMessage(
   msg: ProviderStreamMessage,
   sessionId: string,
-  cwd: string
+  cwd: string,
+  source: AgentEventSource = "spawned"
 ): AgentEvent[] {
   const base = {
     sessionId,
     tool: "claude" as const,
     cwd,
-    source: "spawned" as const,
+    source,
   };
   const ts = Date.now();
   const out: AgentEvent[] = [];

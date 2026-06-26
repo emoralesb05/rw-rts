@@ -248,7 +248,17 @@ void app.whenReady().then(async () => {
 
   safeHandle(IPC.SendPrompt, (_e, raw: unknown) => {
     const req = parseIpcPayload(IPC.SendPrompt, SendPromptRequestSchema, raw);
-    AgentManager.send(req.unitId, req.prompt);
+    if (AgentManager.get(req.unitId)) {
+      AgentManager.send(req.unitId, req.prompt);
+      return;
+    }
+    if (!req.sessionId || !req.tool || !req.cwd) {
+      throw new Error(`Unknown unit ${req.unitId}`);
+    }
+    AgentManager.sendToObserved(
+      { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },
+      req.prompt
+    );
   });
 
   safeHandle(IPC.KillAgent, (_e, unitId: unknown) => {

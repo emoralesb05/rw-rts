@@ -857,13 +857,24 @@ function AssistantBubble({ text }: { text: string }) {
   );
 }
 
-function UserBubble({ text }: { text: string }) {
+function UserBubble({
+  text,
+  viaRealmkeeper,
+}: {
+  text: string;
+  viaRealmkeeper?: boolean;
+}) {
   return (
     <div className="mt-1 flex justify-end">
       <div className="border-accent-alt/40 border-r-accent text-text max-w-[92%] rounded-lg rounded-br-sm border border-r-[3px] bg-[linear-gradient(180deg,#1a2752,#14204a)] px-2.5 py-2 break-words shadow-[0_0_12px_rgba(255,216,107,0.08)]">
         <span className="bg-accent-alt/20 text-accent mr-1.5 inline-block rounded-sm px-1.5 py-px align-middle text-[9px] font-bold tracking-[0.6px] uppercase">
           King
         </span>
+        {viaRealmkeeper && (
+          <span className="border-accent-alt/30 text-muted mr-1.5 inline-block rounded-sm border px-1.5 py-px align-middle text-[9px] font-bold tracking-[0.6px] uppercase">
+            via Realmkeeper
+          </span>
+        )}
         <div className="[&_code]:bg-accent-alt/[0.12] [&_code]:text-accent [&_pre]:border-accent-alt/20 inline align-middle [&_code]:rounded-sm [&_code]:px-1 [&_pre]:m-0 [&_pre]:rounded-md [&_pre]:border [&_pre]:bg-black/35 [&_pre]:px-2 [&_pre]:py-1.5 [&_pre]:text-[11px] [&>*]:m-0 [&>*+*]:mt-1.5">
           <MarkdownStream>{text}</MarkdownStream>
         </div>
@@ -1200,7 +1211,12 @@ export function ConversationStream({
             body = <PermissionRequestRow ev={e} />;
             break;
           case "user_prompt":
-            body = <UserBubble text={String(e.payload.text ?? "")} />;
+            body = (
+              <UserBubble
+                text={String(e.payload.text ?? "")}
+                viaRealmkeeper={e.source === "realmkeeper"}
+              />
+            );
             break;
           case "assistant_text":
             body = <AssistantBubble text={String(e.payload.text ?? "")} />;
