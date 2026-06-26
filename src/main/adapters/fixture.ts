@@ -177,6 +177,116 @@ function codexShell(cwd: string): FakeUnit {
   };
 }
 
+function scheduleCodexInputs(cwd: string) {
+  const sessionId = `codex-inputs-${randomUUID()}`;
+  const userInputRequestId = `fixture-user-input-${randomUUID()}`;
+  const mcpRequestId = `fixture-mcp-elicitation-${randomUUID()}`;
+  const timers: NodeJS.Timeout[] = [];
+  const emit = (
+    delayMs: number,
+    kind: AgentEvent["kind"],
+    payload: AgentEvent["payload"]
+  ) => {
+    timers.push(
+      setTimeout(() => {
+        bus.emitAgentEvent({
+          sessionId,
+          tool: "codex",
+          cwd,
+          timestamp: Date.now(),
+          kind,
+          payload,
+          source: "spawned",
+        });
+      }, delayMs)
+    );
+  };
+
+  emit(100, "session_start", {
+    text: "codex answer-letter fixture",
+  });
+  emit(500, "user_input_request", {
+    requestId: userInputRequestId,
+    name: "UserInput",
+    text: "Choose the fixture implementation style.",
+    input: { itemId: "fixture-item", threadId: sessionId },
+    questions: [
+      {
+        id: "approach",
+        header: "Approach",
+        question: "Which implementation style should Codex use?",
+        required: true,
+        options: [
+          {
+            label: "Small",
+            value: "small",
+            description: "Keep the change scoped to this fixture.",
+          },
+          {
+            label: "Broad",
+            value: "broad",
+            description: "Include surrounding cleanup too.",
+          },
+        ],
+      },
+      {
+        id: "note",
+        header: "Note",
+        question: "Optional note to pass back to Codex.",
+        required: false,
+      },
+    ],
+  });
+  emit(900, "user_input_request", {
+    requestId: mcpRequestId,
+    name: "McpElicitation",
+    text: "Choose repository metadata.",
+    input: {
+      serverName: "fixture-mcp",
+      threadId: sessionId,
+      mode: "form",
+    },
+    responseKind: "mcp-elicitation",
+    questions: [
+      {
+        id: "repository",
+        header: "Repository",
+        question: "Which repository should the MCP server use?",
+        required: true,
+        options: [
+          { label: "Realmkeeper", value: "rw-rts" },
+          { label: "Scratch", value: "scratch" },
+        ],
+      },
+      {
+        id: "labels",
+        header: "Labels",
+        question: "Optional labels to attach.",
+        required: false,
+        multiSelect: true,
+        options: [
+          { label: "Provider", value: "provider" },
+          { label: "UI", value: "ui" },
+          { label: "Probe", value: "probe" },
+        ],
+      },
+      {
+        id: "notify",
+        header: "Notify",
+        question: "Notify watchers?",
+        required: true,
+        options: [
+          { label: "Yes", value: "true" },
+          { label: "No", value: "false" },
+        ],
+      },
+    ],
+  });
+
+  timers.push(setTimeout(() => activeTimers.delete(sessionId), 10_000));
+  activeTimers.set(sessionId, timers);
+}
+
 function geminiTurn(cwd: string): FakeUnit {
   return {
     sessionId: `gemini-fixture-${randomUUID()}`,
@@ -429,6 +539,7 @@ export type FixtureScenarioId =
   | "summon-all"
   | "cursor-turn"
   | "codex-shell"
+  | "codex-inputs"
   | "gemini-turn"
   | "subagent"
   | "stress"
@@ -463,6 +574,9 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "codex-shell":
       schedule(codexShell(c));
+      break;
+    case "codex-inputs":
+      scheduleCodexInputs(c);
       break;
     case "gemini-turn":
       schedule(geminiTurn(c));

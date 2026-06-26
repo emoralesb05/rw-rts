@@ -12,11 +12,20 @@ import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { Badge } from "../components/kit/Badge";
 import { Button } from "../components/kit/Button";
 import { Input } from "../components/kit/Input";
+import { CheckboxControl } from "../components/primitives/Checkbox";
+import { SegmentedControl } from "../components/kit/SegmentedControl";
+import { Textarea } from "../components/kit/Textarea";
 import { Toolbar } from "../components/kit/Toolbar";
 import { TooltipHint } from "../components/kit/TooltipHint";
 import { useToast } from "../components/kit/ToastLayer";
 import { cn } from "@/lib/cn";
 import type { Letter, LetterAction } from "@shared/events";
+import type {
+  UserInputAnswers,
+  UserInputQuestion,
+} from "@shared/schemas/user-input";
+
+type UserInputValues = Record<string, string | string[]>;
 
 function timeAgo(ts: number): string {
   const ms = Date.now() - ts;
@@ -74,6 +83,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const { notify } = useToast();
   const [showReasoning, setShowReasoning] = useState(false);
   const [denyReason, setDenyReason] = useState("");
+  const [userInputValues, setUserInputValues] = useState<UserInputValues>({});
   const [copied, setCopied] = useState(false);
   // "Actionable" perm letter — has a deny-reason input. Cursor's
   // observational letters skip this since deny isn't possible at
@@ -82,6 +92,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
     (a) => a.action.kind === "permission-deny"
   );
   const isPermissionLike = isPermissionLetter(letter);
+  const isUserInput = isUserInputLetter(letter);
   const allowEntry = letter.actions.find(
     (a) => a.action.kind === "permission-allow"
   );
@@ -96,6 +107,15 @@ export function LetterCard({ letter }: { letter: Letter }) {
   const dismissAction = letter.actions.find(
     (a) => a.action.kind === "dismiss"
   )?.action;
+  const userInputQuestions = letter.userInputQuestions ?? [];
+  const canSubmitUserInput =
+    !isUserInput ||
+    userInputQuestions.every((q) => {
+      if (q.required === false) return true;
+      const value = userInputValues[q.id];
+      if (Array.isArray(value)) return value.length > 0;
+      return !!value?.trim();
+    });
   const allowShortcut = shortcutVerb(allowEntry?.label, "allow");
   const denyShortcut = shortcutVerb(denyEntry?.label, "deny");
   // Permission letters (including observational): surface the
@@ -105,7 +125,8 @@ export function LetterCard({ letter }: { letter: Letter }) {
     (a) =>
       a.action.kind === "permission-allow" ||
       a.action.kind === "permission-deny" ||
-      a.action.kind === "permission-observe"
+      a.action.kind === "permission-observe" ||
+      a.action.kind === "user-input-submit"
   )?.action;
   const reqIdAttr =
     requestId && "requestId" in requestId ? requestId.requestId : undefined;
@@ -115,7 +136,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
   // own the activity → alert pulse pattern instead.
   const wielder = letter.sessionId ? units[letter.sessionId] : undefined;
   const targetWorldId = letter.worldId ?? wielder?.worldId;
-  const bodyClickable = !isPermissionLike && !!targetWorldId;
+  const bodyClickable = !isPermissionLike && !isUserInput && !!targetWorldId;
   const onBodyClick = bodyClickable
     ? () => selectWorld(targetWorldId!)
     : undefined;
@@ -124,6 +145,11 @@ export function LetterCard({ letter }: { letter: Letter }) {
       applyLetterAction(letter, {
         ...action,
         message: denyReason.trim(),
+      });
+    } else if (action.kind === "user-input-submit" && !action.answers) {
+      applyLetterAction(letter, {
+        ...action,
+        answers: buildUserInputAnswers(userInputQuestions, userInputValues),
       });
     } else {
       applyLetterAction(letter, action);
@@ -160,6 +186,16 @@ export function LetterCard({ letter }: { letter: Letter }) {
       onBodyClick?.();
       return;
     }
+    if (isUserInput && (e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      const action = letter.actions.find(
+        (a) => a.action.kind === "user-input-submit" && !a.action.answers
+      )?.action;
+      if (action && canSubmitUserInput) {
+        e.preventDefault();
+        applyAction(action);
+      }
+      return;
+    }
     if (!isPermissionLike) return;
     const key = e.key.toLowerCase();
     if (key === "a" && allowAction) {
@@ -190,8 +226,16 @@ export function LetterCard({ letter }: { letter: Letter }) {
       data-letter-request-id={reqIdAttr}
       onClick={onBodyClick}
       onKeyDown={onKeyDown}
-      role={bodyClickable ? "button" : isPermissionLike ? "group" : undefined}
-      tabIndex={bodyClickable || isPermissionLike ? 0 : undefined}
+      role={
+        bodyClickable
+          ? "button"
+          : isPermissionLike || isUserInput
+            ? "group"
+            : undefined
+      }
+      tabIndex={
+        bodyClickable || isPermissionLike || isUserInput ? 0 : undefined
+      }
     >
       <div className="flex items-center justify-between gap-2 text-[9.5px] tracking-[0.6px] uppercase">
         <Badge
@@ -250,6 +294,15 @@ export function LetterCard({ letter }: { letter: Letter }) {
         <div className="text-muted text-[11px] leading-relaxed break-words">
           {letter.body}
         </div>
+      )}
+      {isUserInput && userInputQuestions.length > 0 && (
+        <UserInputQuestions
+          questions={userInputQuestions}
+          values={userInputValues}
+          onChange={(id, value) =>
+            setUserInputValues((prev) => ({ ...prev, [id]: value }))
+          }
+        />
       )}
       {isPermissionLike && (
         <div className="mt-0.5 flex flex-wrap items-center gap-2">
@@ -327,11 +380,18 @@ export function LetterCard({ letter }: { letter: Letter }) {
             variant={
               a.action.kind === "seal"
                 ? "primary"
-                : a.action.kind === "dismiss"
-                  ? "ghost"
-                  : "default"
+                : a.action.kind === "user-input-submit" && !a.action.answers
+                  ? "primary"
+                  : a.action.kind === "dismiss"
+                    ? "ghost"
+                    : "default"
             }
             className="min-h-0 px-2 py-1 text-[10.5px]"
+            disabled={
+              a.action.kind === "user-input-submit" &&
+              !a.action.answers &&
+              !canSubmitUserInput
+            }
             onClick={(e) => {
               e.stopPropagation();
               applyAction(a.action);
@@ -351,5 +411,139 @@ export function isPermissionLetter(letter: Letter): boolean {
       a.action.kind === "permission-allow" ||
       a.action.kind === "permission-deny" ||
       a.action.kind === "permission-observe"
+  );
+}
+
+function isUserInputLetter(letter: Letter): boolean {
+  return letter.actions.some((a) => a.action.kind === "user-input-submit");
+}
+
+function buildUserInputAnswers(
+  questions: readonly UserInputQuestion[],
+  values: UserInputValues
+): UserInputAnswers {
+  const out: UserInputAnswers = {};
+  for (const question of questions) {
+    const value = values[question.id];
+    if (Array.isArray(value)) {
+      out[question.id] = { answers: value };
+      continue;
+    }
+    const answer = value?.trim();
+    out[question.id] = { answers: answer ? [answer] : [] };
+  }
+  return out;
+}
+
+function UserInputQuestions({
+  questions,
+  values,
+  onChange,
+}: {
+  questions: readonly UserInputQuestion[];
+  values: UserInputValues;
+  onChange(id: string, value: string | string[]): void;
+}) {
+  return (
+    <div className="mt-1.5 flex flex-col gap-2">
+      {questions.map((question) => {
+        const options = question.options ?? [];
+        const currentValue = values[question.id];
+        const selectedValues = Array.isArray(currentValue)
+          ? currentValue
+          : typeof currentValue === "string" && currentValue
+            ? [currentValue]
+            : [];
+        return (
+          <div
+            key={question.id}
+            className="border-accent/25 bg-accent/[0.05] flex flex-col gap-1.5 rounded-sm border px-2 py-1.5"
+          >
+            <div className="text-accent font-mono text-[9.5px] tracking-[0.6px] uppercase">
+              {question.header}
+            </div>
+            <div className="text-text text-[11.5px] leading-relaxed">
+              {question.question}
+            </div>
+            {options.length > 0 && question.multiSelect ? (
+              <div className="flex flex-col gap-1">
+                {options.map((option) => {
+                  const value = option.value ?? option.label;
+                  const checked = selectedValues.includes(value);
+                  return (
+                    <label
+                      key={value}
+                      className="hover:bg-accent/[0.08] flex cursor-pointer items-start gap-2 rounded-sm px-1 py-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <CheckboxControl
+                        checked={checked}
+                        onCheckedChange={(next) => {
+                          const nextValues = next
+                            ? [...selectedValues, value]
+                            : selectedValues.filter((v) => v !== value);
+                          onChange(question.id, nextValues);
+                        }}
+                        aria-label={option.label}
+                      />
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-text text-[11px] leading-snug">
+                          {option.label}
+                        </span>
+                        {option.description && (
+                          <span className="text-muted text-[10px] leading-snug">
+                            {option.description}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : options.length > 0 ? (
+              <>
+                <SegmentedControl
+                  size="sm"
+                  className="w-full"
+                  value={typeof currentValue === "string" ? currentValue : ""}
+                  onValueChange={(value) => onChange(question.id, value)}
+                  options={options.map((option) => ({
+                    value: option.value ?? option.label,
+                    label: option.label,
+                  }))}
+                />
+                {typeof currentValue === "string" && currentValue && (
+                  <div className="text-muted text-[10px] leading-snug">
+                    {
+                      options.find(
+                        (option) =>
+                          (option.value ?? option.label) === currentValue
+                      )?.description
+                    }
+                  </div>
+                )}
+              </>
+            ) : question.isSecret ? (
+              <Input
+                type="password"
+                className="h-auto px-2 py-1.5 text-[11px]"
+                value={typeof currentValue === "string" ? currentValue : ""}
+                onChange={(e) => onChange(question.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                required={question.required !== false}
+              />
+            ) : (
+              <Textarea
+                className="min-h-16 px-2 py-1.5 text-[11px]"
+                value={typeof currentValue === "string" ? currentValue : ""}
+                onChange={(e) => onChange(question.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                required={question.required !== false}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

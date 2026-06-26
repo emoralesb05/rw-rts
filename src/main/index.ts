@@ -8,6 +8,7 @@ import {
   stopHookBridge,
   resolvePermissionRequest,
 } from "./adapters/hook-bridge";
+import { resolveUserInputRequest } from "./adapters/user-input-bridge";
 import {
   startClaudeTranscriptWatcher,
   stopClaudeTranscriptWatcher,
@@ -53,6 +54,8 @@ import {
   PlayFixtureRequestSchema,
   ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
+  ResolveUserInputRequestSchema,
+  ResolveUserInputResponseSchema,
   SendPromptRequestSchema,
   SpawnAgentRequestSchema,
   SpawnAgentResponseSchema,
@@ -407,6 +410,22 @@ void app.whenReady().then(async () => {
       );
     },
     ResolvePermissionResponseSchema
+  );
+
+  safeHandle(
+    IPC.ResolveUserInput,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ResolveUserInput,
+        ResolveUserInputRequestSchema,
+        raw
+      );
+      return resolveUserInputRequest(req.requestId, req.answers, {
+        responseKind: req.responseKind,
+        responseAction: req.responseAction,
+      });
+    },
+    ResolveUserInputResponseSchema
   );
 
   safeHandle(

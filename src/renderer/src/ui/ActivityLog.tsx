@@ -6,10 +6,10 @@
  * Click routing (per design discussion 2026-04-29):
  *   - tool_use / tool_result / assistant_text / user_prompt / error
  *       → open a chat-drawer tab for the wielder, scrolled to event
- *   - permission_request
+ *   - permission_request / user_input_request
  *       → highlight the matching alert card in AlertsHUD (top-right);
  *         silent fail if it's already been resolved/dismissed
- *   - session_start / session_end / subagent_spawn / permission_resolved
+ *   - session_start / session_end / subagent_spawn / resolved request markers
  *       → not clickable (system markers, no useful drill-through)
  */
 import { Fragment, useEffect, useRef } from "react";
@@ -31,6 +31,7 @@ const NON_CLICKABLE: ReadonlySet<AgentEvent["kind"]> = new Set([
   "session_end",
   "subagent_spawn",
   "permission_resolved",
+  "user_input_resolved",
 ]);
 
 function toneTextClass(tone: string) {
@@ -90,19 +91,20 @@ export function ActivityLog() {
   // tab's read order.
   const recent = events.slice(0, VISIBLE).reverse();
 
-  // Set of permission requestIds that still have a live letter waiting
-  // for action. Anything else with kind=permission_request in the
+  // Set of requestIds that still have a live letter waiting for action.
+  // Anything else with kind=permission_request/user_input_request in the
   // activity log is "resolved" — historical, no drill-through.
-  const activePermissionIds = new Set<string>();
+  const activeRequestIds = new Set<string>();
   for (const l of letters) {
     for (const a of l.actions) {
       if (
         (a.action.kind === "permission-allow" ||
           a.action.kind === "permission-deny" ||
-          a.action.kind === "permission-observe") &&
+          a.action.kind === "permission-observe" ||
+          a.action.kind === "user-input-submit") &&
         a.action.requestId
       ) {
-        activePermissionIds.add(a.action.requestId);
+        activeRequestIds.add(a.action.requestId);
       }
     }
   }
@@ -185,17 +187,18 @@ export function ActivityLog() {
               // a neutral tone) once their letter is gone — clicking a
               // historical, already-resolved permission has nowhere
               // useful to land.
-              const isPermResolved =
-                ev.kind === "permission_request" &&
+              const isRequestEvent =
+                ev.kind === "permission_request" ||
+                ev.kind === "user_input_request";
+              const isRequestResolved =
+                isRequestEvent &&
                 !!ev.payload.requestId &&
-                !activePermissionIds.has(ev.payload.requestId);
+                !activeRequestIds.has(ev.payload.requestId);
               const clickable =
                 !NON_CLICKABLE.has(ev.kind) &&
-                !isPermResolved &&
-                (ev.kind === "permission_request"
-                  ? !!ev.payload.requestId
-                  : !!unit);
-              const tone = isPermResolved ? "muted" : summary.tone;
+                !isRequestResolved &&
+                (isRequestEvent ? !!ev.payload.requestId : !!unit);
+              const tone = isRequestResolved ? "muted" : summary.tone;
               const rowClassName = cn(
                 "grid w-full grid-cols-[8px_100px_minmax(0,1fr)_28px] items-center gap-1.5",
                 "border-0 border-b border-white/[0.03] bg-transparent px-2.5 py-1",
@@ -207,7 +210,7 @@ export function ActivityLog() {
               );
               const onClick = () => {
                 if (!clickable) return;
-                if (ev.kind === "permission_request" && ev.payload.requestId) {
+                if (isRequestEvent && ev.payload.requestId) {
                   highlightAlert(ev.payload.requestId);
                   return;
                 }
@@ -225,15 +228,15 @@ export function ActivityLog() {
                 }, 0);
               };
               const titleAttr = !clickable
-                ? isPermResolved
-                  ? "permission already resolved"
+                ? isRequestResolved
+                  ? "request already resolved"
                   : "system event"
-                : ev.kind === "permission_request"
+                : isRequestEvent
                   ? "click to spotlight the alert"
                   : isMe
                     ? `you sent a prompt to ${recipientName}`
                     : `${recipientName} — click to open conversation`;
-              const summaryText = isPermResolved
+              const summaryText = isRequestResolved
                 ? `${summary.text} · resolved`
                 : summary.text;
               const NameSlot = isMe ? (

@@ -63,6 +63,7 @@ const DEMO_FIXTURES = [
       { id: "demo", label: "All 4 tools (claude / cursor / codex / gemini)" },
       { id: "cursor-turn", label: "Cursor · multi-tool turn" },
       { id: "codex-shell", label: "Codex · shell" },
+      { id: "codex-inputs", label: "Codex · answer letters" },
       { id: "gemini-turn", label: "Gemini · search + write" },
       { id: "subagent", label: "Claude · subagent (Link aura)" },
       { id: "combat", label: "Combat · riftling raid" },

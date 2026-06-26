@@ -21,6 +21,14 @@ export type SpawnedAgent = {
   kill(): void;
 };
 
+export type BuildClaudeArgsOptions = {
+  sessionId: string;
+  resume?: boolean;
+  includeHookEvents?: boolean;
+  includePartialMessages?: boolean;
+  promptSuggestions?: boolean;
+};
+
 const agents = new Map<string, SpawnedAgent>();
 const spawnedSessionIds = new Set<string>();
 
@@ -85,15 +93,26 @@ function attachStdoutStream(
   });
 }
 
+export function buildClaudeArgs(
+  prompt: string,
+  opts: BuildClaudeArgsOptions
+): string[] {
+  const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
+  if (opts.includeHookEvents) args.push("--include-hook-events");
+  if (opts.includePartialMessages) args.push("--include-partial-messages");
+  if (opts.promptSuggestions) args.push("--prompt-suggestions");
+  if (opts.resume) args.push("--resume", opts.sessionId);
+  else args.push("--session-id", opts.sessionId);
+  return args;
+}
+
 function spawnOneShot(
   prompt: string,
   sessionId: string,
   cwd: string,
   resume: boolean
 ) {
-  const args = ["-p", prompt, "--output-format", "stream-json", "--verbose"];
-  if (resume) args.push("--resume", sessionId);
-  else args.push("--session-id", sessionId);
+  const args = buildClaudeArgs(prompt, { sessionId, resume });
   return spawn("claude", args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],

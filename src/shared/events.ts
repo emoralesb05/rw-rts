@@ -1,4 +1,5 @@
 import type { AgentTool, PersistedState } from "./schemas";
+import type { UserInputAnswers, UserInputQuestion } from "./schemas/user-input";
 
 export type {
   AgentEvent,
@@ -95,6 +96,13 @@ export type LetterAction =
   // letter locally. Carries requestId so ActivityLog row clicks can
   // still pulse the matching card.
   | { kind: "permission-observe"; requestId: string; optionId?: string }
+  | {
+      kind: "user-input-submit";
+      requestId: string;
+      answers?: UserInputAnswers;
+      responseKind?: "mcp-elicitation";
+      responseAction?: "accept" | "decline" | "cancel";
+    }
   | { kind: "dismiss" };
 
 export type PermissionLetterAction = Extract<
@@ -126,6 +134,7 @@ export type Letter = {
   // permission was requested. The "thinking that led to this ask".
   // Rendered as expandable "what they were thinking" in the letter.
   reasoning?: string;
+  userInputQuestions?: UserInputQuestion[];
 };
 
 export type WorldAlertLevel =

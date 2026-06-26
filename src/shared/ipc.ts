@@ -22,6 +22,7 @@ export const IPC = {
   SavePersisted: "rw:save-persisted",
   ResetPersisted: "rw:reset-persisted",
   ResolvePermission: "rw:resolve-permission",
+  ResolveUserInput: "rw:resolve-user-input",
   ListWorkspaceRepos: "rw:list-workspace-repos",
   GetSettings: "rw:get-settings",
   SaveSettings: "rw:save-settings",

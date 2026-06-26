@@ -91,6 +91,12 @@ export function summarizeEvent(ev: AgentEvent): ActivitySummary {
   if (ev.kind === "permission_resolved") {
     return { text: "permission resolved", tone: "muted" };
   }
+  if (ev.kind === "user_input_request") {
+    return { text: "asked for input", tone: "warn" };
+  }
+  if (ev.kind === "user_input_resolved") {
+    return { text: "input request resolved", tone: "muted" };
+  }
   if (ev.kind === "subagent_spawn") {
     return { text: "spawned subagent", tone: "ok" };
   }

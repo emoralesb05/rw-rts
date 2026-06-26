@@ -3,6 +3,7 @@ import { AgentToolSchema } from "./common";
 import { PermissionDecisionSchema } from "./permissions";
 import { PersistedStateSchema } from "./persisted";
 import { AppSettingsSchema } from "./settings";
+import { UserInputAnswersSchema } from "./user-input";
 
 export const SpawnAgentRequestSchema = z.object({
   prompt: z.string(),
@@ -48,6 +49,16 @@ export type ResolvePermissionRequest = z.infer<
   typeof ResolvePermissionRequestSchema
 >;
 
+export const ResolveUserInputRequestSchema = z.object({
+  requestId: z.string().min(1),
+  answers: UserInputAnswersSchema,
+  responseKind: z.literal("mcp-elicitation").optional(),
+  responseAction: z.enum(["accept", "decline", "cancel"]).optional(),
+});
+export type ResolveUserInputRequest = z.infer<
+  typeof ResolveUserInputRequestSchema
+>;
+
 export const FixtureScenarioSchema = z.enum([
   "summon-vaelen",
   "summon-selene",
@@ -56,6 +67,7 @@ export const FixtureScenarioSchema = z.enum([
   "summon-all",
   "cursor-turn",
   "codex-shell",
+  "codex-inputs",
   "gemini-turn",
   "subagent",
   "stress",
@@ -119,6 +131,11 @@ export type HooksStatus = z.infer<typeof HooksStatusSchema>;
 export const ResolvePermissionResponseSchema = z.boolean();
 export type ResolvePermissionResponse = z.infer<
   typeof ResolvePermissionResponseSchema
+>;
+
+export const ResolveUserInputResponseSchema = z.boolean();
+export type ResolveUserInputResponse = z.infer<
+  typeof ResolveUserInputResponseSchema
 >;
 
 export { AppSettingsSchema, PersistedStateSchema };

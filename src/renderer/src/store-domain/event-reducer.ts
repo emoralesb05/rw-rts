@@ -18,8 +18,10 @@ import {
   extractRecentReasoning,
   isObservationOnlyPermission,
   isPermissionLetter,
+  isUserInputLetter,
   permissionActionsForEvent,
   summarizePermissionInput,
+  userInputQuestionsForEvent,
 } from "./permissions";
 import {
   bindStandingOrdersForUnit,
@@ -249,13 +251,20 @@ function makeLetter(
 
 /** Add a letter to the feed. For informational letters, collapse the
  * stream to one-per-wielder: remove any prior informational letter for
- * the same sessionId so the new one replaces it. Permission letters
- * stay distinct (each is its own decision). */
+ * the same sessionId so the new one replaces it. Permission and input
+ * request letters stay distinct (each is its own decision). */
 function pushLetter(state: EventReducerState, letter: Letter): Letter[] {
   let next = state.letters;
-  if (!isPermissionLetter(letter) && letter.sessionId) {
+  if (
+    !isPermissionLetter(letter) &&
+    !isUserInputLetter(letter) &&
+    letter.sessionId
+  ) {
     const sid = letter.sessionId;
-    next = next.filter((l) => l.sessionId !== sid || isPermissionLetter(l));
+    next = next.filter(
+      (l) =>
+        l.sessionId !== sid || isPermissionLetter(l) || isUserInputLetter(l)
+    );
   }
   return [letter, ...next].slice(0, MAX_LETTERS);
 }
@@ -792,6 +801,99 @@ export function applyOneEvent(
     });
   }
 
+  if (event.kind === "user_input_request" && event.payload.requestId) {
+    const questions = userInputQuestionsForEvent(event);
+    const count = questions.length;
+    const firstQuestion = questions[0]?.question;
+    const responseKind =
+      event.payload.responseKind === "mcp-elicitation"
+        ? "mcp-elicitation"
+        : undefined;
+    const autoResolutionMs =
+      typeof event.payload.autoResolutionMs === "number"
+        ? event.payload.autoResolutionMs
+        : undefined;
+    const timeoutNote =
+      autoResolutionMs && autoResolutionMs > 0
+        ? ` Auto-resolves in ${Math.ceil(autoResolutionMs / 1000)}s if left unanswered.`
+        : "";
+    nextLetters = pushLetter(
+      { ...state, letters: nextLetters },
+      makeLetter(
+        "important",
+        responseKind === "mcp-elicitation"
+          ? `${palette} needs MCP input`
+          : `${palette} needs your answer`,
+        {
+          body:
+            count === 1 && firstQuestion
+              ? `${firstQuestion}${timeoutNote}`
+              : responseKind === "mcp-elicitation"
+                ? `An MCP server is asking for ${count || "multiple"} fields before Codex can continue.${timeoutNote}`
+                : `Codex is asking ${count || "multiple"} questions before it can continue.${timeoutNote}`,
+          sessionId: id,
+          worldId,
+          userInputQuestions: questions,
+          actions:
+            responseKind === "mcp-elicitation"
+              ? [
+                  {
+                    label: "accept",
+                    action: {
+                      kind: "user-input-submit",
+                      requestId: event.payload.requestId,
+                      responseKind,
+                      responseAction: "accept",
+                    },
+                  },
+                  {
+                    label: "decline",
+                    action: {
+                      kind: "user-input-submit",
+                      requestId: event.payload.requestId,
+                      answers: {},
+                      responseKind,
+                      responseAction: "decline",
+                    },
+                  },
+                ]
+              : [
+                  {
+                    label: "send answer",
+                    action: {
+                      kind: "user-input-submit",
+                      requestId: event.payload.requestId,
+                    },
+                  },
+                  {
+                    label: "skip",
+                    action: {
+                      kind: "user-input-submit",
+                      requestId: event.payload.requestId,
+                      answers: {},
+                    },
+                  },
+                ],
+        }
+      )
+    );
+  }
+
+  if (event.kind === "user_input_resolved" && event.payload.requestId) {
+    const reqId = event.payload.requestId;
+    nextLetters = nextLetters.filter((l) => {
+      for (const a of l.actions) {
+        if (
+          a.action.kind === "user-input-submit" &&
+          a.action.requestId === reqId
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
   // Heuristic dismissal: if a tool_result, session_end, or fresh
   // permission_request arrives for the same session as a pending
   // permission letter that *predates* this event, the user resolved
@@ -818,7 +920,11 @@ export function applyOneEvent(
           a.action.kind === "permission-deny" ||
           a.action.kind === "permission-observe"
       );
-      if (!isPermLetter) {
+      const isInputLetter = isUserInputLetter(l);
+      if (!isPermLetter && !isInputLetter) {
+        return true;
+      }
+      if (isInputLetter && event.kind === "permission_request") {
         return true;
       }
       // For permission_request: only drop if this is a *different*

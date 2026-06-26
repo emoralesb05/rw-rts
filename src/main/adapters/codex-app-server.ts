@@ -5,10 +5,18 @@ import {
   cancelPermissionRequest,
   registerPermissionRequest,
 } from "./hook-bridge";
+import {
+  cancelUserInputRequest,
+  registerUserInputRequest,
+} from "./user-input-bridge";
 import { registerSpawnedSession, unregisterSpawnedSession } from "./claude-cli";
 import type { AgentEvent, AgentEventSource } from "@shared/events";
 import { permissionOptionsForTool } from "@shared/provider-permissions";
-import type { PermissionDecision } from "@shared/schemas";
+import type {
+  PermissionDecision,
+  UserInputAnswers,
+  UserInputQuestion,
+} from "@shared/schemas";
 
 export type CodexAppServerAgent = {
   unitId: string;
@@ -74,6 +82,10 @@ export function buildTurnSteerParams(
     expectedTurnId: turnId,
     input: [textInput(prompt)],
   };
+}
+
+export function buildCodexAppServerArgs(): string[] {
+  return ["app-server", "--stdio"];
 }
 
 export async function spawnCodexAppServerAgent(opts: {
@@ -212,6 +224,7 @@ class CodexAppServerClient {
   private readonly source: AgentEventSource;
   private readonly closeOnTurnCompleted: boolean;
   private readonly pendingPermissionRequests = new Set<string>();
+  private readonly pendingUserInputRequests = new Set<string>();
 
   constructor(
     cwd: string,
@@ -221,7 +234,7 @@ class CodexAppServerClient {
     this.cwd = cwd;
     this.source = source;
     this.closeOnTurnCompleted = closeOnTurnCompleted;
-    this.proc = spawn("codex", ["app-server", "--stdio"], {
+    this.proc = spawn("codex", buildCodexAppServerArgs(), {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env },
@@ -395,7 +408,67 @@ class CodexAppServerClient {
       source: this.source,
     });
     const requestId = event?.payload.requestId;
-    if (!event || !requestId) {
+    if (event && requestId) {
+      this.handlePermissionServerRequest(id, method, msg.params, event);
+      return;
+    }
+
+    const userInputEvent = buildCodexAppServerUserInputEvent({
+      id,
+      method,
+      params: msg.params,
+      sessionId: this.sessionId,
+      cwd: this.cwd,
+      source: this.source,
+    });
+    const userInputRequestId = userInputEvent?.payload.requestId;
+    if (userInputEvent && userInputRequestId) {
+      this.handleUserInputServerRequest(id, method, msg.params, userInputEvent);
+      return;
+    }
+
+    const mcpElicitationEvent = buildCodexAppServerMcpElicitationEvent({
+      id,
+      method,
+      params: msg.params,
+      sessionId: this.sessionId,
+      cwd: this.cwd,
+      source: this.source,
+    });
+    const mcpElicitationRequestId = mcpElicitationEvent?.payload.requestId;
+    if (mcpElicitationEvent && mcpElicitationRequestId) {
+      this.handleUserInputServerRequest(
+        id,
+        method,
+        msg.params,
+        mcpElicitationEvent
+      );
+      return;
+    }
+
+    this.write({ id, result: defaultServerRequestResponse(method) });
+    bus.emitAgentEvent({
+      sessionId: this.sessionId,
+      tool: "codex",
+      cwd: this.cwd,
+      timestamp: Date.now(),
+      kind: "error",
+      payload: {
+        error: `Codex app-server request ${method} was declined by Realmkeeper's adapter`,
+      },
+      source: this.source,
+    });
+  }
+
+  private handlePermissionServerRequest(
+    id: JsonRpcId,
+    method: string,
+    params: unknown,
+    event: AgentEvent
+  ) {
+    if (!this.sessionId) return;
+    const requestId = event.payload.requestId;
+    if (!requestId) {
       this.write({ id, result: defaultServerRequestResponse(method) });
       bus.emitAgentEvent({
         sessionId: this.sessionId,
@@ -424,11 +497,7 @@ class CodexAppServerClient {
         this.pendingPermissionRequests.delete(requestId);
         this.write({
           id,
-          result: codexAppServerPermissionResponse(
-            method,
-            msg.params,
-            decision
-          ),
+          result: codexAppServerPermissionResponse(method, params, decision),
         });
       }
     );
@@ -449,6 +518,63 @@ class CodexAppServerClient {
     }
 
     this.pendingPermissionRequests.add(requestId);
+    bus.emitAgentEvent(event);
+  }
+
+  private handleUserInputServerRequest(
+    id: JsonRpcId,
+    method: string,
+    params: unknown,
+    event: AgentEvent
+  ) {
+    if (!this.sessionId) return;
+    const requestId = event.payload.requestId;
+    if (!requestId) {
+      this.write({ id, result: defaultServerRequestResponse(method) });
+      return;
+    }
+
+    const registered = registerUserInputRequest(
+      {
+        sessionId: this.sessionId,
+        cwd: this.cwd,
+        tool: "codex",
+        source: this.source,
+      },
+      requestId,
+      ({ answers, responseAction, responseKind }) => {
+        this.pendingUserInputRequests.delete(requestId);
+        this.write({
+          id,
+          result:
+            method === "mcpServer/elicitation/request" ||
+            responseKind === "mcp-elicitation"
+              ? codexAppServerMcpElicitationResponse(
+                  params,
+                  answers,
+                  responseAction
+                )
+              : codexAppServerUserInputResponse(answers),
+        });
+      }
+    );
+    if (!registered) {
+      this.write({ id, result: defaultServerRequestResponse(method) });
+      bus.emitAgentEvent({
+        sessionId: this.sessionId,
+        tool: "codex",
+        cwd: this.cwd,
+        timestamp: Date.now(),
+        kind: "error",
+        payload: {
+          error: `Codex app-server request ${method} reused pending user input id ${requestId}`,
+        },
+        source: this.source,
+      });
+      return;
+    }
+
+    this.pendingUserInputRequests.add(requestId);
     bus.emitAgentEvent(event);
   }
 
@@ -481,6 +607,10 @@ class CodexAppServerClient {
       cancelPermissionRequest(requestId);
     }
     this.pendingPermissionRequests.clear();
+    for (const requestId of this.pendingUserInputRequests) {
+      cancelUserInputRequest(requestId);
+    }
+    this.pendingUserInputRequests.clear();
   }
 }
 
@@ -506,6 +636,79 @@ export function buildCodexAppServerPermissionEvent(args: {
       requestId: codexAppServerRequestId(args.sessionId, args.id),
       permissionMode: "actionable",
       permissionOptions: permissionOptionsForTool("codex"),
+    },
+  };
+}
+
+export function buildCodexAppServerUserInputEvent(args: {
+  id: JsonRpcId;
+  method: string;
+  params: unknown;
+  sessionId: string;
+  cwd: string;
+  source?: AgentEventSource;
+}): AgentEvent | null {
+  if (args.method !== "item/tool/requestUserInput") return null;
+  const p = record(args.params) ?? {};
+  const questions = parseUserInputQuestions(p.questions);
+  if (!questions.length) return null;
+  return {
+    sessionId: args.sessionId,
+    tool: "codex",
+    cwd: args.cwd,
+    source: args.source ?? "spawned",
+    timestamp: Date.now(),
+    kind: "user_input_request",
+    payload: {
+      requestId: codexAppServerRequestId(args.sessionId, args.id),
+      name: "UserInput",
+      text: questions[0]?.question,
+      input: compactRecord({
+        itemId: stringValue(p.itemId),
+        threadId: stringValue(p.threadId),
+        turnId: stringValue(p.turnId),
+        autoResolutionMs: nullableNumberValue(p.autoResolutionMs),
+      }),
+      questions,
+      autoResolutionMs: nullableNumberValue(p.autoResolutionMs),
+    },
+  };
+}
+
+export function buildCodexAppServerMcpElicitationEvent(args: {
+  id: JsonRpcId;
+  method: string;
+  params: unknown;
+  sessionId: string;
+  cwd: string;
+  source?: AgentEventSource;
+}): AgentEvent | null {
+  if (args.method !== "mcpServer/elicitation/request") return null;
+  const p = record(args.params) ?? {};
+  if (p.mode !== "form") return null;
+  const questions = parseMcpElicitationQuestions(p.requestedSchema);
+  if (!questions.length) return null;
+  const message = stringValue(p.message) ?? "MCP server needs input.";
+  return {
+    sessionId: args.sessionId,
+    tool: "codex",
+    cwd: args.cwd,
+    source: args.source ?? "spawned",
+    timestamp: Date.now(),
+    kind: "user_input_request",
+    payload: {
+      requestId: codexAppServerRequestId(args.sessionId, args.id),
+      name: "McpElicitation",
+      text: message,
+      input: compactRecord({
+        serverName: stringValue(p.serverName),
+        threadId: stringValue(p.threadId),
+        turnId: nullableStringValue(p.turnId),
+        mode: stringValue(p.mode),
+        message,
+      }),
+      questions,
+      responseKind: "mcp-elicitation",
     },
   };
 }
@@ -665,6 +868,27 @@ export function codexAppServerPermissionResponse(
   return defaultServerRequestResponse(method);
 }
 
+export function codexAppServerUserInputResponse(
+  answers: UserInputAnswers
+): JsonRecord {
+  return { answers };
+}
+
+export function codexAppServerMcpElicitationResponse(
+  params: unknown,
+  answers: UserInputAnswers,
+  action: "accept" | "decline" | "cancel" = "accept"
+): JsonRecord {
+  if (action !== "accept") {
+    return { action, content: null, _meta: null };
+  }
+  return {
+    action: "accept",
+    content: mcpElicitationContentFromAnswers(params, answers),
+    _meta: null,
+  };
+}
+
 function codexApprovalPayload(
   method: string,
   params: unknown
@@ -733,6 +957,159 @@ function codexAppServerRequestId(sessionId: string, id: JsonRpcId): string {
   return `codex-app-server:${sessionId}:${String(id)}`;
 }
 
+function parseUserInputQuestions(value: unknown): UserInputQuestion[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const q = record(entry);
+    const id = stringValue(q?.id);
+    const header = stringValue(q?.header);
+    const question = stringValue(q?.question);
+    if (!id || !header || !question) return [];
+    const options = Array.isArray(q?.options)
+      ? q.options.flatMap((option) => {
+          const o = record(option);
+          const label = stringValue(o?.label);
+          if (!label) return [];
+          const description = stringValue(o?.description);
+          return [
+            description === undefined ? { label } : { label, description },
+          ];
+        })
+      : undefined;
+    return [
+      {
+        id,
+        header,
+        question,
+        isOther: booleanValue(q?.isOther) || undefined,
+        isSecret: booleanValue(q?.isSecret) || undefined,
+        options,
+      },
+    ];
+  });
+}
+
+function parseMcpElicitationQuestions(value: unknown): UserInputQuestion[] {
+  const schema = record(value);
+  const properties = record(schema?.properties);
+  if (schema?.type !== "object" || !properties) return [];
+  const required = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter(
+          (entry): entry is string => typeof entry === "string"
+        )
+      : []
+  );
+  return Object.entries(properties).flatMap(([id, raw]) => {
+    const field = record(raw);
+    if (!field) return [];
+    const title = stringValue(field.title) ?? id;
+    const description =
+      nullableStringValue(field.description) ?? `Provide ${title}.`;
+    const options = mcpElicitationOptions(field);
+    return [
+      {
+        id,
+        header: title,
+        question: description,
+        required: required.has(id),
+        multiSelect: field.type === "array" || undefined,
+        options,
+      },
+    ];
+  });
+}
+
+function mcpElicitationOptions(
+  field: JsonRecord
+): UserInputQuestion["options"] {
+  const titledSingle = Array.isArray(field.oneOf)
+    ? optionsFromConstList(field.oneOf)
+    : [];
+  if (titledSingle.length) return titledSingle;
+
+  if (Array.isArray(field.enum)) {
+    const names = Array.isArray(field.enumNames) ? field.enumNames : [];
+    return field.enum.flatMap((entry, index) => {
+      if (typeof entry !== "string") return [];
+      const label =
+        typeof names[index] === "string" && names[index] ? names[index] : entry;
+      return [{ label, value: entry }];
+    });
+  }
+
+  const items = record(field.items);
+  const anyOf = Array.isArray(items?.anyOf)
+    ? optionsFromConstList(items.anyOf)
+    : [];
+  if (anyOf.length) return anyOf;
+
+  if (Array.isArray(items?.enum)) {
+    return items.enum.flatMap((entry) =>
+      typeof entry === "string" ? [{ label: entry, value: entry }] : []
+    );
+  }
+
+  if (field.type === "boolean") {
+    return [
+      { label: "Yes", value: "true" },
+      { label: "No", value: "false" },
+    ];
+  }
+
+  return undefined;
+}
+
+function optionsFromConstList(
+  value: unknown[]
+): NonNullable<UserInputQuestion["options"]> {
+  return value.flatMap((entry) => {
+    const option = record(entry);
+    const constValue = stringValue(option?.const);
+    const title = stringValue(option?.title);
+    if (!constValue || !title) return [];
+    return [{ label: title, value: constValue }];
+  });
+}
+
+function mcpElicitationContentFromAnswers(
+  params: unknown,
+  answers: UserInputAnswers
+): JsonRecord {
+  const schema = record(record(params)?.requestedSchema);
+  const properties = record(schema?.properties);
+  if (!properties) return {};
+  const content: JsonRecord = {};
+  for (const [id, raw] of Object.entries(properties)) {
+    const field = record(raw);
+    if (!field) continue;
+    const values = answers[id]?.answers ?? [];
+    if (!values.length) continue;
+    const value = coerceMcpElicitationAnswer(field, values);
+    if (value !== undefined) content[id] = value;
+  }
+  return content;
+}
+
+function coerceMcpElicitationAnswer(
+  field: JsonRecord,
+  values: string[]
+): unknown {
+  if (field.type === "array") return values;
+  const value = values[0];
+  if (value === undefined) return undefined;
+  if (field.type === "boolean") return value === "true";
+  if (field.type === "integer") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : undefined;
+  }
+  if (field.type === "number") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return value;
+}
+
 function grantedPermissionsFromRequest(value: unknown): JsonRecord {
   const permissions = record(value);
   if (!permissions) return {};
@@ -780,6 +1157,15 @@ function numberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value)
     ? value
     : undefined;
+}
+
+function nullableNumberValue(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  return numberValue(value);
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function errorMessage(err: unknown): string {

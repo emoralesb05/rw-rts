@@ -14,6 +14,7 @@ import { applyOneEvent } from "./store-domain/event-reducer";
 import {
   dismissInformationalLetters,
   permissionResolutionForAction,
+  userInputResolutionForAction,
 } from "./store-domain/permissions";
 import {
   createStandingOrder,
@@ -43,7 +44,7 @@ export type WorldCommandAnchor = {
   visible: boolean;
 };
 
-type Store = {
+export type Store = {
   events: AgentEvent[];
   eventCount: number;
   units: Record<string, UnitState>;
@@ -130,6 +131,8 @@ const COMFORT_COOLDOWN_MS = 30_000;
 // trigger 20 separate re-renders.
 const _queue: AgentEvent[] = [];
 let _flushScheduled = false;
+let _flushRaf: number | null = null;
+let _flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function roundAnchorPoint(n: number) {
   return Math.round(n * 10) / 10;
@@ -171,8 +174,17 @@ export const useStore = create<Store>((set) => ({
     _queue.push(event);
     if (_flushScheduled) return;
     _flushScheduled = true;
-    requestAnimationFrame(() => {
+    const flush = () => {
+      if (!_flushScheduled) return;
       _flushScheduled = false;
+      if (_flushRaf != null) {
+        cancelAnimationFrame(_flushRaf);
+        _flushRaf = null;
+      }
+      if (_flushTimer) {
+        clearTimeout(_flushTimer);
+        _flushTimer = null;
+      }
       const batch = _queue.splice(0);
       set((state) => {
         let next: Store = state;
@@ -182,7 +194,9 @@ export const useStore = create<Store>((set) => ({
         }
         return next;
       });
-    });
+    };
+    _flushRaf = requestAnimationFrame(flush);
+    _flushTimer = setTimeout(flush, 50);
   },
 
   selectUnit(id) {
@@ -388,6 +402,12 @@ export const useStore = create<Store>((set) => ({
         // Observation-only provider letters — no upstream resolution;
         // just dismiss locally.
         break;
+      case "user-input-submit":
+        {
+          const req = userInputResolutionForAction(action);
+          if (req) void window.rw.resolveUserInput(req).catch(() => {});
+        }
+        break;
       case "dismiss":
         break;
     }
@@ -451,6 +471,10 @@ export const useStore = create<Store>((set) => ({
     set({ persisted: fresh });
   },
 }));
+
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  window.__rwStore = useStore;
+}
 
 // Listen for unit lifecycle events to maintain the persisted wielder /
 // world stats. Subscribed once; lives until the page unloads.

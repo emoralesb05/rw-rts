@@ -48,13 +48,15 @@ A transcript fallback would be a resilience layer that tails Gemini's on-disk se
 ## Resume And Spawn
 
 ```bash
-gemini --prompt "<prompt>" --output-format stream-json --approval-mode yolo --session-id <uuid>
-gemini --prompt "<follow-up>" --output-format stream-json --approval-mode yolo --resume <session-id>
+gemini --prompt "<prompt>" --output-format stream-json --approval-mode yolo --skip-trust --session-id <uuid>
+gemini --prompt "<follow-up>" --output-format stream-json --approval-mode yolo --skip-trust --resume <session-id>
 ```
 
 The CLI help emphasizes `--resume latest` or numeric indexes, but the bundled `SessionSelector` also accepts full UUIDs. Realmkeeper now generates the UUID up front and passes it with `--session-id`, so new Gemini wielders can be registered immediately instead of waiting for the first `init.session_id` stream event.
 
 Realmkeeper-spawned Gemini processes also set `REALMKEEPER_GEMINI_FAIL_CLOSED=1`. That makes the hook deny `BeforeTool` if the GUI/socket is unavailable, so `--approval-mode yolo` is only used behind Realmkeeper's own gate.
+
+If the adapter cannot verify both the fail-closed `BeforeTool` hook and the managed policy file, it launches with `--approval-mode default` instead of `yolo`. That keeps headless starts usable for read-only/default-policy work without silently auto-running tools outside Realmkeeper's gate.
 
 ## 2026-06-25 CLI notes
 
@@ -62,12 +64,15 @@ Local `gemini --help` exposes:
 
 - `--prompt`, `--prompt-interactive`, `--resume`, `--session-id`, and `--output-format text|json|stream-json` for headless and interactive-start turns.
 - `--approval-mode default|auto_edit|yolo|plan`, plus `--policy` and `--admin-policy`.
+- `--allowed-tools` is still present but deprecated in favor of the policy engine.
 - `--acp` for Agent Client Protocol mode.
 - `--list-sessions` for session discovery/diagnostics.
 - `gemini hooks`, `gemini skills`, and the interactive `/hooks` and `/skills` commands for inspecting hook/skill status.
 - `--include-directories` and `--worktree` for broader workspace or isolated-worktree launches.
 
 Official hook docs emphasize that hook scripts must log to stderr and write only the final JSON decision/output to stdout. They also document structured `BeforeTool` denial via `{"decision":"deny","reason":"..."}`, which matches Realmkeeper's fail-closed permission gate.
+
+Policy-engine note: current public docs warn that workspace `.gemini/policies` are disabled, so Realmkeeper should use user/admin policy paths or Realmkeeper-local rules rather than relying on repo-local policy files.
 
 Near-term leverage: use `--list-sessions` for diagnostics in the Connection tab, surface the managed policy path in UI, and explore generated `--policy`/`--admin-policy` files so Realmkeeper's Gemini policy can be audited instead of being a hidden installer detail. ACP is worth a separate spike only if we want a long-lived Gemini transport; the current `--prompt`/`--resume` path is simpler and works.
 

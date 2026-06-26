@@ -7,7 +7,10 @@ import type {
 import type {
   PermissionOption,
   ResolvePermissionRequest,
+  ResolveUserInputRequest,
+  UserInputQuestion,
 } from "@shared/schemas";
+import { UserInputQuestionSchema } from "@shared/schemas";
 import {
   permissionCapabilityForTool,
   permissionOptionsForPayload,
@@ -157,10 +160,14 @@ export function isPermissionLetter(letter: Letter): boolean {
   );
 }
 
+export function isUserInputLetter(letter: Letter): boolean {
+  return letter.actions.some((a) => a.action.kind === "user-input-submit");
+}
+
 export function dismissInformationalLetters(
   letters: readonly Letter[]
 ): Letter[] {
-  return letters.filter((l) => isPermissionLetter(l));
+  return letters.filter((l) => isPermissionLetter(l) || isUserInputLetter(l));
 }
 
 export function permissionResolutionForAction(
@@ -187,4 +194,26 @@ export function permissionResolutionForAction(
     default:
       return null;
   }
+}
+
+export function userInputQuestionsForEvent(
+  event: AgentEvent
+): UserInputQuestion[] {
+  const parsed = UserInputQuestionSchema.array().safeParse(
+    event.payload.questions
+  );
+  return parsed.success ? parsed.data : [];
+}
+
+export function userInputResolutionForAction(
+  action: LetterAction
+): ResolveUserInputRequest | null {
+  if (action.kind !== "user-input-submit") return null;
+  const req: ResolveUserInputRequest = {
+    requestId: action.requestId,
+    answers: action.answers ?? {},
+  };
+  if (action.responseKind) req.responseKind = action.responseKind;
+  if (action.responseAction) req.responseAction = action.responseAction;
+  return req;
 }

@@ -6,7 +6,11 @@ function soundFor(ev: AgentEvent): SoundName | null {
   if (ev.kind === "session_start") return "session_start";
   if (ev.kind === "session_end") return "session_end";
   if (ev.kind === "error") return "error";
-  if (ev.kind === "permission_request" || ev.kind === "user_prompt") {
+  if (
+    ev.kind === "permission_request" ||
+    ev.kind === "user_input_request" ||
+    ev.kind === "user_prompt"
+  ) {
     return "letter";
   }
   if (ev.kind === "subagent_spawn") return "summon";
@@ -21,9 +25,13 @@ function soundFor(ev: AgentEvent): SoundName | null {
   return null;
 }
 
+function liveStore() {
+  return (import.meta.env.DEV ? window.__rwStore : undefined) ?? useStore;
+}
+
 export function attachEventStream() {
   return window.rw.onEvent((event) => {
-    useStore.getState().ingest(event);
+    liveStore().getState().ingest(event);
     window.dispatchEvent(new CustomEvent("rw:event", { detail: event }));
     const s = soundFor(event);
     if (s) play(s);

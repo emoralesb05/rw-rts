@@ -57,6 +57,7 @@ function installRendererGlobals({ autoFrame = false } = {}): RendererGlobals {
     }
     return frames.length;
   });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
 
   return {
     rw,
@@ -146,6 +147,25 @@ describe("store event ingestion", () => {
     });
 
     unsubscribe();
+  });
+
+  it("flushes queued events when animation frames do not fire", async () => {
+    vi.useFakeTimers();
+    const globals = installRendererGlobals();
+    const { useStore } = await loadStore();
+
+    useStore.getState().ingest(agentEvent("session_start", { timestamp: 1 }));
+
+    expect(globals.scheduledFrameCount()).toBe(1);
+    expect(useStore.getState().eventCount).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(useStore.getState().eventCount).toBe(1);
+    expect(useStore.getState().events[0]).toMatchObject({
+      kind: "session_start",
+      sessionId: "session-1",
+    });
   });
 
   it("persists first session visits with repo-root wielder identity", async () => {

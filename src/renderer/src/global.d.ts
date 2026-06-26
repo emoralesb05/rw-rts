@@ -6,12 +6,14 @@ import type {
   ListUnitEntry,
   PlayFixtureRequest,
   ResolvePermissionRequest,
+  ResolveUserInputRequest,
   WorkspaceRepoEntry,
   AppSettings,
   WorkspaceRootValidation,
 } from "@shared/schemas";
 import type { AgentEvent, PersistedState } from "@shared/events";
 import type { seedVisualQaState } from "./dev/visual-qa-seed";
+import type { useStore } from "./store";
 
 declare global {
   interface Window {
@@ -42,12 +44,14 @@ declare global {
       savePersisted(state: PersistedState): Promise<void>;
       resetPersisted(): Promise<PersistedState>;
       resolvePermission(req: ResolvePermissionRequest): Promise<boolean>;
+      resolveUserInput(req: ResolveUserInputRequest): Promise<boolean>;
       listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
       getSettings(): Promise<AppSettings>;
       saveSettings(next: AppSettings): Promise<AppSettings>;
       validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;
     };
     __rwSeedVisualQa?: typeof seedVisualQaState;
+    __rwStore?: typeof useStore;
   }
 }
 

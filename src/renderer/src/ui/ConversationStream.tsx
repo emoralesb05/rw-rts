@@ -963,6 +963,84 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   );
 }
 
+function UserInputRequestRow({ ev }: { ev: AgentEvent }) {
+  const letters = useStore((s) => s.letters);
+  const requestId =
+    typeof ev.payload.requestId === "string" ? ev.payload.requestId : undefined;
+  const isActive = useMemo(() => {
+    if (!requestId) return false;
+    for (const l of letters) {
+      for (const a of l.actions) {
+        if (
+          a.action.kind === "user-input-submit" &&
+          a.action.requestId === requestId
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [letters, requestId]);
+  const onClick = () => {
+    if (!requestId || !isActive) return;
+    window.dispatchEvent(
+      new CustomEvent("rw:expand-hud", { detail: { title: "Alerts" } })
+    );
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(
+          `.hud-top-right [data-letter-request-id="${requestId}"]`
+        );
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        pulseLetterElement(el);
+      })
+    );
+  };
+  const question = String(ev.payload.text ?? "input requested");
+  const inner = (
+    <>
+      <span className={markerLineClass} />
+      <span className={markerTextClass}>
+        input requested
+        {question && (
+          <span className="font-normal opacity-80"> · {question}</span>
+        )}
+        {!isActive && requestId && (
+          <span className="font-normal opacity-70"> · resolved</span>
+        )}
+      </span>
+    </>
+  );
+  if (!isActive) {
+    return (
+      <div
+        className={cn(
+          markerClass,
+          "text-text border-accent/30 w-full cursor-default rounded-md border px-2 py-1 text-left opacity-55"
+        )}
+        aria-disabled="true"
+      >
+        {inner}
+      </div>
+    );
+  }
+  return (
+    <TooltipHint label="click to spotlight the alert">
+      <button
+        type="button"
+        className={cn(
+          markerClass,
+          "text-text hover:bg-accent/[0.08] border-accent/35 hover:border-accent/55 [&>span:last-child]:text-accent w-full cursor-pointer rounded-md border bg-transparent px-2 py-1 text-left transition-colors [&>span:last-child]:font-semibold"
+        )}
+        onClick={onClick}
+      >
+        {inner}
+      </button>
+    </TooltipHint>
+  );
+}
+
 function SubagentSpawnRow({
   ev,
   units,
@@ -1099,6 +1177,7 @@ export function ConversationStream({
           next.kind === "tool_result" ||
           next.kind === "assistant_text" ||
           next.kind === "permission_request" ||
+          next.kind === "user_input_request" ||
           next.kind === "subagent_spawn"
         ) {
           didWork = true;
@@ -1209,6 +1288,9 @@ export function ConversationStream({
             break;
           case "permission_request":
             body = <PermissionRequestRow ev={e} />;
+            break;
+          case "user_input_request":
+            body = <UserInputRequestRow ev={e} />;
             break;
           case "user_prompt":
             body = (

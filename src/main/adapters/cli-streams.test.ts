@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { normalizeStreamMessage } from "./claude-cli";
+import { buildClaudeArgs, normalizeStreamMessage } from "./claude-cli";
 import {
+  buildCodexAppServerArgs,
+  buildCodexAppServerMcpElicitationEvent,
   buildCodexAppServerPermissionEvent,
+  buildCodexAppServerUserInputEvent,
   buildThreadResumeParams,
   buildThreadStartParams,
   buildTurnStartParams,
   buildTurnSteerParams,
+  codexAppServerMcpElicitationResponse,
   codexAppServerPermissionResponse,
+  codexAppServerUserInputResponse,
   normalizeCodexAppServerNotification,
 } from "./codex-app-server";
 import { normalizeCodexStreamMessage } from "./codex-cli";
-import { normalizeCursorStreamMessage } from "./cursor-cli";
-import { buildGeminiArgs } from "./gemini-cli";
+import { buildCursorArgs, normalizeCursorStreamMessage } from "./cursor-cli";
+import { buildGeminiArgs, buildGeminiLaunchOptions } from "./gemini-cli";
 
 describe("active CLI stream normalization", () => {
   it("normalizes Claude assistant text and tool calls", () => {
@@ -78,6 +83,8 @@ describe("active CLI stream normalization", () => {
   });
 
   it("builds Codex app-server thread, resume, turn, and steer params", () => {
+    expect(buildCodexAppServerArgs()).toEqual(["app-server", "--stdio"]);
+
     expect(buildThreadStartParams("/repo")).toEqual({
       cwd: "/repo",
       approvalPolicy: "never",
@@ -224,6 +231,205 @@ describe("active CLI stream normalization", () => {
     ).toEqual({ decision: "approved" });
   });
 
+  it("maps Codex app-server user input requests to answerable events", () => {
+    const event = buildCodexAppServerUserInputEvent({
+      id: 8,
+      method: "item/tool/requestUserInput",
+      params: {
+        itemId: "item-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        autoResolutionMs: 60000,
+        questions: [
+          {
+            id: "approach",
+            header: "Approach",
+            question: "Which implementation should I use?",
+            options: [
+              {
+                label: "Small",
+                description: "Make the smallest compatible change.",
+              },
+              {
+                label: "Broad",
+                description: "Refactor the surrounding module too.",
+              },
+            ],
+          },
+        ],
+      },
+      sessionId: "thread-1",
+      cwd: "/repo",
+      source: "spawned",
+    });
+
+    expect(event).toMatchObject({
+      sessionId: "thread-1",
+      tool: "codex",
+      cwd: "/repo",
+      source: "spawned",
+      kind: "user_input_request",
+      payload: {
+        requestId: "codex-app-server:thread-1:8",
+        name: "UserInput",
+        text: "Which implementation should I use?",
+        autoResolutionMs: 60000,
+        questions: [
+          {
+            id: "approach",
+            header: "Approach",
+            question: "Which implementation should I use?",
+            options: [
+              {
+                label: "Small",
+                description: "Make the smallest compatible change.",
+              },
+              {
+                label: "Broad",
+                description: "Refactor the surrounding module too.",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(
+      codexAppServerUserInputResponse({
+        approach: { answers: ["Small"] },
+      })
+    ).toEqual({
+      answers: {
+        approach: { answers: ["Small"] },
+      },
+    });
+  });
+
+  it("maps Codex app-server MCP elicitations to typed answerable events", () => {
+    const params = {
+      serverName: "github",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      mode: "form",
+      message: "Choose repository metadata.",
+      requestedSchema: {
+        type: "object",
+        required: ["repository", "notify"],
+        properties: {
+          repository: {
+            type: "string",
+            title: "Repository",
+            description: "Which repository should the MCP server use?",
+            oneOf: [
+              { const: "rw-rts", title: "Realmkeeper" },
+              { const: "other", title: "Other repo" },
+            ],
+          },
+          tags: {
+            type: "array",
+            title: "Tags",
+            description: "Optional labels to apply.",
+            items: {
+              anyOf: [
+                { const: "provider", title: "Provider" },
+                { const: "ui", title: "UI" },
+              ],
+            },
+          },
+          notify: {
+            type: "boolean",
+            title: "Notify",
+            description: "Notify subscribers?",
+          },
+        },
+      },
+    };
+
+    const event = buildCodexAppServerMcpElicitationEvent({
+      id: 9,
+      method: "mcpServer/elicitation/request",
+      params,
+      sessionId: "thread-1",
+      cwd: "/repo",
+      source: "spawned",
+    });
+
+    expect(event).toMatchObject({
+      sessionId: "thread-1",
+      tool: "codex",
+      cwd: "/repo",
+      source: "spawned",
+      kind: "user_input_request",
+      payload: {
+        requestId: "codex-app-server:thread-1:9",
+        name: "McpElicitation",
+        text: "Choose repository metadata.",
+        responseKind: "mcp-elicitation",
+        questions: [
+          {
+            id: "repository",
+            header: "Repository",
+            question: "Which repository should the MCP server use?",
+            required: true,
+            options: [
+              { label: "Realmkeeper", value: "rw-rts" },
+              { label: "Other repo", value: "other" },
+            ],
+          },
+          {
+            id: "tags",
+            header: "Tags",
+            question: "Optional labels to apply.",
+            required: false,
+            multiSelect: true,
+            options: [
+              { label: "Provider", value: "provider" },
+              { label: "UI", value: "ui" },
+            ],
+          },
+          {
+            id: "notify",
+            header: "Notify",
+            question: "Notify subscribers?",
+            required: true,
+            options: [
+              { label: "Yes", value: "true" },
+              { label: "No", value: "false" },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(
+      codexAppServerMcpElicitationResponse(
+        params,
+        {
+          repository: { answers: ["rw-rts"] },
+          tags: { answers: ["provider", "ui"] },
+          notify: { answers: ["true"] },
+        },
+        "accept"
+      )
+    ).toEqual({
+      action: "accept",
+      content: {
+        repository: "rw-rts",
+        tags: ["provider", "ui"],
+        notify: true,
+      },
+      _meta: null,
+    });
+
+    expect(codexAppServerMcpElicitationResponse(params, {}, "decline")).toEqual(
+      {
+        action: "decline",
+        content: null,
+        _meta: null,
+      }
+    );
+  });
+
   it("normalizes Cursor completed tool calls", () => {
     const events = normalizeCursorStreamMessage(
       {
@@ -256,6 +462,97 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("builds Claude spawn and resume args with stable session ids", () => {
+    expect(
+      buildClaudeArgs("map the repo", {
+        sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      })
+    ).toEqual([
+      "-p",
+      "map the repo",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--session-id",
+      "550e8400-e29b-41d4-a716-446655440000",
+    ]);
+
+    expect(
+      buildClaudeArgs("continue", {
+        sessionId: "550e8400-e29b-41d4-a716-446655440000",
+        resume: true,
+      })
+    ).toEqual([
+      "-p",
+      "continue",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--resume",
+      "550e8400-e29b-41d4-a716-446655440000",
+    ]);
+
+    expect(
+      buildClaudeArgs("observe hooks", {
+        sessionId: "550e8400-e29b-41d4-a716-446655440000",
+        includeHookEvents: true,
+        includePartialMessages: true,
+        promptSuggestions: true,
+      })
+    ).toEqual([
+      "-p",
+      "observe hooks",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-hook-events",
+      "--include-partial-messages",
+      "--prompt-suggestions",
+      "--session-id",
+      "550e8400-e29b-41d4-a716-446655440000",
+    ]);
+  });
+
+  it("builds Cursor headless resume args for Realmkeeper-created chats", () => {
+    expect(buildCursorArgs("map the repo", "chat-123")).toEqual([
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--force",
+      "--trust",
+      "--resume",
+      "chat-123",
+      "map the repo",
+    ]);
+
+    expect(
+      buildCursorArgs("review this", "chat-123", {
+        force: false,
+        trust: false,
+        autoReview: true,
+        approveMcps: true,
+        sandbox: "enabled",
+        mode: "plan",
+        model: "gpt-5",
+      })
+    ).toEqual([
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--auto-review",
+      "--approve-mcps",
+      "--sandbox",
+      "enabled",
+      "--mode",
+      "plan",
+      "--model",
+      "gpt-5",
+      "--resume",
+      "chat-123",
+      "review this",
+    ]);
+  });
+
   it("builds Gemini spawn and resume args with stable session ids", () => {
     expect(
       buildGeminiArgs("map the repo", {
@@ -279,6 +576,48 @@ describe("active CLI stream normalization", () => {
       "stream-json",
       "--approval-mode",
       "yolo",
+      "--resume",
+      "gemini-1",
+    ]);
+
+    expect(buildGeminiLaunchOptions(true)).toEqual({
+      approvalMode: "yolo",
+      skipTrust: true,
+    });
+    expect(buildGeminiLaunchOptions(false)).toEqual({
+      approvalMode: "default",
+      skipTrust: true,
+    });
+
+    expect(
+      buildGeminiArgs("policy check", {
+        resumeId: "gemini-1",
+        approvalMode: "default",
+        skipTrust: true,
+        policyPaths: ["/tmp/user-policy.toml"],
+        adminPolicyPaths: ["/tmp/admin-policy.toml"],
+        includeDirectories: ["/repo/shared"],
+        sandbox: true,
+        model: "gemini-2.5-pro",
+      })
+    ).toEqual([
+      "--prompt",
+      "policy check",
+      "--output-format",
+      "stream-json",
+      "--approval-mode",
+      "default",
+      "--skip-trust",
+      "--model",
+      "gemini-2.5-pro",
+      "--sandbox",
+      "true",
+      "--policy",
+      "/tmp/user-policy.toml",
+      "--admin-policy",
+      "/tmp/admin-policy.toml",
+      "--include-directories",
+      "/repo/shared",
       "--resume",
       "gemini-1",
     ]);

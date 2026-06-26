@@ -207,4 +207,218 @@ describe("event reducer", () => {
       ]),
     });
   });
+
+  it("creates user input letters for Codex app-server questions", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:8",
+          questions: [
+            {
+              id: "approach",
+              header: "Approach",
+              question: "Which implementation should I use?",
+              options: [
+                {
+                  label: "Small",
+                  description: "Make the smallest compatible change.",
+                },
+              ],
+            },
+          ],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      severity: "important",
+      sessionId: "session-1",
+      worldId: "_repo",
+      title: expect.stringContaining("needs your answer"),
+      userInputQuestions: [
+        {
+          id: "approach",
+          header: "Approach",
+          question: "Which implementation should I use?",
+          options: [
+            {
+              label: "Small",
+              description: "Make the smallest compatible change.",
+            },
+          ],
+        },
+      ],
+      actions: [
+        {
+          label: "send answer",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:8",
+          },
+        },
+        {
+          label: "skip",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:8",
+            answers: {},
+          },
+        },
+      ],
+    });
+
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_resolved", {
+        timestamp: 3,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:8",
+          resolution: "error",
+        },
+      })
+    );
+
+    expect(state.letters).toEqual([]);
+  });
+
+  it("creates MCP elicitation letters with accept and decline actions", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:9",
+          responseKind: "mcp-elicitation",
+          questions: [
+            {
+              id: "repository",
+              header: "Repository",
+              question: "Which repository should the MCP server use?",
+              required: true,
+              options: [{ label: "Realmkeeper", value: "rw-rts" }],
+            },
+          ],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      title: expect.stringContaining("needs MCP input"),
+      actions: [
+        {
+          label: "accept",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:9",
+            responseKind: "mcp-elicitation",
+            responseAction: "accept",
+          },
+        },
+        {
+          label: "decline",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:9",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "decline",
+          },
+        },
+      ],
+    });
+  });
+
+  it("keeps multiple user input letters from the same Codex session", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:8",
+          questions: [
+            {
+              id: "approach",
+              header: "Approach",
+              question: "Which implementation should I use?",
+            },
+          ],
+        },
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 3,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:9",
+          responseKind: "mcp-elicitation",
+          questions: [
+            {
+              id: "repository",
+              header: "Repository",
+              question: "Which repository should the MCP server use?",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(
+      state.letters.filter((letter) =>
+        letter.actions.some(
+          (entry) => entry.action.kind === "user-input-submit"
+        )
+      )
+    ).toHaveLength(2);
+  });
 });

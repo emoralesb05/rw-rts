@@ -79,7 +79,7 @@ OpenAI's app-server is now the primary Realmkeeper Codex surface:
 - It exposes `thread/start`, `thread/resume`, `thread/fork`, `turn/start`, streamed turn notifications, `turn/interrupt`, and `turn/steer`.
 - `turn/steer` maps cleanly to "interject from Realmkeeper while a turn is running." The old `exec resume` path could only append another turn.
 
-App-server can send server-side approval and tool requests to the client (`item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, MCP elicitations, dynamic tool calls). Realmkeeper maps command, file-change, permission-profile, and legacy exec/patch approvals into normal permission cards. Rich user-input prompts, MCP elicitation content, and dynamic tool calls still fail closed until Realmkeeper has typed UI for those request shapes.
+App-server can send server-side approval and tool requests to the client (`item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, MCP elicitations, dynamic tool calls). Realmkeeper maps command, file-change, permission-profile, and legacy exec/patch approvals into normal permission cards. Structured `item/tool/requestUserInput` prompts and typed MCP elicitation `form` mode render as answer letters. MCP URL/openai-form modes and dynamic tool calls still fail closed until Realmkeeper has first-class UI for those request shapes.
 
 OpenAI's current Codex config reference exposes granular approval knobs beyond the older global modes:
 

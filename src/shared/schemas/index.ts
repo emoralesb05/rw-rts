@@ -9,3 +9,4 @@ export * from "./provider-streams";
 export * from "./renderer-storage";
 export * from "./settings";
 export * from "./transcripts";
+export * from "./user-input";

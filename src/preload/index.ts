@@ -10,6 +10,7 @@ import {
   OpenPathResponseSchema,
   PersistedStateSchema,
   ResolvePermissionResponseSchema,
+  ResolveUserInputResponseSchema,
   SpawnAgentResponseSchema,
   WorkspaceRootValidationSchema,
   type AppSettings,
@@ -17,6 +18,7 @@ import {
   type SendPromptRequest,
   type PlayFixtureRequest,
   type ResolvePermissionRequest,
+  type ResolveUserInputRequest,
 } from "../shared/schemas";
 import type { AgentEvent, PersistedState } from "../shared/events";
 
@@ -140,6 +142,13 @@ const api = {
     return invokeParsed(
       IPC.ResolvePermission,
       ResolvePermissionResponseSchema,
+      req
+    );
+  },
+  resolveUserInput(req: ResolveUserInputRequest) {
+    return invokeParsed(
+      IPC.ResolveUserInput,
+      ResolveUserInputResponseSchema,
       req
     );
   },

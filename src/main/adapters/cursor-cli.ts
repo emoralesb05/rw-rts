@@ -28,6 +28,17 @@ export type SpawnedCursorAgent = {
   kill(): void;
 };
 
+export type BuildCursorArgsOptions = {
+  force?: boolean;
+  trust?: boolean;
+  autoReview?: boolean;
+  approveMcps?: boolean;
+  streamPartialOutput?: boolean;
+  sandbox?: "enabled" | "disabled";
+  mode?: "plan" | "ask";
+  model?: string;
+};
+
 const agents = new Map<string, SpawnedCursorAgent>();
 
 export function listCursorAgents(): SpawnedCursorAgent[] {
@@ -38,23 +49,28 @@ export function getCursorAgent(unitId: string): SpawnedCursorAgent | undefined {
   return agents.get(unitId);
 }
 
-function buildArgs(prompt: string, chatId: string): string[] {
+export function buildCursorArgs(
+  prompt: string,
+  chatId: string,
+  opts: BuildCursorArgsOptions = {}
+): string[] {
   // No --stream-partial-output: we want whole assistant messages, not
   // mid-token deltas. Deltas would render as a flood of fragmented bubbles.
-  return [
-    "--print",
-    "--output-format",
-    "stream-json",
-    "--force",
-    "--trust",
-    "--resume",
-    chatId,
-    prompt,
-  ];
+  const args = ["--print", "--output-format", "stream-json"];
+  if (opts.force ?? true) args.push("--force");
+  if (opts.trust ?? true) args.push("--trust");
+  if (opts.autoReview) args.push("--auto-review");
+  if (opts.approveMcps) args.push("--approve-mcps");
+  if (opts.streamPartialOutput) args.push("--stream-partial-output");
+  if (opts.sandbox) args.push("--sandbox", opts.sandbox);
+  if (opts.mode) args.push("--mode", opts.mode);
+  if (opts.model) args.push("--model", opts.model);
+  args.push("--resume", chatId, prompt);
+  return args;
 }
 
 function spawnCursorProcess(prompt: string, cwd: string, chatId: string) {
-  return spawn("cursor-agent", buildArgs(prompt, chatId), {
+  return spawn("cursor-agent", buildCursorArgs(prompt, chatId), {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env },

@@ -10,6 +10,9 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { bus } from "../event-bus";
 import { registerSpawnedSession, unregisterSpawnedSession } from "./claude-cli";
 import { parseProviderStreamMessage } from "@shared/schemas";
@@ -46,6 +49,27 @@ const GEMINI_TOOL_NAME_CANONICAL: Record<string, string> = {
   web_fetch: "WebFetch",
 };
 
+const GEMINI_SETTINGS_PATH = join(homedir(), ".gemini", "settings.json");
+const GEMINI_MANAGED_POLICY_PATH = join(
+  dirname(GEMINI_SETTINGS_PATH),
+  "policies",
+  "realmkeeper-managed.toml"
+);
+
+export type GeminiApprovalMode = "default" | "auto_edit" | "yolo" | "plan";
+
+export type BuildGeminiArgsOptions = {
+  resumeId?: string;
+  sessionId?: string;
+  approvalMode?: GeminiApprovalMode;
+  policyPaths?: string[];
+  adminPolicyPaths?: string[];
+  includeDirectories?: string[];
+  sandbox?: boolean;
+  skipTrust?: boolean;
+  model?: string;
+};
+
 export function listGeminiAgents(): SpawnedGeminiAgent[] {
   return [...agents.values()];
 }
@@ -67,9 +91,15 @@ function errorMessage(raw: unknown, fallback: string): string {
   return String(raw ?? fallback);
 }
 
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 export function buildGeminiArgs(
   prompt: string,
-  opts: { resumeId?: string; sessionId?: string } = {}
+  opts: BuildGeminiArgsOptions = {}
 ): string[] {
   const args = [
     "--prompt",
@@ -77,23 +107,77 @@ export function buildGeminiArgs(
     "--output-format",
     "stream-json",
     "--approval-mode",
-    "yolo",
+    opts.approvalMode ?? "yolo",
   ];
+  if (opts.skipTrust) args.push("--skip-trust");
+  if (opts.model) args.push("--model", opts.model);
+  if (opts.sandbox !== undefined) args.push("--sandbox", String(opts.sandbox));
+  for (const path of opts.policyPaths ?? []) args.push("--policy", path);
+  for (const path of opts.adminPolicyPaths ?? [])
+    args.push("--admin-policy", path);
+  for (const path of opts.includeDirectories ?? [])
+    args.push("--include-directories", path);
   if (opts.resumeId) args.push("--resume", opts.resumeId);
   else if (opts.sessionId) args.push("--session-id", opts.sessionId);
   return args;
 }
 
+export function buildGeminiLaunchOptions(
+  realmkeeperGateInstalled: boolean
+): Pick<BuildGeminiArgsOptions, "approvalMode" | "skipTrust"> {
+  return {
+    approvalMode: realmkeeperGateInstalled ? "yolo" : "default",
+    skipTrust: true,
+  };
+}
+
+function isRealmkeeperGeminiGateInstalled(): boolean {
+  try {
+    const settings = JSON.parse(readFileSync(GEMINI_SETTINGS_PATH, "utf8")) as {
+      hooks?: Record<string, unknown>;
+    };
+    const beforeTool = settings.hooks?.BeforeTool;
+    const beforeToolEntries = Array.isArray(beforeTool) ? beforeTool : [];
+    const hasFailClosedHook = beforeToolEntries.some((entry) => {
+      const hooks = record(entry)?.hooks;
+      if (!Array.isArray(hooks)) return false;
+      return hooks.some((hook) => {
+        const command = record(hook)?.command;
+        return (
+          typeof command === "string" &&
+          command.includes("realmkeeper-managed") &&
+          command.includes("REALMKEEPER_GEMINI_FAIL_CLOSED=1")
+        );
+      });
+    });
+    if (!hasFailClosedHook || !existsSync(GEMINI_MANAGED_POLICY_PATH)) {
+      return false;
+    }
+    return readFileSync(GEMINI_MANAGED_POLICY_PATH, "utf8").includes(
+      "realmkeeper-managed"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function spawnGeminiProcess(
   prompt: string,
   cwd: string,
-  opts: { resumeId?: string; sessionId?: string } = {}
+  opts: Pick<BuildGeminiArgsOptions, "resumeId" | "sessionId"> = {}
 ) {
-  return spawn("gemini", buildGeminiArgs(prompt, opts), {
-    cwd,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, REALMKEEPER_GEMINI_FAIL_CLOSED: "1" },
-  });
+  const launchOptions = buildGeminiLaunchOptions(
+    isRealmkeeperGeminiGateInstalled()
+  );
+  return spawn(
+    "gemini",
+    buildGeminiArgs(prompt, { ...launchOptions, ...opts }),
+    {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, REALMKEEPER_GEMINI_FAIL_CLOSED: "1" },
+    }
+  );
 }
 
 export function resumeGeminiSession(opts: {

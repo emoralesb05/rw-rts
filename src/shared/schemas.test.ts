@@ -4,6 +4,7 @@ import {
   ClaudeSettingsSchema,
   CodexThreadStartedSchema,
   CursorHooksFileSchema,
+  FixtureScenarioSchema,
   GeminiInitMessageSchema,
   GeminiSettingsSchema,
   HooksStatusSchema,
@@ -76,6 +77,10 @@ describe("runtime schemas", () => {
         message: "not safe",
       })
     ).toMatchObject({ optionId: "deny" });
+  });
+
+  it("accepts the Codex answer-letter fixture scenario", () => {
+    expect(FixtureScenarioSchema.parse("codex-inputs")).toBe("codex-inputs");
   });
 
   it("rejects corrupt persisted state counters", () => {
