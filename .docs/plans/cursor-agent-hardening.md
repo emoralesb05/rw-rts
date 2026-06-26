@@ -22,7 +22,7 @@ Make Cursor sessions reliable inside Realmkeeper while respecting Cursor's nativ
 
 ## Work Items
 
-- Add a Cursor capability probe under `probes/` that records version, help, active stream-json, and resume stream-json. Version/help snapshot recorded in [provider CLI capability snapshot](probes/provider-cli-capability-2026-06-26.md); active/resume stream fixtures remain open.
+- Add a Cursor capability probe under `probes/` that records version, help, active stream-json, and resume stream-json. Version/help snapshot recorded in [provider CLI capability snapshot](provider-cli-hardening/probes/provider-cli-capability-2026-06-26.md); active/resume stream fixtures remain open.
 - Keep the adapter's launch contract testable for current headless flags. Done for `--auto-review`, `--sandbox`, `--approve-mcps`, `--mode`, `--model`, and `--stream-partial-output`; defaults remain unchanged until live probes show which combinations preserve stream events and permissions.
 - Keep native permission cards in observe mode until an actionable CLI contract exists.
 - Add regression fixtures for shell execution, edit execution, and assistant response events.

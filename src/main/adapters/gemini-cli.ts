@@ -131,11 +131,13 @@ export function buildGeminiLaunchOptions(
   };
 }
 
-function isRealmkeeperGeminiGateInstalled(): boolean {
+export function isRealmkeeperGeminiGateInstalled(): boolean {
   try {
     const settings = JSON.parse(readFileSync(GEMINI_SETTINGS_PATH, "utf8")) as {
       hooks?: Record<string, unknown>;
+      hooksConfig?: Record<string, unknown>;
     };
+    if (settings.hooksConfig?.enabled === false) return false;
     const beforeTool = settings.hooks?.BeforeTool;
     const beforeToolEntries = Array.isArray(beforeTool) ? beforeTool : [];
     const hasFailClosedHook = beforeToolEntries.some((entry) => {

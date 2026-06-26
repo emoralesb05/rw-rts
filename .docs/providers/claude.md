@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `claude` (verified locally 2026-06-25: `2.1.191 (Claude Code)`, typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
+- Binary: `claude` (verified locally 2026-06-26: `2.1.193 (Claude Code)`, typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
 - Settings: `~/.claude/settings.json` (hooks live under `hooks.<EventName>`)
 - Install hooks via the realmkeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
 
@@ -83,6 +83,7 @@ Official CLI reference now documents several capabilities worth tracking:
 - `--input-format stream-json` with `--replay-user-messages` could eventually support a persistent stdin/stdout Claude process for Realmkeeper-owned sessions; today Realmkeeper uses one-shot `-p` calls and emits its own `source: "realmkeeper"` user prompt while suppressing matching hook echoes.
 - `--bg`, `claude agents --json`, `claude attach`, `claude logs`, `claude stop`, and `claude respawn` expose first-class background sessions. Realmkeeper still treats Claude as hook/transcript-observed, but these commands are the best discovery/control path for already-running Claude background agents.
 - `--remote-control` and `claude remote-control` are a separate provider-native control surface. They are not integrated yet; they may be useful if Realmkeeper needs to coordinate local and Claude.ai-visible sessions.
+- Live rich-stream probe with `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` produced `system` hook lifecycle events, `stream_event` message deltas, `rate_limit_event`, the normal final `assistant`, and `result`. The current loose parser accepts those event types and the normalizer safely ignores them unless we add explicit transient rendering.
 
 ## MCP, agents, plugins (we observe, don't drive)
 

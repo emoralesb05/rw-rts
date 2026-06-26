@@ -58,6 +58,8 @@ Realmkeeper-spawned Gemini processes also set `REALMKEEPER_GEMINI_FAIL_CLOSED=1`
 
 If the adapter cannot verify both the fail-closed `BeforeTool` hook and the managed policy file, it launches with `--approval-mode default` instead of `yolo`. That keeps headless starts usable for read-only/default-policy work without silently auto-running tools outside Realmkeeper's gate.
 
+The gate also checks `hooksConfig.enabled`. If a user globally disables Gemini hooks, Realmkeeper treats Gemini as not installed even if the hook entries and managed policy file are still present, and spawned sessions fall back to `--approval-mode default`.
+
 ## 2026-06-25 CLI notes
 
 Local `gemini --help` exposes:
@@ -88,6 +90,8 @@ Tradeoff: `BeforeTool` fires for every tool call, not only actions that Gemini w
 Installer detail: `BeforeTool` uses a long hook timeout so the approval card can wait for a human decision. Observation hooks keep a short timeout. The managed hook command includes `REALMKEEPER_GEMINI_FAIL_CLOSED=1`, and the installer writes `~/.gemini/policies/realmkeeper-managed.toml` to auto-allow Gemini's native policy prompt after Realmkeeper has already gated the tool.
 
 Running Gemini processes read hook settings when they start. After changing hook timeout or command behavior, restart any already-open `gemini` terminal session; otherwise it may keep the old timeout and kill the hook before Realmkeeper can answer.
+
+If `hooksConfig.enabled` is set to `false`, Gemini will skip all hooks. Realmkeeper should not use `--approval-mode yolo` in that state because the managed policy may still suppress Gemini's native prompts while the fail-closed Realmkeeper hook is not running.
 
 ## Subagents
 

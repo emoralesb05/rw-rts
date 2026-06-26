@@ -26,8 +26,12 @@ Use Gemini CLI's current project configuration and diagnostics features to make 
 
 ## Work Items
 
-- Add a Gemini capability probe under `probes/` that captures `gemini --help`, current settings behavior, and stream-json schema. Version/help snapshot recorded in [provider CLI capability snapshot](probes/provider-cli-capability-2026-06-26.md); policy/settings dry run remains open.
+- Add a Gemini capability probe under `probes/` that captures `gemini --help`, current settings behavior, and stream-json schema. Version/help snapshot recorded in [provider CLI capability snapshot](../provider-cli-hardening/probes/provider-cli-capability-2026-06-26.md); policy/settings dry run recorded in [Gemini policy dry run](probes/gemini-policy-dry-run-2026-06-26.md).
 - Keep the adapter's launch contract testable for current CLI flags. Done for `--policy`, `--admin-policy`, `--include-directories`, `--sandbox`, `--model`, and `--skip-trust`.
 - Decide whether Realmkeeper should generate a `.gemini/settings.json` template or only document a recommended one.
 - Add tests for hook payloads produced by current Gemini approval events.
-- Keep `--approval-mode yolo` only behind the installed fail-closed Realmkeeper `BeforeTool` gate; fall back to `default` when the gate or managed policy is missing.
+- Keep `--approval-mode yolo` only behind the installed and globally enabled fail-closed Realmkeeper `BeforeTool` gate; fall back to `default` when the gate, `hooksConfig.enabled`, or managed policy is missing.
+
+## Dry-run Finding
+
+- Gemini's documented `hooksConfig.enabled: false` disables all hooks. Realmkeeper now treats that as "Gemini gate not installed" for both hook status and adapter launch decisions, preventing `--approval-mode yolo` from being selected when the managed allow policy exists but hooks are globally disabled.

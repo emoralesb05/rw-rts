@@ -22,6 +22,12 @@ export type ClaudeSettings = z.infer<typeof ClaudeSettingsSchema>;
 
 export const GeminiSettingsSchema = z.looseObject({
   hooks: z.record(z.string(), z.array(JsonHookEntrySchema)).optional(),
+  hooksConfig: z
+    .looseObject({
+      enabled: z.boolean().optional(),
+      disabled: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 export type GeminiSettings = z.infer<typeof GeminiSettingsSchema>;
 

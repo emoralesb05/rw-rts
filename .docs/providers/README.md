@@ -22,11 +22,11 @@ If you're adding a new CLI, jump straight to [`extending.md`](./extending.md).
 
 ## Last verified
 
-Local CLI versions checked 2026-06-25:
+Local CLI versions checked 2026-06-26:
 
 | Provider | Local CLI |
 |---|---|
-| Claude Code | `claude` 2.1.191 |
+| Claude Code | `claude` 2.1.193 |
 | Codex | `codex-cli` 0.142.2 |
 | Cursor Agent | `cursor-agent` 2026.06.24-00-45-58-9f61de7 |
 | Gemini CLI | `gemini` 0.47.0 |

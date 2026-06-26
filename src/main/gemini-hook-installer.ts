@@ -130,11 +130,17 @@ function uninstallManagedPolicy() {
 export function isGeminiInstalled(): boolean {
   const settings = loadSettings();
   const hooks = settings.hooks ?? {};
+  const hooksEnabled = settings.hooksConfig?.enabled !== false;
   const hooksInstalled = GEMINI_HOOK_EVENTS.every((evt) =>
     (hooks[evt] ?? []).some(isOurEntry)
   );
   const beforeToolFailClosed = (hooks.BeforeTool ?? []).some(isFailClosedEntry);
-  return hooksInstalled && beforeToolFailClosed && isManagedPolicyInstalled();
+  return (
+    hooksEnabled &&
+    hooksInstalled &&
+    beforeToolFailClosed &&
+    isManagedPolicyInstalled()
+  );
 }
 
 export function installGeminiHooks() {

@@ -30,10 +30,10 @@ Make every provider adapter use the strongest current integration surface availa
 
 ## Provider Plans
 
-- [Codex app-server hardening](codex-app-server-hardening.md)
-- [Claude CLI hardening](claude-cli-hardening.md)
-- [Gemini CLI hardening](gemini-cli-hardening.md)
-- [Cursor agent hardening](cursor-agent-hardening.md)
+- [Codex app-server hardening](../codex-app-server-hardening/)
+- [Claude CLI hardening](../claude-cli-hardening/)
+- [Gemini CLI hardening](../gemini-cli-hardening/)
+- [Cursor agent hardening](../cursor-agent-hardening.md)
 
 ## Test Matrix
 

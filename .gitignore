@@ -13,6 +13,5 @@ assets/sounds/rw/*
 !assets/sounds/rw/.gitkeep
 local-assets/
 .claude/scheduled_tasks.lock
+# Legacy shared smoke output. Research-plan probes live under plan-local probes/.
 .docs/plans/probes/*
-!.docs/plans/probes/provider-cli-capability-2026-06-26.md
-!.docs/plans/probes/codex-input-letters-smoke-2026-06-26.md

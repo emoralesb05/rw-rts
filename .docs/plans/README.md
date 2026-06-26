@@ -6,4 +6,4 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 - [`multi-choice-permissions.md`](./multi-choice-permissions.md) — richer provider-neutral permission choices
 - [`observed-resume.md`](./observed-resume.md) — drive observed sessions through provider resume APIs
-- [`provider-cli-hardening.md`](./provider-cli-hardening.md) — keep Claude / Cursor / Codex / Gemini launch, resume, permission, and probe contracts current
+- [`provider-cli-hardening`](./provider-cli-hardening/) — keep Claude / Cursor / Codex / Gemini launch, resume, permission, and probe contracts current

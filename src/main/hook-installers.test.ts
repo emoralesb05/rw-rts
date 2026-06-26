@@ -233,6 +233,28 @@ describe("provider hook installers", () => {
     });
   });
 
+  it("treats globally disabled Gemini hooks as not installed", async () => {
+    await withMockHome(async (home) => {
+      const settingsPath = join(home, ".gemini", "settings.json");
+      const policyPath = join(
+        home,
+        ".gemini",
+        "policies",
+        "realmkeeper-managed.toml"
+      );
+
+      const { installGeminiHooks, isGeminiInstalled } =
+        await import("./gemini-hook-installer");
+
+      installGeminiHooks();
+      const settings = readJson(settingsPath);
+      settings.hooksConfig = { enabled: false };
+      writeJson(settingsPath, settings);
+      expect(existsSync(policyPath)).toBe(true);
+      expect(isGeminiInstalled()).toBe(false);
+    });
+  });
+
   it("installs Codex config blocks idempotently and preserves surrounding config", async () => {
     await withMockHome(async (home) => {
       const configPath = join(home, ".codex", "config.toml");

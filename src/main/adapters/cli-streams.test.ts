@@ -52,6 +52,26 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("ignores Claude rich stream metadata until partial rendering is explicit", () => {
+    for (const msg of [
+      {
+        type: "system",
+        subtype: "hook_started",
+        hook_name: "SessionStart:startup",
+      },
+      {
+        type: "stream_event",
+        event: { type: "content_block_delta", index: 0, delta: {} },
+      },
+      {
+        type: "rate_limit_event",
+        rate_limit_info: {},
+      },
+    ]) {
+      expect(normalizeStreamMessage(msg, "s1", "/repo")).toEqual([]);
+    }
+  });
+
   it("normalizes Codex command executions into tool use and result events", () => {
     const events = normalizeCodexStreamMessage(
       {

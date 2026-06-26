@@ -26,9 +26,9 @@ Use Codex app-server as Realmkeeper's rich Codex integration surface, including 
 
 - Decide whether `mcpServer/elicitation/request` URL mode and `openai/form` mode need first-class UI; they currently fail closed.
 - Decide whether dynamic app-server tools belong in Realmkeeper or should stay disabled until a concrete local tool use case exists.
-- Add a live app-server probe that starts a throwaway session and verifies at least one permission request round trip without touching real files.
 
 ## Probe Location
 
 - Protocol probe: [probes/codex-app-server-2026-06-25.md](probes/codex-app-server-2026-06-25.md)
-- CLI/docs snapshot: [probes/provider-cli-capability-2026-06-26.md](probes/provider-cli-capability-2026-06-26.md)
+- CLI/docs snapshot: [provider CLI capability snapshot](../provider-cli-hardening/probes/provider-cli-capability-2026-06-26.md)
+- Live approval round trip: [probes/codex-app-server-live-probe-2026-06-26.md](probes/codex-app-server-live-probe-2026-06-26.md)
