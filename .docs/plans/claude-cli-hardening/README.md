@@ -1,10 +1,16 @@
 # Plan: Claude CLI hardening
 
-**Status**: in progress 2026-06-26 · **Owner**: Realmkeeper · **Phase**: provider reliability
+> **Status:** 📋 Plan
+> **Owner:** Realmkeeper
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-27 (resolved rich-stream defaults and parity tickets)
+> **Engineer profile:** Senior TypeScript engineer comfortable with CLI streams and hook payloads; read `.docs/providers/claude.md`, `src/main/adapters/claude-cli.ts`, `src/main/adapters/claude-transcript.ts`, and `src/main/adapters/cli-streams.test.ts` first
+> **Effort:** 3 PRs, small-to-medium
+> **Scope:** Claude start/resume stream reliability, permission hooks, and deferred user-interaction fixtures · **Origin:** provider CLI hardening
+> **Related:** [provider parity](../provider-cli-hardening/), [Codex](../codex-app-server-hardening/), [Cursor](../cursor-agent-hardening/), [Gemini](../gemini-cli-hardening/)
 
-## Goal
+## TL;DR
 
-Keep Claude's adapter aligned with the current CLI so Realmkeeper can start, resume, observe, and approve Claude turns with less transcript scraping.
+Claude already has the provider basics: Realmkeeper can start and resume print-mode turns, observe stream output, and enforce permission requests through the hook bridge. Parity work should keep rich stream metadata off by default, add fixtures for deferred user-interaction tools, and only turn on partial-message rendering after the renderer has an explicit transient path.
 
 ## Current Path
 
@@ -12,24 +18,26 @@ Keep Claude's adapter aligned with the current CLI so Realmkeeper can start, res
 - Resume: `claude -p "<prompt>" --output-format stream-json --verbose --resume <session>`
 - Permissions: hook bridge with actionable allow/deny
 
-## Latest Features To Probe
+## Decision
 
-- `--permission-prompt-tool` for programmatic permission decisions in non-interactive mode.
-- `--include-hook-events` to see whether hook lifecycle events can reduce local socket dependency.
-- `--include-partial-messages` for smoother streaming in the conversation drawer.
-- `--prompt-suggestions` as optional follow-up suggestions after a completed turn.
-- `--brief` / `SendUserMessage` as a possible user-interaction surface.
-- `--bg` and `claude agents` as a possible background-agent discovery surface.
-- Deferred user-interaction tools, especially `AskUserQuestion`, using the documented resume-and-updatedInput loop.
-- Background sessions in the resume picker and whether any stable non-interactive metadata can identify them.
+- ✅ Keep print-mode stream JSON as the default active/resume path. It is already covered by the adapter and avoids adding another long-lived provider protocol.
+- ✅ Keep `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` as tested opt-in launch args, not defaults. The rich-stream probe shows extra `system`, `stream_event`, and `rate_limit_event` records; `normalizeStreamMessage()` correctly ignores them until the UI intentionally renders partials.
+- ✅ Keep the hook bridge as the actionable permission path. `--permission-prompt-tool` remains a probe candidate, but it does not replace socket-backed hooks until it can cover the same allow/deny card flow.
+- ✅ Do not use `--fork-session`, `--bg`, or background-agent discovery as default behavior. They need explicit UI concepts for branches/background workers before they can be parity features.
+- ✅ Treat deferred user interaction (`AskUserQuestion`/resume updated input) as the next Claude-specific parity ticket because it maps to Realmkeeper letters.
 
-## Work Items
+## PR sequence
 
-- Add a Claude capability probe under `probes/` that snapshots `claude --help` and a short non-interactive stream-json run. Version/help snapshot recorded in [provider CLI capability snapshot](../provider-cli-hardening/probes/provider-cli-capability-2026-06-26.md); rich stream fixture recorded in [Claude rich stream probe](probes/claude-rich-stream-probe-2026-06-26.md).
-- Keep the adapter's launch contract testable for current stream flags. Done for `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions`; defaults remain off because the fixture shows additional stream event types should be explicitly rendered or ignored by design.
-- Extend hook tests for deferred tool/user-question payloads.
-- Decide whether partial messages should be stored as events or only rendered transiently.
-- Keep `--fork-session` out of the default path unless Realmkeeper adds explicit branch/fork UI.
+1. **Deferred question fixtures** — capture or synthesize Claude `AskUserQuestion`/updatedInput payloads, normalize them into answer letters, and add bridge tests.
+2. **Partial rendering decision** — if product wants smoother streaming, render `stream_event` content deltas transiently without persisting them as final `assistant_text`; otherwise keep the flags off and document why.
+3. **Claude diagnostics** — add a connection-tab/status check that reports Claude version, hook install status, transcript watcher path, and whether rich-stream flags are enabled.
+
+## Acceptance gate
+
+- Unit tests prove the default Claude launch args stay stable and opt-in rich-stream flags are accepted.
+- Rich-stream fixture types remain either explicitly ignored or explicitly rendered; no unknown rich-stream event silently becomes a broken conversation item.
+- Deferred user-interaction payloads render as letters and return provider-shaped answers, or are documented as unsupported with fail-closed behavior.
+- `pnpm run lint`, `pnpm run typecheck`, `pnpm test`, and `pnpm run build` pass.
 
 ## Probe Finding
 
@@ -37,3 +45,14 @@ Keep Claude's adapter aligned with the current CLI so Realmkeeper can start, res
 - `--include-partial-messages` emits `stream_event` records with nested Anthropic streaming event types such as `message_start`, `content_block_start`, and `content_block_delta`.
 - `--prompt-suggestions` did not emit a suggestion for the minimal no-tool probe turn.
 - The current loose stream parser accepts those event types and `normalizeStreamMessage()` ignores them, so the flags are safe to probe but should remain off by default until the renderer has an explicit transient partial-message path.
+
+## Probes
+
+- [Provider CLI capability snapshot](../provider-cli-hardening/probes/provider-cli-capability-2026-06-26.md)
+- [Claude rich stream probe](probes/claude-rich-stream-probe-2026-06-26.md)
+
+## Coverage gaps — what this does NOT validate
+
+- No live fixture yet proves the deferred user-interaction resume/update loop end to end.
+- Background agents and forked sessions are intentionally out of scope until Realmkeeper has UI for those concepts.
+- Claude native permission prompts may still race with Realmkeeper's hook-backed prompt; the plan preserves the documented behavior rather than hiding it.
