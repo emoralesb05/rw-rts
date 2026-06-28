@@ -360,10 +360,19 @@ type HookBridgeProps = {
   onToggle: () => void;
   configPathLabel: string;
   description: ReactNode;
+  details?: { label: string; value: ReactNode }[];
 };
 
 function HookBridgeSection(props: HookBridgeProps) {
-  const { title, status, busy, onToggle, configPathLabel, description } = props;
+  const {
+    title,
+    status,
+    busy,
+    onToggle,
+    configPathLabel,
+    description,
+    details = [],
+  } = props;
   if (!status) {
     return (
       <KingdomSection title={title}>
@@ -400,6 +409,11 @@ function HookBridgeSection(props: HookBridgeProps) {
       <KingdomKv label="script">
         <Code>{status.hookScriptPath}</Code>
       </KingdomKv>
+      {details.map((detail) => (
+        <KingdomKv key={detail.label} label={detail.label}>
+          {detail.value}
+        </KingdomKv>
+      ))}
       <Button
         type="button"
         variant={status.installed ? "danger" : "primary"}
@@ -585,6 +599,7 @@ function ConnectionTab() {
           busy={geminiBusy}
           onToggle={toggleGemini}
           configPathLabel="~/.gemini/settings.json"
+          details={geminiDetails(geminiStatus)}
           description={
             <>
               Forwards Gemini CLI session, prompt, tool, result, and response
@@ -599,6 +614,48 @@ function ConnectionTab() {
       )}
     </KingdomTab>
   );
+}
+
+function yesNo(value: boolean | undefined): string {
+  if (value === undefined) return "unknown";
+  return value ? "yes" : "no";
+}
+
+function geminiDetails(status: HooksStatus | null) {
+  if (!status) return [];
+  return [
+    {
+      label: "hooks",
+      value: (
+        <strong
+          className={cn(
+            "font-semibold",
+            status.hooksEnabled === false ? "text-warning" : "text-success"
+          )}
+        >
+          {status.hooksEnabled === false ? "disabled globally" : "enabled"}
+        </strong>
+      ),
+    },
+    {
+      label: "gate",
+      value: (
+        <span>
+          fail-closed <Code>{yesNo(status.failClosedHookInstalled)}</Code> ·
+          policy <Code>{yesNo(status.managedPolicyInstalled)}</Code>
+        </span>
+      ),
+    },
+    {
+      label: "launch",
+      value: (
+        <span>
+          spawned Gemini uses{" "}
+          <Code>--approval-mode {status.launchApprovalMode ?? "default"}</Code>
+        </span>
+      ),
+    },
+  ];
 }
 
 function PreloadRestartHint({ title }: { title: string }) {

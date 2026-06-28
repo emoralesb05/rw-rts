@@ -125,6 +125,10 @@ export const HooksStatusSchema = z.object({
   hookScriptPath: z.string(),
   hooksConfigPath: z.string().optional(),
   policyConfigPath: z.string().optional(),
+  hooksEnabled: z.boolean().optional(),
+  failClosedHookInstalled: z.boolean().optional(),
+  managedPolicyInstalled: z.boolean().optional(),
+  launchApprovalMode: z.enum(["default", "yolo"]).optional(),
 });
 export type HooksStatus = z.infer<typeof HooksStatusSchema>;
 

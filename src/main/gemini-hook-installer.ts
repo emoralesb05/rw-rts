@@ -117,6 +117,28 @@ function isManagedPolicyInstalled(): boolean {
   }
 }
 
+function geminiGateStatus() {
+  const settings = loadSettings();
+  const hooks = settings.hooks ?? {};
+  const hooksEnabled = settings.hooksConfig?.enabled !== false;
+  const hooksInstalled = GEMINI_HOOK_EVENTS.every((evt) =>
+    (hooks[evt] ?? []).some(isOurEntry)
+  );
+  const failClosedHookInstalled = (hooks.BeforeTool ?? []).some(
+    isFailClosedEntry
+  );
+  const managedPolicyInstalled = isManagedPolicyInstalled();
+  const gateReady =
+    hooksEnabled && failClosedHookInstalled && managedPolicyInstalled;
+  return {
+    hooksEnabled,
+    hooksInstalled,
+    failClosedHookInstalled,
+    managedPolicyInstalled,
+    gateReady,
+  };
+}
+
 function installManagedPolicy() {
   mkdirSync(dirname(GEMINI_POLICY_PATH), { recursive: true });
   writeFileSync(GEMINI_POLICY_PATH, GEMINI_POLICY);
@@ -128,18 +150,12 @@ function uninstallManagedPolicy() {
 }
 
 export function isGeminiInstalled(): boolean {
-  const settings = loadSettings();
-  const hooks = settings.hooks ?? {};
-  const hooksEnabled = settings.hooksConfig?.enabled !== false;
-  const hooksInstalled = GEMINI_HOOK_EVENTS.every((evt) =>
-    (hooks[evt] ?? []).some(isOurEntry)
-  );
-  const beforeToolFailClosed = (hooks.BeforeTool ?? []).some(isFailClosedEntry);
+  const status = geminiGateStatus();
   return (
-    hooksEnabled &&
-    hooksInstalled &&
-    beforeToolFailClosed &&
-    isManagedPolicyInstalled()
+    status.hooksEnabled &&
+    status.hooksInstalled &&
+    status.failClosedHookInstalled &&
+    status.managedPolicyInstalled
   );
 }
 
@@ -185,11 +201,16 @@ export function uninstallGeminiHooks() {
 }
 
 export function getGeminiHooksStatus() {
+  const status = geminiGateStatus();
   return {
     installed: isGeminiInstalled(),
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: GEMINI_SETTINGS_PATH,
     policyConfigPath: GEMINI_POLICY_PATH,
+    hooksEnabled: status.hooksEnabled,
+    failClosedHookInstalled: status.failClosedHookInstalled,
+    managedPolicyInstalled: status.managedPolicyInstalled,
+    launchApprovalMode: status.gateReady ? "yolo" : "default",
   };
 }

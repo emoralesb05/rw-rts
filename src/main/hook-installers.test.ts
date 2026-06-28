@@ -180,14 +180,27 @@ describe("provider hook installers", () => {
         },
       });
 
-      const { installGeminiHooks, uninstallGeminiHooks, isGeminiInstalled } =
-        await import("./gemini-hook-installer");
+      const {
+        installGeminiHooks,
+        uninstallGeminiHooks,
+        isGeminiInstalled,
+        getGeminiHooksStatus,
+      } = await import("./gemini-hook-installer");
 
       installGeminiHooks();
       installGeminiHooks();
 
       const installed = readJson(settingsPath);
       expect(isGeminiInstalled()).toBe(true);
+      expect(getGeminiHooksStatus()).toMatchObject({
+        installed: true,
+        hooksConfigPath: settingsPath,
+        policyConfigPath: policyPath,
+        hooksEnabled: true,
+        failClosedHookInstalled: true,
+        managedPolicyInstalled: true,
+        launchApprovalMode: "yolo",
+      });
       expect(existsSync(policyPath)).toBe(true);
       for (const event of [
         "SessionStart",
@@ -243,7 +256,7 @@ describe("provider hook installers", () => {
         "realmkeeper-managed.toml"
       );
 
-      const { installGeminiHooks, isGeminiInstalled } =
+      const { installGeminiHooks, isGeminiInstalled, getGeminiHooksStatus } =
         await import("./gemini-hook-installer");
 
       installGeminiHooks();
@@ -252,6 +265,13 @@ describe("provider hook installers", () => {
       writeJson(settingsPath, settings);
       expect(existsSync(policyPath)).toBe(true);
       expect(isGeminiInstalled()).toBe(false);
+      expect(getGeminiHooksStatus()).toMatchObject({
+        installed: false,
+        hooksEnabled: false,
+        failClosedHookInstalled: true,
+        managedPolicyInstalled: true,
+        launchApprovalMode: "default",
+      });
     });
   });
 
