@@ -9,9 +9,11 @@ import {
   buildThreadStartParams,
   buildTurnStartParams,
   buildTurnSteerParams,
+  codexAppServerFailClosedResponse,
   codexAppServerMcpElicitationResponse,
   codexAppServerPermissionResponse,
   codexAppServerUserInputResponse,
+  codexAppServerUnsupportedRequestError,
   normalizeCodexAppServerNotification,
 } from "./codex-app-server";
 import { normalizeCodexStreamMessage } from "./codex-cli";
@@ -251,6 +253,86 @@ describe("active CLI stream normalization", () => {
     ).toEqual({ decision: "approved" });
   });
 
+  it("maps every supported Codex app-server approval shape", () => {
+    const requests = [
+      {
+        method: "item/fileChange/requestApproval",
+        params: {
+          itemId: "item-1",
+          reason: "needs to edit config",
+          grantRoot: "/repo",
+        },
+        name: "Edit",
+        input: {
+          itemId: "item-1",
+          reason: "needs to edit config",
+          grantRoot: "/repo",
+        },
+      },
+      {
+        method: "applyPatchApproval",
+        params: {
+          callId: "call-1",
+          reason: "apply patch",
+          fileChanges: [{ path: "README.md" }],
+        },
+        name: "Edit",
+        input: {
+          callId: "call-1",
+          reason: "apply patch",
+          fileChanges: [{ path: "README.md" }],
+        },
+      },
+      {
+        method: "execCommandApproval",
+        params: {
+          command: ["bun", "test"],
+          cwd: "/repo",
+          parsedCmd: [{ cmd: "bun" }],
+        },
+        name: "Bash",
+        input: {
+          command: "bun test",
+          cwd: "/repo",
+          parsedCmd: [{ cmd: "bun" }],
+        },
+      },
+      {
+        method: "item/permissions/requestApproval",
+        params: {
+          cwd: "/repo",
+          reason: "needs workspace write",
+          permissions: { fileSystem: { entries: [{ root: "/repo" }] } },
+        },
+        name: "RequestPermissions",
+        input: {
+          cwd: "/repo",
+          reason: "needs workspace write",
+          permissions: { fileSystem: { entries: [{ root: "/repo" }] } },
+        },
+      },
+    ];
+
+    for (const [index, request] of requests.entries()) {
+      expect(
+        buildCodexAppServerPermissionEvent({
+          id: index + 20,
+          method: request.method,
+          params: request.params,
+          sessionId: "thread-1",
+          cwd: "/repo",
+        })
+      ).toMatchObject({
+        kind: "permission_request",
+        payload: {
+          name: request.name,
+          input: request.input,
+          permissionMode: "actionable",
+        },
+      });
+    }
+  });
+
   it("maps Codex app-server user input requests to answerable events", () => {
     const event = buildCodexAppServerUserInputEvent({
       id: 8,
@@ -447,6 +529,67 @@ describe("active CLI stream normalization", () => {
         content: null,
         _meta: null,
       }
+    );
+  });
+
+  it("declines unsupported Codex app-server request shapes fail-closed", () => {
+    expect(
+      buildCodexAppServerMcpElicitationEvent({
+        id: 10,
+        method: "mcpServer/elicitation/request",
+        params: {
+          serverName: "github",
+          mode: "url",
+          url: "https://example.com/oauth",
+        },
+        sessionId: "thread-1",
+        cwd: "/repo",
+      })
+    ).toBeNull();
+
+    expect(
+      buildCodexAppServerMcpElicitationEvent({
+        id: 11,
+        method: "mcpServer/elicitation/request",
+        params: {
+          serverName: "forms",
+          mode: "openai/form",
+          form: { title: "Unsupported custom form" },
+        },
+        sessionId: "thread-1",
+        cwd: "/repo",
+      })
+    ).toBeNull();
+
+    expect(
+      buildCodexAppServerUserInputEvent({
+        id: 12,
+        method: "item/tool/requestUserInput",
+        params: { questions: [] },
+        sessionId: "thread-1",
+        cwd: "/repo",
+      })
+    ).toBeNull();
+
+    expect(
+      codexAppServerFailClosedResponse("mcpServer/elicitation/request")
+    ).toEqual({
+      action: "decline",
+      content: null,
+      _meta: null,
+    });
+    expect(
+      codexAppServerFailClosedResponse("item/tool/requestUserInput")
+    ).toEqual({
+      answers: {},
+    });
+    expect(codexAppServerFailClosedResponse("item/tool/call")).toEqual({
+      contentItems: [],
+      success: false,
+    });
+    expect(codexAppServerFailClosedResponse("unknown/request")).toEqual({});
+    expect(codexAppServerUnsupportedRequestError("item/tool/call")).toBe(
+      "Codex app-server request item/tool/call was declined by Realmkeeper's adapter"
     );
   });
 

@@ -395,7 +395,7 @@ class CodexAppServerClient {
     const method = stringValue(msg.method);
     if (id === undefined || !method) return;
     if (!this.sessionId) {
-      this.write({ id, result: defaultServerRequestResponse(method) });
+      this.write({ id, result: codexAppServerFailClosedResponse(method) });
       return;
     }
 
@@ -446,7 +446,7 @@ class CodexAppServerClient {
       return;
     }
 
-    this.write({ id, result: defaultServerRequestResponse(method) });
+    this.write({ id, result: codexAppServerFailClosedResponse(method) });
     bus.emitAgentEvent({
       sessionId: this.sessionId,
       tool: "codex",
@@ -454,7 +454,7 @@ class CodexAppServerClient {
       timestamp: Date.now(),
       kind: "error",
       payload: {
-        error: `Codex app-server request ${method} was declined by Realmkeeper's adapter`,
+        error: codexAppServerUnsupportedRequestError(method),
       },
       source: this.source,
     });
@@ -469,7 +469,7 @@ class CodexAppServerClient {
     if (!this.sessionId) return;
     const requestId = event.payload.requestId;
     if (!requestId) {
-      this.write({ id, result: defaultServerRequestResponse(method) });
+      this.write({ id, result: codexAppServerFailClosedResponse(method) });
       bus.emitAgentEvent({
         sessionId: this.sessionId,
         tool: "codex",
@@ -477,7 +477,7 @@ class CodexAppServerClient {
         timestamp: Date.now(),
         kind: "error",
         payload: {
-          error: `Codex app-server request ${method} was declined by Realmkeeper's adapter`,
+          error: codexAppServerUnsupportedRequestError(method),
         },
         source: this.source,
       });
@@ -502,7 +502,7 @@ class CodexAppServerClient {
       }
     );
     if (!registered) {
-      this.write({ id, result: defaultServerRequestResponse(method) });
+      this.write({ id, result: codexAppServerFailClosedResponse(method) });
       bus.emitAgentEvent({
         sessionId: this.sessionId,
         tool: "codex",
@@ -530,7 +530,7 @@ class CodexAppServerClient {
     if (!this.sessionId) return;
     const requestId = event.payload.requestId;
     if (!requestId) {
-      this.write({ id, result: defaultServerRequestResponse(method) });
+      this.write({ id, result: codexAppServerFailClosedResponse(method) });
       return;
     }
 
@@ -559,7 +559,7 @@ class CodexAppServerClient {
       }
     );
     if (!registered) {
-      this.write({ id, result: defaultServerRequestResponse(method) });
+      this.write({ id, result: codexAppServerFailClosedResponse(method) });
       bus.emitAgentEvent({
         sessionId: this.sessionId,
         tool: "codex",
@@ -817,7 +817,7 @@ export function normalizeCodexAppServerNotification(
   return out;
 }
 
-function defaultServerRequestResponse(method: string): JsonRecord {
+export function codexAppServerFailClosedResponse(method: string): JsonRecord {
   if (method === "item/commandExecution/requestApproval") {
     return { decision: "decline" };
   }
@@ -840,6 +840,10 @@ function defaultServerRequestResponse(method: string): JsonRecord {
     return { decision: "denied" };
   }
   return {};
+}
+
+export function codexAppServerUnsupportedRequestError(method: string): string {
+  return `Codex app-server request ${method} was declined by Realmkeeper's adapter`;
 }
 
 export function codexAppServerPermissionResponse(
@@ -865,7 +869,7 @@ export function codexAppServerPermissionResponse(
   if (method === "applyPatchApproval" || method === "execCommandApproval") {
     return { decision: decision === "allow" ? "approved" : "denied" };
   }
-  return defaultServerRequestResponse(method);
+  return codexAppServerFailClosedResponse(method);
 }
 
 export function codexAppServerUserInputResponse(
