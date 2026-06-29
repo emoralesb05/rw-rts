@@ -200,6 +200,7 @@ describe("provider hook installers", () => {
         failClosedHookInstalled: true,
         managedPolicyInstalled: true,
         launchApprovalMode: "yolo",
+        settingsTemplate: expect.stringContaining('"hooksConfig"'),
       });
       expect(existsSync(policyPath)).toBe(true);
       for (const event of [

@@ -60,6 +60,25 @@ If the adapter cannot verify both the fail-closed `BeforeTool` hook and the mana
 
 The gate also checks `hooksConfig.enabled`. If a user globally disables Gemini hooks, Realmkeeper treats Gemini as not installed even if the hook entries and managed policy file are still present, and spawned sessions fall back to `--approval-mode default`.
 
+## Settings Template
+
+Realmkeeper does not write project `.gemini/settings.json` files by default.
+The Connection tab exposes a copyable recommended template for users who want
+to keep Gemini hooks explicitly enabled in their own settings:
+
+```json
+{
+  "hooksConfig": {
+    "enabled": true
+  }
+}
+```
+
+That template is intentionally minimal. Realmkeeper still owns its managed hook
+entries and user-policy file through the installer, while sandboxing,
+checkpointing, telemetry, shell-output summarization, and broader policy paths
+remain explicit user/provider configuration choices.
+
 ## 2026-06-25 CLI notes
 
 Local `gemini --help` exposes:

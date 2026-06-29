@@ -309,6 +309,7 @@ describe("runtime schemas", () => {
         socketPath: "/tmp/realmkeeper.sock",
         hookScriptPath: "/repo/dist/realmkeeper-hook",
         hooksConfigPath: "/home/user/.cursor/hooks.json",
+        settingsTemplate: '{\n  "hooksConfig": { "enabled": true }\n}',
       })
     ).toMatchObject({ installed: true });
 

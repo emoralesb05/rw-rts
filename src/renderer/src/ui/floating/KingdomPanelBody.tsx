@@ -14,6 +14,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { Check, Copy } from "lucide-react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -621,6 +622,46 @@ function yesNo(value: boolean | undefined): string {
   return value ? "yes" : "no";
 }
 
+function GeminiSettingsTemplateButton({ template }: { template?: string }) {
+  const [copied, setCopied] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  if (!template) return <span className="text-muted">unavailable</span>;
+
+  const copyTemplate = async () => {
+    try {
+      await navigator.clipboard.writeText(template);
+      setCopied(true);
+      setBlocked(false);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+      setBlocked(true);
+    }
+  };
+
+  const Icon = copied ? Check : Copy;
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="default"
+        className="min-h-0 px-2 py-1 text-[10px]"
+        onClick={() => void copyTemplate()}
+        aria-label="Copy Gemini settings template"
+      >
+        <Icon aria-hidden className="h-3 w-3" />
+        {copied ? "Copied" : "Copy template"}
+      </Button>
+      {blocked ? (
+        <span className="text-warning text-[10px]">clipboard blocked</span>
+      ) : (
+        <Code>hooksConfig.enabled</Code>
+      )}
+    </span>
+  );
+}
+
 function geminiDetails(status: HooksStatus | null) {
   if (!status) return [];
   return [
@@ -653,6 +694,12 @@ function geminiDetails(status: HooksStatus | null) {
           spawned Gemini uses{" "}
           <Code>--approval-mode {status.launchApprovalMode ?? "default"}</Code>
         </span>
+      ),
+    },
+    {
+      label: "template",
+      value: (
+        <GeminiSettingsTemplateButton template={status.settingsTemplate} />
       ),
     },
   ];

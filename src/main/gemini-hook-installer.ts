@@ -73,6 +73,16 @@ decision = "allow"
 priority = 998
 `;
 
+const GEMINI_RECOMMENDED_SETTINGS_TEMPLATE = JSON.stringify(
+  {
+    hooksConfig: {
+      enabled: true,
+    },
+  },
+  null,
+  2
+);
+
 function timeoutForEvent(evt: (typeof GEMINI_HOOK_EVENTS)[number]): number {
   return evt === "BeforeTool"
     ? GEMINI_PERMISSION_TIMEOUT_MS
@@ -212,5 +222,6 @@ export function getGeminiHooksStatus() {
     failClosedHookInstalled: status.failClosedHookInstalled,
     managedPolicyInstalled: status.managedPolicyInstalled,
     launchApprovalMode: status.gateReady ? "yolo" : "default",
+    settingsTemplate: GEMINI_RECOMMENDED_SETTINGS_TEMPLATE,
   };
 }
