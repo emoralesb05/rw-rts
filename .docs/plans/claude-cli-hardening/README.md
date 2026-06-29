@@ -1,6 +1,6 @@
 # Plan: Claude CLI hardening
 
-> **Status:** 📋 Plan
+> **Status:** ✅ Implemented locally; live `AskUserQuestion` trigger gap documented
 > **Owner:** Realmkeeper
 > **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (implemented AskUserQuestion answer letters)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI streams and hook payloads; read `.docs/providers/claude.md`, `src/main/adapters/claude-cli.ts`, `src/main/adapters/claude-transcript.ts`, and `src/main/adapters/cli-streams.test.ts` first

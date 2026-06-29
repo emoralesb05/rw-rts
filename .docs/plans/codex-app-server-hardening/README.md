@@ -1,6 +1,6 @@
 # Plan: Codex app-server hardening
 
-> **Status:** 📋 Plan
+> **Status:** ✅ Implemented
 > **Owner:** Realmkeeper
 > **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled request parity and diagnostics)
 > **Engineer profile:** Senior TypeScript engineer comfortable with JSON-RPC protocols; read `.docs/providers/codex.md`, `src/main/adapters/codex-app-server.ts`, `src/main/adapters/codex-cli.ts`, and `src/main/adapters/cli-streams.test.ts` first

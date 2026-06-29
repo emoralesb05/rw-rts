@@ -661,6 +661,106 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("normalizes the live Cursor print-mode stream shape", () => {
+    expect(
+      normalizeCursorStreamMessage(
+        {
+          type: "system",
+          subtype: "init",
+          apiKeySource: "login",
+          session_id: "cursor-chat-1",
+        },
+        "cursor-chat-1",
+        "/repo"
+      )
+    ).toEqual([]);
+
+    expect(
+      normalizeCursorStreamMessage(
+        {
+          type: "tool_call",
+          subtype: "started",
+          tool_call: {
+            shellToolCall: {
+              args: { command: "printf cursor-live-fixture-active" },
+            },
+          },
+        },
+        "cursor-chat-1",
+        "/repo"
+      )
+    ).toEqual([]);
+
+    const completed = normalizeCursorStreamMessage(
+      {
+        type: "tool_call",
+        subtype: "completed",
+        tool_call: {
+          shellToolCall: {
+            args: { command: "printf cursor-live-fixture-active" },
+            result: {
+              success: {
+                exitCode: 0,
+                stdout: "",
+                stderr: "",
+              },
+            },
+          },
+        },
+      },
+      "cursor-chat-1",
+      "/repo"
+    );
+    expect(completed).toMatchObject([
+      {
+        kind: "tool_use",
+        payload: {
+          name: "shell",
+          cursorChatId: "chat-1",
+          providerConversationId: "chat-1",
+        },
+      },
+      {
+        kind: "tool_result",
+        payload: {
+          output: {
+            success: {
+              exitCode: 0,
+            },
+          },
+        },
+      },
+    ]);
+
+    expect(
+      normalizeCursorStreamMessage(
+        {
+          type: "result",
+          subtype: "success",
+          result: "active fixture done.",
+          usage: {
+            inputTokens: 20601,
+            outputTokens: 143,
+          },
+          session_id: "cursor-chat-1",
+        },
+        "cursor-chat-1",
+        "/repo"
+      )
+    ).toMatchObject([
+      {
+        kind: "session_end",
+        payload: {
+          text: "active fixture done.",
+          output: {
+            inputTokens: 20601,
+            outputTokens: 143,
+          },
+        },
+      },
+    ]);
+  });
+
   it("normalizes Cursor assistant identity diagnostics", () => {
     const events = normalizeCursorStreamMessage(
       {

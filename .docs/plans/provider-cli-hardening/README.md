@@ -1,6 +1,6 @@
 # Plan: Provider CLI hardening
 
-> **Status:** 📋 Plan
+> **Status:** ✅ Implemented locally; live provider gaps documented
 > **Owner:** Realmkeeper
 > **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (implemented Claude AskUserQuestion letters)
 > **Engineer profile:** Senior TypeScript/Electron engineer with CLI protocol experience; read `.docs/providers/`, `src/main/adapters/`, `src/main/*hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
@@ -27,7 +27,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 | Capability | Claude | Codex | Cursor | Gemini | Ticket rule |
 |---|---|---|---|---|---|
-| CLI/version probe | provider snapshot + rich stream fixture | provider snapshot + app-server protocol probe | provider snapshot; active/resume fixture still needed | provider snapshot + policy dry run | Every provider keeps a dated probe or explicitly records the missing credential/input. |
+| CLI/version probe | provider snapshot + rich stream fixture | provider snapshot + app-server protocol probe | provider snapshot + active/resume stream fixture | provider snapshot + policy dry run | Every provider keeps a dated probe or explicitly records the missing credential/input. |
 | Active start | print-mode stream JSON | app-server `thread/start` + `turn/start` | `create-chat` + print-mode stream JSON | stream-json with explicit `--session-id` | Launch args are built by testable pure functions. |
 | Resume / follow-up | `--resume` as a new turn | `thread/resume`, `turn/start`, `turn/steer` | `--resume <chatId>` as a new invocation | `--resume <sessionId>` | Mid-turn steering is Codex-only; other providers get resumed/follow-up turns. |
 | Assistant text | stream JSON for Realmkeeper-started turns; transcript watcher for observed gaps | app-server notifications plus transcript fallback formats | stream JSON and `afterAgentResponse` when hooks fire | stream JSON and `AfterAgent.prompt_response` | Renderer sees one canonical `assistant_text` event per final answer segment. |
@@ -57,7 +57,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 1. **Shared provider contract** — keep this matrix and `.docs/providers/` aligned; add a small checklist to provider docs for future upgrades.
 2. **Codex request parity** — ✅ implemented: app-server approval, user-input, typed MCP form, and unsupported request shapes are covered and surfaced through diagnostics.
 3. **Claude stream parity** — ✅ implemented for partial-rendering decision, diagnostics, and synthetic `AskUserQuestion`/`updatedInput` letter fixtures; live deferred-resume capture remains blocked on authenticated provider execution.
-4. **Cursor reliability parity** — autonomy disclosure and observe-only permission semantics are implemented; active/resume stream fixtures still need an authenticated live Cursor run.
+4. **Cursor reliability parity** — ✅ implemented: autonomy disclosure, observe-only permission semantics, identity diagnostics, and live active/resume stream fixtures are covered.
 5. **Gemini policy parity** — ✅ implemented for hook payload fixtures, hook/policy diagnostics, settings export, and `yolo` gating; live policy execution remains blocked on non-interactive Gemini auth.
 
 ## Acceptance gate

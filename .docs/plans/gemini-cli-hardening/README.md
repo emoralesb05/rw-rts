@@ -1,6 +1,6 @@
 # Plan: Gemini CLI hardening
 
-> **Status:** 📋 Plan
+> **Status:** ✅ Implemented locally; live auth gap documented
 > **Owner:** Realmkeeper
 > **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled hook fixtures, diagnostics, and settings export)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI hooks and policy files; read `.docs/providers/gemini.md`, `src/main/adapters/gemini-cli.ts`, `src/main/gemini-hook-installer.ts`, and `src/main/adapters/gemini-cli-gate.test.ts` first
