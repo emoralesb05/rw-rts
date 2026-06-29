@@ -2,7 +2,7 @@
 
 > **Status:** ✅ Implemented locally; live auth gap documented
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled hook fixtures, diagnostics, and settings export)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (confirmed local auth inputs for live policy probe)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI hooks and policy files; read `.docs/providers/gemini.md`, `src/main/adapters/gemini-cli.ts`, `src/main/gemini-hook-installer.ts`, and `src/main/adapters/gemini-cli-gate.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Gemini stream-json launch, policy diagnostics, hook payload fixtures, and safe approval mode selection · **Origin:** provider CLI hardening
@@ -51,6 +51,6 @@ Gemini can reach actionable permission parity, but only when Realmkeeper can ver
 
 ## Coverage gaps — what this does NOT validate
 
-- A live Gemini policy execution probe still needs a supported non-interactive auth path. A 2026-06-29 `gemini --list-sessions` check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, so the next probe needs a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
+- A live Gemini policy execution probe still needs a supported non-interactive auth path. A 2026-06-29 `gemini --list-sessions` check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals. The same pass found no `GEMINI_API_KEY`, `GOOGLE_API_KEY`, Vertex/Google Cloud project env, `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud`, or ADC config, so the next probe needs a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
 - Workspace policy behavior may change upstream, so user/admin policy guidance must be rechecked after Gemini upgrades.
 - The settings template is deliberately minimal; richer Gemini settings remain user/provider configuration until Realmkeeper has UI for those tradeoffs.

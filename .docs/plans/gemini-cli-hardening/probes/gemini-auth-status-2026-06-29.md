@@ -7,6 +7,7 @@ Can this machine run a non-interactive Gemini CLI session probe for Realmkeeper'
 ## Setup
 
 - Installed CLI: `0.47.0`.
+- Credential presence check: no `GEMINI_API_KEY`, `GOOGLE_API_KEY`, Vertex/Google Cloud project env, `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud`, or ADC config was present.
 - Command: `gemini --list-sessions`.
 - Repo: `/Users/ed/Github/emoralesb05/rw-rts`.
 
@@ -22,4 +23,4 @@ The error included reason code `UNSUPPORTED_CLIENT` and directed the user to Ant
 
 ## Outcome
 
-The live policy execution probe remains blocked. The next probe needs a supported non-interactive Gemini auth path, such as a throwaway API key, Vertex/GCA environment, or a supported Gemini CLI account tier.
+The live policy execution probe remains blocked by missing supported auth, not by Realmkeeper code. The next probe needs a supported non-interactive Gemini auth path, such as a throwaway API key, Vertex/GCA environment, or a supported Gemini CLI account tier.

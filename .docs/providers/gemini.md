@@ -2,7 +2,7 @@
 
 ## Binary & Install
 
-- Binary: `gemini` (verified locally 2026-06-25 at `/opt/homebrew/bin/gemini`, version `0.47.0`)
+- Binary: `gemini` (verified locally 2026-06-29 at `/opt/homebrew/bin/gemini`, version `0.47.0`)
 - Settings: `~/.gemini/settings.json` (hooks live under `hooks.<EventName>`)
 - Managed policy: `~/.gemini/policies/realmkeeper-managed.toml`
 - Install hooks via the realmkeeper Connection tab or `installGeminiHooks()` in `src/main/gemini-hook-installer.ts`
@@ -119,7 +119,7 @@ Gemini CLI 0.47.0 has built-in/custom subagents and a `gemini skills` surface. T
 ## Gaps & Quirks
 
 - Auth is required before `gemini --list-sessions` or active spawn works. Without `security.auth.selectedType` or `GEMINI_API_KEY`/Vertex/GCA env, Gemini exits before streaming `init`.
-- Local probe on 2026-06-29 reached auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, directing the user to Antigravity. Live policy execution now needs a supported non-interactive auth path such as a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
+- Local probe on 2026-06-29 reached auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, directing the user to Antigravity. The same pass found no `GEMINI_API_KEY`, `GOOGLE_API_KEY`, Vertex/Google Cloud project env, `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud`, or ADC config on this machine. Live policy execution now needs a supported non-interactive auth path such as a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
 - Headless launches in an untrusted repo exit before hooks fire unless the repo is trusted or the command uses `--skip-trust`.
 - Antigravity sessions are out of scope for this CLI hook surface.
 - Hook stdout must be JSON. Empty stdout is acceptable for Claude/Codex but not for Gemini.

@@ -59,6 +59,81 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("normalizes Claude brief SendMessage as a generic tool exchange", () => {
+    const toolEvents = normalizeStreamMessage(
+      {
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "SendMessage",
+              input: {
+                to: "main",
+                summary: "Realmkeeper brief probe",
+                message: "Realmkeeper brief probe: answer-letter or skip-path.",
+              },
+            },
+          ],
+        },
+      },
+      "s1",
+      "/repo"
+    );
+
+    const resultEvents = normalizeStreamMessage(
+      {
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu-send-message",
+              content: [
+                {
+                  type: "text",
+                  text: '{"success":false,"message":"Send to a named agent instead."}',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      "s1",
+      "/repo"
+    );
+
+    expect(toolEvents).toMatchObject([
+      {
+        sessionId: "s1",
+        tool: "claude",
+        kind: "tool_use",
+        payload: {
+          name: "SendMessage",
+          input: {
+            to: "main",
+            summary: "Realmkeeper brief probe",
+          },
+        },
+      },
+    ]);
+    expect(resultEvents).toMatchObject([
+      {
+        sessionId: "s1",
+        tool: "claude",
+        kind: "tool_result",
+        payload: {
+          output: [
+            {
+              type: "text",
+              text: '{"success":false,"message":"Send to a named agent instead."}',
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
   it("ignores Claude rich stream metadata until partial rendering is explicit", () => {
     for (const msg of [
       {

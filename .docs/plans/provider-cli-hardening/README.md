@@ -1,8 +1,8 @@
 # Plan: Provider CLI hardening
 
-> **Status:** ✅ Implemented locally; live provider gaps documented
+> **Status:** ✅ Implemented locally; live provider gaps classified
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (implemented Claude AskUserQuestion letters)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (classified Claude brief messaging and Gemini auth gap)
 > **Engineer profile:** Senior TypeScript/Electron engineer with CLI protocol experience; read `.docs/providers/`, `src/main/adapters/`, `src/main/*hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 5 PRs, medium; one shared contract PR plus one provider PR each
 > **Scope:** normalize provider launch, resume, stream, permission, docs, and probe contracts · **Origin:** follow-on from provider CLI capability research
@@ -33,7 +33,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 | Assistant text | stream JSON for Realmkeeper-started turns; transcript watcher for observed gaps | app-server notifications plus transcript fallback formats | stream JSON and `afterAgentResponse` when hooks fire | stream JSON and `AfterAgent.prompt_response` | Renderer sees one canonical `assistant_text` event per final answer segment. |
 | Tool/result events | stream and hooks | app-server requests/events | stream JSON; hooks sparse in print resume | stream and hooks | Fixtures cover shell, edit, and read-like events where the provider exposes them. |
 | Permissions | actionable `PermissionRequest`, with native prompt race documented | actionable app-server and legacy approval requests | observe-only for native allowlist mode; Realmkeeper-owned `--force` sessions need visible setting | actionable fail-closed `BeforeTool` + managed policy | If external enforcement is unavailable, the UI must say observe-only and never imply allow/deny authority. |
-| Structured user input | `PreToolUse` / `AskUserQuestion` letters returning `updatedInput`; live deferred-resume fixture still needed | `item/tool/requestUserInput` and typed MCP form mode | no known external contract | no known external contract | Render answer letters where request schemas exist; fail closed otherwise. |
+| Structured user input | `PreToolUse` / `AskUserQuestion` letters returning `updatedInput`; `--brief` `SendMessage` is agent-to-agent, not a human question path | `item/tool/requestUserInput` and typed MCP form mode | no known external contract | no known external contract | Render answer letters where request schemas exist; fail closed otherwise. |
 | Provider docs | `.docs/providers/claude.md` | `.docs/providers/codex.md` | `.docs/providers/cursor.md` | `.docs/providers/gemini.md` | Docs update in the same PR as probe/test changes. |
 
 ## Decision
@@ -56,7 +56,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 1. **Shared provider contract** — keep this matrix and `.docs/providers/` aligned; add a small checklist to provider docs for future upgrades.
 2. **Codex request parity** — ✅ implemented: app-server approval, user-input, typed MCP form, and unsupported request shapes are covered and surfaced through diagnostics.
-3. **Claude stream parity** — ✅ implemented for partial-rendering decision, diagnostics, and synthetic `AskUserQuestion`/`updatedInput` letter fixtures; live deferred-resume capture remains blocked on authenticated provider execution.
+3. **Claude stream parity** — ✅ implemented for partial-rendering decision, diagnostics, synthetic `AskUserQuestion`/`updatedInput` letter fixtures, and live `--brief` `SendMessage` classification.
 4. **Cursor reliability parity** — ✅ implemented: autonomy disclosure, observe-only permission semantics, identity diagnostics, and live active/resume stream fixtures are covered.
 5. **Gemini policy parity** — ✅ implemented for hook payload fixtures, hook/policy diagnostics, settings export, and `yolo` gating; live policy execution remains blocked on non-interactive Gemini auth.
 
@@ -75,8 +75,8 @@ The parity plan is to make every provider explicit about five things: how Realmk
 ## Coverage gaps — what this does NOT validate
 
 - Cursor actionable approvals are upstream-gated; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
-- Live Claude deferred user-interaction and background-agent metadata still need fixture coverage. A 2026-06-29 authenticated print-mode attempt with `--tools AskUserQuestion` initialized with `tools: []`, so the next probe needs a provider-supported trigger for that tool.
-- Live Gemini policy execution could not be fully exercised. A 2026-06-29 session-list check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
+- Live Claude deferred user-interaction still lacks a provider-native fixture. A 2026-06-29 authenticated print-mode attempt with `--tools AskUserQuestion` initialized with `tools: []`; a follow-up `--brief --tools SendMessage` probe showed the exposed tool is agent-to-agent messaging, not a human question path.
+- Live Gemini policy execution could not be fully exercised. A 2026-06-29 session-list check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the same pass found no API key, Vertex/ADC env, `gcloud`, or ADC config. The current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
 - Provider CLIs are fast-moving; this plan is ready to ticket from the 2026-06-26 probes, not a guarantee that future versions still match.
 
 ## References

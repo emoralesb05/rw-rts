@@ -29,4 +29,4 @@ The run ended with `error_max_budget_usd` after two turns. The result reported `
 
 - The synthetic Realmkeeper `AskUserQuestion` answer-letter implementation remains covered by unit tests and the Demos fixture.
 - No live deferred `AskUserQuestion` fixture was captured.
-- Do not retry this exact `--tools AskUserQuestion` shape. The next live probe needs a documented/provider-supported way to make Claude expose or choose `AskUserQuestion`, ideally with plugins disabled only if hooks can remain active.
+- Do not retry this exact `--tools AskUserQuestion` shape. A follow-up `--brief` probe exposed `SendMessage`, but that tool targets named agents, not the human user. Live `AskUserQuestion` capture still needs a documented/provider-supported way to make Claude expose or choose that tool in print mode.

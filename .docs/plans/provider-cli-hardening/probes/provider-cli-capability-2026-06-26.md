@@ -29,6 +29,7 @@
   - `--brief`
   - `--bg` / `claude agents`
 - Public hook docs confirm `AskUserQuestion` can be deferred in non-interactive mode and resumed with `updatedInput`; this is the right path for Realmkeeper-owned user-question UI.
+- Follow-up live probe on 2026-06-29 classified `--brief`: the CLI exposes `SendMessage` in stream JSON, but the tool expects a named Claude agent target and is not a human answer-letter path.
 
 ### Codex
 
@@ -71,5 +72,5 @@
 
 - This probe did not run live model turns, issue real approval requests, or mutate files.
 - Cursor capability findings are based on local help because no official external approval callback contract was found in public docs.
-- Claude partial-message and hook-event streams still need fixture captures before they are safe to render.
-- Gemini policy files still need a repo-local dry run before Realmkeeper should generate or install one.
+- Claude partial-message and hook-event streams have fixture captures; `SendMessage` is classified as agent-to-agent, while live `AskUserQuestion` remains without a provider-supported trigger in print mode.
+- Gemini policy files have a static dry run and launch-gate coverage; live execution still needs a supported non-interactive auth credential.
