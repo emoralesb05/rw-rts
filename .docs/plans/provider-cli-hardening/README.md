@@ -2,7 +2,7 @@
 
 > **Status:** ✅ Implemented locally; live provider gaps classified
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (classified Claude brief messaging and Gemini auth gap)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (classified Claude brief messaging and Gemini OAuth tier gap)
 > **Engineer profile:** Senior TypeScript/Electron engineer with CLI protocol experience; read `.docs/providers/`, `src/main/adapters/`, `src/main/*hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 5 PRs, medium; one shared contract PR plus one provider PR each
 > **Scope:** normalize provider launch, resume, stream, permission, docs, and probe contracts · **Origin:** follow-on from provider CLI capability research
@@ -41,7 +41,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 - Codex should stay on app-server as the default drive path. Official docs describe app-server as the rich-client protocol for authentication, conversation history, approvals, and streamed events; it also supports `thread/start`, `thread/resume`, `turn/start`, `turn/steer`, approval requests, structured `item/tool/requestUserInput`, and MCP elicitation form requests.
 - Claude should stay on print-mode stream JSON for now. `--include-hook-events` and `--include-partial-messages` are probe-safe but remain off by default because the rich-stream fixture shows metadata events that need explicit transient rendering before they should affect the conversation UI.
 - Gemini should use policy-engine aware launches. The current CLI supports project `.gemini/settings.json`, MCP allow/exclude controls, sandboxing, checkpointing, telemetry, shell-output summarization, and `--policy` / `--admin-policy`; local help now marks `--allowed-tools` as deprecated in favor of the policy engine. Public policy docs warn workspace `.gemini/policies` are currently disabled, so Realmkeeper should rely on user/admin policy paths or its own local rule engine.
-- Cursor remains observation-first until the CLI exposes an actionable permission contract equivalent to Claude/Gemini hooks or Codex app-server requests.
+- Cursor remains observation-first until the CLI exposes an actionable permission contract equivalent to Claude/Gemini hooks or Codex app-server requests. This is accepted parity for now: Realmkeeper must label Cursor permission state as observe-only and avoid implying external allow/deny authority.
 - Provider launch arg builders should expose newly discovered flags as tested options before runtime defaults change. Claude partial/hook flags and Cursor auto-review/sandbox flags are covered this way; Gemini falls back from `yolo` to `default` when the fail-closed Realmkeeper gate is not installed or hooks are globally disabled.
 - Dynamic tools and unknown form surfaces fail closed until Realmkeeper has first-class UI for their schema. This applies today to Codex dynamic app-server tools, Codex MCP URL/openai-form modes, and any future provider-specific structured request that is not represented by a letter action.
 
@@ -57,7 +57,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 1. **Shared provider contract** — keep this matrix and `.docs/providers/` aligned; add a small checklist to provider docs for future upgrades.
 2. **Codex request parity** — ✅ implemented: app-server approval, user-input, typed MCP form, and unsupported request shapes are covered and surfaced through diagnostics.
 3. **Claude stream parity** — ✅ implemented for partial-rendering decision, diagnostics, synthetic `AskUserQuestion`/`updatedInput` letter fixtures, and live `--brief` `SendMessage` classification.
-4. **Cursor reliability parity** — ✅ implemented: autonomy disclosure, observe-only permission semantics, identity diagnostics, and live active/resume stream fixtures are covered.
+4. **Cursor reliability parity** — ✅ accepted as observe-only: autonomy disclosure, observe-only permission semantics, identity diagnostics, and live active/resume stream fixtures are covered.
 5. **Gemini policy parity** — ✅ implemented for hook payload fixtures, hook/policy diagnostics, settings export, and `yolo` gating; live policy execution remains blocked on non-interactive Gemini auth.
 
 ## Acceptance gate
@@ -74,9 +74,9 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 ## Coverage gaps — what this does NOT validate
 
-- Cursor actionable approvals are upstream-gated; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
+- Cursor actionable approvals are upstream-gated and accepted as observe-only parity for now; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
 - Live Claude deferred user-interaction still lacks a provider-native fixture. A 2026-06-29 authenticated print-mode attempt with `--tools AskUserQuestion` initialized with `tools: []`; a follow-up `--brief --tools SendMessage` probe showed the exposed tool is agent-to-agent messaging, not a human question path.
-- Live Gemini policy execution could not be fully exercised. A 2026-06-29 session-list check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the same pass found no API key, Vertex/ADC env, `gcloud`, or ADC config. The current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
+- Live Gemini policy execution could not be fully exercised. 2026-06-29 probes confirmed cached `oauth-personal` auth exists, but both installed `0.47.0` and npm-latest `0.49.0` fail with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the same pass found no API key, Vertex/ADC env, `gcloud`, or ADC config. The current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
 - Provider CLIs are fast-moving; this plan is ready to ticket from the 2026-06-26 probes, not a guarantee that future versions still match.
 
 ## References
