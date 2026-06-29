@@ -76,7 +76,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 - Cursor actionable approvals are upstream-gated and accepted as observe-only parity for now; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
 - Live Claude deferred user-interaction still lacks a provider-native fixture. A 2026-06-29 authenticated print-mode attempt with `--tools AskUserQuestion` initialized with `tools: []`; a follow-up `--brief --tools SendMessage` probe showed the exposed tool is agent-to-agent messaging, not a human question path.
-- Live Gemini policy execution could not be fully exercised. 2026-06-29 probes confirmed cached `oauth-personal` auth exists, but both installed `0.47.0` and npm-latest `0.49.0` fail with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the same pass found no API key, Vertex/ADC env, `gcloud`, or ADC config. The current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
+- Live Gemini policy execution could not be fully exercised. 2026-06-29 probes confirmed cached `oauth-personal` auth exists, but both installed `0.47.0` and npm-latest `0.49.0` failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for the cached account/tier; the same pass found no API key, Vertex/ADC env, `gcloud`, or ADC config. The current finding remains a static dry-run plus launch-gate tests until API key, Vertex/ADC, or a verified supported Google AI Pro/Ultra or Workspace sign-in is available.
 - Provider CLIs are fast-moving; this plan is ready to ticket from the 2026-06-26 probes, not a guarantee that future versions still match.
 
 ## References

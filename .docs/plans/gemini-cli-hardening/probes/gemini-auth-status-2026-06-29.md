@@ -26,4 +26,9 @@ The error included reason code `UNSUPPORTED_CLIENT` and directed the user to Ant
 
 ## Outcome
 
-The live policy execution probe remains blocked by unsupported account tier for the configured OAuth path, not by Realmkeeper code and not by missing OAuth configuration. The next probe needs a supported non-interactive Gemini auth path, such as a throwaway API key, Vertex/GCA environment, or a supported Gemini CLI account tier.
+The live policy execution probe remains blocked by the account tier attached to
+the configured OAuth cache, not by Realmkeeper code and not by missing OAuth
+configuration. This does not prove every paid Google sign-in fails; the next
+probe needs a supported non-interactive Gemini auth path, such as a throwaway
+API key, Vertex/GCA environment, or a verified Google AI Pro/Ultra or Workspace
+account.

@@ -28,6 +28,15 @@ export const GeminiSettingsSchema = z.looseObject({
       disabled: z.array(z.string()).optional(),
     })
     .optional(),
+  security: z
+    .looseObject({
+      auth: z
+        .looseObject({
+          selectedType: z.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 export type GeminiSettings = z.infer<typeof GeminiSettingsSchema>;
 

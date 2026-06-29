@@ -144,6 +144,14 @@ export const HooksStatusSchema = z.object({
       subscriptionType: z.string().optional(),
     })
     .optional(),
+  authIssue: z
+    .object({
+      code: z.string(),
+      severity: z.enum(["info", "warning", "error"]).optional(),
+      message: z.string(),
+      action: z.string().optional(),
+    })
+    .optional(),
   hooksEnabled: z.boolean().optional(),
   failClosedHookInstalled: z.boolean().optional(),
   managedPolicyInstalled: z.boolean().optional(),

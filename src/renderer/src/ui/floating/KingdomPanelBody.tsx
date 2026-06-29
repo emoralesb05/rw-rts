@@ -749,6 +749,64 @@ function geminiDetails(status: HooksStatus | null) {
   if (!status) return [];
   return [
     {
+      label: "version",
+      value: status.cliVersion ? (
+        <Code>{status.cliVersion}</Code>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    {
+      label: "auth",
+      value: status.authStatus ? (
+        <span>
+          <Code>{status.authStatus.authMethod ?? "unknown"}</Code>
+          {status.authStatus.apiProvider ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.apiProvider}</Code>
+            </>
+          ) : null}
+          {status.authStatus.subscriptionType ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.subscriptionType}</Code>
+            </>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    ...(status.authIssue
+      ? [
+          {
+            label: "auth note",
+            value: (
+              <span
+                className={cn(
+                  status.authIssue.severity === "error"
+                    ? "text-danger"
+                    : status.authIssue.severity === "warning"
+                      ? "text-warning"
+                      : "text-muted"
+                )}
+              >
+                {status.authIssue.message}
+                {status.authIssue.action ? (
+                  <>
+                    {" "}
+                    <span className="text-muted">
+                      {status.authIssue.action}
+                    </span>
+                  </>
+                ) : null}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
       label: "hooks",
       value: (
         <strong

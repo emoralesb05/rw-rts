@@ -2,7 +2,7 @@
 
 ## Binary & Install
 
-- Binary: `gemini` (verified locally 2026-06-29 at `/opt/homebrew/bin/gemini`, version `0.47.0`; npm `latest` checked via `npx` at `0.49.0`)
+- Binary: `gemini` (verified locally 2026-06-29 at `/opt/homebrew/bin/gemini`, version `0.47.0`; npm `latest`/registry checked at `0.49.0`, package not marked deprecated)
 - Settings: `~/.gemini/settings.json` (hooks live under `hooks.<EventName>`)
 - Managed policy: `~/.gemini/policies/realmkeeper-managed.toml`
 - Install hooks via the realmkeeper Connection tab or `installGeminiHooks()` in `src/main/gemini-hook-installer.ts`
@@ -79,6 +79,27 @@ entries and user-policy file through the installer, while sandboxing,
 checkpointing, telemetry, shell-output summarization, and broader policy paths
 remain explicit user/provider configuration choices.
 
+## Auth And Status Diagnostics
+
+The Connection tab reports `gemini --version`, reads
+`security.auth.selectedType` from `~/.gemini/settings.json`, and surfaces an
+auth row plus an auth note when the selected path is not enough for
+Realmkeeper-spawned headless turns.
+
+`oauth-personal` with cached OAuth credentials but no API key or Vertex config
+is classified as `gemini-oauth-headless-unverified`, not as a hard failure. The
+CLI is installed and OAuth is configured, but Realmkeeper cannot infer from the
+local settings whether the cached account is Google AI Pro/Ultra, Workspace, an
+unsupported Google One account, or another tier. Official Gemini CLI docs
+recommend API key or Vertex AI for headless mode, while the current public
+warning says unpaid-tier and Google One users move to Antigravity. Realmkeeper
+therefore shows an auth note instead of claiming all Google OAuth is unavailable.
+
+Vertex diagnostics require enough project config before live Gemini turns are
+marked runnable. A Vertex path with missing `GOOGLE_CLOUD_PROJECT` /
+`GOOGLE_CLOUD_PROJECT_ID` or `GOOGLE_CLOUD_LOCATION` is classified as
+`gemini-vertex-config-missing`.
+
 ## 2026-06-25 CLI notes
 
 Local `gemini --help` exposes:
@@ -95,7 +116,11 @@ Official hook docs emphasize that hook scripts must log to stderr and write only
 
 Policy-engine note: current public docs warn that workspace `.gemini/policies` are disabled, so Realmkeeper should use user/admin policy paths or Realmkeeper-local rules rather than relying on repo-local policy files.
 
-Near-term leverage: use `--list-sessions` for diagnostics in the Connection tab, surface the managed policy path in UI, and explore generated `--policy`/`--admin-policy` files so Realmkeeper's Gemini policy can be audited instead of being a hidden installer detail. ACP is worth a separate spike only if we want a long-lived Gemini transport; the current `--prompt`/`--resume` path is simpler and works.
+Near-term leverage: use `--list-sessions` for richer diagnostics in the
+Connection tab and explore generated `--policy`/`--admin-policy` files so
+Realmkeeper's Gemini policy can be audited instead of being a hidden installer
+detail. ACP is worth a separate spike only if we want a long-lived Gemini
+transport; the current `--prompt`/`--resume` path is simpler and works.
 
 ## Permission Flow
 
@@ -119,7 +144,7 @@ Gemini CLI 0.47.0 has built-in/custom subagents and a `gemini skills` surface. T
 ## Gaps & Quirks
 
 - Auth is required before `gemini --list-sessions` or active spawn works. This machine has cached Google OAuth selected through `security.auth.selectedType: "oauth-personal"`, so Gemini auth is configured; the failing probe is an account-tier rejection, not missing auth plumbing.
-- Local probes on 2026-06-29 reached OAuth auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, directing the user to Antigravity. The same result reproduced on the npm `latest` CLI (`0.49.0`) via `npx`. The same pass found no `GEMINI_API_KEY`, `GOOGLE_API_KEY`, Vertex/Google Cloud project env, `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud`, or ADC config on this machine. Live policy execution now needs a supported non-interactive auth path such as a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
+- Local probes on 2026-06-29 reached OAuth auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, directing the user to Antigravity. The same result reproduced on the npm `latest` CLI (`0.49.0`) via `npx`. This is evidence about the cached account/tier used in that probe, not proof that every paid Google sign-in fails. The same pass found no `GEMINI_API_KEY`, `GOOGLE_API_KEY`, Vertex/Google Cloud project env, `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud`, or ADC config on this machine. Live policy execution now needs either a supported Google AI Pro/Ultra or Workspace sign-in verified in headless mode, a throwaway API key, or Vertex/GCA env; the Connection tab surfaces the uncertainty as an auth note instead of leaving it buried in probe docs.
 - Headless launches in an untrusted repo exit before hooks fire unless the repo is trusted or the command uses `--skip-trust`.
 - Antigravity sessions are out of scope for this CLI hook surface.
 - Hook stdout must be JSON. Empty stdout is acceptable for Claude/Codex but not for Gemini.

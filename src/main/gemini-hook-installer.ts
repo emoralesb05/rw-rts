@@ -18,6 +18,7 @@ import {
   mkdirSync,
   rmSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
@@ -38,6 +39,7 @@ const GEMINI_POLICY_PATH = join(
   "policies",
   "realmkeeper-managed.toml"
 );
+const GEMINI_OAUTH_CREDS_PATH = join(homedir(), ".gemini", "oauth_creds.json");
 const HOOK_MARKER = "realmkeeper-managed";
 const GEMINI_OBSERVE_TIMEOUT_MS = 5000;
 const GEMINI_PERMISSION_TIMEOUT_MS = 10 * 60 * 1000;
@@ -149,6 +151,121 @@ function geminiGateStatus() {
   };
 }
 
+function envEnabled(name: string): boolean {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function getGeminiCliVersion(): string | undefined {
+  try {
+    return execFileSync("gemini", ["--version"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 2000,
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function getGeminiAuthDiagnostic() {
+  const settings = loadSettings();
+  const selectedType = settings.security?.auth?.selectedType;
+  const hasGeminiApiKey = envEnabled("GEMINI_API_KEY");
+  const hasGoogleApiKey = envEnabled("GOOGLE_API_KEY");
+  const hasVertexProject =
+    envEnabled("GOOGLE_CLOUD_PROJECT") || envEnabled("GOOGLE_CLOUD_PROJECT_ID");
+  const hasVertexLocation = envEnabled("GOOGLE_CLOUD_LOCATION");
+  const hasVertexConfig = hasVertexProject && hasVertexLocation;
+  const hasVertexAdc = envEnabled("GOOGLE_APPLICATION_CREDENTIALS");
+  const usesVertexApiKey =
+    hasGoogleApiKey &&
+    String(process.env.GOOGLE_GENAI_USE_VERTEXAI ?? "").toLowerCase() ===
+      "true";
+  const hasSupportedHeadlessAuth =
+    hasGeminiApiKey ||
+    ((usesVertexApiKey || hasVertexAdc || selectedType === "vertex-ai") &&
+      hasVertexConfig);
+
+  if (hasGeminiApiKey) {
+    return {
+      authStatus: {
+        loggedIn: true,
+        authMethod: "gemini-api-key",
+        apiProvider: "Gemini API key",
+      },
+    };
+  }
+
+  if (usesVertexApiKey || hasVertexAdc || selectedType === "vertex-ai") {
+    return {
+      authStatus: {
+        loggedIn:
+          hasVertexConfig &&
+          (usesVertexApiKey || hasVertexAdc || selectedType === "vertex-ai"),
+        authMethod: selectedType ?? "vertex-ai",
+        apiProvider: usesVertexApiKey
+          ? "Vertex AI API key"
+          : hasVertexAdc
+            ? "Vertex AI ADC"
+            : "Vertex AI",
+        subscriptionType: hasVertexConfig ? "cloud project" : undefined,
+      },
+      authIssue: !hasVertexConfig
+        ? {
+            code: "gemini-vertex-config-missing",
+            severity: "warning" as const,
+            message:
+              "Vertex AI auth needs GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION before live Gemini turns can run.",
+            action:
+              "Set Vertex project/location env or use GEMINI_API_KEY for the Gemini provider.",
+          }
+        : undefined,
+    };
+  }
+
+  if (selectedType === "oauth-personal") {
+    const hasOauthCache = existsSync(GEMINI_OAUTH_CREDS_PATH);
+    const needsHeadlessValidation = !hasSupportedHeadlessAuth;
+    return {
+      authStatus: {
+        loggedIn: hasOauthCache,
+        authMethod: "oauth-personal",
+        apiProvider: "Google sign-in",
+        subscriptionType: hasOauthCache ? "cached OAuth" : "OAuth not cached",
+      },
+      authIssue: needsHeadlessValidation
+        ? {
+            code: "gemini-oauth-headless-unverified",
+            severity: "info" as const,
+            message:
+              "Gemini Google sign-in is configured, but Realmkeeper cannot infer from local settings whether this account tier supports headless Gemini CLI turns.",
+            action:
+              "If OAuth launch fails, sign in with the intended Google AI Pro, Ultra, or Workspace account, or set GEMINI_API_KEY or Vertex AI for the Gemini provider.",
+          }
+        : undefined,
+    };
+  }
+
+  return {
+    authStatus: {
+      loggedIn: hasSupportedHeadlessAuth,
+      authMethod: selectedType,
+      apiProvider: hasGoogleApiKey ? "Google API key" : undefined,
+    },
+    authIssue: hasSupportedHeadlessAuth
+      ? undefined
+      : {
+          code: "gemini-headless-auth-missing",
+          severity: "warning" as const,
+          message:
+            "Gemini headless mode needs GEMINI_API_KEY, Vertex AI, or a supported Google sign-in path.",
+          action:
+            "Set GEMINI_API_KEY or configure Vertex AI before launching Gemini from Realmkeeper.",
+        },
+  };
+}
+
 function installManagedPolicy() {
   mkdirSync(dirname(GEMINI_POLICY_PATH), { recursive: true });
   writeFileSync(GEMINI_POLICY_PATH, GEMINI_POLICY);
@@ -212,12 +329,16 @@ export function uninstallGeminiHooks() {
 
 export function getGeminiHooksStatus() {
   const status = geminiGateStatus();
+  const authDiagnostic = getGeminiAuthDiagnostic();
   return {
     installed: isGeminiInstalled(),
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: GEMINI_SETTINGS_PATH,
     policyConfigPath: GEMINI_POLICY_PATH,
+    cliVersion: getGeminiCliVersion(),
+    authStatus: authDiagnostic.authStatus,
+    authIssue: authDiagnostic.authIssue,
     hooksEnabled: status.hooksEnabled,
     failClosedHookInstalled: status.failClosedHookInstalled,
     managedPolicyInstalled: status.managedPolicyInstalled,

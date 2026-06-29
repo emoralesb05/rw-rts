@@ -34,6 +34,21 @@ function installRw() {
     ...BASE_STATUS,
     hooksConfigPath: "/home/user/.gemini/settings.json",
     policyConfigPath: "/home/user/.gemini/policies/realmkeeper-managed.toml",
+    cliVersion: "0.49.0",
+    authStatus: {
+      loggedIn: true,
+      authMethod: "oauth-personal",
+      apiProvider: "Google sign-in",
+      subscriptionType: "cached OAuth",
+    },
+    authIssue: {
+      code: "gemini-oauth-headless-unverified",
+      severity: "info",
+      message:
+        "Gemini Google sign-in is configured, but Realmkeeper cannot infer from local settings whether this account tier supports headless Gemini CLI turns.",
+      action:
+        "If OAuth launch fails, sign in with the intended Google AI Pro, Ultra, or Workspace account, or set GEMINI_API_KEY or Vertex AI for the Gemini provider.",
+    },
     hooksEnabled: true,
     failClosedHookInstalled: true,
     managedPolicyInstalled: true,
@@ -103,6 +118,10 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText("claude.ai")).toBeVisible();
     expect(screen.getByText("/home/user/.claude/projects")).toBeVisible();
     expect(screen.getByText(/partials/i)).toBeVisible();
+    expect(screen.getByText("oauth-personal")).toBeVisible();
+    expect(screen.getByText("Google sign-in")).toBeVisible();
+    expect(screen.getByText("cached OAuth")).toBeVisible();
+    expect(screen.getByText(/cannot infer/i)).toBeVisible();
     await waitFor(() => {
       expect(screen.getByText(/--approval-mode yolo/i)).toBeVisible();
     });

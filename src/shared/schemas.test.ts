@@ -258,6 +258,11 @@ describe("runtime schemas", () => {
 
     expect(
       GeminiSettingsSchema.parse({
+        security: {
+          auth: {
+            selectedType: "oauth-personal",
+          },
+        },
         hooks: {
           BeforeTool: [
             {
@@ -274,7 +279,10 @@ describe("runtime schemas", () => {
           ],
         },
       })
-    ).toMatchObject({ hooks: expect.any(Object) });
+    ).toMatchObject({
+      hooks: expect.any(Object),
+      security: { auth: { selectedType: "oauth-personal" } },
+    });
   });
 
   it("parses provider JSONL only when the line is a JSON object", () => {
@@ -380,6 +388,12 @@ describe("runtime schemas", () => {
           authMethod: "claude.ai",
           apiProvider: "firstParty",
           subscriptionType: "max",
+        },
+        authIssue: {
+          code: "gemini-oauth-headless-unverified",
+          severity: "info",
+          message: "OAuth headless support needs validation",
+          action: "Confirm Google sign-in or use API key or Vertex",
         },
         settingsTemplate: '{\n  "hooksConfig": { "enabled": true }\n}',
       })

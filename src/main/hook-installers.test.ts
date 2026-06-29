@@ -26,7 +26,8 @@ async function withMockHome<T>(
     },
   }));
   vi.doMock("node:child_process", () => ({
-    execFileSync: vi.fn((_file, args) => {
+    execFileSync: vi.fn((file, args) => {
+      if (file === "gemini") return "0.49.0\n";
       if (Array.isArray(args) && args[0] === "auth") {
         return JSON.stringify({
           loggedIn: true,
@@ -73,6 +74,42 @@ function countCursorManagedEntries(file: any, event: string): number {
   return (file.hooks?.[event] ?? []).filter((entry: any) =>
     String(entry.command ?? "").includes("realmkeeper-hook")
   ).length;
+}
+
+const GEMINI_ENV_KEYS = [
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
+  "GOOGLE_GENAI_USE_VERTEXAI",
+  "GOOGLE_CLOUD_PROJECT",
+  "GOOGLE_CLOUD_PROJECT_ID",
+  "GOOGLE_CLOUD_LOCATION",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+] as const;
+
+type GeminiEnvKey = (typeof GEMINI_ENV_KEYS)[number];
+
+async function withGeminiEnv<T>(
+  fn: () => Promise<T> | T,
+  env: Partial<Record<GeminiEnvKey, string>> = {}
+): Promise<T> {
+  const previous = new Map<string, string | undefined>();
+  for (const key of GEMINI_ENV_KEYS) {
+    previous.set(key, process.env[key]);
+    delete process.env[key];
+  }
+  for (const [key, value] of Object.entries(env)) {
+    process.env[key] = value;
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const key of GEMINI_ENV_KEYS) {
+      const value = previous.get(key);
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }
 
 afterEach(() => {
@@ -181,6 +218,7 @@ describe("provider hook installers", () => {
       ]) {
         expect(countCursorManagedEntries(installed, event)).toBe(1);
       }
+
       expect(installed.hooks.preToolUse).toEqual(
         expect.arrayContaining([{ command: "foreign-cursor-hook", timeout: 5 }])
       );
@@ -196,90 +234,167 @@ describe("provider hook installers", () => {
   });
 
   it("installs Gemini hooks and managed policy idempotently", async () => {
-    await withMockHome(async (home) => {
-      const settingsPath = join(home, ".gemini", "settings.json");
-      const policyPath = join(
-        home,
-        ".gemini",
-        "policies",
-        "realmkeeper-managed.toml"
-      );
-      writeJson(settingsPath, {
-        hooks: {
-          BeforeTool: [
-            {
-              matcher: "foreign",
-              hooks: [{ type: "command", command: "foreign-gemini-hook" }],
-            },
-          ],
-        },
-      });
+    await withGeminiEnv(() =>
+      withMockHome(async (home) => {
+        const settingsPath = join(home, ".gemini", "settings.json");
+        const policyPath = join(
+          home,
+          ".gemini",
+          "policies",
+          "realmkeeper-managed.toml"
+        );
+        writeJson(settingsPath, {
+          hooks: {
+            BeforeTool: [
+              {
+                matcher: "foreign",
+                hooks: [{ type: "command", command: "foreign-gemini-hook" }],
+              },
+            ],
+          },
+        });
 
-      const {
-        installGeminiHooks,
-        uninstallGeminiHooks,
-        isGeminiInstalled,
-        getGeminiHooksStatus,
-      } = await import("./gemini-hook-installer");
+        const {
+          installGeminiHooks,
+          uninstallGeminiHooks,
+          isGeminiInstalled,
+          getGeminiHooksStatus,
+        } = await import("./gemini-hook-installer");
 
-      installGeminiHooks();
-      installGeminiHooks();
+        installGeminiHooks();
+        installGeminiHooks();
 
-      const installed = readJson(settingsPath);
-      expect(isGeminiInstalled()).toBe(true);
-      expect(getGeminiHooksStatus()).toMatchObject({
-        installed: true,
-        hooksConfigPath: settingsPath,
-        policyConfigPath: policyPath,
-        hooksEnabled: true,
-        failClosedHookInstalled: true,
-        managedPolicyInstalled: true,
-        launchApprovalMode: "yolo",
-        settingsTemplate: expect.stringContaining('"hooksConfig"'),
-      });
-      expect(existsSync(policyPath)).toBe(true);
-      for (const event of [
-        "SessionStart",
-        "SessionEnd",
-        "BeforeAgent",
-        "BeforeModel",
-        "BeforeToolSelection",
-        "BeforeTool",
-        "AfterTool",
-        "AfterModel",
-        "AfterAgent",
-        "PreCompress",
-        "Notification",
-      ]) {
-        expect(countClaudeLikeManagedEntries(installed, event)).toBe(1);
-      }
-      expect(installed.hooks.BeforeTool).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ matcher: "foreign" }),
-        ])
-      );
-      expect(
-        installed.hooks.BeforeTool.some((entry: any) =>
-          (entry.hooks ?? []).some((hook: any) =>
-            String(hook.command ?? "").includes(
-              "REALMKEEPER_GEMINI_FAIL_CLOSED=1"
+        const installed = readJson(settingsPath);
+        expect(isGeminiInstalled()).toBe(true);
+        expect(getGeminiHooksStatus()).toMatchObject({
+          installed: true,
+          hooksConfigPath: settingsPath,
+          policyConfigPath: policyPath,
+          cliVersion: "0.49.0",
+          hooksEnabled: true,
+          failClosedHookInstalled: true,
+          managedPolicyInstalled: true,
+          launchApprovalMode: "yolo",
+          authIssue: {
+            code: "gemini-headless-auth-missing",
+          },
+          settingsTemplate: expect.stringContaining('"hooksConfig"'),
+        });
+        expect(existsSync(policyPath)).toBe(true);
+        for (const event of [
+          "SessionStart",
+          "SessionEnd",
+          "BeforeAgent",
+          "BeforeModel",
+          "BeforeToolSelection",
+          "BeforeTool",
+          "AfterTool",
+          "AfterModel",
+          "AfterAgent",
+          "PreCompress",
+          "Notification",
+        ]) {
+          expect(countClaudeLikeManagedEntries(installed, event)).toBe(1);
+        }
+        expect(installed.hooks.BeforeTool).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ matcher: "foreign" }),
+          ])
+        );
+        expect(
+          installed.hooks.BeforeTool.some((entry: any) =>
+            (entry.hooks ?? []).some((hook: any) =>
+              String(hook.command ?? "").includes(
+                "REALMKEEPER_GEMINI_FAIL_CLOSED=1"
+              )
             )
           )
-        )
-      ).toBe(true);
+        ).toBe(true);
 
-      uninstallGeminiHooks();
-      const uninstalled = readJson(settingsPath);
-      expect(isGeminiInstalled()).toBe(false);
-      expect(existsSync(policyPath)).toBe(false);
-      expect(countClaudeLikeManagedEntries(uninstalled, "BeforeTool")).toBe(0);
-      expect(uninstalled.hooks.BeforeTool).toEqual([
-        {
-          matcher: "foreign",
-          hooks: [{ type: "command", command: "foreign-gemini-hook" }],
-        },
-      ]);
-    });
+        uninstallGeminiHooks();
+        const uninstalled = readJson(settingsPath);
+        expect(isGeminiInstalled()).toBe(false);
+        expect(existsSync(policyPath)).toBe(false);
+        expect(countClaudeLikeManagedEntries(uninstalled, "BeforeTool")).toBe(
+          0
+        );
+        expect(uninstalled.hooks.BeforeTool).toEqual([
+          {
+            matcher: "foreign",
+            hooks: [{ type: "command", command: "foreign-gemini-hook" }],
+          },
+        ]);
+      })
+    );
+  });
+
+  it("reports Gemini OAuth as configured but headless-unverified", async () => {
+    await withGeminiEnv(() =>
+      withMockHome(async (home) => {
+        const settingsPath = join(home, ".gemini", "settings.json");
+        const oauthPath = join(home, ".gemini", "oauth_creds.json");
+        writeJson(settingsPath, {
+          security: {
+            auth: {
+              selectedType: "oauth-personal",
+            },
+          },
+        });
+        writeJson(oauthPath, { refresh_token: "redacted" });
+
+        const { getGeminiHooksStatus } =
+          await import("./gemini-hook-installer");
+
+        expect(getGeminiHooksStatus()).toMatchObject({
+          cliVersion: "0.49.0",
+          authStatus: {
+            loggedIn: true,
+            authMethod: "oauth-personal",
+            apiProvider: "Google sign-in",
+            subscriptionType: "cached OAuth",
+          },
+          authIssue: {
+            code: "gemini-oauth-headless-unverified",
+            severity: "info",
+            message: expect.stringContaining("cannot infer"),
+            action: expect.stringContaining("Google AI Pro"),
+          },
+        });
+      })
+    );
+  });
+
+  it("warns when Gemini Vertex auth is missing location config", async () => {
+    await withGeminiEnv(
+      () =>
+        withMockHome(async (home) => {
+          const settingsPath = join(home, ".gemini", "settings.json");
+          writeJson(settingsPath, {
+            security: {
+              auth: {
+                selectedType: "vertex-ai",
+              },
+            },
+          });
+
+          const { getGeminiHooksStatus } =
+            await import("./gemini-hook-installer");
+
+          expect(getGeminiHooksStatus()).toMatchObject({
+            authStatus: {
+              loggedIn: false,
+              authMethod: "vertex-ai",
+              apiProvider: "Vertex AI",
+            },
+            authIssue: {
+              code: "gemini-vertex-config-missing",
+              severity: "warning",
+              message: expect.stringContaining("GOOGLE_CLOUD_LOCATION"),
+            },
+          });
+        }),
+      { GOOGLE_CLOUD_PROJECT: "realmkeeper-test" }
+    );
   });
 
   it("treats globally disabled Gemini hooks as not installed", async () => {
