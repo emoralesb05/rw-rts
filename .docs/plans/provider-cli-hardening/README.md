@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-27 (defined provider parity contract and ticket sequence)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled implemented provider parity slices)
 > **Engineer profile:** Senior TypeScript/Electron engineer with CLI protocol experience; read `.docs/providers/`, `src/main/adapters/`, `src/main/*hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 5 PRs, medium; one shared contract PR plus one provider PR each
 > **Scope:** normalize provider launch, resume, stream, permission, docs, and probe contracts · **Origin:** follow-on from provider CLI capability research
@@ -55,10 +55,10 @@ The parity plan is to make every provider explicit about five things: how Realmk
 ## PR sequence
 
 1. **Shared provider contract** — keep this matrix and `.docs/providers/` aligned; add a small checklist to provider docs for future upgrades.
-2. **Codex request parity** — finish fail-closed coverage for app-server approval, user-input, MCP form, and unsupported request shapes.
-3. **Claude stream parity** — add deferred user-interaction fixtures and decide transient partial rendering before enabling rich-stream flags by default.
-4. **Cursor reliability parity** — capture active/resume stream fixtures, make Realmkeeper-owned `--force --trust` autonomy visible, and keep observed permissions explicitly informational.
-5. **Gemini policy parity** — add hook payload fixtures, expose diagnostics around hook/policy status, and keep `yolo` behind the enabled fail-closed gate.
+2. **Codex request parity** — ✅ implemented: app-server approval, user-input, typed MCP form, and unsupported request shapes are covered and surfaced through diagnostics.
+3. **Claude stream parity** — partial-rendering decision and diagnostics are implemented; deferred user-interaction fixtures remain blocked on a live `AskUserQuestion`/`updatedInput` contract capture.
+4. **Cursor reliability parity** — autonomy disclosure and observe-only permission semantics are implemented; active/resume stream fixtures still need an authenticated live Cursor run.
+5. **Gemini policy parity** — ✅ implemented for hook payload fixtures, hook/policy diagnostics, settings export, and `yolo` gating; live policy execution remains blocked on non-interactive Gemini auth.
 
 ## Acceptance gate
 

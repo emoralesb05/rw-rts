@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented settings-template export)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled hook fixtures, diagnostics, and settings export)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI hooks and policy files; read `.docs/providers/gemini.md`, `src/main/adapters/gemini-cli.ts`, `src/main/gemini-hook-installer.ts`, and `src/main/adapters/gemini-cli-gate.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Gemini stream-json launch, policy diagnostics, hook payload fixtures, and safe approval mode selection · **Origin:** provider CLI hardening
@@ -29,8 +29,8 @@ Gemini can reach actionable permission parity, but only when Realmkeeper can ver
 
 ## PR sequence
 
-1. **Hook payload fixtures** — add current Gemini `BeforeTool`, `AfterTool`, `AfterAgent`, and `Notification/ToolPermission` fixtures and bridge tests.
-2. **Policy/status diagnostics** — show Gemini hook enabled state, managed policy path, policy marker, and selected launch approval mode in provider status UI/logs.
+1. **Hook payload fixtures** — ✅ implemented: `BeforeTool`, `AfterTool`, `AfterAgent`, subagent parent linking, and advisory `Notification/ToolPermission` behavior are covered by bridge tests.
+2. **Policy/status diagnostics** — ✅ implemented: hook enabled state, fail-closed hook state, managed policy path/marker, selected launch approval mode, and settings-template export are visible from provider status.
 3. **Settings template export** — ✅ implemented: the Connection tab exposes a copyable minimal `.gemini/settings.json` template and provider docs explain that Realmkeeper does not write repo-local Gemini settings automatically.
 
 ## Acceptance gate

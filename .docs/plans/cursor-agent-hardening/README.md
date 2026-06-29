@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented identity diagnostics)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled autonomy disclosure and identity diagnostics)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI streams and provider-specific permission models; read `.docs/providers/cursor.md`, `src/main/adapters/cursor-cli.ts`, `src/main/cursor-hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Cursor headless start/resume reliability, stream fixtures, and explicit observe-only permissions · **Origin:** provider CLI hardening
@@ -30,7 +30,7 @@ Cursor can match the start/resume/stream/doc/probe parts of provider parity, but
 ## PR sequence
 
 1. **Cursor stream fixtures** — capture active and resumed `stream-json` output for assistant text, shell execution, edit execution, and completion events; add regression tests.
-2. **Autonomy disclosure** — expose the Realmkeeper-started Cursor mode (`--force --trust`, later maybe `--auto-review`) in dispatch/settings UI and docs.
+2. **Autonomy disclosure** — ✅ implemented: the dispatch UI and provider docs disclose Realmkeeper-started `--force --trust`; observed approvals remain native-UI/observe-only.
 3. **Identity reconciliation** — ✅ implemented: Cursor events include diagnostic payload metadata for raw `cursorChatId` / `providerConversationId` and `providerSessionId` when exposed, while resume keeps stripping Realmkeeper's `cursor-` routing prefix before calling the CLI.
 
 ## Acceptance gate

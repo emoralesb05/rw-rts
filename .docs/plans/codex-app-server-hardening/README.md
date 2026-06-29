@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented app-server diagnostics payloads)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-29 (reconciled request parity and diagnostics)
 > **Engineer profile:** Senior TypeScript engineer comfortable with JSON-RPC protocols; read `.docs/providers/codex.md`, `src/main/adapters/codex-app-server.ts`, `src/main/adapters/codex-cli.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Codex app-server approvals, user input, steering, and unsupported request handling · **Origin:** provider CLI hardening
@@ -29,9 +29,9 @@ Codex is the richest integration surface and should stay on `codex app-server --
 
 ## PR sequence
 
-1. **Request-shape regression suite** — assert every app-server request method maps to permission, answer letter, or explicit fail-closed response.
+1. **Request-shape regression suite** — ✅ implemented: command/file/permission approvals, user-input letters, typed MCP form letters, URL/openai-form elicitations, and unsupported request shapes are covered.
 2. **Codex diagnostics** — ✅ implemented: app-server lifecycle/prompt/error events carry `payload.codexAppServer` with startup/turn status, current thread/turn ids, approval category mapping, and unsupported request counts.
-3. **Dynamic-tool decision gate** — keep dynamic tools disabled by default; open a separate feature plan only when there is a concrete Realmkeeper-local tool use case.
+3. **Dynamic-tool decision gate** — ✅ implemented as fail-closed: dynamic tools stay disabled by default and require a separate feature plan before Realmkeeper exposes a UI for them.
 
 ## Acceptance gate
 
