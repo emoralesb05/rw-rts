@@ -79,8 +79,11 @@ describe("runtime schemas", () => {
     ).toMatchObject({ optionId: "deny" });
   });
 
-  it("accepts the Codex answer-letter fixture scenario", () => {
+  it("accepts answer-letter fixture scenarios", () => {
     expect(FixtureScenarioSchema.parse("codex-inputs")).toBe("codex-inputs");
+    expect(FixtureScenarioSchema.parse("claude-question")).toBe(
+      "claude-question"
+    );
   });
 
   it("rejects corrupt persisted state counters", () => {

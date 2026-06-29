@@ -287,6 +287,91 @@ function scheduleCodexInputs(cwd: string) {
   activeTimers.set(sessionId, timers);
 }
 
+function scheduleClaudeQuestion(cwd: string) {
+  const sessionId = `claude-question-${randomUUID()}`;
+  const requestId = `fixture-claude-question-${randomUUID()}`;
+  const timers: NodeJS.Timeout[] = [];
+  const emit = (
+    delayMs: number,
+    kind: AgentEvent["kind"],
+    payload: AgentEvent["payload"]
+  ) => {
+    timers.push(
+      setTimeout(() => {
+        bus.emitAgentEvent({
+          sessionId,
+          tool: "claude",
+          cwd,
+          timestamp: Date.now(),
+          kind,
+          payload,
+          source: "spawned",
+        });
+      }, delayMs)
+    );
+  };
+
+  emit(100, "session_start", {
+    text: "claude AskUserQuestion fixture",
+  });
+  emit(450, "user_input_request", {
+    requestId,
+    name: "AskUserQuestion",
+    text: "Which implementation style should Claude use?",
+    input: {
+      questions: [
+        {
+          question: "Which implementation style should Claude use?",
+          options: [
+            { label: "Small", description: "Make the narrowest change." },
+            { label: "Broad", description: "Include surrounding cleanup." },
+          ],
+        },
+        {
+          question: "Which areas should Claude inspect?",
+          allow_multiple: true,
+          choices: ["tests", "docs", "renderer"],
+        },
+      ],
+    },
+    questions: [
+      {
+        id: "question-1",
+        header: "Question 1",
+        question: "Which implementation style should Claude use?",
+        required: true,
+        options: [
+          {
+            label: "Small",
+            value: "Small",
+            description: "Make the narrowest change.",
+          },
+          {
+            label: "Broad",
+            value: "Broad",
+            description: "Include surrounding cleanup.",
+          },
+        ],
+      },
+      {
+        id: "question-2",
+        header: "Question 2",
+        question: "Which areas should Claude inspect?",
+        required: true,
+        multiSelect: true,
+        options: [
+          { label: "tests", value: "tests" },
+          { label: "docs", value: "docs" },
+          { label: "renderer", value: "renderer" },
+        ],
+      },
+    ],
+  });
+
+  timers.push(setTimeout(() => activeTimers.delete(sessionId), 10_000));
+  activeTimers.set(sessionId, timers);
+}
+
 function geminiTurn(cwd: string): FakeUnit {
   return {
     sessionId: `gemini-fixture-${randomUUID()}`,
@@ -540,6 +625,7 @@ export type FixtureScenarioId =
   | "cursor-turn"
   | "codex-shell"
   | "codex-inputs"
+  | "claude-question"
   | "gemini-turn"
   | "subagent"
   | "stress"
@@ -577,6 +663,9 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "codex-inputs":
       scheduleCodexInputs(c);
+      break;
+    case "claude-question":
+      scheduleClaudeQuestion(c);
       break;
     case "gemini-turn":
       schedule(geminiTurn(c));

@@ -68,6 +68,7 @@ export const FixtureScenarioSchema = z.enum([
   "cursor-turn",
   "codex-shell",
   "codex-inputs",
+  "claude-question",
   "gemini-turn",
   "subagent",
   "stress",

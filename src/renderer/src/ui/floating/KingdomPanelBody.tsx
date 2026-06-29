@@ -65,6 +65,7 @@ const DEMO_FIXTURES = [
       { id: "cursor-turn", label: "Cursor · multi-tool turn" },
       { id: "codex-shell", label: "Codex · shell" },
       { id: "codex-inputs", label: "Codex · answer letters" },
+      { id: "claude-question", label: "Claude · question letter" },
       { id: "gemini-turn", label: "Gemini · search + write" },
       { id: "subagent", label: "Claude · subagent (Link aura)" },
       { id: "combat", label: "Combat · riftling raid" },
