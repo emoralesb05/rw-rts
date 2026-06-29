@@ -54,6 +54,6 @@ Claude already has the provider basics: Realmkeeper can start and resume print-m
 
 ## Coverage gaps — what this does NOT validate
 
-- No live fixture yet proves the deferred user-interaction resume/update loop end to end; current coverage validates the hook/letter/`updatedInput` path synthetically.
+- No live fixture yet proves the deferred user-interaction resume/update loop end to end; current coverage validates the hook/letter/`updatedInput` path synthetically. A 2026-06-29 bounded live probe showed `--tools AskUserQuestion` initializes with `tools: []`, so the next attempt needs a provider-supported way to expose or trigger that tool in print mode.
 - Background agents and forked sessions are intentionally out of scope until Realmkeeper has UI for those concepts.
 - Claude native permission prompts may still race with Realmkeeper's hook-backed prompt; the plan preserves the documented behavior rather than hiding it.

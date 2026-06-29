@@ -75,7 +75,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 ## Coverage gaps — what this does NOT validate
 
 - Cursor actionable approvals are upstream-gated; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
-- Live Claude deferred user-interaction and background-agent metadata still need authenticated fixture coverage.
+- Live Claude deferred user-interaction and background-agent metadata still need fixture coverage. A 2026-06-29 authenticated print-mode attempt with `--tools AskUserQuestion` initialized with `tools: []`, so the next probe needs a provider-supported trigger for that tool.
 - Live Gemini policy execution could not be fully exercised. A 2026-06-29 session-list check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
 - Provider CLIs are fast-moving; this plan is ready to ticket from the 2026-06-26 probes, not a guarantee that future versions still match.
 

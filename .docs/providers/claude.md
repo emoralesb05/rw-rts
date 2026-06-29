@@ -108,6 +108,7 @@ Official CLI reference now documents several capabilities worth tracking:
 - `--brief` enables the provider-native `SendUserMessage` tool. It overlaps with Realmkeeper letters conceptually, but should stay off until we know the stream and hook payload shape.
 - Live rich-stream probe with `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` produced `system` hook lifecycle events, `stream_event` message deltas, `rate_limit_event`, the normal final `assistant`, and `result`. The current loose parser accepts those event types and the normalizer safely ignores them unless we add explicit transient rendering.
 - Public hook docs describe `PreToolUse` `updatedInput` as the client-side answer path for `AskUserQuestion`; Realmkeeper now implements that path through answer letters. A live deferred-resume fixture is still missing.
+- A 2026-06-29 live probe with `--tools AskUserQuestion` did **not** expose the tool (`tools: []` in the init event). Claude emitted malformed XML-like text instead and hit the budget cap. Do not use that command shape as the live fixture path.
 
 ## MCP, agents, plugins (we observe, don't drive)
 
@@ -122,5 +123,6 @@ Official CLI reference now documents several capabilities worth tracking:
 - **PostToolUse doesn't fire on Read of a missing file.** Only PreToolUse fires; the tool fails internally. We can't observe the result, only the attempt. Live with it (Option C from earlier debugging).
 - **Live TUI doesn't watch its own JSONL.** If you `--resume` from another shell while the TUI is still open, the TUI keeps its in-memory state and is now stale. Reload (Ctrl-C, re-run `claude --resume <id>`) to re-sync.
 - **`--bare` and `--safe-mode` disable hooks.** A user running `claude --bare` or `claude --safe-mode` is **invisible to realmkeeper**. `--bare` also skips LSP, plugins, auto-memory, CLAUDE.md discovery, and OAuth/keychain reads. If a user complains "my session isn't showing up", check these flags first.
+- **`--max-budget-usd` is a stop guard, not a hard cost ceiling.** The 2026-06-29 live question probe stopped with `error_max_budget_usd` but reported total cost above the requested cap. Use it to limit runaway probes, not to promise an exact maximum.
 - **IDE attach lock files** at `~/.claude/ide/<port>.lock` carry `{workspaceFolders, ideName}` — informational, not currently consumed.
 - **Worktree workflow.** `claude --worktree` and `--from-pr` are first-class but we don't model worktrees as separate realmkeeper worlds (`resolveRepoRoot` walks to the worktree's `.git`, which is a file pointer back to the main repo). Sessions in worktrees end up under the main repo's world. Acceptable tradeoff; flagged here so future work knows.
