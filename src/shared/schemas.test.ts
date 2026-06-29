@@ -127,6 +127,30 @@ describe("runtime schemas", () => {
     });
   });
 
+  it("accepts Cursor provider identity diagnostics on event payloads", () => {
+    expect(
+      AgentEventSchema.parse({
+        sessionId: "cursor-chat-1",
+        tool: "cursor",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "assistant_text",
+        payload: {
+          text: "done",
+          cursorChatId: "chat-1",
+          providerConversationId: "chat-1",
+          providerSessionId: "process-1",
+        },
+        source: "hook",
+      })
+    ).toMatchObject({
+      payload: {
+        cursorChatId: "chat-1",
+        providerSessionId: "process-1",
+      },
+    });
+  });
+
   it("accepts Realmkeeper-originated prompts for observed sessions", () => {
     expect(
       AgentEventSchema.parse({

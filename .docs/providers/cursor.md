@@ -38,6 +38,17 @@ The bridge dispatches Cursor events by detecting camelCase first letter (vs Pasc
 
 In `--print --resume <chatId>` mode the sessionId Cursor emits in hooks IS the chatId — a useful exception. In normal IDE use, the sessionId is a fresh process UUID.
 
+Realmkeeper keeps its routing key unchanged but adds explicit diagnostic
+metadata to Cursor event payloads:
+
+- `cursorChatId` / `providerConversationId`: the raw persistent Cursor chat id.
+- `providerSessionId`: the raw Cursor process session id when the hook or stream
+  payload exposes it.
+
+For observed hook traffic, Realmkeeper still prefixes the routing id as
+`cursor-<chatId>` so it cannot collide with other providers. For resume calls, it
+strips that prefix before calling `cursor-agent --resume <chatId>`.
+
 ## Chat persistence
 
 ```
@@ -102,6 +113,6 @@ Realmkeeper still uses `--force --trust` only for sessions it starts itself. `--
 
 - **`--print --resume` strips MOST hooks.** Only `sessionEnd` fires. No `beforeSubmitPrompt`, no `afterAgentResponse`, no `preToolUse`/`postToolUse`. Use `--output-format stream-json` and parse stdout for realmkeeper-driven observed turns; don't rely on hooks for those events.
 - **Allowlist mode advisory.** Hook-allow doesn't bypass the IDE prompt unless `--force`/`--yolo`. We're observational by design.
-- **Process sessionId vs chatId.** When the user opens a fresh Cursor IDE session against an existing chat, the events come in under a NEW process sessionId. We currently see this as a new wielder; aggregating by chatId would require a Cursor-specific mapping (chatId is not in every hook payload).
+- **Process sessionId vs chatId.** When the user opens a fresh Cursor IDE session against an existing chat, the events come in under a NEW process sessionId. Realmkeeper now emits both ids when Cursor exposes them, but aggregating older payloads still requires a Cursor-specific mapping because chatId is not guaranteed in every hook payload.
 - **No equivalent of `--include-non-interactive`.** All resume paths assume an interactive UI eventually opens the chat — no first-class headless flow other than `--print`.
 - **No public IDE-attach API for command injection.** We can write to the chat (via `--print --resume`), but can't drive the IDE's input box from outside.

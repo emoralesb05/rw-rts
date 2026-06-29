@@ -17,7 +17,11 @@ import {
   normalizeCodexAppServerNotification,
 } from "./codex-app-server";
 import { normalizeCodexStreamMessage } from "./codex-cli";
-import { buildCursorArgs, normalizeCursorStreamMessage } from "./cursor-cli";
+import {
+  buildCursorArgs,
+  cursorChatIdFromSessionId,
+  normalizeCursorStreamMessage,
+} from "./cursor-cli";
 import { buildGeminiArgs, buildGeminiLaunchOptions } from "./gemini-cli";
 
 describe("active CLI stream normalization", () => {
@@ -625,6 +629,32 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("normalizes Cursor assistant identity diagnostics", () => {
+    const events = normalizeCursorStreamMessage(
+      {
+        type: "assistant",
+        session_id: "cursor-process-1",
+        message: { content: [{ type: "text", text: "Done." }] },
+      },
+      "cursor-chat-1",
+      "/repo"
+    );
+
+    expect(events).toMatchObject([
+      {
+        sessionId: "cursor-chat-1",
+        tool: "cursor",
+        kind: "assistant_text",
+        payload: {
+          text: "Done.",
+          cursorChatId: "chat-1",
+          providerConversationId: "chat-1",
+          providerSessionId: "cursor-process-1",
+        },
+      },
+    ]);
+  });
+
   it("builds Claude spawn and resume args with stable session ids", () => {
     expect(
       buildClaudeArgs("map the repo", {
@@ -677,6 +707,9 @@ describe("active CLI stream normalization", () => {
   });
 
   it("builds Cursor headless resume args for Realmkeeper-created chats", () => {
+    expect(cursorChatIdFromSessionId("cursor-chat-123")).toBe("chat-123");
+    expect(cursorChatIdFromSessionId("chat-123")).toBe("chat-123");
+
     expect(buildCursorArgs("map the repo", "chat-123")).toEqual([
       "--print",
       "--output-format",

@@ -77,10 +77,26 @@ function spawnCursorProcess(prompt: string, cwd: string, chatId: string) {
   });
 }
 
-function chatIdForSession(sessionId: string): string {
+export function cursorChatIdFromSessionId(sessionId: string): string {
   return sessionId.startsWith("cursor-")
     ? sessionId.slice("cursor-".length)
     : sessionId;
+}
+
+function cursorIdentityPayload(
+  sessionId: string,
+  providerSessionId?: string
+): {
+  cursorChatId: string;
+  providerConversationId: string;
+  providerSessionId?: string;
+} {
+  const cursorChatId = cursorChatIdFromSessionId(sessionId);
+  return {
+    cursorChatId,
+    providerConversationId: cursorChatId,
+    ...(providerSessionId ? { providerSessionId } : {}),
+  };
 }
 
 function createChat(cwd: string): string {
@@ -103,7 +119,7 @@ export function spawnCursorAgent(opts: SpawnCursorOptions): SpawnedCursorAgent {
     cwd: opts.cwd,
     timestamp: Date.now(),
     kind: "session_start",
-    payload: { text: opts.prompt },
+    payload: { text: opts.prompt, ...cursorIdentityPayload(sessionId) },
     source: "spawned",
   });
 
@@ -127,7 +143,7 @@ export function spawnCursorAgent(opts: SpawnCursorOptions): SpawnedCursorAgent {
         cwd: opts.cwd,
         timestamp: Date.now(),
         kind: "user_prompt",
-        payload: { text: prompt },
+        payload: { text: prompt, ...cursorIdentityPayload(sessionId) },
         source: "spawned",
       });
       const followUp = spawnCursorProcess(prompt, opts.cwd, sessionId);
@@ -151,20 +167,17 @@ export function resumeCursorSession(opts: {
   cwd: string;
   prompt: string;
 }): ChildProcess {
+  const cursorChatId = cursorChatIdFromSessionId(opts.sessionId);
   bus.emitAgentEvent({
     sessionId: opts.sessionId,
     tool: "cursor",
     cwd: opts.cwd,
     timestamp: Date.now(),
     kind: "user_prompt",
-    payload: { text: opts.prompt },
+    payload: { text: opts.prompt, ...cursorIdentityPayload(opts.sessionId) },
     source: "realmkeeper",
   });
-  const proc = spawnCursorProcess(
-    opts.prompt,
-    opts.cwd,
-    chatIdForSession(opts.sessionId)
-  );
+  const proc = spawnCursorProcess(opts.prompt, opts.cwd, cursorChatId);
   attachStream(
     proc,
     () => opts.sessionId,
@@ -255,6 +268,16 @@ export function normalizeCursorStreamMessage(
     cwd,
     source,
   };
+  const rawProviderSessionId =
+    typeof msg.session_id === "string"
+      ? msg.session_id
+      : typeof msg.sessionId === "string"
+        ? msg.sessionId
+        : undefined;
+  const identityPayload = cursorIdentityPayload(
+    sessionId,
+    rawProviderSessionId
+  );
   const out: AgentEvent[] = [];
 
   // Drop anything labelled as a delta or partial; we only render whole messages.
@@ -279,13 +302,13 @@ export function normalizeCursorStreamMessage(
         ...base,
         timestamp: ts,
         kind: "tool_use",
-        payload: { name, input: inner?.args },
+        payload: { ...identityPayload, name, input: inner?.args },
       });
       out.push({
         ...base,
         timestamp: ts,
         kind: "tool_result",
-        payload: { output: inner?.result },
+        payload: { ...identityPayload, output: inner?.result },
       });
     }
     return out;
@@ -301,14 +324,18 @@ export function normalizeCursorStreamMessage(
             ...base,
             timestamp: ts,
             kind: "assistant_text",
-            payload: { text: block.text },
+            payload: { ...identityPayload, text: block.text },
           });
         } else if (block.type === "tool_use") {
           out.push({
             ...base,
             timestamp: ts,
             kind: "tool_use",
-            payload: { name: String(block.name ?? ""), input: block.input },
+            payload: {
+              ...identityPayload,
+              name: String(block.name ?? ""),
+              input: block.input,
+            },
           });
         }
       }
@@ -323,7 +350,7 @@ export function normalizeCursorStreamMessage(
             ...base,
             timestamp: ts,
             kind: "tool_result",
-            payload: { output: block.content },
+            payload: { ...identityPayload, output: block.content },
           });
         }
       }
@@ -334,6 +361,7 @@ export function normalizeCursorStreamMessage(
       timestamp: ts,
       kind: "session_end",
       payload: {
+        ...identityPayload,
         text: typeof msg.result === "string" ? msg.result : "",
         output: msg.usage,
       },

@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-27 (converted to provider parity plan and resolved observe-only permission stance)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented identity diagnostics)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI streams and provider-specific permission models; read `.docs/providers/cursor.md`, `src/main/adapters/cursor-cli.ts`, `src/main/cursor-hook-installer.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Cursor headless start/resume reliability, stream fixtures, and explicit observe-only permissions · **Origin:** provider CLI hardening
@@ -31,14 +31,14 @@ Cursor can match the start/resume/stream/doc/probe parts of provider parity, but
 
 1. **Cursor stream fixtures** — capture active and resumed `stream-json` output for assistant text, shell execution, edit execution, and completion events; add regression tests.
 2. **Autonomy disclosure** — expose the Realmkeeper-started Cursor mode (`--force --trust`, later maybe `--auto-review`) in dispatch/settings UI and docs.
-3. **Identity reconciliation** — add diagnostics that distinguish Cursor process `sessionId` from persistent `chatId`, and document when Realmkeeper can or cannot merge them.
+3. **Identity reconciliation** — ✅ implemented: Cursor events include diagnostic payload metadata for raw `cursorChatId` / `providerConversationId` and `providerSessionId` when exposed, while resume keeps stripping Realmkeeper's `cursor-` routing prefix before calling the CLI.
 
 ## Acceptance gate
 
 - Adapter tests cover Cursor active/resume launch args and every supported optional flag.
 - Stream fixtures prove assistant, shell/edit, and completion events render for Realmkeeper-originated Cursor turns without relying on stripped hooks.
 - Observe-only letters cannot be mistaken for enforceable allow/deny actions.
-- Provider docs explain `sessionId` vs `chatId`, `--print --resume` hook stripping, and the autonomy setting.
+- Provider docs explain `sessionId` vs `chatId`, diagnostic identity payloads, `--print --resume` hook stripping, and the autonomy setting.
 - `pnpm run lint`, `pnpm run typecheck`, `pnpm test`, and `pnpm run build` pass.
 
 ## Probes
@@ -50,5 +50,6 @@ Cursor can match the start/resume/stream/doc/probe parts of provider parity, but
 
 - No public Cursor contract currently lets Realmkeeper enforce observed-session permissions externally.
 - Active/resume stream fixtures still need a live Cursor run with representative shell/edit actions.
+- Some older Cursor hook payloads may omit `conversation_id`; those remain unmergeable without a provider-side chat lookup.
 - Cursor IDE attach/input automation is out of scope; Realmkeeper can append turns through CLI resume, not drive the IDE input box.
 - Cursor cloud worker/private plugin surfaces are documented but not part of Realmkeeper parity yet.

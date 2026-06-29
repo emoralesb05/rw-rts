@@ -3,6 +3,7 @@ import type { AgentEvent, AgentEventKind } from "@shared/events";
 import type { HookPayload } from "@shared/schemas";
 import { permissionCapabilityForTool } from "@shared/provider-permissions";
 import { isSpawnedSession } from "./claude-cli";
+import { cursorChatIdFromSessionId } from "./cursor-cli";
 
 function nonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
@@ -57,6 +58,17 @@ const TOOL_NAME_CANONICAL: Record<string, string> = {
 function canonicalToolName(raw: unknown): string | undefined {
   if (typeof raw !== "string" || !raw) return undefined;
   return TOOL_NAME_CANONICAL[raw] ?? raw;
+}
+
+function cursorIdentityPayload(conversationId: string, p: HookPayload) {
+  const providerSessionId =
+    nonEmptyString(p.sessionId) ?? nonEmptyString(p.session_id);
+  const cursorChatId = cursorChatIdFromSessionId(`cursor-${conversationId}`);
+  return {
+    cursorChatId,
+    providerConversationId: cursorChatId,
+    ...(providerSessionId ? { providerSessionId } : {}),
+  };
 }
 
 function geminiParentSessionFromTranscriptPath(
@@ -373,6 +385,7 @@ function normalizeCursorPayload(
   // for older Cursor versions in some configurations; fall through if
   // we have nothing to key off of.
   if (!conversationId) return null;
+  const identityPayload = cursorIdentityPayload(conversationId, p);
   const base = {
     sessionId: `cursor-${conversationId}`,
     tool: "cursor" as const,
@@ -391,7 +404,7 @@ function normalizeCursorPayload(
         ...base,
         timestamp: ts,
         kind: "session_start",
-        payload: { text: "Cursor chat" },
+        payload: { text: "Cursor chat", ...identityPayload },
       };
     case "sessionEnd":
     case "stop":
@@ -399,14 +412,17 @@ function normalizeCursorPayload(
         ...base,
         timestamp: ts,
         kind: "session_end",
-        payload: { text: (p.reason as string) ?? (p.status as string) ?? "" },
+        payload: {
+          text: (p.reason as string) ?? (p.status as string) ?? "",
+          ...identityPayload,
+        },
       };
     case "beforeSubmitPrompt":
       return {
         ...base,
         timestamp: ts,
         kind: "user_prompt",
-        payload: { text: (p.prompt as string) ?? "" },
+        payload: { text: (p.prompt as string) ?? "", ...identityPayload },
       };
     case "preToolUse":
       // Both beforeShellExecution and preToolUse fire for shell tools;
@@ -418,6 +434,7 @@ function normalizeCursorPayload(
         timestamp: ts,
         kind: "tool_use",
         payload: {
+          ...identityPayload,
           name: canonicalToolName(p.tool_name),
           input: p.tool_input,
         },
@@ -428,6 +445,7 @@ function normalizeCursorPayload(
         timestamp: ts,
         kind: "tool_result",
         payload: {
+          ...identityPayload,
           name: canonicalToolName(p.tool_name),
           input: p.tool_input,
           output: p.tool_output,
@@ -446,7 +464,7 @@ function normalizeCursorPayload(
         ...base,
         timestamp: ts,
         kind: "assistant_text",
-        payload: { text: (p.text as string) ?? "" },
+        payload: { text: (p.text as string) ?? "", ...identityPayload },
       };
     case "beforeShellExecution": {
       // Observational permission letter. Script returns "ask" so
@@ -465,6 +483,7 @@ function normalizeCursorPayload(
         timestamp: ts,
         kind: "permission_request",
         payload: {
+          ...identityPayload,
           name: "Bash",
           input: { command: p.command, cwd: p.cwd },
           requestId,

@@ -160,6 +160,7 @@ describe("hook bridge normalization", () => {
     const event = normalizeHookPayload({
       hook_event_name: "beforeShellExecution",
       conversation_id: "chat-1",
+      session_id: "process-1",
       cwd: "/repo",
       command: "npm test",
       __rw_permission_request_id: "req-cursor",
@@ -172,6 +173,9 @@ describe("hook bridge normalization", () => {
       payload: {
         name: "Bash",
         requestId: "req-cursor",
+        cursorChatId: "chat-1",
+        providerConversationId: "chat-1",
+        providerSessionId: "process-1",
         permissionMode: "observe",
         permissionOptions: [
           expect.objectContaining({ id: "ack-native", decision: "observe" }),
@@ -184,6 +188,7 @@ describe("hook bridge normalization", () => {
     const event = normalizeHookPayload({
       hook_event_name: "afterAgentResponse",
       conversation_id: "chat-1",
+      sessionId: "process-2",
       cwd: "/repo",
       text: "Done.",
     });
@@ -193,7 +198,12 @@ describe("hook bridge normalization", () => {
       tool: "cursor",
       cwd: "/repo",
       kind: "assistant_text",
-      payload: { text: "Done." },
+      payload: {
+        text: "Done.",
+        cursorChatId: "chat-1",
+        providerConversationId: "chat-1",
+        providerSessionId: "process-2",
+      },
     });
   });
 
