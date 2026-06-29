@@ -29,6 +29,11 @@ import { isSpawnedSession } from "./claude-cli";
 import { ClaudeTranscriptLineSchema } from "@shared/schemas";
 
 const PROJECTS_ROOT = join(homedir(), ".claude", "projects");
+export const CLAUDE_TRANSCRIPT_POLL_MS = 2000;
+
+export function getClaudeTranscriptProjectsRoot(): string {
+  return PROJECTS_ROOT;
+}
 
 type FileState = {
   path: string;
@@ -203,7 +208,9 @@ function pollOnce() {
   }
 }
 
-export function startClaudeTranscriptWatcher(intervalMs = 2000) {
+export function startClaudeTranscriptWatcher(
+  intervalMs = CLAUDE_TRANSCRIPT_POLL_MS
+) {
   if (pollTimer) return;
   if (!existsSync(PROJECTS_ROOT)) {
     console.log(

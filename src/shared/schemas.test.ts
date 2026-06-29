@@ -364,6 +364,14 @@ describe("runtime schemas", () => {
         socketPath: "/tmp/realmkeeper.sock",
         hookScriptPath: "/repo/dist/realmkeeper-hook",
         hooksConfigPath: "/home/user/.cursor/hooks.json",
+        cliVersion: "2.1.193 (Claude Code)",
+        transcriptWatcherPath: "/home/user/.claude/projects",
+        transcriptWatcherPollMs: 2000,
+        richStreamFlags: {
+          includeHookEvents: false,
+          includePartialMessages: false,
+          promptSuggestions: false,
+        },
         settingsTemplate: '{\n  "hooksConfig": { "enabled": true }\n}',
       })
     ).toMatchObject({ installed: true });

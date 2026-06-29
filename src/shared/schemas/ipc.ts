@@ -125,6 +125,16 @@ export const HooksStatusSchema = z.object({
   hookScriptPath: z.string(),
   hooksConfigPath: z.string().optional(),
   policyConfigPath: z.string().optional(),
+  cliVersion: z.string().optional(),
+  transcriptWatcherPath: z.string().optional(),
+  transcriptWatcherPollMs: z.number().int().nonnegative().optional(),
+  richStreamFlags: z
+    .object({
+      includeHookEvents: z.boolean(),
+      includePartialMessages: z.boolean(),
+      promptSuggestions: z.boolean(),
+    })
+    .optional(),
   hooksEnabled: z.boolean().optional(),
   failClosedHookInstalled: z.boolean().optional(),
   managedPolicyInstalled: z.boolean().optional(),

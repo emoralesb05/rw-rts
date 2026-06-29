@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-27 (resolved rich-stream defaults and parity tickets)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented Claude diagnostics)
 > **Engineer profile:** Senior TypeScript engineer comfortable with CLI streams and hook payloads; read `.docs/providers/claude.md`, `src/main/adapters/claude-cli.ts`, `src/main/adapters/claude-transcript.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 3 PRs, small-to-medium
 > **Scope:** Claude start/resume stream reliability, permission hooks, and deferred user-interaction fixtures · **Origin:** provider CLI hardening
@@ -30,7 +30,7 @@ Claude already has the provider basics: Realmkeeper can start and resume print-m
 
 1. **Deferred question fixtures** — capture or synthesize Claude `AskUserQuestion`/updatedInput payloads, normalize them into answer letters, and add bridge tests.
 2. **Partial rendering decision** — if product wants smoother streaming, render `stream_event` content deltas transiently without persisting them as final `assistant_text`; otherwise keep the flags off and document why.
-3. **Claude diagnostics** — add a connection-tab/status check that reports Claude version, hook install status, transcript watcher path, and whether rich-stream flags are enabled.
+3. **Claude diagnostics** — ✅ implemented: the Connection tab reports Claude version when available, hook install/config status, transcript watcher path/polling, and rich-stream flag defaults.
 
 ## Acceptance gate
 

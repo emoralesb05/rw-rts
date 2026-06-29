@@ -61,6 +61,10 @@ Watcher contract:
 - If a file shrinks (rotation), reset to size 0
 - Emits the FULL assistant turn at once when the JSONL line arrives — not per-token streaming. Tradeoff: chunkier UX but no inter-token state to manage.
 
+The Connection tab reports the detected `claude --version`, hook config path,
+transcript watcher root (`~/.claude/projects`), watcher poll interval, and the
+rich stream flags Realmkeeper keeps off by default.
+
 ## Resume
 
 ```bash

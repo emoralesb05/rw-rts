@@ -25,11 +25,15 @@ async function withMockHome<T>(
       getAppPath: () => process.cwd(),
     },
   }));
+  vi.doMock("node:child_process", () => ({
+    execFileSync: vi.fn(() => "2.1.193 (Claude Code)\n"),
+  }));
   try {
     return await fn(home);
   } finally {
     vi.doUnmock("node:os");
     vi.doUnmock("electron");
+    vi.doUnmock("node:child_process");
     vi.resetModules();
     rmSync(home, { recursive: true, force: true });
   }
@@ -77,7 +81,7 @@ describe("provider hook installers", () => {
         },
       });
 
-      const { installHooks, uninstallHooks, isInstalled } =
+      const { installHooks, uninstallHooks, isInstalled, getStatus } =
         await import("./hook-installer");
 
       installHooks();
@@ -85,6 +89,18 @@ describe("provider hook installers", () => {
 
       const installed = readJson(settingsPath);
       expect(isInstalled()).toBe(true);
+      expect(getStatus()).toMatchObject({
+        installed: true,
+        hooksConfigPath: settingsPath,
+        cliVersion: "2.1.193 (Claude Code)",
+        transcriptWatcherPath: join(home, ".claude", "projects"),
+        transcriptWatcherPollMs: 2000,
+        richStreamFlags: {
+          includeHookEvents: false,
+          includePartialMessages: false,
+          promptSuggestions: false,
+        },
+      });
       for (const event of [
         "PreToolUse",
         "PostToolUse",

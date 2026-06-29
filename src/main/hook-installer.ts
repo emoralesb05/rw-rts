@@ -6,10 +6,15 @@ import {
   chmodSync,
   copyFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { app } from "electron";
 import { SOCKET_PATH } from "./adapters/hook-bridge";
+import {
+  CLAUDE_TRANSCRIPT_POLL_MS,
+  getClaudeTranscriptProjectsRoot,
+} from "./adapters/claude-transcript";
 import {
   ClaudeSettingsSchema,
   type ClaudeSettings,
@@ -32,6 +37,12 @@ const HOOK_EVENTS = [
   "Stop",
   "SubagentStop",
 ];
+
+const CLAUDE_RICH_STREAM_FLAGS = {
+  includeHookEvents: false,
+  includePartialMessages: false,
+  promptSuggestions: false,
+} as const;
 
 /**
  * Path that the user's Claude/Cursor/Codex/Gemini configs reference. Stable
@@ -153,10 +164,27 @@ export function uninstallHooks() {
   saveSettings(settings);
 }
 
+function getClaudeCliVersion(): string | undefined {
+  try {
+    return execFileSync("claude", ["--version"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 2000,
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
 export function getStatus() {
   return {
     installed: isInstalled(),
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
+    hooksConfigPath: SETTINGS_PATH,
+    cliVersion: getClaudeCliVersion(),
+    transcriptWatcherPath: getClaudeTranscriptProjectsRoot(),
+    transcriptWatcherPollMs: CLAUDE_TRANSCRIPT_POLL_MS,
+    richStreamFlags: CLAUDE_RICH_STREAM_FLAGS,
   };
 }

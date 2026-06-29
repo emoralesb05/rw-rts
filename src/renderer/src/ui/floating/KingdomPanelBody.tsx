@@ -544,6 +544,7 @@ function ConnectionTab() {
           busy={claudeBusy}
           onToggle={toggleClaude}
           configPathLabel="~/.claude/settings.json"
+          details={claudeDetails(claudeStatus)}
           description={
             <>
               Forwards Claude Code tool-call events and gates permission
@@ -620,6 +621,54 @@ function ConnectionTab() {
 function yesNo(value: boolean | undefined): string {
   if (value === undefined) return "unknown";
   return value ? "yes" : "no";
+}
+
+function enabledOff(value: boolean | undefined): string {
+  if (value === undefined) return "unknown";
+  return value ? "on" : "off";
+}
+
+function claudeDetails(status: HooksStatus | null) {
+  if (!status) return [];
+  return [
+    {
+      label: "version",
+      value: status.cliVersion ? (
+        <Code>{status.cliVersion}</Code>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    {
+      label: "transcript",
+      value: (
+        <span>
+          <Code>{status.transcriptWatcherPath ?? "~/.claude/projects"}</Code>
+          {typeof status.transcriptWatcherPollMs === "number" ? (
+            <span className="text-muted">
+              {" "}
+              · {status.transcriptWatcherPollMs}ms
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      label: "rich",
+      value: (
+        <span>
+          hooks{" "}
+          <Code>{enabledOff(status.richStreamFlags?.includeHookEvents)}</Code> ·
+          partials{" "}
+          <Code>
+            {enabledOff(status.richStreamFlags?.includePartialMessages)}
+          </Code>{" "}
+          · suggestions{" "}
+          <Code>{enabledOff(status.richStreamFlags?.promptSuggestions)}</Code>
+        </span>
+      ),
+    },
+  ];
 }
 
 function GeminiSettingsTemplateButton({ template }: { template?: string }) {

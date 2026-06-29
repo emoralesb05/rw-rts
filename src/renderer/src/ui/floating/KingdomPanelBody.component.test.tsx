@@ -12,6 +12,18 @@ const BASE_STATUS: HooksStatus = {
 };
 
 function installRw() {
+  const claudeStatus: HooksStatus = {
+    ...BASE_STATUS,
+    hooksConfigPath: "/home/user/.claude/settings.json",
+    cliVersion: "2.1.193 (Claude Code)",
+    transcriptWatcherPath: "/home/user/.claude/projects",
+    transcriptWatcherPollMs: 2000,
+    richStreamFlags: {
+      includeHookEvents: false,
+      includePartialMessages: false,
+      promptSuggestions: false,
+    },
+  };
   const geminiStatus: HooksStatus = {
     ...BASE_STATUS,
     hooksConfigPath: "/home/user/.gemini/settings.json",
@@ -32,12 +44,12 @@ function installRw() {
   };
 
   const rw = {
-    hooksStatus: vi.fn(() => Promise.resolve(BASE_STATUS)),
+    hooksStatus: vi.fn(() => Promise.resolve(claudeStatus)),
     cursorHooksStatus: vi.fn(() => Promise.resolve(BASE_STATUS)),
     codexHooksStatus: vi.fn(() => Promise.resolve(BASE_STATUS)),
     geminiHooksStatus: vi.fn(() => Promise.resolve(geminiStatus)),
-    installHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
-    uninstallHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
+    installHooks: vi.fn(() => Promise.resolve(claudeStatus)),
+    uninstallHooks: vi.fn(() => Promise.resolve(claudeStatus)),
     installCursorHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
     uninstallCursorHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
     installCodexHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
@@ -53,7 +65,7 @@ function installRw() {
     value: rw,
   });
 
-  return { rw, geminiStatus };
+  return { rw, claudeStatus, geminiStatus };
 }
 
 function installClipboard() {
@@ -80,6 +92,9 @@ describe("KingdomPanelBody", () => {
     render(<KingdomPanelBody initialTab="connection" />);
 
     expect(await screen.findByText("Gemini hook bridge")).toBeVisible();
+    expect(await screen.findByText("2.1.193 (Claude Code)")).toBeVisible();
+    expect(screen.getByText("/home/user/.claude/projects")).toBeVisible();
+    expect(screen.getByText(/partials/i)).toBeVisible();
     await waitFor(() => {
       expect(screen.getByText(/--approval-mode yolo/i)).toBeVisible();
     });
