@@ -15,7 +15,7 @@ PascalCase event names. We install all of these:
 | `SessionStart` | fire-and-forget | New conversation begins |
 | `SessionEnd` | fire-and-forget | Conversation actually ends (NOT per-turn — see "Stop" below) |
 | `UserPromptSubmit` | fire-and-forget | User pressed enter on a prompt |
-| `PreToolUse` | fire-and-forget | About to execute a tool |
+| `PreToolUse` | fire-and-forget or **bidirectional** for `AskUserQuestion` | About to execute a tool; answerable user questions |
 | `PostToolUse` | fire-and-forget | Tool finished (success OR fail — see gap below) |
 | `Stop` | fire-and-forget | Agent finished one turn (one assistant response done) |
 | `SubagentStop` | fire-and-forget | A spawned sub-agent finished |
@@ -40,6 +40,20 @@ Payload shape (excerpt):
     "decision": { "behavior": "allow" | "deny", "message": "optional reason" }
 } }
 ```
+
+`PreToolUse` / `AskUserQuestion` reply:
+```json
+{ "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow",
+    "updatedInput": { "answers": { "Question text": "Selected answer" } }
+} }
+```
+
+Realmkeeper handles `AskUserQuestion` by tagging the hook payload with a
+`__rw_user_input_request_id`, rendering a normal answer letter, and returning
+`updatedInput` when the King answers. If the letter is skipped, the bridge
+returns a `PreToolUse` deny so the question does not hang silently.
 
 ## Transcript persistence
 
@@ -88,6 +102,7 @@ Official CLI reference now documents several capabilities worth tracking:
 - `--bg`, `claude agents --json`, `claude attach`, `claude logs`, `claude stop`, and `claude respawn` expose first-class background sessions. Realmkeeper still treats Claude as hook/transcript-observed, but these commands are the best discovery/control path for already-running Claude background agents.
 - `--remote-control` and `claude remote-control` are a separate provider-native control surface. They are not integrated yet; they may be useful if Realmkeeper needs to coordinate local and Claude.ai-visible sessions.
 - Live rich-stream probe with `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` produced `system` hook lifecycle events, `stream_event` message deltas, `rate_limit_event`, the normal final `assistant`, and `result`. The current loose parser accepts those event types and the normalizer safely ignores them unless we add explicit transient rendering.
+- Public hook docs describe `PreToolUse` `updatedInput` as the client-side answer path for `AskUserQuestion`; Realmkeeper now implements that path through answer letters. A live deferred-resume fixture is still missing.
 
 ## MCP, agents, plugins (we observe, don't drive)
 

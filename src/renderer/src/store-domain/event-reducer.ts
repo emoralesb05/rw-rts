@@ -54,6 +54,20 @@ const RIFTLING_TTL_MS = 30_000;
 const RIFTLING_LIMIT = 12;
 const GLIMMER_PER_CLEAR = 5;
 
+function providerDisplayName(tool: AgentEvent["tool"]): string {
+  switch (tool) {
+    case "claude":
+      return "Claude";
+    case "codex":
+      return "Codex";
+    case "cursor":
+      return "Cursor";
+    case "gemini":
+      return "Gemini";
+  }
+  return tool;
+}
+
 function newRiftlingId(worldId: string): string {
   return `h-${worldId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -817,6 +831,7 @@ export function applyOneEvent(
       autoResolutionMs && autoResolutionMs > 0
         ? ` Auto-resolves in ${Math.ceil(autoResolutionMs / 1000)}s if left unanswered.`
         : "";
+    const providerName = providerDisplayName(event.tool);
     nextLetters = pushLetter(
       { ...state, letters: nextLetters },
       makeLetter(
@@ -830,7 +845,7 @@ export function applyOneEvent(
               ? `${firstQuestion}${timeoutNote}`
               : responseKind === "mcp-elicitation"
                 ? `An MCP server is asking for ${count || "multiple"} fields before Codex can continue.${timeoutNote}`
-                : `Codex is asking ${count || "multiple"} questions before it can continue.${timeoutNote}`,
+                : `${providerName} is asking ${count || "multiple"} questions before it can continue.${timeoutNote}`,
           sessionId: id,
           worldId,
           userInputQuestions: questions,

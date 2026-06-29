@@ -38,6 +38,7 @@ function dedupeKeyFor(payload: HookPayload, eventName: string): string {
   const sanitized: Record<string, unknown> = {};
   for (const k of Object.keys(payload)) {
     if (k === "__rw_permission_request_id") continue;
+    if (k === "__rw_user_input_request_id") continue;
     sanitized[k] = payload[k];
   }
   const sig = dedupeHash(JSON.stringify(sanitized));

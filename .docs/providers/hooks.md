@@ -36,6 +36,7 @@ The bridge dispatches by case of the first letter:
 | Tool about to run | `PreToolUse` | `PreToolUse` | `preToolUse` | `BeforeTool` |
 | Tool finished | `PostToolUse` | `PostToolUse` | `postToolUse` | `AfterTool` |
 | Permission gate | `PermissionRequest` (bi) | `PermissionRequest` (bi) | `beforeShellExecution` (advisory) | `BeforeTool` (bi deny gate) + `Notification/ToolPermission` (advisory) |
+| User input / elicitation | `PreToolUse` / `AskUserQuestion` (bi `updatedInput`) | app-server `item/tool/requestUserInput`; typed MCP `form` elicitation | — | — |
 | Per-turn done | `Stop` | `Stop` | `stop` | `AfterAgent` |
 | Subagent done | `SubagentStop` | — | — | — |
 | Assistant text | ❌ — needs transcript watcher | ❌ — needs transcript watcher | `afterAgentResponse` ✅ | `AfterAgent.prompt_response` ✅ |
@@ -45,6 +46,7 @@ The bridge dispatches by case of the first letter:
 **Claude** (`PermissionRequest`):
 - Bidirectional. We tag with a `requestId`, block on the socket waiting for the user's allow/deny in realmkeeper, then write `{hookSpecificOutput: {decision: {behavior, message}}}` to stdout.
 - Claude's terminal also shows its own native prompt concurrently — first to commit wins.
+- `PreToolUse` for `AskUserQuestion` is also bidirectional. Realmkeeper tags it with `__rw_user_input_request_id`, renders an answer letter, then writes `permissionDecision: "allow"` with `updatedInput.answers` when answered, or denies when skipped.
 
 **Codex** (`PermissionRequest`):
 - Same shape as Claude. Bidirectional. Codex doesn't render its own competing prompt for hook-mediated permissions.

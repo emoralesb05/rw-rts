@@ -8,6 +8,7 @@ export const HookPayloadSchema = z.looseObject({
   hook_event_name: z.string().min(1),
   __rw_tool: AgentToolSchema.optional(),
   __rw_permission_request_id: z.string().optional(),
+  __rw_user_input_request_id: z.string().optional(),
   session_id: z.string().optional(),
   sessionId: z.string().optional(),
   conversation_id: z.string().optional(),

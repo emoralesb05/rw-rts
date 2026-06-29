@@ -5,7 +5,16 @@ import {
   registerPermissionRequest,
   resolvePermissionRequest,
 } from "./hook-bridge";
-import { normalizeHookPayload } from "./hook-normalizer";
+import {
+  claudeAskUserQuestionUpdatedInput,
+  normalizeHookPayload,
+} from "./hook-normalizer";
+import {
+  cancelUserInputRequest,
+  pendingUserInputCount,
+  registerUserInputRequest,
+  resolveUserInputRequest,
+} from "./user-input-bridge";
 
 describe("hook bridge normalization", () => {
   it("normalizes Claude shell tool use", () => {
@@ -27,6 +36,102 @@ describe("hook bridge normalization", () => {
         input: { command: "git status" },
       },
       source: "hook",
+    });
+  });
+
+  it("normalizes Claude AskUserQuestion as an answerable request", () => {
+    const event = normalizeHookPayload({
+      hook_event_name: "PreToolUse",
+      session_id: "claude-session",
+      cwd: "/repo",
+      tool_name: "AskUserQuestion",
+      tool_input: {
+        questions: [
+          {
+            question: "Which implementation should I use?",
+            options: [
+              { label: "Small", description: "Minimal change." },
+              { label: "Broad", description: "Refactor the module." },
+            ],
+          },
+          {
+            question: "Which files should I inspect?",
+            allow_multiple: true,
+            choices: ["tests", "docs"],
+          },
+        ],
+      },
+      __rw_user_input_request_id: "question-req-1",
+    });
+
+    expect(event).toMatchObject({
+      sessionId: "claude-session",
+      tool: "claude",
+      cwd: "/repo",
+      source: "hook",
+      kind: "user_input_request",
+      payload: {
+        name: "AskUserQuestion",
+        requestId: "question-req-1",
+        text: "Which implementation should I use?",
+        questions: [
+          {
+            id: "question-1",
+            header: "Question 1",
+            question: "Which implementation should I use?",
+            required: true,
+            options: [
+              {
+                label: "Small",
+                value: "Small",
+                description: "Minimal change.",
+              },
+              {
+                label: "Broad",
+                value: "Broad",
+                description: "Refactor the module.",
+              },
+            ],
+          },
+          {
+            id: "question-2",
+            header: "Question 2",
+            question: "Which files should I inspect?",
+            required: true,
+            multiSelect: true,
+            options: [
+              { label: "tests", value: "tests" },
+              { label: "docs", value: "docs" },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(
+      claudeAskUserQuestionUpdatedInput(event?.payload.input, {
+        "question-1": { answers: ["Small"] },
+        "question-2": { answers: ["tests", "docs"] },
+      })
+    ).toEqual({
+      questions: [
+        {
+          question: "Which implementation should I use?",
+          options: [
+            { label: "Small", description: "Minimal change." },
+            { label: "Broad", description: "Refactor the module." },
+          ],
+        },
+        {
+          question: "Which files should I inspect?",
+          allow_multiple: true,
+          choices: ["tests", "docs"],
+        },
+      ],
+      answers: {
+        "Which implementation should I use?": "Small",
+        "Which files should I inspect?": "tests, docs",
+      },
     });
   });
 
@@ -252,5 +357,40 @@ describe("hook bridge normalization", () => {
       message: undefined,
     });
     expect(cancelPermissionRequest("req-callback")).toBe(false);
+  });
+
+  it("resolves callback-backed user input requests", () => {
+    let resolved:
+      | {
+          answers: Record<string, { answers: string[] }>;
+        }
+      | undefined;
+
+    const registered = registerUserInputRequest(
+      {
+        sessionId: "claude-session",
+        tool: "claude",
+        cwd: "/repo",
+        source: "hook",
+      },
+      "question-req-2",
+      ({ answers }) => {
+        resolved = { answers };
+      }
+    );
+
+    expect(registered).toBe(true);
+    expect(pendingUserInputCount()).toBeGreaterThan(0);
+    expect(
+      resolveUserInputRequest("question-req-2", {
+        "question-1": { answers: ["Small"] },
+      })
+    ).toBe(true);
+    expect(resolved).toEqual({
+      answers: {
+        "question-1": { answers: ["Small"] },
+      },
+    });
+    expect(cancelUserInputRequest("question-req-2")).toBe(false);
   });
 });

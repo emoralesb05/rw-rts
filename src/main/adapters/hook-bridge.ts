@@ -10,10 +10,18 @@ import {
   type HookPayload,
   type PermissionDecision,
   type PermissionOption,
+  type UserInputAnswers,
 } from "@shared/schemas";
 import { permissionOptionsForPayload } from "@shared/provider-permissions";
 import { createHookDedupe } from "./hook-dedupe";
-import { normalizeHookPayload } from "./hook-normalizer";
+import {
+  claudeAskUserQuestionUpdatedInput,
+  normalizeHookPayload,
+} from "./hook-normalizer";
+import {
+  cancelUserInputRequest,
+  registerUserInputRequest,
+} from "./user-input-bridge";
 
 export const SOCKET_PATH = join(homedir(), ".realmkeeper", "realmkeeper.sock");
 
@@ -50,6 +58,7 @@ type PendingPermissionResolution = {
 };
 const pending = new Map<string, Pending>();
 const hookDedupe = createHookDedupe();
+const pendingUserInputSockets = new Map<Socket, string>();
 
 function emitPermissionResolved(
   ctx: {
@@ -170,11 +179,16 @@ export function startHookBridge() {
         (payload?.conversation_id as string) ??
         "?";
       const ev = normalizeHookPayload(payload);
-      // Dedupe non-permission events. Permission requests carry a
-      // unique request_id and must hold the socket open for the
+      // Dedupe fire-and-forget events. Permission and user-input requests
+      // carry unique request ids and must hold the socket open for the
       // renderer's reply, so we never drop them here.
       const isPerm = ev?.kind === "permission_request";
-      const dup = ev && !isPerm && hookDedupe.isDuplicate(payload, eventName);
+      const isUserInput = ev?.kind === "user_input_request";
+      const dup =
+        ev &&
+        !isPerm &&
+        !isUserInput &&
+        hookDedupe.isDuplicate(payload, eventName);
       // Per-event log is high-volume (fires every tool call across
       // every wielder) — gated behind an env var so it doesn't spam
       // dev output and can't trigger EPIPE storms when stdio is dodgy.
@@ -187,6 +201,33 @@ export function startHookBridge() {
       }
       if (!ev || dup) {
         socket.destroy();
+        return;
+      }
+      if (ev.kind === "user_input_request" && ev.payload.requestId) {
+        const id = ev.payload.requestId;
+        const registered = registerUserInputRequest(
+          {
+            sessionId: ev.sessionId,
+            cwd: ev.cwd,
+            tool: ev.tool,
+            source: ev.source,
+          },
+          id,
+          ({ answers }) => {
+            pendingUserInputSockets.delete(socket);
+            socket.end(
+              JSON.stringify(
+                claudeAskUserQuestionReply(payload.tool_input, answers)
+              )
+            );
+          }
+        );
+        if (!registered) {
+          socket.destroy();
+          return;
+        }
+        pendingUserInputSockets.set(socket, id);
+        bus.emitAgentEvent(ev);
         return;
       }
       bus.emitAgentEvent(ev);
@@ -220,6 +261,11 @@ export function startHookBridge() {
           emitPermissionResolved(p, id, "error");
         }
       }
+      const userInputRequestId = pendingUserInputSockets.get(socket);
+      if (userInputRequestId) {
+        pendingUserInputSockets.delete(socket);
+        cancelUserInputRequest(userInputRequestId);
+      }
       socket.destroy();
     });
     // If the provider kills the hook process (for example Gemini using an
@@ -234,6 +280,11 @@ export function startHookBridge() {
         if (p.tool !== "cursor") {
           emitPermissionResolved(p, id, "error");
         }
+      }
+      const userInputRequestId = pendingUserInputSockets.get(socket);
+      if (userInputRequestId) {
+        pendingUserInputSockets.delete(socket);
+        cancelUserInputRequest(userInputRequestId);
       }
     });
   });
@@ -253,6 +304,15 @@ export function stopHookBridge() {
     }
     if (!p.socket) emitPermissionResolved(p, id, "error");
   }
+  for (const [socket, id] of pendingUserInputSockets) {
+    try {
+      socket.end();
+    } catch {
+      /* ignore */
+    }
+    cancelUserInputRequest(id);
+  }
+  pendingUserInputSockets.clear();
   pending.clear();
   server?.close();
   server = null;
@@ -354,4 +414,21 @@ function isAllowedPendingDecision(
  */
 export function pendingPermissionCount(): number {
   return pending.size;
+}
+
+function claudeAskUserQuestionReply(
+  toolInput: unknown,
+  answers: UserInputAnswers
+): Record<string, unknown> {
+  const updatedInput = claudeAskUserQuestionUpdatedInput(toolInput, answers);
+  if (!updatedInput) {
+    return {
+      permissionDecision: "deny",
+      permissionDecisionReason: "Skipped by Realmkeeper.",
+    };
+  }
+  return {
+    permissionDecision: "allow",
+    updatedInput,
+  };
 }

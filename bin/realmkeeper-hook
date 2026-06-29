@@ -11,6 +11,10 @@ Claude `PermissionRequest` and Gemini `BeforeTool` (bidirectional):
   Gemini's managed user policy suppresses its native prompt after Realmkeeper's
   BeforeTool gate answers.
 
+Claude `PreToolUse` / `AskUserQuestion` (bidirectional):
+  Tagged with a user-input request_id; script blocks waiting for the GUI to
+  reply with answers, then returns a PreToolUse allow + updatedInput shape.
+
 Cursor `beforeShellExecution` (observation + handoff):
   Empirically, Cursor's `allowlist` approvalMode treats hook
   `permission:"allow"` as advisory — the user must still confirm in
@@ -95,6 +99,26 @@ def emit_claude_permission(behavior, message=None):
     sys.stdout.flush()
 
 
+def emit_claude_pretooluse(reply):
+    """Write Claude Code's PreToolUse hookSpecificOutput for user questions."""
+    decision = reply.get("permissionDecision")
+    if decision not in ("allow", "deny"):
+        return
+    out = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": decision,
+        }
+    }
+    reason = reply.get("permissionDecisionReason")
+    if reason:
+        out["hookSpecificOutput"]["permissionDecisionReason"] = str(reason)
+    if decision == "allow" and isinstance(reply.get("updatedInput"), dict):
+        out["hookSpecificOutput"]["updatedInput"] = reply["updatedInput"]
+    sys.stdout.write(json.dumps(out))
+    sys.stdout.flush()
+
+
 def emit_gemini_permission(decision, message=None):
     """Write Gemini's generic hook decision shape.
     `deny` blocks BeforeTool. `allow` is accepted as a hook decision but does
@@ -141,6 +165,39 @@ def bidirectional_permission(payload):
     closes the socket."""
     request_id = str(uuid.uuid4())
     payload["__rw_permission_request_id"] = request_id
+
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(SOCK)
+    s.sendall(json.dumps(payload).encode("utf-8"))
+    s.shutdown(socket.SHUT_WR)
+
+    chunks = []
+    try:
+        while True:
+            buf = s.recv(4096)
+            if not buf:
+                break
+            chunks.append(buf)
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+    if not chunks:
+        return None
+
+    try:
+        return json.loads(b"".join(chunks).decode("utf-8"))
+    except Exception:
+        return None
+
+
+def bidirectional_user_input(payload):
+    """Tag with request_id, send, block on recv until the bridge
+    replies with a Claude PreToolUse decision."""
+    request_id = str(uuid.uuid4())
+    payload["__rw_user_input_request_id"] = request_id
 
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     s.connect(SOCK)
@@ -231,6 +288,15 @@ def main():
                 decision = reply.get("permissionDecision")
                 if decision in ("allow", "deny"):
                     emit_claude_permission(decision, reply.get("denyMessage"))
+            silent_exit()
+
+        # Claude AskUserQuestion — answerable letter. The bridge returns
+        # PreToolUse `allow` + `updatedInput` when the King answers, or
+        # `deny` when the letter is skipped.
+        if event_name == "PreToolUse" and payload.get("tool_name") == "AskUserQuestion" and not is_gemini:
+            reply = bidirectional_user_input(payload)
+            if reply:
+                emit_claude_pretooluse(reply)
             silent_exit()
 
         # Gemini BeforeTool gate — bidirectional. This runs for every tool

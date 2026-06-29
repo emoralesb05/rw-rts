@@ -300,6 +300,49 @@ describe("event reducer", () => {
     expect(state.letters).toEqual([]);
   });
 
+  it("labels Claude user input letters with the provider name", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "claude",
+        source: "hook",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "claude",
+        source: "hook",
+        payload: {
+          requestId: "claude-question-1",
+          questions: [
+            {
+              id: "question-1",
+              header: "Question 1",
+              question: "Which implementation should I use?",
+            },
+            {
+              id: "question-2",
+              header: "Question 2",
+              question: "Which files should I inspect?",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      title: expect.stringContaining("needs your answer"),
+      body: expect.stringContaining("Claude is asking 2 questions"),
+    });
+  });
+
   it("creates MCP elicitation letters with accept and decline actions", async () => {
     const { applyOneEvent } = await loadReducer();
     let state = baseState();
