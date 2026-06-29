@@ -5,7 +5,7 @@
  * off a wielder. Replaces the old bottom-strip spawn role.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { Play, ShieldAlert } from "lucide-react";
 import { usePanels } from "./panel-store";
 import { Button } from "../components/kit/Button";
 import { Field } from "../components/kit/Field";
@@ -86,6 +86,21 @@ export function DispatchPanelBody() {
           options={TOOL_OPTIONS}
         />
       </Field>
+
+      {tool === "cursor" && (
+        <div className="border-warning/35 bg-warning/10 text-warning flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] leading-snug">
+          <ShieldAlert
+            size={14}
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          />
+          <span>
+            Realmkeeper-spawned Cursor uses <Kbd>--force</Kbd>{" "}
+            <Kbd>--trust</Kbd>. Observed Cursor approvals still happen in
+            Cursor's native UI.
+          </span>
+        </div>
+      )}
 
       <Field htmlFor="dispatch-target" label="Target">
         <Select
