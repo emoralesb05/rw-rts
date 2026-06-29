@@ -49,7 +49,7 @@ Cursor can match the start/resume/stream/doc/probe parts of provider parity, but
 ## Coverage gaps — what this does NOT validate
 
 - No public Cursor contract currently lets Realmkeeper enforce observed-session permissions externally.
-- Active/resume stream fixtures still need a live Cursor run with representative shell/edit actions.
+- Active/resume stream fixtures still need a live Cursor run with representative shell/edit actions. A 2026-06-29 scratch probe confirmed `create-chat` can return a chat id while print-mode resume still exits with `Authentication required`, so the next run needs `cursor-agent login` working for headless turns or `CURSOR_API_KEY`.
 - Some older Cursor hook payloads may omit `conversation_id`; those remain unmergeable without a provider-side chat lookup.
 - Cursor IDE attach/input automation is out of scope; Realmkeeper can append turns through CLI resume, not drive the IDE input box.
 - Cursor cloud worker/private plugin surfaces are documented but not part of Realmkeeper parity yet.
