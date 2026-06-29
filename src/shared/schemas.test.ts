@@ -375,6 +375,12 @@ describe("runtime schemas", () => {
           includePartialMessages: false,
           promptSuggestions: false,
         },
+        authStatus: {
+          loggedIn: true,
+          authMethod: "claude.ai",
+          apiProvider: "firstParty",
+          subscriptionType: "max",
+        },
         settingsTemplate: '{\n  "hooksConfig": { "enabled": true }\n}',
       })
     ).toMatchObject({ installed: true });

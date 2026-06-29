@@ -89,7 +89,7 @@ cursor-agent --print --output-format stream-json --resume <chatId> "<prompt>"
 
 **Resume preserves the prior conversation** (verified — same `chatId` directory, same `store.db`, growing in place). Cursor uses the chatId as the sessionId in the limited hooks that DO fire here. Realmkeeper parses `stream-json` stdout for realmkeeper-driven turns, so direct messages to observed Cursor chats can still render assistant text and completed tool calls even when hooks are sparse.
 
-## 2026-06-25 CLI notes
+## 2026-06-29 CLI notes
 
 Local `cursor-agent --help` exposes:
 

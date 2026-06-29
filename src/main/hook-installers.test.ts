@@ -26,7 +26,20 @@ async function withMockHome<T>(
     },
   }));
   vi.doMock("node:child_process", () => ({
-    execFileSync: vi.fn(() => "2.1.193 (Claude Code)\n"),
+    execFileSync: vi.fn((_file, args) => {
+      if (Array.isArray(args) && args[0] === "auth") {
+        return JSON.stringify({
+          loggedIn: true,
+          authMethod: "claude.ai",
+          apiProvider: "firstParty",
+          email: "redacted@example.com",
+          orgId: "org-redacted",
+          orgName: "redacted",
+          subscriptionType: "max",
+        });
+      }
+      return "2.1.195 (Claude Code)\n";
+    }),
   }));
   try {
     return await fn(home);
@@ -92,7 +105,13 @@ describe("provider hook installers", () => {
       expect(getStatus()).toMatchObject({
         installed: true,
         hooksConfigPath: settingsPath,
-        cliVersion: "2.1.193 (Claude Code)",
+        cliVersion: "2.1.195 (Claude Code)",
+        authStatus: {
+          loggedIn: true,
+          authMethod: "claude.ai",
+          apiProvider: "firstParty",
+          subscriptionType: "max",
+        },
         transcriptWatcherPath: join(home, ".claude", "projects"),
         transcriptWatcherPollMs: 2000,
         richStreamFlags: {

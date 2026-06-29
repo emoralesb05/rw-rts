@@ -51,6 +51,6 @@ Gemini can reach actionable permission parity, but only when Realmkeeper can ver
 
 ## Coverage gaps — what this does NOT validate
 
-- A live Gemini policy execution probe still needs non-interactive auth; the current dry run stopped before a real model/policy turn.
+- A live Gemini policy execution probe still needs a supported non-interactive auth path. A 2026-06-29 `gemini --list-sessions` check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, so the next probe needs a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
 - Workspace policy behavior may change upstream, so user/admin policy guidance must be rechecked after Gemini upgrades.
 - The settings template is deliberately minimal; richer Gemini settings remain user/provider configuration until Realmkeeper has UI for those tradeoffs.

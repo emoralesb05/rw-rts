@@ -15,7 +15,13 @@ function installRw() {
   const claudeStatus: HooksStatus = {
     ...BASE_STATUS,
     hooksConfigPath: "/home/user/.claude/settings.json",
-    cliVersion: "2.1.193 (Claude Code)",
+    cliVersion: "2.1.195 (Claude Code)",
+    authStatus: {
+      loggedIn: true,
+      authMethod: "claude.ai",
+      apiProvider: "firstParty",
+      subscriptionType: "max",
+    },
     transcriptWatcherPath: "/home/user/.claude/projects",
     transcriptWatcherPollMs: 2000,
     richStreamFlags: {
@@ -92,7 +98,9 @@ describe("KingdomPanelBody", () => {
     render(<KingdomPanelBody initialTab="connection" />);
 
     expect(await screen.findByText("Gemini hook bridge")).toBeVisible();
-    expect(await screen.findByText("2.1.193 (Claude Code)")).toBeVisible();
+    expect(await screen.findByText("2.1.195 (Claude Code)")).toBeVisible();
+    expect(screen.getByText("logged in")).toBeVisible();
+    expect(screen.getByText("claude.ai")).toBeVisible();
     expect(screen.getByText("/home/user/.claude/projects")).toBeVisible();
     expect(screen.getByText(/partials/i)).toBeVisible();
     await waitFor(() => {

@@ -119,6 +119,7 @@ Gemini CLI 0.47.0 has built-in/custom subagents and a `gemini skills` surface. T
 ## Gaps & Quirks
 
 - Auth is required before `gemini --list-sessions` or active spawn works. Without `security.auth.selectedType` or `GEMINI_API_KEY`/Vertex/GCA env, Gemini exits before streaming `init`.
+- Local probe on 2026-06-29 reached auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT` for Gemini Code Assist for individuals, directing the user to Antigravity. Live policy execution now needs a supported non-interactive auth path such as a throwaway API key, Vertex/GCA env, or a supported Gemini CLI account tier.
 - Headless launches in an untrusted repo exit before hooks fire unless the repo is trusted or the command uses `--skip-trust`.
 - Antigravity sessions are out of scope for this CLI hook surface.
 - Hook stdout must be JSON. Empty stdout is acceptable for Claude/Codex but not for Gemini.

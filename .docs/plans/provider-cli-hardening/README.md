@@ -18,7 +18,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 | Provider | Installed CLI | Primary active path | Resume/interject path | Permission path |
 |---|---:|---|---|---|
-| Claude | `2.1.193` | `claude -p --output-format stream-json --verbose` | `--resume` | hook bridge, actionable |
+| Claude | `2.1.195` | `claude -p --output-format stream-json --verbose` | `--resume` | hook bridge, actionable |
 | Codex | `0.142.2` | `codex app-server --stdio` | `thread/resume`, `turn/start`, `turn/steer` | app-server approval requests, actionable |
 | Cursor | `2026.06.24-00-45-58-9f61de7` | `cursor-agent --print --output-format stream-json` | `--resume` | native UI observed |
 | Gemini | `0.47.0` | `gemini --prompt --output-format stream-json` | `--resume` | hook bridge, actionable |
@@ -76,7 +76,7 @@ The parity plan is to make every provider explicit about five things: how Realmk
 
 - Cursor actionable approvals are upstream-gated; Realmkeeper cannot truthfully claim allow/deny parity for observed Cursor sessions today.
 - Live Claude deferred user-interaction and background-agent metadata still need authenticated fixture coverage.
-- Live Gemini policy execution could not be fully exercised without non-interactive auth; the current finding is a static dry-run plus launch-gate tests.
+- Live Gemini policy execution could not be fully exercised. A 2026-06-29 session-list check reached local auth but failed with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; the current finding remains a static dry-run plus launch-gate tests until a supported non-interactive auth path is available.
 - Provider CLIs are fast-moving; this plan is ready to ticket from the 2026-06-26 probes, not a guarantee that future versions still match.
 
 ## References

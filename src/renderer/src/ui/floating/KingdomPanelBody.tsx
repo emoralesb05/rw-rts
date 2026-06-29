@@ -629,6 +629,11 @@ function enabledOff(value: boolean | undefined): string {
   return value ? "on" : "off";
 }
 
+function loggedInLabel(value: boolean | undefined): string {
+  if (value === undefined) return "unknown";
+  return value ? "logged in" : "not logged in";
+}
+
 function claudeDetails(status: HooksStatus | null) {
   if (!status) return [];
   return [
@@ -636,6 +641,34 @@ function claudeDetails(status: HooksStatus | null) {
       label: "version",
       value: status.cliVersion ? (
         <Code>{status.cliVersion}</Code>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    {
+      label: "auth",
+      value: status.authStatus ? (
+        <span>
+          <Code>{loggedInLabel(status.authStatus.loggedIn)}</Code>
+          {status.authStatus.authMethod ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.authMethod}</Code>
+            </>
+          ) : null}
+          {status.authStatus.apiProvider ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.apiProvider}</Code>
+            </>
+          ) : null}
+          {status.authStatus.subscriptionType ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.subscriptionType}</Code>
+            </>
+          ) : null}
+        </span>
       ) : (
         <span className="text-muted">unavailable</span>
       ),

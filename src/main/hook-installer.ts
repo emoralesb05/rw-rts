@@ -176,6 +176,31 @@ function getClaudeCliVersion(): string | undefined {
   }
 }
 
+function getClaudeAuthStatus() {
+  try {
+    const raw = execFileSync("claude", ["auth", "status"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 2000,
+    }).trim();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      loggedIn:
+        typeof parsed.loggedIn === "boolean" ? parsed.loggedIn : undefined,
+      authMethod:
+        typeof parsed.authMethod === "string" ? parsed.authMethod : undefined,
+      apiProvider:
+        typeof parsed.apiProvider === "string" ? parsed.apiProvider : undefined,
+      subscriptionType:
+        typeof parsed.subscriptionType === "string"
+          ? parsed.subscriptionType
+          : undefined,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function getStatus() {
   return {
     installed: isInstalled(),
@@ -183,6 +208,7 @@ export function getStatus() {
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: SETTINGS_PATH,
     cliVersion: getClaudeCliVersion(),
+    authStatus: getClaudeAuthStatus(),
     transcriptWatcherPath: getClaudeTranscriptProjectsRoot(),
     transcriptWatcherPollMs: CLAUDE_TRANSCRIPT_POLL_MS,
     richStreamFlags: CLAUDE_RICH_STREAM_FLAGS,

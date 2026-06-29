@@ -136,6 +136,14 @@ export const HooksStatusSchema = z.object({
       promptSuggestions: z.boolean(),
     })
     .optional(),
+  authStatus: z
+    .object({
+      loggedIn: z.boolean().optional(),
+      authMethod: z.string().optional(),
+      apiProvider: z.string().optional(),
+      subscriptionType: z.string().optional(),
+    })
+    .optional(),
   hooksEnabled: z.boolean().optional(),
   failClosedHookInstalled: z.boolean().optional(),
   managedPolicyInstalled: z.boolean().optional(),
