@@ -36,6 +36,7 @@ export const AgentEventPayloadSchema = z.looseObject({
   providerSessionId: z.string().optional(),
   providerConversationId: z.string().optional(),
   cursorChatId: z.string().optional(),
+  codexAppServer: z.looseObject({}).optional(),
   requestId: z.string().optional(),
   permissionMode: z.enum(["actionable", "observe"]).optional(),
   permissionOptions: z.array(PermissionOptionSchema).optional(),

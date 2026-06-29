@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** Realmkeeper
-> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-27 (resolved unsupported app-server request policy and parity gate)
+> **Drafted:** 2026-06-26 · **Last updated:** 2026-06-28 (implemented app-server diagnostics payloads)
 > **Engineer profile:** Senior TypeScript engineer comfortable with JSON-RPC protocols; read `.docs/providers/codex.md`, `src/main/adapters/codex-app-server.ts`, `src/main/adapters/codex-cli.ts`, and `src/main/adapters/cli-streams.test.ts` first
 > **Effort:** 3 PRs, medium
 > **Scope:** Codex app-server approvals, user input, steering, and unsupported request handling · **Origin:** provider CLI hardening
@@ -30,13 +30,13 @@ Codex is the richest integration surface and should stay on `codex app-server --
 ## PR sequence
 
 1. **Request-shape regression suite** — assert every app-server request method maps to permission, answer letter, or explicit fail-closed response.
-2. **Codex diagnostics** — expose app-server startup status, current thread/turn id, approval-policy categories, and unsupported request counts in provider status UI/logs.
+2. **Codex diagnostics** — ✅ implemented: app-server lifecycle/prompt/error events carry `payload.codexAppServer` with startup/turn status, current thread/turn ids, approval category mapping, and unsupported request counts.
 3. **Dynamic-tool decision gate** — keep dynamic tools disabled by default; open a separate feature plan only when there is a concrete Realmkeeper-local tool use case.
 
 ## Acceptance gate
 
 - Tests cover `item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, legacy exec/patch approval, `item/tool/requestUserInput`, typed MCP form elicitation, and unsupported request shapes.
-- Unsupported request shapes fail closed with a visible letter or logged diagnostic; none hang the turn silently.
+- Unsupported request shapes fail closed with a visible letter or logged diagnostic that includes unsupported request counts; none hang the turn silently.
 - Codex `turn/steer` is covered for active in-flight turns and normal `turn/start` is covered for idle/resumed turns.
 - `pnpm run lint`, `pnpm run typecheck`, `pnpm test`, and `pnpm run build` pass.
 

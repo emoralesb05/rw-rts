@@ -81,6 +81,13 @@ OpenAI's app-server is now the primary Realmkeeper Codex surface:
 
 App-server can send server-side approval and tool requests to the client (`item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, MCP elicitations, dynamic tool calls). Realmkeeper maps command, file-change, permission-profile, and legacy exec/patch approvals into normal permission cards. Structured `item/tool/requestUserInput` prompts and typed MCP elicitation `form` mode render as answer letters. MCP URL/openai-form modes and dynamic tool calls still fail closed until Realmkeeper has first-class UI for those request shapes.
 
+Realmkeeper emits `payload.codexAppServer` diagnostics on app-server lifecycle,
+prompt, and unsupported-request error events. The object includes lifecycle
+`status`, current `threadId`, current `activeTurnId` when known, the launch
+`approvalPolicy` / `sandbox`, the adapter's approval category map, and
+`unsupportedRequestCount(s)` with the latest unsupported method. These fields
+are diagnostics only; they do not change how turns are routed.
+
 OpenAI's current Codex config reference exposes granular approval knobs beyond the older global modes:
 
 - `approval_policy` now covers categories such as sandbox approvals, rules, MCP elicitations, permission requests, and skill approvals.

@@ -151,6 +151,37 @@ describe("runtime schemas", () => {
     });
   });
 
+  it("accepts Codex app-server diagnostics on event payloads", () => {
+    expect(
+      AgentEventSchema.parse({
+        sessionId: "codex-thread",
+        tool: "codex",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "error",
+        payload: {
+          error: "unsupported request",
+          codexAppServer: {
+            status: "turn-started",
+            threadId: "thread-1",
+            activeTurnId: "turn-1",
+            approvalPolicy: "never",
+            sandbox: "workspace-write",
+            unsupportedRequestCount: 1,
+          },
+        },
+        source: "spawned",
+      })
+    ).toMatchObject({
+      payload: {
+        codexAppServer: {
+          threadId: "thread-1",
+          unsupportedRequestCount: 1,
+        },
+      },
+    });
+  });
+
   it("accepts Realmkeeper-originated prompts for observed sessions", () => {
     expect(
       AgentEventSchema.parse({

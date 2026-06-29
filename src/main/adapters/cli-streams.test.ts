@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildClaudeArgs, normalizeStreamMessage } from "./claude-cli";
 import {
   buildCodexAppServerArgs,
+  buildCodexAppServerDiagnostics,
   buildCodexAppServerMcpElicitationEvent,
   buildCodexAppServerPermissionEvent,
   buildCodexAppServerUserInputEvent,
@@ -133,6 +134,37 @@ describe("active CLI stream normalization", () => {
       threadId: "thread-1",
       expectedTurnId: "turn-1",
       input: [{ type: "text", text: "adjust", text_elements: [] }],
+    });
+  });
+
+  it("builds Codex app-server diagnostics with approval categories", () => {
+    expect(
+      buildCodexAppServerDiagnostics({
+        status: "turn-started",
+        threadId: "thread-1",
+        activeTurnId: "turn-1",
+        unsupportedRequestMethod: "item/tool/call",
+        unsupportedRequestCounts: {
+          "item/tool/call": 2,
+          "mcpServer/elicitation/request": 1,
+        },
+      })
+    ).toMatchObject({
+      status: "turn-started",
+      threadId: "thread-1",
+      activeTurnId: "turn-1",
+      approvalPolicy: "never",
+      sandbox: "workspace-write",
+      approvalCategories: {
+        commandExecution: "actionable",
+        userInput: "answerable",
+        dynamicTools: "fail-closed",
+      },
+      unsupportedRequestMethod: "item/tool/call",
+      unsupportedRequestCount: 3,
+      unsupportedRequestCounts: {
+        "item/tool/call": 2,
+      },
     });
   });
 

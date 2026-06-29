@@ -33,6 +33,27 @@ type PendingRequest = {
   resolve(value: unknown): void;
   reject(err: Error): void;
 };
+type CodexAppServerStatus =
+  | "starting"
+  | "initialized"
+  | "thread-started"
+  | "thread-resumed"
+  | "turn-started"
+  | "turn-completed"
+  | "interrupted"
+  | "exited"
+  | "error";
+
+const CODEX_APP_SERVER_APPROVAL_CATEGORIES = {
+  commandExecution: "actionable",
+  fileChange: "actionable",
+  permissions: "actionable",
+  userInput: "answerable",
+  mcpFormElicitation: "answerable",
+  mcpUrlElicitation: "fail-closed",
+  openAiFormElicitation: "fail-closed",
+  dynamicTools: "fail-closed",
+} as const;
 
 export function textInput(text: string): JsonRecord {
   return { type: "text", text, text_elements: [] };
@@ -88,6 +109,31 @@ export function buildCodexAppServerArgs(): string[] {
   return ["app-server", "--stdio"];
 }
 
+export function buildCodexAppServerDiagnostics(args: {
+  status: CodexAppServerStatus;
+  threadId?: string;
+  activeTurnId?: string;
+  unsupportedRequestCounts?: Record<string, number>;
+  unsupportedRequestMethod?: string;
+}): JsonRecord {
+  const rawUnsupportedRequestCounts = args.unsupportedRequestCounts ?? {};
+  const unsupportedRequestCounts = compactRecord(rawUnsupportedRequestCounts);
+  const unsupportedRequestCount = Object.values(
+    rawUnsupportedRequestCounts
+  ).reduce((sum, value) => sum + value, 0);
+  return compactRecord({
+    status: args.status,
+    threadId: args.threadId,
+    activeTurnId: args.activeTurnId,
+    approvalPolicy: "never",
+    sandbox: "workspace-write",
+    approvalCategories: CODEX_APP_SERVER_APPROVAL_CATEGORIES,
+    unsupportedRequestCount,
+    unsupportedRequestMethod: args.unsupportedRequestMethod,
+    unsupportedRequestCounts,
+  });
+}
+
 export async function spawnCodexAppServerAgent(opts: {
   prompt: string;
   cwd: string;
@@ -121,7 +167,7 @@ export async function spawnCodexAppServerAgent(opts: {
     cwd: opts.cwd,
     timestamp: Date.now(),
     kind: "session_start",
-    payload: { text: opts.prompt },
+    payload: { text: opts.prompt, codexAppServer: client.diagnostics() },
     source: "spawned",
   });
 
@@ -145,7 +191,7 @@ export async function spawnCodexAppServerAgent(opts: {
         cwd: opts.cwd,
         timestamp: Date.now(),
         kind: "user_prompt",
-        payload: { text: prompt },
+        payload: { text: prompt, codexAppServer: client.diagnostics() },
         source: "spawned",
       });
       void client.sendPrompt(prompt).catch((err: unknown) => {
@@ -155,7 +201,10 @@ export async function spawnCodexAppServerAgent(opts: {
           cwd: opts.cwd,
           timestamp: Date.now(),
           kind: "error",
-          payload: { error: errorMessage(err) },
+          payload: {
+            error: errorMessage(err),
+            codexAppServer: client.diagnostics("error"),
+          },
           source: "spawned",
         });
       });
@@ -186,7 +235,7 @@ export function resumeCodexAppServerSession(opts: {
     cwd: opts.cwd,
     timestamp: Date.now(),
     kind: "user_prompt",
-    payload: { text: opts.prompt },
+    payload: { text: opts.prompt, codexAppServer: client.diagnostics() },
     source: "realmkeeper",
   });
 
@@ -201,7 +250,10 @@ export function resumeCodexAppServerSession(opts: {
       cwd: opts.cwd,
       timestamp: Date.now(),
       kind: "error",
-      payload: { error: errorMessage(err) },
+      payload: {
+        error: errorMessage(err),
+        codexAppServer: client.diagnostics("error"),
+      },
       source: "realmkeeper",
     });
     unregisterSpawnedSession(opts.sessionId);
@@ -221,6 +273,8 @@ class CodexAppServerClient {
   private cwd: string;
   private threadId: string | undefined;
   private activeTurnId: string | undefined;
+  private status: CodexAppServerStatus = "starting";
+  private unsupportedRequestCounts: Record<string, number> = {};
   private readonly source: AgentEventSource;
   private readonly closeOnTurnCompleted: boolean;
   private readonly pendingPermissionRequests = new Set<string>();
@@ -267,9 +321,11 @@ class CodexAppServerClient {
     });
 
     this.proc.once("exit", () => {
+      this.status = "exited";
       this.rejectPending(new Error("codex app-server exited"));
     });
     this.proc.once("error", (err) => {
+      this.status = "error";
       this.rejectPending(err);
     });
   }
@@ -278,6 +334,16 @@ class CodexAppServerClient {
     this.sessionId = sessionId;
     this.cwd = cwd;
     this.threadId = threadId;
+    this.status = "thread-started";
+  }
+
+  diagnostics(status = this.status): JsonRecord {
+    return buildCodexAppServerDiagnostics({
+      status,
+      threadId: this.threadId,
+      activeTurnId: this.activeTurnId,
+      unsupportedRequestCounts: this.unsupportedRequestCounts,
+    });
   }
 
   async initialize() {
@@ -290,6 +356,7 @@ class CodexAppServerClient {
       capabilities: { experimentalApi: true },
     });
     this.notify("initialized", {});
+    this.status = "initialized";
   }
 
   async startTurn(prompt: string) {
@@ -301,6 +368,7 @@ class CodexAppServerClient {
     const turn = record(record(result)?.turn);
     const turnId = stringValue(turn?.id);
     if (turnId) this.activeTurnId = turnId;
+    this.status = "turn-started";
   }
 
   async resumeThread(threadId: string) {
@@ -310,6 +378,7 @@ class CodexAppServerClient {
     );
     const thread = record(record(result)?.thread);
     this.threadId = stringValue(thread?.id) ?? threadId;
+    this.status = "thread-resumed";
   }
 
   async sendPrompt(prompt: string) {
@@ -332,6 +401,7 @@ class CodexAppServerClient {
       turnId: this.activeTurnId,
     });
     this.activeTurnId = undefined;
+    this.status = "interrupted";
   }
 
   request(method: string, params: unknown): Promise<unknown> {
@@ -446,18 +516,7 @@ class CodexAppServerClient {
       return;
     }
 
-    this.write({ id, result: codexAppServerFailClosedResponse(method) });
-    bus.emitAgentEvent({
-      sessionId: this.sessionId,
-      tool: "codex",
-      cwd: this.cwd,
-      timestamp: Date.now(),
-      kind: "error",
-      payload: {
-        error: codexAppServerUnsupportedRequestError(method),
-      },
-      source: this.source,
-    });
+    this.handleUnsupportedServerRequest(id, method);
   }
 
   private handlePermissionServerRequest(
@@ -469,18 +528,7 @@ class CodexAppServerClient {
     if (!this.sessionId) return;
     const requestId = event.payload.requestId;
     if (!requestId) {
-      this.write({ id, result: codexAppServerFailClosedResponse(method) });
-      bus.emitAgentEvent({
-        sessionId: this.sessionId,
-        tool: "codex",
-        cwd: this.cwd,
-        timestamp: Date.now(),
-        kind: "error",
-        payload: {
-          error: codexAppServerUnsupportedRequestError(method),
-        },
-        source: this.source,
-      });
+      this.handleUnsupportedServerRequest(id, method);
       return;
     }
 
@@ -519,6 +567,31 @@ class CodexAppServerClient {
 
     this.pendingPermissionRequests.add(requestId);
     bus.emitAgentEvent(event);
+  }
+
+  private handleUnsupportedServerRequest(id: JsonRpcId, method: string) {
+    if (!this.sessionId) return;
+    this.unsupportedRequestCounts[method] =
+      (this.unsupportedRequestCounts[method] ?? 0) + 1;
+    this.write({ id, result: codexAppServerFailClosedResponse(method) });
+    bus.emitAgentEvent({
+      sessionId: this.sessionId,
+      tool: "codex",
+      cwd: this.cwd,
+      timestamp: Date.now(),
+      kind: "error",
+      payload: {
+        error: codexAppServerUnsupportedRequestError(method),
+        codexAppServer: buildCodexAppServerDiagnostics({
+          status: this.status,
+          threadId: this.threadId,
+          activeTurnId: this.activeTurnId,
+          unsupportedRequestCounts: this.unsupportedRequestCounts,
+          unsupportedRequestMethod: method,
+        }),
+      },
+      source: this.source,
+    });
   }
 
   private handleUserInputServerRequest(
@@ -585,8 +658,10 @@ class CodexAppServerClient {
       const turn = record(record(msg.params)?.turn);
       const turnId = stringValue(turn?.id);
       if (turnId) this.activeTurnId = turnId;
+      this.status = "turn-started";
     } else if (method === "turn/completed") {
       this.activeTurnId = undefined;
+      this.status = "turn-completed";
     }
     const events = normalizeCodexAppServerNotification(
       msg,
