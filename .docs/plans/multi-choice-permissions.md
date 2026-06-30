@@ -19,13 +19,15 @@ The important constraint: Realmkeeper should own a stable internal permission mo
 
 ## Why
 
-Some provider prompts are not really yes/no prompts. They are "choose a scope" prompts, "allow this class of future tool calls" prompts, plan-exit prompts, MCP elicitation forms, or tool calls whose parameters can be modified before approving. Today Realmkeeper flattens all of that into `permission-allow` / `permission-deny`, which works for the current gate but loses intent and forces users to repeat approvals that providers can already remember.
+Some provider prompts are not really yes/no prompts. They are "choose a scope" prompts, "allow this class of future tool calls" prompts, plan-exit prompts, MCP elicitation forms, or tool calls whose parameters can be modified before approving. Realmkeeper now supports provider-supplied permission options and typed user-input letters, but persistent rules/native "remember this" translation is still missing.
 
 ## Current state
 
-- Shared event shape only carries `permission_request` with `requestId`, `name`, and `input`.
-- IPC only accepts `decision: "allow" | "deny"` plus optional deny message.
-- `LetterCard` already renders an arbitrary action list, so the UI can technically show more buttons. The missing pieces are typed choice semantics, persistence, provider translation, and rule matching.
+- Shared event shape carries `permission_request` with optional `permissionMode` and `permissionOptions`.
+- The renderer maps provider options into letter actions and keeps Cursor observed-session permissions as acknowledgement-only.
+- Codex app-server user-input requests and typed MCP form elicitations already render as answer letters.
+- IPC still resolves the current permission request as a low-level provider decision; there is no separate persisted rule-choice API yet.
+- `LetterCard` already renders an arbitrary action list. The missing pieces are persistent rule semantics, provider-native "remember this" translation, rule preview, audit rows, and rule management UI.
 - Cursor is intentionally observation-only in default allowlist mode.
 - Gemini is currently Realmkeeper-owned: a fail-closed `BeforeTool` hook asks Realmkeeper, while a managed Gemini policy suppresses Gemini's second native prompt.
 
@@ -144,11 +146,12 @@ Keep `PermissionDecision` as the low-level provider reply (`allow` / `deny`) and
 
 ### Phase 2 - Shared data model
 
-1. Extend `AgentEvent.payload` for `permission_request` with optional `choices: PermissionChoice[]` and `ruleSuggestions`.
-2. Extend shared IPC:
-   - `ResolvePermissionRequest` keeps binary `decision`
-   - add `ApplyPermissionChoiceRequest` for richer choices
-3. Store pending request metadata in the bridge so a later choice can write a rule and still resolve the open socket.
+1. Keep `permissionOptions` as the provider-supplied current-request option layer.
+2. Add a separate `PermissionChoice` / `PermissionRuleSuggestion` layer for actions that persist beyond the current request.
+3. Extend shared IPC:
+   - `ResolvePermissionRequest` keeps the current low-level provider decision.
+   - Add `ApplyPermissionChoiceRequest` for richer choices that may also write a Realmkeeper rule or native provider config.
+4. Store pending request metadata in the bridge so a later choice can write a rule and still resolve the open socket.
 
 ### Phase 3 - Realmkeeper rule engine
 

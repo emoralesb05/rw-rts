@@ -591,10 +591,6 @@ trigger condition shows up. Order is rough priority (highest first).
 
 ### Active workstream — see plans/
 
-- **Drive observed wielders via session resume** — implemented for direct
-  per-wielder chat messages; notes live in
-  [`./plans/observed-resume.md`](./plans/observed-resume.md). Repeated
-  orders and recall for observed sessions remain separate follow-up work.
 - **Provider-neutral multi-choice permissions** — full plan in
   [`./plans/multi-choice-permissions.md`](./plans/multi-choice-permissions.md).
   Needed for confirmation prompts that expose multiple selectable options
@@ -692,8 +688,8 @@ sessions Realmkeeper spawned itself (`AgentManager.spawn` registers the
 proc). Hook-observed wielders show up in the party list with full event
 history, but those higher-impact verbs remain intentionally scoped.
 
-See [`./plans/observed-resume.md`](./plans/observed-resume.md) for the
-implemented direct-message path and known live-UI divergence.
+See [`./architecture/state.md`](./architecture/state.md) and the provider docs
+for the implemented direct-message path and known live-UI divergence.
 
 ### Codex desktop-app version drift (informational)
 
@@ -731,7 +727,6 @@ Cursor's `cursor-agent --print --resume <chatId>` mode only fires
 `preToolUse`/`postToolUse`. The conversation lands correctly in the
 chat database but Realmkeeper sees nothing of the live event stream.
 
-Workaround in [`./plans/observed-resume.md`](./plans/observed-resume.md):
-capture the assistant reply on stdout from `--print`, synthesize
-`user_prompt` + `assistant_text` events ourselves, inject into the
-bus. Tool calls during the reply remain invisible.
+Workaround: capture the assistant reply on stdout from `--print`, synthesize
+`user_prompt` + `assistant_text` events ourselves, and inject them into the bus.
+Tool calls during the reply remain invisible.

@@ -8,7 +8,7 @@
 ```bash
 claude --version
 claude --help
-node .docs/plans/claude-cli-hardening/probes/claude-rich-stream-probe-2026-06-26.mjs
+node .docs/providers/probes/claude/claude-rich-stream-probe-2026-06-26.mjs
 ```
 
 ## Result

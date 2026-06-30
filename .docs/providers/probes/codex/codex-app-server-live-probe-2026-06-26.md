@@ -7,7 +7,7 @@
 
 ```bash
 codex app-server generate-json-schema --experimental --out /private/tmp/rw-codex-live-schema-20260626-1
-node .docs/plans/codex-app-server-hardening/probes/codex-app-server-live-probe-2026-06-26.mjs
+node .docs/providers/probes/codex/codex-app-server-live-probe-2026-06-26.mjs
 ```
 
 ## Result

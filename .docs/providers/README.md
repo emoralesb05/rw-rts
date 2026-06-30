@@ -12,6 +12,7 @@ For vocabulary (RW terms + technical), see [`../glossary.md`](../glossary.md).
 - [`codex.md`](./codex.md) — Codex CLI + Desktop: app-server drive path, two rollout formats, version drift
 - [`cursor.md`](./cursor.md) — Cursor CLI + IDE: hook stripping on `--print --resume`, identifier confusion (sessionId vs chatId)
 - [`gemini.md`](./gemini.md) — Gemini CLI: hooks, stream-json spawn, UUID resume, BeforeTool deny gate, subagent transcript linking
+- [`probes/`](./probes/) — dated evidence records for provider CLI behavior
 - [`extending.md`](./extending.md) — checklist for adding a new provider
 
 ## Reading order

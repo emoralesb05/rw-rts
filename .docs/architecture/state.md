@@ -81,7 +81,12 @@ IPC channels: `rw:load-persisted` / `rw:save-persisted` / `rw:reset-persisted`.
 
 ## Spawn provenance — `unit.spawnedHere`
 
-A wielder's `UnitState` carries `spawnedHere: boolean` — true if Realmkeeper started this session via `AgentManager.spawn`, false if we observed it via hooks. Verbs like *recall* and *send* are gated on this for now. (For the planned "drive observed sessions via `--resume`" work see [`../vision.md`](../vision.md) and [`../plans/observed-resume.md`](../plans/observed-resume.md).)
+A wielder's `UnitState` carries `spawnedHere: boolean` — true if Realmkeeper
+started this session via `AgentManager.spawn`, false if we observed it via
+hooks. Direct chat sends can target observed sessions through provider resume
+APIs. Higher-impact verbs such as recall, decrees, and standing-order loops stay
+scoped to Realmkeeper-spawned sessions because Realmkeeper owns those child
+processes.
 
 ## Identity stability — `unit.repoRoot`
 
