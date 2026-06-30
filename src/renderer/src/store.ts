@@ -13,6 +13,7 @@ import { play } from "./audio/sounds";
 import { applyOneEvent } from "./store-domain/event-reducer";
 import {
   dismissInformationalLetters,
+  isPermissionChoiceAction,
   permissionResolutionForAction,
   userInputResolutionForAction,
 } from "./store-domain/permissions";
@@ -396,6 +397,19 @@ export const useStore = create<Store>((set) => ({
         {
           const req = permissionResolutionForAction(action);
           if (req) void window.rw.resolvePermission(req).catch(() => {});
+        }
+        break;
+      case "permission-choice":
+        {
+          const req = {
+            requestId: action.requestId,
+            choiceId: action.choiceId,
+            optionId: action.optionId,
+            message: action.message,
+          };
+          if (isPermissionChoiceAction(action)) {
+            void window.rw.applyPermissionChoice(req).catch(() => {});
+          }
         }
         break;
       case "permission-observe":

@@ -2,6 +2,7 @@ import type {
   SpawnAgentRequest,
   SpawnAgentResponse,
   SendPromptRequest,
+  ApplyPermissionChoiceRequest,
   HooksStatus,
   ListUnitEntry,
   PlayFixtureRequest,
@@ -10,6 +11,7 @@ import type {
   WorkspaceRepoEntry,
   AppSettings,
   WorkspaceRootValidation,
+  PermissionRule,
 } from "@shared/schemas";
 import type { AgentEvent, PersistedState } from "@shared/events";
 import type { seedVisualQaState } from "./dev/visual-qa-seed";
@@ -44,6 +46,11 @@ declare global {
       savePersisted(state: PersistedState): Promise<void>;
       resetPersisted(): Promise<PersistedState>;
       resolvePermission(req: ResolvePermissionRequest): Promise<boolean>;
+      applyPermissionChoice(
+        req: ApplyPermissionChoiceRequest
+      ): Promise<boolean>;
+      listPermissionRules(): Promise<PermissionRule[]>;
+      removePermissionRule(ruleId: string): Promise<boolean>;
       resolveUserInput(req: ResolveUserInputRequest): Promise<boolean>;
       listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
       getSettings(): Promise<AppSettings>;

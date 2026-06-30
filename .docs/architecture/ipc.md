@@ -17,6 +17,8 @@ All defined in `src/shared/ipc.ts`. Every handler in main wraps via `safeHandle(
 | `rw:install-gemini-hooks` / `uninstall-gemini-hooks` / `gemini-hooks-status` | renderer → main | Same for Gemini, plus managed policy status |
 | `rw:play-fixture` | renderer → main | Replay a recorded scenario for testing |
 | `rw:resolve-permission` | renderer → main | Allow/deny a pending permission request |
+| `rw:apply-permission-choice` | renderer → main | Apply a richer permission choice, optionally saving a Realmkeeper-local rule before resolving the pending request |
+| `rw:list-permission-rules` / `rw:remove-permission-rule` | renderer → main | View and delete saved Realmkeeper-local permission rules |
 | `rw:open-path` | renderer → main | Open a file (always tries `cursor://file/...` first) |
 | `rw:list-workspace-repos` / `rw:get-settings` / `rw:save-settings` / `rw:validate-workspace-root` | renderer → main | Workspace + settings |
 | `rw:load-persisted` / `rw:save-persisted` / `rw:reset-persisted` | renderer → main | Renderer state persistence |

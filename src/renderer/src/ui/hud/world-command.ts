@@ -38,6 +38,7 @@ export function isPermissionLikeLetter(letter: Letter): boolean {
     (entry) =>
       entry.action.kind === "permission-allow" ||
       entry.action.kind === "permission-deny" ||
+      entry.action.kind === "permission-choice" ||
       entry.action.kind === "permission-observe"
   );
 }

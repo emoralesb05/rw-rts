@@ -74,10 +74,32 @@ IPC channels: `rw:load-persisted` / `rw:save-persisted` / `rw:reset-persisted`.
 `hook-bridge.ts` keeps a `Pending` map keyed by `requestId`:
 
 ```ts
-{ socket, sessionId, cwd, tool }
+{ socket | resolve, sessionId, cwd, tool, name, input, options }
 ```
 
 **Not persisted.** A realmkeeper crash means orphaned requests, but the upstream provider will time out the hook on its own (for example, Claude defaults around 30s; Codex and Gemini use longer blocking permission timeouts), so the user's CLI session recovers without manual cleanup.
+
+## Saved permission rules — main (persisted file)
+
+`src/main/permission-rules.ts` stores Realmkeeper-local rules at:
+
+```
+~/.realmkeeper/permissions.json
+```
+
+Rules match provider, scope, tool name, and the stable argument key derived from
+the request input (`cmd:pnpm test`, `file:/repo/src/app.ts`, `glob:*.ts`,
+etc.). The hook bridge checks these rules before it emits a permission letter:
+
+- matching actionable Claude / Codex / Gemini requests are answered immediately
+- Cursor remains observe-only in normal allowlist mode
+- deny rules win over allow rules (`global deny` > `workspace deny` >
+  `session deny` > `session allow` > `workspace allow` > `global allow`)
+- auto-resolutions emit a `permission_resolved` event with rule metadata so the
+  Activity log shows an audit row
+
+The Connection tab lists and removes saved rules. Realmkeeper does not currently
+write provider-native persistent config for these rules.
 
 ## Spawn provenance — `unit.spawnedHere`
 

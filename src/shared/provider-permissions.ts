@@ -1,6 +1,7 @@
 import type { AgentTool } from "./schemas/common";
 import {
   PermissionOptionSchema,
+  type PermissionRuleMatcher,
   type PermissionOption,
 } from "./schemas/permissions";
 
@@ -99,4 +100,38 @@ export function permissionOptionsForPayload(
     parsePermissionOptions(payload.permissionOptions) ??
     permissionOptionsForTool(tool)
   );
+}
+
+export function permissionArgKeyForInput(input: unknown): string {
+  if (!input || typeof input !== "object") return "*";
+  const r = input as Record<string, unknown>;
+  if (typeof r.file_path === "string") return `file:${r.file_path}`;
+  if (typeof r.path === "string") return `file:${r.path}`;
+  if (typeof r.absolute_path === "string") return `file:${r.absolute_path}`;
+  if (typeof r.command === "string") return `cmd:${r.command.slice(0, 80)}`;
+  if (typeof r.pattern === "string") return `glob:${r.pattern}`;
+  if (typeof r.url === "string") return `url:${r.url.slice(0, 80)}`;
+  return "*";
+}
+
+export function permissionMatcherForRequest(
+  name: unknown,
+  input: unknown
+): PermissionRuleMatcher {
+  const matcher: PermissionRuleMatcher = {};
+  if (typeof name === "string" && name.trim()) matcher.toolName = name.trim();
+  const argKey = permissionArgKeyForInput(input);
+  if (argKey !== "*") matcher.argKey = argKey;
+  return matcher;
+}
+
+export function permissionRuleLabel(args: {
+  behavior: "allow" | "deny";
+  scope: "session" | "workspace" | "global";
+  matcher: PermissionRuleMatcher;
+}): string {
+  const subject = args.matcher.argKey
+    ? `${args.matcher.toolName ?? "tool"} ${args.matcher.argKey}`
+    : (args.matcher.toolName ?? "matching request");
+  return `${args.behavior} ${subject} for ${args.scope}`;
 }

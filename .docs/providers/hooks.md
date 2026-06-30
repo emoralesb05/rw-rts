@@ -43,6 +43,14 @@ The bridge dispatches by case of the first letter:
 
 ## Permission flow per tool
 
+Before rendering a permission letter, the bridge checks Realmkeeper-local saved
+rules in `~/.realmkeeper/permissions.json`. Matching actionable Claude, Codex,
+or Gemini requests are answered immediately and logged as `permission_resolved`
+audit rows. The rules are provider-neutral and exact-request scoped by provider,
+tool name, session/workspace/global scope, and a stable input key such as
+`cmd:pnpm test` or `file:/repo/src/app.ts`. Realmkeeper does not currently write
+provider-native persistent permission config from this path.
+
 **Claude** (`PermissionRequest`):
 - Bidirectional. We tag with a `requestId`, block on the socket waiting for the user's allow/deny in realmkeeper, then write `{hookSpecificOutput: {decision: {behavior, message}}}` to stdout.
 - Claude's terminal also shows its own native prompt concurrently — first to commit wins.

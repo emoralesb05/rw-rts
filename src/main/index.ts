@@ -4,11 +4,13 @@ import { writeFile } from "node:fs/promises";
 import { bus } from "./event-bus";
 import { AgentManager } from "./agent-manager";
 import {
+  applyPermissionChoiceRequest,
   startHookBridge,
   stopHookBridge,
   resolvePermissionRequest,
 } from "./adapters/hook-bridge";
 import { resolveUserInputRequest } from "./adapters/user-input-bridge";
+import { listPermissionRules, removePermissionRule } from "./permission-rules";
 import {
   startClaudeTranscriptWatcher,
   stopClaudeTranscriptWatcher,
@@ -52,6 +54,11 @@ import {
   OpenPathResponseSchema,
   PersistedStateSchema,
   PlayFixtureRequestSchema,
+  ApplyPermissionChoiceRequestSchema,
+  ApplyPermissionChoiceResponseSchema,
+  ListPermissionRulesResponseSchema,
+  RemovePermissionRuleRequestSchema,
+  RemovePermissionRuleResponseSchema,
   ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
   ResolveUserInputRequestSchema,
@@ -410,6 +417,43 @@ void app.whenReady().then(async () => {
       );
     },
     ResolvePermissionResponseSchema
+  );
+
+  safeHandle(
+    IPC.ApplyPermissionChoice,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ApplyPermissionChoice,
+        ApplyPermissionChoiceRequestSchema,
+        raw
+      );
+      return applyPermissionChoiceRequest(
+        req.requestId,
+        req.choiceId,
+        req.message,
+        req.optionId
+      );
+    },
+    ApplyPermissionChoiceResponseSchema
+  );
+
+  safeHandle(
+    IPC.ListPermissionRules,
+    () => listPermissionRules(),
+    ListPermissionRulesResponseSchema
+  );
+
+  safeHandle(
+    IPC.RemovePermissionRule,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.RemovePermissionRule,
+        RemovePermissionRuleRequestSchema,
+        raw
+      );
+      return removePermissionRule(req.ruleId);
+    },
+    RemovePermissionRuleResponseSchema
   );
 
   safeHandle(

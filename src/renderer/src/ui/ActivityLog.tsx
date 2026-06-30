@@ -100,6 +100,7 @@ export function ActivityLog() {
       if (
         (a.action.kind === "permission-allow" ||
           a.action.kind === "permission-deny" ||
+          a.action.kind === "permission-choice" ||
           a.action.kind === "permission-observe" ||
           a.action.kind === "user-input-submit") &&
         a.action.requestId

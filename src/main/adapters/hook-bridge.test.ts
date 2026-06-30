@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  applyPermissionChoiceRequest,
   cancelPermissionRequest,
   pendingPermissionCount,
   registerPermissionRequest,
+  registerPermissionRequestWithRules,
   resolvePermissionRequest,
 } from "./hook-bridge";
 import {
@@ -15,6 +20,28 @@ import {
   registerUserInputRequest,
   resolveUserInputRequest,
 } from "./user-input-bridge";
+import {
+  clearPermissionRules,
+  listPermissionRules,
+  resetPermissionRulesForTests,
+  setPermissionRulesFileForTests,
+} from "../permission-rules";
+
+let permissionRuleDir = "";
+
+beforeEach(() => {
+  permissionRuleDir = mkdtempSync(join(tmpdir(), "realmkeeper-hook-rules-"));
+  setPermissionRulesFileForTests(join(permissionRuleDir, "permissions.json"));
+  clearPermissionRules();
+});
+
+afterEach(() => {
+  clearPermissionRules();
+  resetPermissionRulesForTests();
+  if (permissionRuleDir) {
+    rmSync(permissionRuleDir, { recursive: true, force: true });
+  }
+});
 
 describe("hook bridge normalization", () => {
   it("normalizes Claude shell tool use", () => {
@@ -357,6 +384,76 @@ describe("hook bridge normalization", () => {
       message: undefined,
     });
     expect(cancelPermissionRequest("req-callback")).toBe(false);
+  });
+
+  it("writes a rule from a rich permission choice and auto-resolves the next match", () => {
+    const resolutions: unknown[] = [];
+    const options = [
+      {
+        id: "allow-once",
+        label: "allow",
+        decision: "allow" as const,
+      },
+      {
+        id: "deny",
+        label: "deny",
+        decision: "deny" as const,
+      },
+    ];
+
+    const first = registerPermissionRequestWithRules(
+      {
+        sessionId: "codex-thread",
+        tool: "codex",
+        cwd: "/repo",
+        source: "spawned",
+      },
+      "req-rule",
+      options,
+      (resolution) => {
+        resolutions.push(resolution);
+      },
+      {
+        name: "Bash",
+        input: { command: "pnpm test" },
+        repoRoot: "/repo",
+      }
+    );
+
+    expect(first.status).toBe("registered");
+    expect(
+      applyPermissionChoiceRequest("req-rule", "allow-session", undefined)
+    ).toBe(true);
+    expect(resolutions).toEqual([
+      { decision: "allow", optionId: "allow-once", message: undefined },
+    ]);
+    expect(listPermissionRules()).toHaveLength(1);
+
+    const second = registerPermissionRequestWithRules(
+      {
+        sessionId: "codex-thread",
+        tool: "codex",
+        cwd: "/repo",
+        source: "spawned",
+      },
+      "req-rule-2",
+      options,
+      (resolution) => {
+        resolutions.push(resolution);
+      },
+      {
+        name: "Bash",
+        input: { command: "pnpm test" },
+        repoRoot: "/repo",
+      }
+    );
+
+    expect(second.status).toBe("auto-resolved");
+    expect(resolutions.at(-1)).toEqual({
+      decision: "allow",
+      optionId: "allow-once",
+    });
+    expect(pendingPermissionCount()).toBe(0);
   });
 
   it("resolves callback-backed user input requests", () => {

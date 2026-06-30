@@ -13,8 +13,11 @@ import type {
 import { UserInputQuestionSchema } from "@shared/schemas";
 import {
   permissionCapabilityForTool,
+  permissionArgKeyForInput,
   permissionOptionsForPayload,
 } from "@shared/provider-permissions";
+
+export { permissionArgKeyForInput as argKeyForToolInput } from "@shared/provider-permissions";
 
 export function summarizePermissionInput(input: unknown): string {
   if (!input || typeof input !== "object") return "";
@@ -40,7 +43,50 @@ export function permissionActionsForEvent(
   const requestId = event.payload.requestId;
   if (!requestId) return [];
   const options = permissionOptionsForPayload(event.tool, event.payload);
-  return permissionActionsForOptions(requestId, options);
+  const actions = permissionActionsForOptions(requestId, options);
+  if (isObservationOnlyPermission(event)) return actions;
+  if (!canBuildPersistentPermissionChoice(event)) return actions;
+
+  const allowOption = options.find((option) => option.decision === "allow");
+  const denyOption = options.find((option) => option.decision === "deny");
+  return [
+    ...actions,
+    ...(allowOption
+      ? [
+          {
+            label: "allow session",
+            action: {
+              kind: "permission-choice" as const,
+              requestId,
+              choiceId: "allow-session" as const,
+              optionId: allowOption.id,
+            },
+          },
+          {
+            label: "allow workspace",
+            action: {
+              kind: "permission-choice" as const,
+              requestId,
+              choiceId: "allow-workspace" as const,
+              optionId: allowOption.id,
+            },
+          },
+        ]
+      : []),
+    ...(denyOption
+      ? [
+          {
+            label: "deny workspace",
+            action: {
+              kind: "permission-choice" as const,
+              requestId,
+              choiceId: "deny-workspace" as const,
+              optionId: denyOption.id,
+            },
+          },
+        ]
+      : []),
+  ];
 }
 
 export function permissionActionsForOptions(
@@ -141,22 +187,12 @@ export function extractRecentReasoning(
   return "";
 }
 
-export function argKeyForToolInput(input: unknown): string {
-  if (!input || typeof input !== "object") return "*";
-  const r = input as Record<string, unknown>;
-  if (typeof r.file_path === "string") return `file:${r.file_path}`;
-  if (typeof r.path === "string") return `file:${r.path}`;
-  if (typeof r.command === "string") return `cmd:${r.command.slice(0, 80)}`;
-  if (typeof r.pattern === "string") return `glob:${r.pattern}`;
-  if (typeof r.url === "string") return `url:${r.url.slice(0, 80)}`;
-  return "*";
-}
-
 export function isPermissionLetter(letter: Letter): boolean {
   return letter.actions.some(
     (a) =>
       a.action.kind === "permission-allow" ||
-      a.action.kind === "permission-deny"
+      a.action.kind === "permission-deny" ||
+      a.action.kind === "permission-choice"
   );
 }
 
@@ -194,6 +230,18 @@ export function permissionResolutionForAction(
     default:
       return null;
   }
+}
+
+export function isPermissionChoiceAction(action: LetterAction): boolean {
+  return action.kind === "permission-choice";
+}
+
+function canBuildPersistentPermissionChoice(event: AgentEvent): boolean {
+  return (
+    typeof event.payload.name === "string" &&
+    !!event.payload.name.trim() &&
+    permissionArgKeyForInput(event.payload.input) !== "*"
+  );
 }
 
 export function userInputQuestionsForEvent(

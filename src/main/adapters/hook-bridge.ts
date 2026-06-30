@@ -9,7 +9,9 @@ import {
   HookPayloadSchema,
   type HookPayload,
   type PermissionDecision,
+  type PermissionChoiceId,
   type PermissionOption,
+  type PermissionRule,
   type UserInputAnswers,
 } from "@shared/schemas";
 import { permissionOptionsForPayload } from "@shared/provider-permissions";
@@ -22,6 +24,12 @@ import {
   cancelUserInputRequest,
   registerUserInputRequest,
 } from "./user-input-bridge";
+import {
+  matchPermissionRule,
+  permissionChoiceDecision,
+  permissionChoiceWritesRule,
+  ruleFromPermissionChoice,
+} from "../permission-rules";
 
 export const SOCKET_PATH = join(homedir(), ".realmkeeper", "realmkeeper.sock");
 
@@ -48,6 +56,9 @@ type Pending = {
   tool: AgentTool;
   source: AgentEventSource;
   options: PermissionOption[];
+  name?: unknown;
+  input?: unknown;
+  repoRoot?: string;
   socket?: Socket;
   resolve?: (resolution: PendingPermissionResolution) => void | Promise<void>;
 };
@@ -56,6 +67,14 @@ type PendingPermissionResolution = {
   message?: string;
   optionId?: string;
 };
+type RegisterPermissionResult =
+  | { status: "registered" }
+  | {
+      status: "auto-resolved";
+      rule: PermissionRule;
+      decision: PermissionDecision;
+    }
+  | { status: "duplicate" };
 const pending = new Map<string, Pending>();
 const hookDedupe = createHookDedupe();
 const pendingUserInputSockets = new Map<Socket, string>();
@@ -68,7 +87,14 @@ function emitPermissionResolved(
     source?: AgentEventSource;
   },
   requestId: string,
-  resolution: "error"
+  resolution: "allow" | "deny" | "error",
+  details?: {
+    optionId?: string;
+    choiceId?: PermissionChoiceId;
+    rule?: PermissionRule;
+    name?: unknown;
+    input?: unknown;
+  }
 ) {
   bus.emitAgentEvent({
     sessionId: ctx.sessionId,
@@ -77,7 +103,18 @@ function emitPermissionResolved(
     source: ctx.source ?? "hook",
     timestamp: Date.now(),
     kind: "permission_resolved",
-    payload: { requestId, resolution },
+    payload: {
+      requestId,
+      resolution,
+      decision: resolution === "error" ? undefined : resolution,
+      optionId: details?.optionId,
+      choiceId: details?.choiceId,
+      ruleId: details?.rule?.id,
+      ruleLabel: details?.rule?.label,
+      ruleScope: details?.rule?.scope,
+      name: typeof details?.name === "string" ? details.name : undefined,
+      input: details?.input,
+    },
   });
 }
 
@@ -92,16 +129,81 @@ export function registerPermissionRequest(
   options: PermissionOption[],
   resolve: (resolution: PendingPermissionResolution) => void | Promise<void>
 ): boolean {
-  if (pending.has(requestId)) return false;
+  return (
+    registerPermissionRequestWithRules(ctx, requestId, options, resolve)
+      .status === "registered"
+  );
+}
+
+export function registerPermissionRequestWithRules(
+  ctx: {
+    sessionId: string;
+    cwd: string;
+    tool: AgentTool;
+    source?: AgentEventSource;
+  },
+  requestId: string,
+  options: PermissionOption[],
+  resolve: (resolution: PendingPermissionResolution) => void | Promise<void>,
+  details?: { name?: unknown; input?: unknown; repoRoot?: string }
+): RegisterPermissionResult {
+  if (pending.has(requestId)) return { status: "duplicate" };
+  const match = matchPermissionRule({
+    provider: ctx.tool,
+    sessionId: ctx.sessionId,
+    cwd: ctx.cwd,
+    repoRoot: details?.repoRoot,
+    name: details?.name,
+    input: details?.input,
+  });
+  if (
+    match &&
+    isAllowedPendingDecision(
+      options,
+      match.decision,
+      optionIdForDecision(options, match.decision)
+    )
+  ) {
+    const optionId = optionIdForDecision(options, match.decision);
+    try {
+      void Promise.resolve(
+        resolve({ decision: match.decision, optionId })
+      ).catch((err: unknown) => {
+        console.log(
+          `[realmkeeper/bridge] auto resolve ${requestId} callback FAILED:`,
+          err
+        );
+      });
+    } catch (e) {
+      console.log(
+        `[realmkeeper/bridge] auto resolve ${requestId} callback FAILED:`,
+        e
+      );
+    }
+    emitPermissionResolved(ctx, requestId, match.decision, {
+      optionId,
+      rule: match.rule,
+      name: details?.name,
+      input: details?.input,
+    });
+    return {
+      status: "auto-resolved",
+      rule: match.rule,
+      decision: match.decision,
+    };
+  }
   pending.set(requestId, {
     sessionId: ctx.sessionId,
     cwd: ctx.cwd,
     tool: ctx.tool,
     source: ctx.source ?? "realmkeeper",
     options,
+    name: details?.name,
+    input: details?.input,
+    repoRoot: details?.repoRoot,
     resolve,
   });
-  return true;
+  return { status: "registered" };
 }
 
 export function cancelPermissionRequest(requestId: string): boolean {
@@ -230,7 +332,6 @@ export function startHookBridge() {
         bus.emitAgentEvent(ev);
         return;
       }
-      bus.emitAgentEvent(ev);
       // permission_request needs the socket kept open until the renderer
       // resolves it. All other events are fire-and-forget.
       if (ev.kind === "permission_request" && ev.payload.requestId) {
@@ -239,15 +340,36 @@ export function startHookBridge() {
         // the socket errors, or the bridge shuts down (e.g. main exit).
         // Python's recv() blocks the same way; if the GUI dies, socket
         // tear-down will surface as recv EOF on its end.
-        pending.set(id, {
-          socket,
-          sessionId: ev.sessionId,
-          cwd: ev.cwd,
-          tool: ev.tool,
-          source: ev.source,
-          options: permissionOptionsForPayload(ev.tool, ev.payload),
-        });
+        const options = permissionOptionsForPayload(ev.tool, ev.payload);
+        const result = registerPermissionRequestWithRules(
+          {
+            sessionId: ev.sessionId,
+            cwd: ev.cwd,
+            tool: ev.tool,
+            source: ev.source,
+          },
+          id,
+          options,
+          (resolution) => {
+            socket.end(permissionReplyJson(ev.tool, resolution));
+          },
+          {
+            name: ev.payload.name,
+            input: ev.payload.input,
+            repoRoot: ev.repoRoot,
+          }
+        );
+        if (result.status === "duplicate") {
+          socket.destroy();
+          return;
+        }
+        if (result.status === "registered") {
+          const p = pending.get(id);
+          if (p) p.socket = socket;
+          bus.emitAgentEvent(ev);
+        }
       } else {
+        bus.emitAgentEvent(ev);
         socket.destroy();
       }
     };
@@ -338,41 +460,114 @@ export function resolvePermissionRequest(
   message?: string,
   optionId?: string
 ): boolean {
+  return resolvePendingPermissionRequest(requestId, {
+    decision,
+    message,
+    optionId,
+  });
+}
+
+export function applyPermissionChoiceRequest(
+  requestId: string,
+  choiceId: PermissionChoiceId,
+  message?: string,
+  optionId?: string
+): boolean {
   const p = pending.get(requestId);
   if (!p) {
     console.log(
-      `[realmkeeper/bridge] resolve ${requestId} = ${decision} — NO PENDING ENTRY (already resolved or expired)`
+      `[realmkeeper/bridge] choice ${requestId} = ${choiceId} — NO PENDING ENTRY (already resolved or expired)`
     );
     return false;
   }
-  if (!isAllowedPendingDecision(p.options, decision, optionId)) {
+  const decision = permissionChoiceDecision(choiceId);
+  const resolvedOptionId = optionId ?? optionIdForDecision(p.options, decision);
+  if (permissionChoiceWritesRule(choiceId)) {
+    const rule = ruleFromPermissionChoice(choiceId, {
+      provider: p.tool,
+      sessionId: p.sessionId,
+      cwd: p.cwd,
+      repoRoot: p.repoRoot,
+      name: p.name,
+      input: p.input,
+      requestId,
+    });
+    if (!rule) {
+      console.log(
+        `[realmkeeper/bridge] choice ${requestId} = ${choiceId} — COULD NOT CREATE RULE`
+      );
+      return false;
+    }
+    return resolvePendingPermissionRequest(
+      requestId,
+      {
+        decision,
+        message,
+        optionId: resolvedOptionId,
+      },
+      { choiceId, rule }
+    );
+  }
+  return resolvePendingPermissionRequest(requestId, {
+    decision,
+    message,
+    optionId: resolvedOptionId,
+  });
+}
+
+function resolvePendingPermissionRequest(
+  requestId: string,
+  resolution: PendingPermissionResolution,
+  audit?: { choiceId?: PermissionChoiceId; rule?: PermissionRule }
+): boolean {
+  const p = pending.get(requestId);
+  if (!p) {
     console.log(
-      `[realmkeeper/bridge] resolve ${requestId} = ${decision} option=${optionId ?? "(none)"} — UNSUPPORTED OPTION`
+      `[realmkeeper/bridge] resolve ${requestId} = ${resolution.decision} — NO PENDING ENTRY (already resolved or expired)`
+    );
+    return false;
+  }
+  if (
+    !isAllowedPendingDecision(
+      p.options,
+      resolution.decision,
+      resolution.optionId
+    )
+  ) {
+    console.log(
+      `[realmkeeper/bridge] resolve ${requestId} = ${resolution.decision} option=${resolution.optionId ?? "(none)"} — UNSUPPORTED OPTION`
     );
     return false;
   }
   pending.delete(requestId);
   if (p.resolve) {
     try {
-      void Promise.resolve(p.resolve({ decision, message, optionId })).catch(
-        (err: unknown) => {
-          console.log(
-            `[realmkeeper/bridge] resolve ${requestId} callback FAILED:`,
-            err
-          );
-        }
-      );
+      void Promise.resolve(p.resolve(resolution)).catch((err: unknown) => {
+        console.log(
+          `[realmkeeper/bridge] resolve ${requestId} callback FAILED:`,
+          err
+        );
+      });
     } catch (e) {
       console.log(
         `[realmkeeper/bridge] resolve ${requestId} callback FAILED:`,
         e
       );
     }
+    if (audit?.rule) {
+      emitPermissionResolved(p, requestId, resolution.decision, {
+        optionId: resolution.optionId,
+        choiceId: audit.choiceId,
+        rule: audit.rule,
+        name: p.name,
+        input: p.input,
+      });
+    }
     return true;
   }
   if (!p.socket) {
     console.log(
-      `[realmkeeper/bridge] resolve ${requestId} = ${decision} — NO REPLY CHANNEL`
+      `[realmkeeper/bridge] resolve ${requestId} = ${resolution.decision} — NO REPLY CHANNEL`
     );
     return false;
   }
@@ -381,11 +576,7 @@ export function resolvePermissionRequest(
     // upstream when behavior=deny — Claude's PermissionRequest contract
     // has no message field for allow, and Cursor's shape uses
     // user_message/agent_message instead.
-    const reply = JSON.stringify({
-      permissionDecision: decision,
-      optionId,
-      denyMessage: decision === "deny" ? (message ?? undefined) : undefined,
-    });
+    const reply = permissionReplyJson(p.tool, resolution);
 
     console.log(
       `[realmkeeper/bridge] resolve ${requestId} (tool=${p.tool}) → ${reply}`
@@ -393,6 +584,15 @@ export function resolvePermissionRequest(
     p.socket.end(reply);
   } catch (e) {
     console.log(`[realmkeeper/bridge] resolve ${requestId} write FAILED:`, e);
+  }
+  if (audit?.rule) {
+    emitPermissionResolved(p, requestId, resolution.decision, {
+      optionId: resolution.optionId,
+      choiceId: audit.choiceId,
+      rule: audit.rule,
+      name: p.name,
+      input: p.input,
+    });
   }
   return true;
 }
@@ -407,6 +607,27 @@ function isAllowedPendingDecision(
     if (option) return option.decision === decision;
   }
   return options.some((option) => option.decision === decision);
+}
+
+function optionIdForDecision(
+  options: readonly PermissionOption[],
+  decision: PermissionDecision
+): string | undefined {
+  return options.find((option) => option.decision === decision)?.id;
+}
+
+function permissionReplyJson(
+  _tool: AgentTool,
+  resolution: PendingPermissionResolution
+): string {
+  return JSON.stringify({
+    permissionDecision: resolution.decision,
+    optionId: resolution.optionId,
+    denyMessage:
+      resolution.decision === "deny"
+        ? (resolution.message ?? undefined)
+        : undefined,
+  });
 }
 
 /**

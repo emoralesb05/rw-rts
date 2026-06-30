@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { AgentToolSchema } from "./common";
-import { PermissionOptionSchema } from "./permissions";
+import {
+  PermissionDecisionSchema,
+  PermissionOptionSchema,
+  PermissionRuleScopeSchema,
+} from "./permissions";
 import { UserInputQuestionSchema } from "./user-input";
 
 export const AgentEventKindSchema = z.enum([
@@ -43,7 +47,13 @@ export const AgentEventPayloadSchema = z.looseObject({
   questions: z.array(UserInputQuestionSchema).optional(),
   responseKind: z.literal("mcp-elicitation").optional(),
   autoResolutionMs: z.number().int().nonnegative().nullable().optional(),
-  resolution: z.literal("error").optional(),
+  resolution: z.enum(["allow", "deny", "error"]).optional(),
+  decision: PermissionDecisionSchema.optional(),
+  optionId: z.string().optional(),
+  choiceId: z.string().optional(),
+  ruleId: z.string().optional(),
+  ruleLabel: z.string().optional(),
+  ruleScope: PermissionRuleScopeSchema.optional(),
   durationMs: z.number().finite().nonnegative().optional(),
 });
 export type AgentEventPayload = z.infer<typeof AgentEventPayloadSchema>;

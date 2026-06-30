@@ -805,7 +805,9 @@ export function applyOneEvent(
       for (const a of l.actions) {
         if (
           (a.action.kind === "permission-allow" ||
-            a.action.kind === "permission-deny") &&
+            a.action.kind === "permission-deny" ||
+            a.action.kind === "permission-choice" ||
+            a.action.kind === "permission-observe") &&
           a.action.requestId === reqId
         ) {
           return false;
@@ -933,6 +935,7 @@ export function applyOneEvent(
         (a) =>
           a.action.kind === "permission-allow" ||
           a.action.kind === "permission-deny" ||
+          a.action.kind === "permission-choice" ||
           a.action.kind === "permission-observe"
       );
       const isInputLetter = isUserInputLetter(l);
@@ -950,6 +953,7 @@ export function applyOneEvent(
           (a) =>
             (a.action.kind === "permission-allow" ||
               a.action.kind === "permission-deny" ||
+              a.action.kind === "permission-choice" ||
               a.action.kind === "permission-observe") &&
             a.action.requestId === newReqId
         );

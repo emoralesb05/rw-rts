@@ -591,12 +591,15 @@ trigger condition shows up. Order is rough priority (highest first).
 
 ### Active workstream — see plans/
 
-- **Provider-neutral multi-choice permissions** — full plan in
-  [`./plans/multi-choice-permissions.md`](./plans/multi-choice-permissions.md).
-  Needed for confirmation prompts that expose multiple selectable options
-  instead of a single allow/deny pair.
+No active implementation plan is open. Provider-neutral permission rules now
+ship as Realmkeeper-local saved rules; see [`./architecture/state.md`](./architecture/state.md)
+and [`./providers/hooks.md`](./providers/hooks.md).
 
 ### Phase 2A polish (deferred)
+
+- **Provider-native permission-rule mirroring** — optional future opt-in for
+  writing Claude/Gemini/Codex/Cursor native config after Realmkeeper-local
+  rules have proven safe. Keep Cursor default allowlist mode observe-only.
 
 - **Quest system** (~1.5d) — auto-thematic per-prompt quests with
   AI-generated names + recaps via Vercel AI SDK abstraction, persisted

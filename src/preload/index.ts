@@ -4,15 +4,19 @@ import { IPC } from "../shared/ipc";
 import {
   AgentEventSchema,
   AppSettingsSchema,
+  ApplyPermissionChoiceResponseSchema,
   HooksStatusSchema,
+  ListPermissionRulesResponseSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
   OpenPathResponseSchema,
   PersistedStateSchema,
+  RemovePermissionRuleResponseSchema,
   ResolvePermissionResponseSchema,
   ResolveUserInputResponseSchema,
   SpawnAgentResponseSchema,
   WorkspaceRootValidationSchema,
+  type ApplyPermissionChoiceRequest,
   type AppSettings,
   type SpawnAgentRequest,
   type SendPromptRequest,
@@ -143,6 +147,26 @@ const api = {
       IPC.ResolvePermission,
       ResolvePermissionResponseSchema,
       req
+    );
+  },
+  applyPermissionChoice(req: ApplyPermissionChoiceRequest) {
+    return invokeParsed(
+      IPC.ApplyPermissionChoice,
+      ApplyPermissionChoiceResponseSchema,
+      req
+    );
+  },
+  listPermissionRules() {
+    return invokeParsed(
+      IPC.ListPermissionRules,
+      ListPermissionRulesResponseSchema
+    );
+  },
+  removePermissionRule(ruleId: string) {
+    return invokeParsed(
+      IPC.RemovePermissionRule,
+      RemovePermissionRuleResponseSchema,
+      { ruleId }
     );
   },
   resolveUserInput(req: ResolveUserInputRequest) {

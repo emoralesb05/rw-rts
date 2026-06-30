@@ -89,6 +89,18 @@ export function summarizeEvent(ev: AgentEvent): ActivitySummary {
     return { text: `asked permission · ${name}`, tone: "warn" };
   }
   if (ev.kind === "permission_resolved") {
+    const decision = ev.payload.decision ?? ev.payload.resolution;
+    const ruleLabel =
+      typeof ev.payload.ruleLabel === "string" ? ev.payload.ruleLabel : "";
+    if (decision === "allow" || decision === "deny") {
+      const verb = decision === "allow" ? "allowed" : "denied";
+      return {
+        text: ruleLabel
+          ? `${verb} by rule · ${trim(ruleLabel, 64)}`
+          : `permission ${verb}`,
+        tone: decision === "deny" ? "danger" : "muted",
+      };
+    }
     return { text: "permission resolved", tone: "muted" };
   }
   if (ev.kind === "user_input_request") {

@@ -3,7 +3,7 @@ import { createInterface } from "node:readline";
 import { bus } from "../event-bus";
 import {
   cancelPermissionRequest,
-  registerPermissionRequest,
+  registerPermissionRequestWithRules,
 } from "./hook-bridge";
 import {
   cancelUserInputRequest,
@@ -532,7 +532,7 @@ class CodexAppServerClient {
       return;
     }
 
-    const registered = registerPermissionRequest(
+    const registered = registerPermissionRequestWithRules(
       {
         sessionId: this.sessionId,
         cwd: this.cwd,
@@ -547,9 +547,14 @@ class CodexAppServerClient {
           id,
           result: codexAppServerPermissionResponse(method, params, decision),
         });
+      },
+      {
+        name: event.payload.name,
+        input: event.payload.input,
+        repoRoot: event.repoRoot,
       }
     );
-    if (!registered) {
+    if (registered.status === "duplicate") {
       this.write({ id, result: codexAppServerFailClosedResponse(method) });
       bus.emitAgentEvent({
         sessionId: this.sessionId,
@@ -564,6 +569,7 @@ class CodexAppServerClient {
       });
       return;
     }
+    if (registered.status === "auto-resolved") return;
 
     this.pendingPermissionRequests.add(requestId);
     bus.emitAgentEvent(event);

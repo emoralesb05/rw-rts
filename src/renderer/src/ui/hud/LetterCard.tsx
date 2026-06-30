@@ -89,7 +89,10 @@ export function LetterCard({ letter }: { letter: Letter }) {
   // observational letters skip this since deny isn't possible at
   // that point.
   const isPermLetter = letter.actions.some(
-    (a) => a.action.kind === "permission-deny"
+    (a) =>
+      a.action.kind === "permission-deny" ||
+      (a.action.kind === "permission-choice" &&
+        a.action.choiceId.startsWith("deny"))
   );
   const isPermissionLike = isPermissionLetter(letter);
   const isUserInput = isUserInputLetter(letter);
@@ -125,6 +128,7 @@ export function LetterCard({ letter }: { letter: Letter }) {
     (a) =>
       a.action.kind === "permission-allow" ||
       a.action.kind === "permission-deny" ||
+      a.action.kind === "permission-choice" ||
       a.action.kind === "permission-observe" ||
       a.action.kind === "user-input-submit"
   )?.action;
@@ -141,7 +145,12 @@ export function LetterCard({ letter }: { letter: Letter }) {
     ? () => selectWorld(targetWorldId!)
     : undefined;
   const applyAction = (action: LetterAction) => {
-    if (action.kind === "permission-deny" && denyReason.trim()) {
+    if (
+      (action.kind === "permission-deny" ||
+        (action.kind === "permission-choice" &&
+          action.choiceId.startsWith("deny"))) &&
+      denyReason.trim()
+    ) {
       applyLetterAction(letter, {
         ...action,
         message: denyReason.trim(),
@@ -410,6 +419,7 @@ export function isPermissionLetter(letter: Letter): boolean {
     (a) =>
       a.action.kind === "permission-allow" ||
       a.action.kind === "permission-deny" ||
+      a.action.kind === "permission-choice" ||
       a.action.kind === "permission-observe"
   );
 }

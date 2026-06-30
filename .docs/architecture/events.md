@@ -62,7 +62,7 @@ type AgentEvent = {
 | `subagent_spawn` | `parentSessionId: string`, `name?: string` (the spawned task's id/role) |
 | `error` | `error: string`, optional `name`/`input` if tied to a tool call |
 | `permission_request` | `name: string`, `input: unknown`, `requestId: string` (route-back id) |
-| `permission_resolved` | `requestId: string`, `resolution?: "error"` (synthetic — emitted when something other than the GUI resolves it) |
+| `permission_resolved` | `requestId: string`, `resolution?: "allow" \| "deny" \| "error"`, optional `ruleId` / `ruleLabel` / `ruleScope` for saved-rule audit rows |
 
 `durationMs` on `tool_result` is opportunistic — Cursor reports `duration`, Codex `duration_ms`. When present, the renderer surfaces a small chip on slow tool calls.
 

@@ -63,6 +63,7 @@ function statusForTab(
       (a) =>
         a.action.kind === "permission-allow" ||
         a.action.kind === "permission-deny" ||
+        a.action.kind === "permission-choice" ||
         a.action.kind === "permission-observe"
     );
   });

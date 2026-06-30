@@ -38,6 +38,11 @@ Same `LetterCard` component renders inside all three surfaces.
 type LetterAction =
   | { kind: "permission-allow"; requestId: string }
   | { kind: "permission-deny"; requestId: string; message?: string }
+  | {
+      kind: "permission-choice";
+      requestId: string;
+      choiceId: "allow-session" | "allow-workspace" | "deny-workspace" | "...";
+    }
   | { kind: "permission-observe"; requestId: string }   // Cursor only
   | { kind: "iterate"; sessionId: string }              // run a standing order one more time
   | { kind: "comfort"; sessionId: string }              // calm a stuck wielder
@@ -50,6 +55,13 @@ type LetterAction =
 ```
 
 `store.applyLetterAction()` is the single dispatch — routes to AgentManager / panel-store / etc.
+
+`permission-choice` routes through `rw:apply-permission-choice`. Session and
+workspace choices save a Realmkeeper-local rule in
+`~/.realmkeeper/permissions.json`, then resolve the current pending provider
+request. Future matching actionable requests are auto-resolved before a letter
+is rendered. Provider-native persistent config files are not written by this
+path.
 
 ## Risk levels (permission letters)
 

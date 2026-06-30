@@ -14,7 +14,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Trash2 } from "lucide-react";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -43,7 +43,7 @@ import { EmptyState } from "../components/kit/EmptyState";
 import { Skeleton } from "../components/kit/Skeleton";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
-import type { HooksStatus } from "@shared/schemas";
+import type { HooksStatus, PermissionRule } from "@shared/schemas";
 
 type TabKey = "overview" | "settings" | "connection" | "demos";
 
@@ -454,10 +454,12 @@ function ConnectionTab() {
   const [cursorStatus, setCursorStatus] = useState<HooksStatus | null>(null);
   const [codexStatus, setCodexStatus] = useState<HooksStatus | null>(null);
   const [geminiStatus, setGeminiStatus] = useState<HooksStatus | null>(null);
+  const [permissionRules, setPermissionRules] = useState<PermissionRule[]>([]);
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [cursorMissing, setCursorMissing] = useState(false);
   const [codexMissing, setCodexMissing] = useState(false);
   const [geminiMissing, setGeminiMissing] = useState(false);
+  const [permissionRulesMissing, setPermissionRulesMissing] = useState(false);
   const [claudeBusy, setClaudeBusy] = useState(false);
   const [cursorBusy, setCursorBusy] = useState(false);
   const [codexBusy, setCodexBusy] = useState(false);
@@ -480,7 +482,18 @@ function ConnectionTab() {
       if (r) setGeminiStatus(r);
       else setGeminiMissing(true);
     });
+    void safeIpc(window.rw.listPermissionRules?.bind(window.rw)).then((r) => {
+      if (r) setPermissionRules(r);
+      else setPermissionRulesMissing(true);
+    });
   }, []);
+
+  const removeRule = async (ruleId: string) => {
+    const ok = await safeIpc(() => window.rw.removePermissionRule(ruleId));
+    if (!ok) return;
+    const next = await safeIpc(window.rw.listPermissionRules?.bind(window.rw));
+    if (next) setPermissionRules(next);
+  };
 
   const toggleClaude = async () => {
     if (!claudeStatus || claudeBusy) return;
@@ -615,7 +628,70 @@ function ConnectionTab() {
           }
         />
       )}
+      <PermissionRulesSection
+        missing={permissionRulesMissing}
+        rules={permissionRules}
+        onRemove={removeRule}
+      />
     </KingdomTab>
+  );
+}
+
+function PermissionRulesSection({
+  missing,
+  onRemove,
+  rules,
+}: {
+  missing: boolean;
+  onRemove(ruleId: string): Promise<void>;
+  rules: PermissionRule[];
+}) {
+  if (missing) return <PreloadRestartHint title="Saved permission rules" />;
+  return (
+    <KingdomSection title="Saved permission rules" count={rules.length}>
+      {rules.length === 0 ? (
+        <KingdomEmpty>No saved permission rules yet.</KingdomEmpty>
+      ) : (
+        <div className="border-line/60 overflow-hidden rounded-md border">
+          {rules.map((rule) => (
+            <div
+              key={rule.id}
+              className="border-line/50 grid grid-cols-[1fr_auto] items-center gap-2 border-b px-2.5 py-2 last:border-b-0"
+            >
+              <div className="min-w-0">
+                <div className="text-text text-[11px] font-semibold break-words">
+                  {rule.label}
+                </div>
+                <div className="text-muted mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 font-mono text-[9.5px]">
+                  <span>{rule.provider}</span>
+                  <span>{rule.scope}</span>
+                  {rule.repoRoot ? (
+                    <span className="max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap">
+                      {rule.repoRoot}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-0 px-2 py-1 text-[10px]"
+                onClick={() => void onRemove(rule.id)}
+                aria-label={`Remove rule ${rule.label}`}
+              >
+                <Trash2 size={12} aria-hidden />
+                remove
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      <KingdomFooterNote>
+        Rules are Realmkeeper-local. They auto-answer matching Claude, Codex,
+        and Gemini permission requests before a letter is shown; Cursor remains
+        observe-only in allowlist mode.
+      </KingdomFooterNote>
+    </KingdomSection>
   );
 }
 

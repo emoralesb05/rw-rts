@@ -1,4 +1,5 @@
 import type { AgentTool, PersistedState } from "./schemas";
+import type { PermissionChoiceId } from "./schemas/permissions";
 import type { UserInputAnswers, UserInputQuestion } from "./schemas/user-input";
 
 export type {
@@ -89,6 +90,13 @@ export type LetterAction =
       message?: string;
       optionId?: string;
     }
+  | {
+      kind: "permission-choice";
+      requestId: string;
+      choiceId: PermissionChoiceId;
+      message?: string;
+      optionId?: string;
+    }
   // Observational permission acknowledgement — used for Cursor, where
   // the hook can't pre-approve and the King's actual decision happens
   // in Cursor's native inline UI. The letter is routed to AlertsHUD
@@ -108,7 +116,11 @@ export type LetterAction =
 export type PermissionLetterAction = Extract<
   LetterAction,
   {
-    kind: "permission-allow" | "permission-deny" | "permission-observe";
+    kind:
+      | "permission-allow"
+      | "permission-deny"
+      | "permission-choice"
+      | "permission-observe";
   }
 >;
 

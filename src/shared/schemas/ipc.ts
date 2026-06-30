@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { AgentToolSchema } from "./common";
-import { PermissionDecisionSchema } from "./permissions";
+import {
+  PermissionChoiceIdSchema,
+  PermissionDecisionSchema,
+  PermissionRuleSchema,
+} from "./permissions";
 import { PersistedStateSchema } from "./persisted";
 import { AppSettingsSchema } from "./settings";
 import { UserInputAnswersSchema } from "./user-input";
@@ -47,6 +51,23 @@ export const ResolvePermissionRequestSchema = z.object({
 });
 export type ResolvePermissionRequest = z.infer<
   typeof ResolvePermissionRequestSchema
+>;
+
+export const ApplyPermissionChoiceRequestSchema = z.object({
+  requestId: z.string().min(1),
+  choiceId: PermissionChoiceIdSchema,
+  optionId: z.string().optional(),
+  message: z.string().optional(),
+});
+export type ApplyPermissionChoiceRequest = z.infer<
+  typeof ApplyPermissionChoiceRequestSchema
+>;
+
+export const RemovePermissionRuleRequestSchema = z.object({
+  ruleId: z.string().min(1),
+});
+export type RemovePermissionRuleRequest = z.infer<
+  typeof RemovePermissionRuleRequestSchema
 >;
 
 export const ResolveUserInputRequestSchema = z.object({
@@ -163,6 +184,21 @@ export type HooksStatus = z.infer<typeof HooksStatusSchema>;
 export const ResolvePermissionResponseSchema = z.boolean();
 export type ResolvePermissionResponse = z.infer<
   typeof ResolvePermissionResponseSchema
+>;
+
+export const ApplyPermissionChoiceResponseSchema = z.boolean();
+export type ApplyPermissionChoiceResponse = z.infer<
+  typeof ApplyPermissionChoiceResponseSchema
+>;
+
+export const ListPermissionRulesResponseSchema = z.array(PermissionRuleSchema);
+export type ListPermissionRulesResponse = z.infer<
+  typeof ListPermissionRulesResponseSchema
+>;
+
+export const RemovePermissionRuleResponseSchema = z.boolean();
+export type RemovePermissionRuleResponse = z.infer<
+  typeof RemovePermissionRuleResponseSchema
 >;
 
 export const ResolveUserInputResponseSchema = z.boolean();
