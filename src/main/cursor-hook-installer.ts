@@ -26,6 +26,7 @@
  * entry's `command`, since Cursor doesn't appear to support shell
  * comments in `command`.
  */
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
@@ -42,6 +43,7 @@ import {
 
 const CURSOR_HOOKS_PATH = join(homedir(), ".cursor", "hooks.json");
 const HOOK_MARKER = "realmkeeper-hook";
+const CURSOR_STATUS_COMMAND_TIMEOUT_MS = 3000;
 const CURSOR_HOOK_EVENTS = [
   "sessionStart",
   "sessionEnd",
@@ -52,6 +54,19 @@ const CURSOR_HOOK_EVENTS = [
   "afterAgentResponse",
   "beforeShellExecution",
 ] as const;
+type CursorAuthDiagnostic = {
+  authStatus: {
+    loggedIn: boolean;
+    authMethod: string;
+    apiProvider: string;
+  };
+  authIssue?: {
+    code: string;
+    severity: "warning";
+    message: string;
+    action?: string;
+  };
+};
 
 function loadHooksFile(): CursorHooksFile {
   if (!existsSync(CURSOR_HOOKS_PATH)) return { version: 1, hooks: {} };
@@ -118,11 +133,86 @@ export function uninstallCursorHooks() {
   saveHooksFile(file);
 }
 
+function getCursorCliVersion(): string | undefined {
+  try {
+    return execFileSync("cursor-agent", ["--version"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: CURSOR_STATUS_COMMAND_TIMEOUT_MS,
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function getCursorAuthDiagnostic(): CursorAuthDiagnostic {
+  try {
+    const output = execFileSync("cursor-agent", ["status"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: CURSOR_STATUS_COMMAND_TIMEOUT_MS,
+    }).trim();
+    return {
+      authStatus: {
+        loggedIn: /logged in/i.test(output),
+        authMethod: "cursor-agent status",
+        apiProvider: "Cursor",
+      },
+    };
+  } catch (err) {
+    return {
+      authStatus: {
+        loggedIn: false,
+        authMethod: "cursor-agent status",
+        apiProvider: "Cursor",
+      },
+      authIssue: {
+        code: "cursor-status-unavailable",
+        severity: "warning" as const,
+        message:
+          "Cursor Agent status could not be checked from Realmkeeper's Connection tab.",
+        action: cursorCommandErrorMessage(err),
+      },
+    };
+  }
+}
+
+function cursorCommandErrorMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const maybeError = err as {
+      message?: unknown;
+      stdout?: unknown;
+      stderr?: unknown;
+    };
+    for (const stream of [maybeError.stderr, maybeError.stdout]) {
+      const text = Buffer.isBuffer(stream)
+        ? stream.toString("utf8")
+        : typeof stream === "string"
+          ? stream
+          : undefined;
+      const cleaned = text?.trim();
+      if (cleaned) return truncateDiagnostic(cleaned);
+    }
+    if (typeof maybeError.message === "string" && maybeError.message) {
+      return truncateDiagnostic(maybeError.message);
+    }
+  }
+  return truncateDiagnostic(String(err));
+}
+
+function truncateDiagnostic(value: string): string {
+  return value.length > 240 ? `${value.slice(0, 237)}...` : value;
+}
+
 export function getCursorHooksStatus() {
+  const authDiagnostic = getCursorAuthDiagnostic();
   return {
     installed: isCursorInstalled(),
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: CURSOR_HOOKS_PATH,
+    cliVersion: getCursorCliVersion(),
+    authStatus: authDiagnostic.authStatus,
+    authIssue: authDiagnostic.authIssue,
   };
 }

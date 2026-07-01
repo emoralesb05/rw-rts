@@ -67,16 +67,26 @@ function installRw() {
       2
     ),
   };
+  const cursorStatus: HooksStatus = {
+    ...BASE_STATUS,
+    hooksConfigPath: "/home/user/.cursor/hooks.json",
+    cliVersion: "2026.06.26-7079533",
+    authStatus: {
+      loggedIn: true,
+      authMethod: "cursor-agent status",
+      apiProvider: "Cursor",
+    },
+  };
 
   const rw = {
     hooksStatus: vi.fn(() => Promise.resolve(claudeStatus)),
-    cursorHooksStatus: vi.fn(() => Promise.resolve(BASE_STATUS)),
+    cursorHooksStatus: vi.fn(() => Promise.resolve(cursorStatus)),
     codexHooksStatus: vi.fn(() => Promise.resolve(BASE_STATUS)),
     geminiHooksStatus: vi.fn(() => Promise.resolve(geminiStatus)),
     installHooks: vi.fn(() => Promise.resolve(claudeStatus)),
     uninstallHooks: vi.fn(() => Promise.resolve(claudeStatus)),
-    installCursorHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
-    uninstallCursorHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
+    installCursorHooks: vi.fn(() => Promise.resolve(cursorStatus)),
+    uninstallCursorHooks: vi.fn(() => Promise.resolve(cursorStatus)),
     installCodexHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
     uninstallCodexHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
     installGeminiHooks: vi.fn(() => Promise.resolve(geminiStatus)),
@@ -90,7 +100,7 @@ function installRw() {
     value: rw,
   });
 
-  return { rw, claudeStatus, geminiStatus };
+  return { rw, claudeStatus, cursorStatus, geminiStatus };
 }
 
 function installClipboard() {
@@ -118,7 +128,12 @@ describe("KingdomPanelBody", () => {
 
     expect(await screen.findByText("Gemini hook bridge")).toBeVisible();
     expect(await screen.findByText("2.1.195 (Claude Code)")).toBeVisible();
-    expect(screen.getByText("logged in")).toBeVisible();
+    expect(await screen.findByText("2026.06.26-7079533")).toBeVisible();
+    expect(screen.getByText("cursor-agent status")).toBeVisible();
+    expect(screen.getByText("--force")).toBeVisible();
+    expect(screen.getByText("--trust")).toBeVisible();
+    expect(screen.getByText("observe-only")).toBeVisible();
+    expect(screen.getAllByText("logged in")).toHaveLength(2);
     expect(screen.getByText("claude.ai")).toBeVisible();
     expect(screen.getByText("/home/user/.claude/projects")).toBeVisible();
     expect(screen.getByText(/partials/i)).toBeVisible();

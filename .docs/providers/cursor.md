@@ -100,6 +100,10 @@ Local `cursor-agent --help` exposes:
 - `--force`/`--yolo`, `--auto-review`, `--sandbox enabled|disabled`, `--trust`, and `--workspace` for autonomy and workspace handling.
 - `--plugin-dir`, `mcp`, `generate-rule`, and `worker` for local plugin/MCP/rule workflows and private cloud worker mode.
 
+Realmkeeper's Connection tab reports `cursor-agent --version`, the bounded
+`cursor-agent status` result, and the current launch behavior so this
+difference is visible in-app.
+
 Realmkeeper still uses `--force --trust` only for sessions it starts itself. `--auto-review` is a candidate replacement if we want Cursor's server classifier to auto-run safe tool calls while asking for the rest, but that is a product decision because it changes current autonomy semantics. Observed IDE sessions keep Cursor's native allowlist/confirmation behavior; Realmkeeper's letters remain informational for those.
 
 ## MCP, rules, plans, modes (we observe, don't drive)

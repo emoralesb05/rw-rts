@@ -31,6 +31,10 @@ async function withMockHome<T>(
         if (args[0] === "--version") return "0.49.0\n";
         if (args[0] === "--list-sessions") return "No saved sessions found.\n";
       }
+      if (file === "cursor-agent" && Array.isArray(args)) {
+        if (args[0] === "--version") return "2026.06.26-7079533\n";
+        if (args[0] === "status") return "✓ Logged in as test@example.com\n";
+      }
       if (Array.isArray(args) && args[0] === "auth") {
         return JSON.stringify({
           loggedIn: true,
@@ -201,14 +205,28 @@ describe("provider hook installers", () => {
         },
       });
 
-      const { installCursorHooks, uninstallCursorHooks, isCursorInstalled } =
-        await import("./cursor-hook-installer");
+      const {
+        installCursorHooks,
+        uninstallCursorHooks,
+        isCursorInstalled,
+        getCursorHooksStatus,
+      } = await import("./cursor-hook-installer");
 
       installCursorHooks();
       installCursorHooks();
 
       const installed = readJson(hooksPath);
       expect(isCursorInstalled()).toBe(true);
+      expect(getCursorHooksStatus()).toMatchObject({
+        installed: true,
+        hooksConfigPath: hooksPath,
+        cliVersion: "2026.06.26-7079533",
+        authStatus: {
+          loggedIn: true,
+          authMethod: "cursor-agent status",
+          apiProvider: "Cursor",
+        },
+      });
       for (const event of [
         "sessionStart",
         "sessionEnd",

@@ -577,6 +577,7 @@ function ConnectionTab() {
           busy={cursorBusy}
           onToggle={toggleCursor}
           configPathLabel="~/.cursor/hooks.json"
+          details={cursorDetails(cursorStatus)}
           description={
             <>
               Forwards Cursor agent activity for any chat on this machine.
@@ -775,6 +776,73 @@ function claudeDetails(status: HooksStatus | null) {
           </Code>{" "}
           · suggestions{" "}
           <Code>{enabledOff(status.richStreamFlags?.promptSuggestions)}</Code>
+        </span>
+      ),
+    },
+  ];
+}
+
+function cursorDetails(status: HooksStatus | null) {
+  if (!status) return [];
+  return [
+    {
+      label: "version",
+      value: status.cliVersion ? (
+        <Code>{status.cliVersion}</Code>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    {
+      label: "auth",
+      value: status.authStatus ? (
+        <span>
+          <Code>{loggedInLabel(status.authStatus.loggedIn)}</Code>
+          {status.authStatus.authMethod ? (
+            <>
+              {" "}
+              · <Code>{status.authStatus.authMethod}</Code>
+            </>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-muted">unavailable</span>
+      ),
+    },
+    ...(status.authIssue
+      ? [
+          {
+            label: "auth note",
+            value: (
+              <span className="text-warning">
+                {status.authIssue.message}
+                {status.authIssue.action ? (
+                  <>
+                    {" "}
+                    <span className="text-muted">
+                      {status.authIssue.action}
+                    </span>
+                  </>
+                ) : null}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      label: "spawn",
+      value: (
+        <span>
+          Realmkeeper starts Cursor with <Code>--force</Code> and{" "}
+          <Code>--trust</Code>
+        </span>
+      ),
+    },
+    {
+      label: "permissions",
+      value: (
+        <span>
+          observed IDE asks stay <Code>observe-only</Code>
         </span>
       ),
     },
