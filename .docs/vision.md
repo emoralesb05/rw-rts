@@ -110,20 +110,21 @@ Shipped foundations:
 - saved Realmkeeper-local permission rules
 - provider docs and probe evidence
 - direct messaging/resume paths where providers allow it
-- Electron renderer guardrails around navigation and IPC sender origin
+- Electron renderer guardrails around navigation, sandboxing, IPC sender origin,
+  request schemas, and response schemas
 
 ## Next Hardening
 
 Highest-value follow-ups:
 
-- add `sandbox: true` support for the Electron renderer by bundling preload
-  correctly
-- finish per-handler IPC payload validation where gaps remain
 - add stronger Electron smoke tests around permissions, settings, dispatch,
   chat drawer, and world selection
 - improve Codex app-server handling for richer request shapes such as MCP
   forms, user input, and dynamic tool calls
+- reduce renderer cold-start bundle size by splitting Streamdown's heavy
+  Mermaid/math/Shiki pieces
 - keep Cursor observe-only UX explicit and low-confusion
+- keep IPC schema coverage mandatory as new channels are added
 - revisit provider-native permission mirroring only as an opt-in after local
   rules prove stable
 

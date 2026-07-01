@@ -28,8 +28,8 @@ We chose one window with floating in-renderer panels (instead of multiple OS win
 
 ## Security boundaries
 
-- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: false` (we need preload Node access)
-- Preload (`src/preload/`) exposes a typed `window.rw` API; no direct `ipcRenderer`
-- `safeHandle()` wraps every IPC handler with a sender-frame check (see [`ipc.md`](./ipc.md))
+- `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
+- Preload (`src/preload/`) is bundled to a self-contained CommonJS file that only requires Electron, then exposes a typed `window.rw` API; no direct `ipcRenderer`
+- `safeHandle()` wraps every IPC handler with a sender-frame check, request schemas, and response schemas (see [`ipc.md`](./ipc.md))
 - `will-navigate` + `setWindowOpenHandler` block external navigation; URLs go to OS browser
 - Hook script (`bin/realmkeeper-hook`) treats stdin as untrusted JSON, never invokes shell

@@ -283,9 +283,10 @@ replay mode (event-log scrubber), outbound MCP server, Quest system.
 
 **Known gaps (see `.docs/vision.md` for details):**
 
-- Renderer hardening — `sandbox: true` (preload refactor) and per-handler
-  IPC payload schemas. Navigation block + sender-frame guard already
-  shipped; the rest matters before public distribution.
+- Electron smoke coverage — sandboxing, navigation blocking, sender-frame
+  checks, and IPC schemas are in place; the remaining hardening gap is broader
+  automated coverage for permissions, settings, dispatch, chat, and world
+  selection.
 - Renderer bundle size (~10 MB) — Streamdown markdown stack loads
   Mermaid/math/Shiki eagerly. Lazy-load is the plan.
 - Recall and standing-order loops on hook-observed sessions — direct

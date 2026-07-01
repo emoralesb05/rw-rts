@@ -107,7 +107,7 @@ function createWindow() {
     icon: iconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
