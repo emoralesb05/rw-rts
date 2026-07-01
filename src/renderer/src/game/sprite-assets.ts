@@ -23,6 +23,7 @@
 import type * as Phaser from "phaser";
 import type { UnitRole } from "@shared/events";
 import { UNIT_ROLES, SPRITE_URL } from "./draw";
+import { publicAsset, shouldProbeOptionalPublicAssets } from "../public-asset";
 
 // Per-role frame dimensions. Each AI-gen concept sheet comes back at a
 // different native resolution, so the no-scale extractor preserves
@@ -39,17 +40,18 @@ const FRAME_DIMS: Record<UnitRole, { width: number; height: number }> = {
 };
 const FRAMES_PER_SHEET = 32;
 
-const SHEET_URL = (role: UnitRole) => `/sprites/rw/${role}_sheet.png`;
+const SHEET_URL = (role: UnitRole) =>
+  publicAsset(`sprites/rw/${role}_sheet.png`);
 const SHEET_DEFAULT_URL = (role: UnitRole) =>
-  `/sprites/rw-default/${role}_sheet.png`;
+  publicAsset(`sprites/rw-default/${role}_sheet.png`);
 const SHEET_TEXTURE = (role: UnitRole) => `rw-sheet-${role}`;
 const SHEET_DEFAULT_TEXTURE = (role: UnitRole) => `rw-default-sheet-${role}`;
 
 // Probe which user overrides exist in /sprites/rw/ at module load. Phaser's
 // loader logs console.error for 404s, and there's no way to suppress per-file.
 // The probe runs once, before the scene preloads, so we can skip registering
-// missing override URLs entirely. Files are typically resolved by the time
-// React mounts and Phaser boots (localhost HEAD is sub-millisecond).
+// missing override URLs entirely. Server-backed launches usually resolve these
+// before React mounts and Phaser boots.
 //
 // Vite's dev server returns 200 with text/html (SPA fallback) for missing
 // static files, so r.ok alone isn't sufficient — must also check that the
@@ -63,15 +65,17 @@ const isImage = async (url: string): Promise<boolean> => {
     return false;
   }
 };
-void Promise.all(
-  UNIT_ROLES.map(async (role) => {
-    const [still, sheet] = await Promise.all([
-      isImage(SPRITE_URL(role)),
-      isImage(SHEET_URL(role)),
-    ]);
-    if (still || sheet) overrideAvailable.add(role);
-  })
-);
+if (shouldProbeOptionalPublicAssets()) {
+  void Promise.all(
+    UNIT_ROLES.map(async (role) => {
+      const [still, sheet] = await Promise.all([
+        isImage(SPRITE_URL(role)),
+        isImage(SHEET_URL(role)),
+      ]);
+      if (still || sheet) overrideAvailable.add(role);
+    })
+  );
+}
 
 export function hasOverride(role: UnitRole): boolean {
   return overrideAvailable.has(role);

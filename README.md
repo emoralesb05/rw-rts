@@ -62,6 +62,8 @@ Requires Bun, macOS (other platforms work but untested).
 bun install
 bun run dev          # electron-vite dev with hot reload
 bun run typecheck
+bun run test         # Vitest unit/component tests
+bun run test:e2e     # Playwright Electron smoke, isolated temp home
 ```
 
 The dev launch will offer to install Claude Code hooks the first time —
@@ -162,11 +164,13 @@ assets/sprites/rw/                      # YOUR overrides (gitignored)
 assets/sounds/rw/<name>.{wav,mp3,ogg}   # SFX overrides
 ```
 
-The runtime priority is: `rw/` override → `rw-default/` shipped →
-synthesized fallback. Override existence is probed on app boot
-(content-type checked since Vite dev returns 200/HTML for missing
-static files); only existing overrides get registered as Phaser
-textures, so missing overrides don't pollute the console.
+During dev/server launches, the runtime priority is: `rw/` override →
+`rw-default/` shipped → synthesized fallback. Override existence is
+probed on app boot (content-type checked since Vite dev returns
+200/HTML for missing static files); only existing overrides get
+registered as Phaser textures, so missing overrides don't pollute the
+console. Packaged `file://` launches skip optional override probes and
+load the shipped defaults/synth fallback.
 
 Generate fresh defaults with `bun scripts/generate-pixel-sprites.ts
 landmarks` (or `riftling` / `tiles` / `all`). The script supports a

@@ -29,6 +29,7 @@ import { Bar } from "../components/kit/Bar";
 import { Button } from "../components/kit/Button";
 import { EmptyState } from "../components/kit/EmptyState";
 import { TooltipHint } from "../components/kit/TooltipHint";
+import { publicAsset } from "../../public-asset";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,7 +133,7 @@ export function WielderPanelBody({ unitId }: Props) {
           >
             <img
               className="size-full object-cover [image-rendering:pixelated]"
-              src={`/sprites/rw-default/${unit.role}.png`}
+              src={publicAsset(`sprites/rw-default/${unit.role}.png`)}
               alt=""
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";

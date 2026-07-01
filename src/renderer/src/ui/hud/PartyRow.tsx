@@ -16,6 +16,7 @@ import { ArchetypeChip } from "../ArchetypeChip";
 import { Bar } from "../components/kit/Bar";
 import { IconButton } from "../components/kit/IconButton";
 import { TooltipHint } from "../components/kit/TooltipHint";
+import { publicAsset } from "../../public-asset";
 import { cn } from "@/lib/cn";
 import type { UnitState } from "@shared/events";
 
@@ -184,7 +185,7 @@ export function PartyRow({ unit }: { unit: UnitState }) {
       >
         <img
           className="size-full object-cover [image-rendering:pixelated]"
-          src={`/sprites/rw-default/${unit.role}.png`}
+          src={publicAsset(`sprites/rw-default/${unit.role}.png`)}
           alt=""
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = "none";

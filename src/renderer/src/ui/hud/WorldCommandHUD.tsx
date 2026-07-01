@@ -15,6 +15,7 @@ import { Bar } from "../components/kit/Bar";
 import { Button } from "../components/kit/Button";
 import { IconButton } from "../components/kit/IconButton";
 import { TooltipHint } from "../components/kit/TooltipHint";
+import { publicAsset } from "../../public-asset";
 import { cn } from "@/lib/cn";
 import {
   createWorldCommandBrief,
@@ -256,7 +257,7 @@ function UnitLine({ unit }: { unit: UnitState }) {
     >
       <img
         className="size-6 shrink-0 rounded-sm object-cover [image-rendering:pixelated]"
-        src={`/sprites/rw-default/${unit.role}.png`}
+        src={publicAsset(`sprites/rw-default/${unit.role}.png`)}
         alt=""
         onError={(event) => {
           (event.currentTarget as HTMLImageElement).style.display = "none";

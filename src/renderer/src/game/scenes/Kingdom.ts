@@ -71,6 +71,7 @@ import {
   type TacticalRect,
 } from "../tactical-map";
 import type { Riftling } from "@shared/events";
+import { publicAsset } from "../../public-asset";
 
 // Aura-state colors — match the RW visual language.
 const AURA_COLORS: Record<WardenAura, number> = {
@@ -508,11 +509,17 @@ export class KingdomScene extends Phaser.Scene {
     for (const t of themes) {
       this.load.image(
         LANDMARK_TEX(t),
-        `/sprites/rw-default/${LANDMARK_TEX(t)}.png`
+        publicAsset(`sprites/rw-default/${LANDMARK_TEX(t)}.png`)
       );
     }
-    this.load.image("tile-iso-a", "/sprites/rw-default/tile-iso-a.png");
-    this.load.image("tile-iso-b", "/sprites/rw-default/tile-iso-b.png");
+    this.load.image(
+      "tile-iso-a",
+      publicAsset("sprites/rw-default/tile-iso-a.png")
+    );
+    this.load.image(
+      "tile-iso-b",
+      publicAsset("sprites/rw-default/tile-iso-b.png")
+    );
 
     // Wielder stills + animated spritesheets. Always load shipped
     // defaults; only attempt user override when the probe confirmed it
@@ -528,17 +535,17 @@ export class KingdomScene extends Phaser.Scene {
     // Riftling sheets — 32×32 frames, 8 per sheet.
     this.load.spritesheet(
       "riftling-shadow-sheet",
-      "/sprites/rw-default/riftling-shadow_sheet.png",
+      publicAsset("sprites/rw-default/riftling-shadow_sheet.png"),
       { frameWidth: 32, frameHeight: 32 }
     );
     this.load.spritesheet(
       "riftling-soldier-sheet",
-      "/sprites/rw-default/riftling-soldier_sheet.png",
+      publicAsset("sprites/rw-default/riftling-soldier_sheet.png"),
       { frameWidth: 32, frameHeight: 32 }
     );
     this.load.spritesheet(
       "riftling-bulwark-sheet",
-      "/sprites/rw-default/riftling-bulwark_sheet.png",
+      publicAsset("sprites/rw-default/riftling-bulwark_sheet.png"),
       { frameWidth: 32, frameHeight: 32 }
     );
   }
@@ -713,7 +720,7 @@ export class KingdomScene extends Phaser.Scene {
       }
       if (!animKey || !this.anims.exists(animKey)) return;
       ref.lastEventAnimAt = now;
-      ref.sprite.play(animKey);
+      if (!this.tryPlaySpriteAnimation(ref.sprite, animKey)) return;
       ref.currentAnim = animKey;
       // Auto-revert to idle after animation likely completes (~600ms).
       const r = ref;
@@ -721,8 +728,9 @@ export class KingdomScene extends Phaser.Scene {
         if (!r.sprite || !r.sprite.scene) return;
         const idle = ANIM.idleFront(r.role);
         if (this.anims.exists(idle)) {
-          r.sprite.play(idle);
-          r.currentAnim = idle;
+          if (this.tryPlaySpriteAnimation(r.sprite, idle)) {
+            r.currentAnim = idle;
+          }
         }
       });
     };
@@ -2561,17 +2569,35 @@ export class KingdomScene extends Phaser.Scene {
       ref.sprite &&
       ref.currentAnim !== walkAnim
     ) {
-      ref.sprite.play(walkAnim);
-      ref.currentAnim = walkAnim;
+      if (this.tryPlaySpriteAnimation(ref.sprite, walkAnim)) {
+        ref.currentAnim = walkAnim;
+      }
     }
   }
 
   private playIdleAnimation(ref: WielderRef, role: UnitState["role"]) {
     const idle = getIdleAnimKey(role);
     if (this.anims.exists(idle) && ref.sprite && ref.currentAnim !== idle) {
-      ref.sprite.play(idle);
-      ref.currentAnim = idle;
+      if (this.tryPlaySpriteAnimation(ref.sprite, idle)) {
+        ref.currentAnim = idle;
+      }
     }
+  }
+
+  private tryPlaySpriteAnimation(
+    sprite: Phaser.GameObjects.Sprite | undefined,
+    key: string,
+    ignoreIfPlaying = true
+  ): boolean {
+    if (!sprite?.scene || !this.anims.exists(key)) return false;
+    const anims = (
+      sprite as Phaser.GameObjects.Sprite & {
+        anims?: Phaser.Animations.AnimationState;
+      }
+    ).anims;
+    if (!anims) return false;
+    anims.play(key, ignoreIfPlaying);
+    return true;
   }
 
   private spawnTravelPulse(
@@ -4494,8 +4520,9 @@ export class KingdomScene extends Phaser.Scene {
             this.anims.exists(attackAnim) &&
             target.ref.currentAnim !== attackAnim
           ) {
-            target.ref.sprite.play(attackAnim);
-            target.ref.currentAnim = attackAnim;
+            if (this.tryPlaySpriteAnimation(target.ref.sprite, attackAnim)) {
+              target.ref.currentAnim = attackAnim;
+            }
             this.time.delayedCall(520, () => {
               if (!target.ref.sprite?.scene) return;
               this.playIdleAnimation(target.ref, target.unit.role);
@@ -4809,7 +4836,7 @@ export class KingdomScene extends Phaser.Scene {
       spr.setOrigin(0.5, 1);
       spr.y = 8;
       const idle = getIdleAnimKey(role);
-      if (this.anims.exists(idle)) spr.play(idle);
+      this.tryPlaySpriteAnimation(spr, idle);
       body.add(spr);
       return spr;
     }

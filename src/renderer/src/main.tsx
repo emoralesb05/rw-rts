@@ -11,7 +11,6 @@ import "./styles.css";
 
 void preloadSounds();
 attachEventStream();
-attachLetterNotifications();
 attachStandingOrderRunner();
 attachMusicLoop();
 
@@ -21,6 +20,12 @@ const shouldSeedVisualQa =
   import.meta.env.DEV &&
   (new URLSearchParams(window.location.search).has("visual-qa") ||
     window.location.hash.includes("visual-qa"));
+const shouldExposeDebugHooks =
+  import.meta.env.DEV || new URLSearchParams(window.location.search).has("e2e");
+
+if (!new URLSearchParams(window.location.search).has("e2e")) {
+  attachLetterNotifications();
+}
 
 void window.rw
   .loadPersisted()
@@ -43,7 +48,7 @@ useStore.subscribe((state) => {
   }
 });
 
-if (import.meta.env.DEV) {
+if (shouldExposeDebugHooks) {
   const devWindow = window as unknown as {
     __rwSeedVisualQa: typeof seedVisualQaState;
     __rwStore: typeof useStore;

@@ -18,8 +18,10 @@
     "format:check": "prettier --check .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
-    "typecheck": "bun run typecheck:node && bun run typecheck:web",
+    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
+    "typecheck": "bun run typecheck:node && bun run typecheck:web && bun run typecheck:e2e",
     "test": "vitest run",
+    "test:e2e": "bun run build && playwright test -c playwright.config.ts",
     "pack": "bun run build && electron-builder --mac --dir",
     "dist": "bun run build && electron-builder --mac"
   },
@@ -120,6 +122,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@napi-rs/canvas": "^0.1.100",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

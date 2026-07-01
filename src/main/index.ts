@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { bus } from "./event-bus";
 import { AgentManager } from "./agent-manager";
@@ -82,6 +83,11 @@ import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
+const isE2E = process.env.REALMKEEPER_E2E === "1";
+
+if (isE2E && process.env.REALMKEEPER_USER_DATA) {
+  app.setPath("userData", process.env.REALMKEEPER_USER_DATA);
+}
 
 function stopRuntimeServices() {
   if (runtimeStopped) return;
@@ -97,7 +103,10 @@ function createWindow() {
   // app.getAppPath() resolves to the repo root in dev and the .app's
   // Resources/app dir when packaged — both have build/icon.png at the
   // same relative location, so the lookup works in either mode.
-  const iconPath = join(app.getAppPath(), "build/icon.png");
+  const appIconPath = join(app.getAppPath(), "build/icon.png");
+  const iconPath = existsSync(appIconPath)
+    ? appIconPath
+    : join(process.cwd(), "build/icon.png");
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -126,7 +135,10 @@ function createWindow() {
   if (process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    void mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    void mainWindow.loadFile(
+      join(__dirname, "../renderer/index.html"),
+      isE2E ? { query: { e2e: "1" } } : undefined
+    );
   }
 
   // Lock down navigation. The renderer should never leave its bundled
@@ -207,7 +219,7 @@ async function offerHookInstall() {
 }
 
 // Expose CDP for agent-browser attach in dev.
-if (!app.isPackaged) {
+if (!app.isPackaged && !isE2E) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222");
 }
 
@@ -217,10 +229,12 @@ void app.whenReady().then(async () => {
   // the app version. Must run before hook installers (so they
   // reference a present, executable file) and before the bridge (so
   // any racing hook fire finds the script).
-  syncHookScript();
-  startHookBridge();
-  startClaudeTranscriptWatcher();
-  startCodexTranscriptWatcher();
+  if (!isE2E) {
+    syncHookScript();
+    startHookBridge();
+    startClaudeTranscriptWatcher();
+    startCodexTranscriptWatcher();
+  }
   createWindow();
 
   process.on("SIGUSR1", () => {
@@ -237,7 +251,7 @@ void app.whenReady().then(async () => {
     })();
   });
 
-  await offerHookInstall();
+  if (!isE2E) await offerHookInstall();
 
   safeHandle(
     IPC.SpawnAgent,
