@@ -458,13 +458,17 @@ describe("active CLI stream normalization", () => {
             id: "approach",
             header: "Approach",
             question: "Which implementation should I use?",
+            required: true,
+            multiSelect: true,
             options: [
               {
                 label: "Small",
+                value: "small",
                 description: "Make the smallest compatible change.",
               },
               {
                 label: "Broad",
+                value: "broad",
                 description: "Refactor the surrounding module too.",
               },
             ],
@@ -492,13 +496,17 @@ describe("active CLI stream normalization", () => {
             id: "approach",
             header: "Approach",
             question: "Which implementation should I use?",
+            required: true,
+            multiSelect: true,
             options: [
               {
                 label: "Small",
+                value: "small",
                 description: "Make the smallest compatible change.",
               },
               {
                 label: "Broad",
+                value: "broad",
                 description: "Refactor the surrounding module too.",
               },
             ],
@@ -509,11 +517,11 @@ describe("active CLI stream normalization", () => {
 
     expect(
       codexAppServerUserInputResponse({
-        approach: { answers: ["Small"] },
+        approach: { answers: ["small"] },
       })
     ).toEqual({
       answers: {
-        approach: { answers: ["Small"] },
+        approach: { answers: ["small"] },
       },
     });
   });
@@ -553,6 +561,34 @@ describe("active CLI stream normalization", () => {
             type: "boolean",
             title: "Notify",
             description: "Notify subscribers?",
+          },
+          priority: {
+            type: "integer",
+            title: "Priority",
+            description: "Choose a priority.",
+            oneOf: [
+              { const: 0, title: "Low" },
+              { const: 2, title: "High" },
+            ],
+          },
+          confirm: {
+            type: "boolean",
+            title: "Confirm",
+            description: "Confirm the change?",
+            anyOf: [
+              { const: false, title: "Skip" },
+              { const: true, title: "Apply" },
+            ],
+          },
+          weights: {
+            type: "array",
+            title: "Weights",
+            description: "Choose weights.",
+            items: {
+              type: "number",
+              enum: [1, 2.5],
+              enumNames: ["One", "Two point five"],
+            },
           },
         },
       },
@@ -610,6 +646,37 @@ describe("active CLI stream normalization", () => {
               { label: "No", value: "false" },
             ],
           },
+          {
+            id: "priority",
+            header: "Priority",
+            question: "Choose a priority.",
+            required: false,
+            options: [
+              { label: "Low", value: "0" },
+              { label: "High", value: "2" },
+            ],
+          },
+          {
+            id: "confirm",
+            header: "Confirm",
+            question: "Confirm the change?",
+            required: false,
+            options: [
+              { label: "Skip", value: "false" },
+              { label: "Apply", value: "true" },
+            ],
+          },
+          {
+            id: "weights",
+            header: "Weights",
+            question: "Choose weights.",
+            required: false,
+            multiSelect: true,
+            options: [
+              { label: "One", value: "1" },
+              { label: "Two point five", value: "2.5" },
+            ],
+          },
         ],
       },
     });
@@ -621,6 +688,9 @@ describe("active CLI stream normalization", () => {
           repository: { answers: ["rw-rts"] },
           tags: { answers: ["provider", "ui"] },
           notify: { answers: ["true"] },
+          priority: { answers: ["2"] },
+          confirm: { answers: ["false"] },
+          weights: { answers: ["1", "2.5"] },
         },
         "accept"
       )
@@ -630,6 +700,9 @@ describe("active CLI stream normalization", () => {
         repository: "rw-rts",
         tags: ["provider", "ui"],
         notify: true,
+        priority: 2,
+        confirm: false,
+        weights: [1, 2.5],
       },
       _meta: null,
     });

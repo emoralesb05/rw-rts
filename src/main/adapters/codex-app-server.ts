@@ -1055,9 +1055,10 @@ function parseUserInputQuestions(value: unknown): UserInputQuestion[] {
           const o = record(option);
           const label = stringValue(o?.label);
           if (!label) return [];
+          const optionValue = scalarOptionValue(o?.value);
           const description = stringValue(o?.description);
           return [
-            description === undefined ? { label } : { label, description },
+            compactQuestionOption({ label, value: optionValue, description }),
           ];
         })
       : undefined;
@@ -1066,8 +1067,10 @@ function parseUserInputQuestions(value: unknown): UserInputQuestion[] {
         id,
         header,
         question,
+        required: booleanValue(q?.required),
         isOther: booleanValue(q?.isOther) || undefined,
         isSecret: booleanValue(q?.isSecret) || undefined,
+        multiSelect: booleanValue(q?.multiSelect),
         options,
       },
     ];
@@ -1108,31 +1111,33 @@ function parseMcpElicitationQuestions(value: unknown): UserInputQuestion[] {
 function mcpElicitationOptions(
   field: JsonRecord
 ): UserInputQuestion["options"] {
-  const titledSingle = Array.isArray(field.oneOf)
-    ? optionsFromConstList(field.oneOf)
-    : [];
+  const titledSingle = optionsFromSchemaChoices(field);
   if (titledSingle.length) return titledSingle;
 
   if (Array.isArray(field.enum)) {
     const names = Array.isArray(field.enumNames) ? field.enumNames : [];
     return field.enum.flatMap((entry, index) => {
-      if (typeof entry !== "string") return [];
+      const value = scalarOptionValue(entry);
+      if (value === undefined) return [];
       const label =
-        typeof names[index] === "string" && names[index] ? names[index] : entry;
-      return [{ label, value: entry }];
+        typeof names[index] === "string" && names[index] ? names[index] : value;
+      return [{ label, value }];
     });
   }
 
   const items = record(field.items);
-  const anyOf = Array.isArray(items?.anyOf)
-    ? optionsFromConstList(items.anyOf)
-    : [];
+  const anyOf = items ? optionsFromSchemaChoices(items) : [];
   if (anyOf.length) return anyOf;
 
   if (Array.isArray(items?.enum)) {
-    return items.enum.flatMap((entry) =>
-      typeof entry === "string" ? [{ label: entry, value: entry }] : []
-    );
+    const names = Array.isArray(items.enumNames) ? items.enumNames : [];
+    return items.enum.flatMap((entry, index) => {
+      const value = scalarOptionValue(entry);
+      if (value === undefined) return [];
+      const label =
+        typeof names[index] === "string" && names[index] ? names[index] : value;
+      return [{ label, value }];
+    });
   }
 
   if (field.type === "boolean") {
@@ -1145,14 +1150,25 @@ function mcpElicitationOptions(
   return undefined;
 }
 
+function optionsFromSchemaChoices(
+  value: JsonRecord
+): NonNullable<UserInputQuestion["options"]> {
+  const oneOf = Array.isArray(value.oneOf)
+    ? optionsFromConstList(value.oneOf)
+    : [];
+  if (oneOf.length) return oneOf;
+  if (Array.isArray(value.anyOf)) return optionsFromConstList(value.anyOf);
+  return [];
+}
+
 function optionsFromConstList(
   value: unknown[]
 ): NonNullable<UserInputQuestion["options"]> {
   return value.flatMap((entry) => {
     const option = record(entry);
-    const constValue = stringValue(option?.const);
-    const title = stringValue(option?.title);
-    if (!constValue || !title) return [];
+    const constValue = scalarOptionValue(option?.const);
+    if (constValue === undefined) return [];
+    const title = stringValue(option?.title) ?? constValue;
     return [{ label: title, value: constValue }];
   });
 }
@@ -1180,15 +1196,32 @@ function coerceMcpElicitationAnswer(
   field: JsonRecord,
   values: string[]
 ): unknown {
-  if (field.type === "array") return values;
+  if (field.type === "array") {
+    const items = record(field.items);
+    return values.flatMap((value) => {
+      const coerced = coerceMcpScalarValue(stringValue(items?.type), value);
+      return coerced === undefined ? [] : [coerced];
+    });
+  }
   const value = values[0];
   if (value === undefined) return undefined;
-  if (field.type === "boolean") return value === "true";
-  if (field.type === "integer") {
+  return coerceMcpScalarValue(stringValue(field.type), value);
+}
+
+function coerceMcpScalarValue(
+  type: string | undefined,
+  value: string
+): unknown {
+  if (type === "boolean") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return undefined;
+  }
+  if (type === "integer") {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.trunc(parsed) : undefined;
   }
-  if (field.type === "number") {
+  if (type === "number") {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
   }
@@ -1222,6 +1255,21 @@ function commandDisplayValue(value: unknown): string | undefined {
     return parts.length ? parts.join(" ") : undefined;
   }
   return stringValue(value);
+}
+
+function compactQuestionOption(
+  option: NonNullable<UserInputQuestion["options"]>[number]
+): NonNullable<UserInputQuestion["options"]>[number] {
+  return Object.fromEntries(
+    Object.entries(option).filter(([, entry]) => entry !== undefined)
+  ) as NonNullable<UserInputQuestion["options"]>[number];
+}
+
+function scalarOptionValue(value: unknown): string | undefined {
+  if (typeof value === "string") return value || undefined;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return String(value);
+  return undefined;
 }
 
 function record(value: unknown): JsonRecord | undefined {
