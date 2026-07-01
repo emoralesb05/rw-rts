@@ -98,6 +98,10 @@ export const FixtureScenarioSchema = z.enum([
   "stress",
   "combat",
   "permission",
+  "permission-claude",
+  "permission-codex",
+  "permission-gemini",
+  "permission-cursor",
   "demo",
 ]);
 export type FixtureScenario = z.infer<typeof FixtureScenarioSchema>;

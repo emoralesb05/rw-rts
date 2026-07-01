@@ -86,6 +86,9 @@ describe("runtime schemas", () => {
     expect(FixtureScenarioSchema.parse("claude-question")).toBe(
       "claude-question"
     );
+    expect(FixtureScenarioSchema.parse("permission-cursor")).toBe(
+      "permission-cursor"
+    );
   });
 
   it("rejects corrupt persisted state counters", () => {

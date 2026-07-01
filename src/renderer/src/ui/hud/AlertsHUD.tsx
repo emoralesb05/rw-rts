@@ -1,12 +1,12 @@
 /**
- * Top-right HUD: permission requests + other action-required alerts.
- * Distinct from informational letters (those go to LettersHUD bottom-
- * right). Permission letters get the urgent treatment — orange tone
- * border, prominent placement.
+ * Top-right HUD: permission requests, user input requests, and other
+ * action-required alerts. Distinct from informational letters (those
+ * go to LettersHUD bottom-right). Permission/input letters get the
+ * urgent treatment — orange tone border, prominent placement.
  *
  * Z-index plays the same focus-based stacking game as floating panels
  * and the chat drawer:
- *   - On a NEW permission letter arriving, AlertsHUD bumps z to the
+ *   - On a NEW action-required letter arriving, AlertsHUD bumps z to the
  *     top so the user sees it above whatever was previously focused.
  *   - On click, also bumps z (standard click-to-front).
  *   - Otherwise sits at default z (50) and gets covered by the drawer
@@ -17,12 +17,12 @@ import { useStore } from "../../store";
 import { usePanels } from "../floating/panel-store";
 import { EmptyState } from "../components/kit/EmptyState";
 import { HudWidget } from "./HudWidget";
-import { LetterCard, isPermissionLetter } from "./LetterCard";
+import { LetterCard, isActionRequiredLetter } from "./LetterCard";
 
 export function AlertsHUD() {
   const letters = useStore((s) => s.letters);
   const applyLetterAction = useStore((s) => s.applyLetterAction);
-  const alerts = letters.filter(isPermissionLetter);
+  const alerts = letters.filter(isActionRequiredLetter);
   const alertsZ = usePanels((s) => s.alertsZ);
   const focusAlerts = usePanels((s) => s.focusAlerts);
 

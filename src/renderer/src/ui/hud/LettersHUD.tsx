@@ -1,6 +1,6 @@
 /**
  * Bottom-right HUD: informational letters — sealed realm seals, drive
- * form transitions, finished sessions, stuck-loop hints. Permission
+ * form transitions, finished sessions, stuck-loop hints. Action-required
  * letters are filtered OUT (they live in AlertsHUD top-right).
  */
 import { Trash2 } from "lucide-react";
@@ -8,7 +8,7 @@ import { useStore } from "../../store";
 import { Button } from "../components/kit/Button";
 import { EmptyState } from "../components/kit/EmptyState";
 import { HudWidget } from "./HudWidget";
-import { LetterCard, isPermissionLetter } from "./LetterCard";
+import { LetterCard, isActionRequiredLetter } from "./LetterCard";
 import {
   Tooltip,
   TooltipContent,
@@ -20,7 +20,7 @@ export function LettersHUD() {
   const dismissInformationalLetters = useStore(
     (s) => s.dismissInformationalLetters
   );
-  const informational = letters.filter((l) => !isPermissionLetter(l));
+  const informational = letters.filter((l) => !isActionRequiredLetter(l));
   const clearBtn =
     informational.length > 0 ? (
       <Tooltip>
@@ -35,7 +35,7 @@ export function LettersHUD() {
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          Dismiss every letter — permission alerts are kept
+          Dismiss every letter — action-required alerts are kept
         </TooltipContent>
       </Tooltip>
     ) : null;

@@ -412,6 +412,56 @@ function geminiTurn(cwd: string): FakeUnit {
   };
 }
 
+function permissionFixture(tool: AgentTool, cwd: string) {
+  const sessionId = `${tool}-permission-${randomUUID()}`;
+  const requestId = `${tool}-permission-req-${randomUUID()}`;
+  const toolName =
+    tool === "codex"
+      ? "shell"
+      : tool === "gemini"
+        ? "Write"
+        : tool === "cursor"
+          ? "run_terminal_command_v2"
+          : "Bash";
+  const input =
+    tool === "codex"
+      ? { command: "git status --short" }
+      : tool === "gemini"
+        ? { file_path: "notes/gemini-provider-check.md" }
+        : tool === "cursor"
+          ? { command: "bun run typecheck" }
+          : { command: "rm -rf /tmp/dangerous-test-junk" };
+
+  bus.emitAgentEvent({
+    sessionId,
+    tool,
+    cwd,
+    timestamp: Date.now(),
+    kind: "session_start",
+    payload: {},
+    source: "spawned",
+  });
+  const timer = setTimeout(() => {
+    bus.emitAgentEvent({
+      sessionId,
+      tool,
+      cwd,
+      timestamp: Date.now(),
+      kind: "permission_request",
+      payload: {
+        name: toolName,
+        input,
+        requestId,
+      },
+      source: "spawned",
+    });
+  }, 400);
+  activeTimers.set(sessionId, [
+    timer,
+    setTimeout(() => activeTimers.delete(sessionId), 10_000),
+  ]);
+}
+
 function subagentSummon(cwd: string): FakeUnit[] {
   const parentId = randomUUID();
   const childId = randomUUID();
@@ -631,6 +681,10 @@ export type FixtureScenarioId =
   | "stress"
   | "combat"
   | "permission"
+  | "permission-claude"
+  | "permission-codex"
+  | "permission-gemini"
+  | "permission-cursor"
   | "demo";
 
 export function playFixture(scenario: FixtureScenarioId, cwd: string) {
@@ -684,34 +738,19 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       // socket to reply to, so resolvePermissionRequest will return
       // false in main — that's expected. Tests letter rendering +
       // store action wiring.
-      {
-        const sessionId = randomUUID();
-        const requestId = randomUUID();
-        bus.emitAgentEvent({
-          sessionId,
-          tool: "claude",
-          cwd: c,
-          timestamp: Date.now(),
-          kind: "session_start",
-          payload: {},
-          source: "spawned",
-        });
-        setTimeout(() => {
-          bus.emitAgentEvent({
-            sessionId,
-            tool: "claude",
-            cwd: c,
-            timestamp: Date.now(),
-            kind: "permission_request",
-            payload: {
-              name: "Bash",
-              input: { command: "rm -rf /tmp/dangerous-test-junk" },
-              requestId,
-            },
-            source: "spawned",
-          });
-        }, 400);
-      }
+      permissionFixture("claude", c);
+      break;
+    case "permission-claude":
+      permissionFixture("claude", c);
+      break;
+    case "permission-codex":
+      permissionFixture("codex", c);
+      break;
+    case "permission-gemini":
+      permissionFixture("gemini", c);
+      break;
+    case "permission-cursor":
+      permissionFixture("cursor", c);
       break;
     case "demo":
       // Fire all providers in parallel for a "show me everything" demo.

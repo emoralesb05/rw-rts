@@ -112,15 +112,17 @@ Shipped foundations:
 - direct messaging/resume paths where providers allow it
 - Electron renderer guardrails around navigation, sandboxing, IPC sender origin,
   request schemas, and response schemas
-- baseline Playwright Electron smoke coverage for shell, settings, provider
-  connection status, dispatch, chat, permission letters, and world commands
+- Playwright Electron smoke coverage for shell, settings, provider connection
+  status, dispatch, chat, world commands, provider fixture turns, Codex
+  answer/MCP letters, actionable Claude/Codex/Gemini permission cards, and
+  Cursor observe-only permission cards
 
 ## Next Hardening
 
 Highest-value follow-ups:
 
-- expand Electron smoke coverage across more provider fixtures and failure
-  states
+- expand Electron smoke coverage into failure states, visual regression
+  snapshots, and provider resume/send-message flows
 - improve Codex app-server handling for richer request shapes such as MCP
   forms, user input, and dynamic tool calls
 - reduce renderer cold-start bundle size by splitting Streamdown's heavy

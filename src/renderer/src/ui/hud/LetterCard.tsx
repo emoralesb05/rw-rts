@@ -424,8 +424,12 @@ export function isPermissionLetter(letter: Letter): boolean {
   );
 }
 
-function isUserInputLetter(letter: Letter): boolean {
+export function isUserInputLetter(letter: Letter): boolean {
   return letter.actions.some((a) => a.action.kind === "user-input-submit");
+}
+
+export function isActionRequiredLetter(letter: Letter): boolean {
+  return isPermissionLetter(letter) || isUserInputLetter(letter);
 }
 
 function buildUserInputAnswers(

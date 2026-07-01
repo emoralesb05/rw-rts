@@ -510,7 +510,7 @@ useStore.subscribe((state) => {
       totalGlimmerEver: Math.max(s.persisted.totalGlimmerEver, live),
     };
     if (next !== s.persisted) {
-      void window.rw.savePersisted(next).catch(() => {});
+      void window.rw?.savePersisted(next).catch(() => {});
       useStore.setState({ persisted: next });
     }
   }, 1000);

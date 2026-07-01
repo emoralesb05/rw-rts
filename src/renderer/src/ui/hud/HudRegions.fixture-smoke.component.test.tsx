@@ -165,15 +165,16 @@ describe("HUD fixture playback smoke", () => {
     expect(
       within(alerts).getByRole("button", { name: "Allow once" })
     ).toBeInTheDocument();
+    expect(alerts).toHaveTextContent(/needs your answer/i);
+    expect(alerts).toHaveTextContent(
+      "Which implementation style should Codex use?"
+    );
 
     const activity = screen.getByRole("log", { name: "Activity log" });
     expect(activity).toHaveTextContent(/asked permission/i);
     expect(activity).toHaveTextContent(/asked for input/i);
 
     const letters = screen.getByRole("region", { name: "Letters" });
-    expect(letters).toHaveTextContent(/needs your answer/i);
-    expect(letters).toHaveTextContent(
-      "Which implementation style should Codex use?"
-    );
+    expect(letters).toHaveTextContent(/no letters/i);
   });
 });
