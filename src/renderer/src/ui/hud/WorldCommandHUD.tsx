@@ -44,7 +44,11 @@ const STATE_TONE: Record<
 
 const COMMAND_POPOVER_FALLBACK = { width: 560, height: 190 };
 const COMMAND_POPOVER_MARGIN = 12;
-const COMMAND_POPOVER_TOP_MARGIN = 42;
+// Reserve the fixed HUD lanes on desktop so this contextual popover never
+// steals clicks from the roster, activity log, alerts, or top command bar.
+const COMMAND_POPOVER_TOP_MARGIN = 116;
+const COMMAND_POPOVER_LEFT_GUTTER = 548;
+const COMMAND_POPOVER_RIGHT_GUTTER = 360;
 const COMMAND_POPOVER_GAP = 18;
 
 type ViewportSize = {
@@ -61,6 +65,38 @@ type PopoverPlacement = {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function createHorizontalBounds(width: number, viewportWidth: number) {
+  const canReserveBothHudGutters =
+    viewportWidth -
+      COMMAND_POPOVER_LEFT_GUTTER -
+      COMMAND_POPOVER_RIGHT_GUTTER >=
+    width;
+  if (canReserveBothHudGutters) {
+    return {
+      minLeft: COMMAND_POPOVER_LEFT_GUTTER,
+      maxLeft: viewportWidth - COMMAND_POPOVER_RIGHT_GUTTER - width,
+    };
+  }
+
+  const canReserveLeftHudGutter =
+    viewportWidth - COMMAND_POPOVER_LEFT_GUTTER - COMMAND_POPOVER_MARGIN >=
+    width;
+  if (canReserveLeftHudGutter) {
+    return {
+      minLeft: COMMAND_POPOVER_LEFT_GUTTER,
+      maxLeft: viewportWidth - COMMAND_POPOVER_MARGIN - width,
+    };
+  }
+
+  return {
+    minLeft: COMMAND_POPOVER_MARGIN,
+    maxLeft: Math.max(
+      COMMAND_POPOVER_MARGIN,
+      viewportWidth - width - COMMAND_POPOVER_MARGIN
+    ),
+  };
 }
 
 function currentViewportSize(): ViewportSize {
@@ -147,8 +183,8 @@ function createPopoverPlacement(
       viewport.height - height - COMMAND_POPOVER_MARGIN
     )
   );
-  const maxLeft = Math.max(COMMAND_POPOVER_MARGIN, viewport.width - width - 12);
-  const left = clamp(anchorX - width / 2, COMMAND_POPOVER_MARGIN, maxLeft);
+  const { minLeft, maxLeft } = createHorizontalBounds(width, viewport.width);
+  const left = clamp(anchorX - width / 2, minLeft, maxLeft);
 
   return {
     left,

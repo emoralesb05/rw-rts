@@ -64,8 +64,25 @@ function renderCommandHUD() {
   );
 }
 
+const DEFAULT_VIEWPORT = {
+  width: window.innerWidth,
+  height: window.innerHeight,
+};
+
+function setViewport(width: number, height: number) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: height,
+  });
+}
+
 describe("WorldCommandHUD", () => {
   afterEach(() => {
+    setViewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
     useStore.setState(useStore.getInitialState(), true);
     usePanels.setState(usePanels.getInitialState(), true);
     vi.restoreAllMocks();
@@ -118,6 +135,36 @@ describe("WorldCommandHUD", () => {
     const hud = screen.getByRole("region", { name: /repo world command/i });
     expect(hud).toHaveAttribute("data-placement", "above");
     expect(hud).toHaveStyle({ left: "232px", top: "312px" });
+  });
+
+  it("keeps the command surface out of the left HUD gutter on desktop", () => {
+    setViewport(1920, 1280);
+    const activeWorld = world();
+    const activeUnit = unit();
+    useStore.setState({
+      activeWorldId: activeWorld.id,
+      worldCommandAnchor: {
+        worldId: activeWorld.id,
+        x: 512,
+        y: 520,
+        worldX: 120,
+        worldY: -80,
+        visible: true,
+      },
+      worlds: { [activeWorld.id]: activeWorld },
+      units: { [activeUnit.id]: activeUnit },
+      letters: [],
+      events: [],
+    });
+
+    render(
+      <TooltipProvider>
+        <WorldCommandHUD />
+      </TooltipProvider>
+    );
+
+    const hud = screen.getByRole("region", { name: /repo world command/i });
+    expect(hud).toHaveStyle({ left: "548px", top: "312px" });
   });
 
   it("opens wielder status from mission-line agents", async () => {
