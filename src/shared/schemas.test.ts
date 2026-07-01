@@ -391,6 +391,10 @@ describe("runtime schemas", () => {
           includePartialMessages: false,
           promptSuggestions: false,
         },
+        sessionDiagnostics: {
+          listSessionsAvailable: true,
+          sessionCount: 0,
+        },
         authStatus: {
           loggedIn: true,
           authMethod: "claude.ai",

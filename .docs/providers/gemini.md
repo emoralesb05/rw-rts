@@ -116,8 +116,10 @@ Official hook docs emphasize that hook scripts must log to stderr and write only
 
 Policy-engine note: current public docs warn that workspace `.gemini/policies` are disabled, so Realmkeeper should use user/admin policy paths or Realmkeeper-local rules rather than relying on repo-local policy files.
 
-Near-term leverage: use `--list-sessions` for richer diagnostics in the
-Connection tab and explore generated `--policy`/`--admin-policy` files so
+Realmkeeper's Connection tab runs a bounded `gemini --list-sessions` diagnostic
+so users can distinguish missing session visibility from missing auth/config.
+
+Near-term leverage: explore generated `--policy`/`--admin-policy` files so
 Realmkeeper's Gemini policy can be audited instead of being a hidden installer
 detail. ACP is worth a separate spike only if we want a long-lived Gemini
 transport; the current `--prompt`/`--resume` path is simpler and works.

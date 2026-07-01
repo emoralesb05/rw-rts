@@ -84,6 +84,7 @@ const GEMINI_RECOMMENDED_SETTINGS_TEMPLATE = JSON.stringify(
   null,
   2
 );
+const GEMINI_STATUS_COMMAND_TIMEOUT_MS = 3000;
 
 function timeoutForEvent(evt: (typeof GEMINI_HOOK_EVENTS)[number]): number {
   return evt === "BeforeTool"
@@ -161,11 +162,81 @@ function getGeminiCliVersion(): string | undefined {
     return execFileSync("gemini", ["--version"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
-      timeout: 2000,
+      timeout: GEMINI_STATUS_COMMAND_TIMEOUT_MS,
     }).trim();
   } catch {
     return undefined;
   }
+}
+
+function getGeminiSessionDiagnostics() {
+  try {
+    const output = execFileSync("gemini", ["--list-sessions"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: GEMINI_STATUS_COMMAND_TIMEOUT_MS,
+    });
+    return {
+      listSessionsAvailable: true,
+      sessionCount: countGeminiListSessionsOutput(output),
+    };
+  } catch (err) {
+    return {
+      listSessionsAvailable: false,
+      error: geminiCommandErrorMessage(err),
+    };
+  }
+}
+
+function countGeminiListSessionsOutput(output: string): number | undefined {
+  const text = output.replace(/\u001b\[[0-9;]*m/g, "").trim();
+  if (!text) return 0;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) return parsed.length;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "sessions" in parsed &&
+      Array.isArray((parsed as { sessions?: unknown }).sessions)
+    ) {
+      return (parsed as { sessions: unknown[] }).sessions.length;
+    }
+  } catch {
+    // Text output is the common CLI shape today.
+  }
+  if (/no (saved |available )?sessions/i.test(text)) return 0;
+  const numberedEntries = text
+    .split(/\r?\n/)
+    .filter((line) => /^\s*\d+[\).]\s+/.test(line));
+  return numberedEntries.length || undefined;
+}
+
+function geminiCommandErrorMessage(err: unknown): string {
+  if (err && typeof err === "object") {
+    const maybeError = err as {
+      message?: unknown;
+      stdout?: unknown;
+      stderr?: unknown;
+    };
+    for (const stream of [maybeError.stderr, maybeError.stdout]) {
+      const text = Buffer.isBuffer(stream)
+        ? stream.toString("utf8")
+        : typeof stream === "string"
+          ? stream
+          : undefined;
+      const cleaned = text?.trim();
+      if (cleaned) return truncateDiagnostic(cleaned);
+    }
+    if (typeof maybeError.message === "string" && maybeError.message) {
+      return truncateDiagnostic(maybeError.message);
+    }
+  }
+  return truncateDiagnostic(String(err));
+}
+
+function truncateDiagnostic(value: string): string {
+  return value.length > 240 ? `${value.slice(0, 237)}...` : value;
 }
 
 function getGeminiAuthDiagnostic() {
@@ -330,19 +401,26 @@ export function uninstallGeminiHooks() {
 export function getGeminiHooksStatus() {
   const status = geminiGateStatus();
   const authDiagnostic = getGeminiAuthDiagnostic();
+  const cliVersion = getGeminiCliVersion();
   return {
     installed: isGeminiInstalled(),
     socketPath: SOCKET_PATH,
     hookScriptPath: getHookScriptPath(),
     hooksConfigPath: GEMINI_SETTINGS_PATH,
     policyConfigPath: GEMINI_POLICY_PATH,
-    cliVersion: getGeminiCliVersion(),
+    cliVersion,
     authStatus: authDiagnostic.authStatus,
     authIssue: authDiagnostic.authIssue,
     hooksEnabled: status.hooksEnabled,
     failClosedHookInstalled: status.failClosedHookInstalled,
     managedPolicyInstalled: status.managedPolicyInstalled,
     launchApprovalMode: status.gateReady ? "yolo" : "default",
+    sessionDiagnostics: cliVersion
+      ? getGeminiSessionDiagnostics()
+      : {
+          listSessionsAvailable: false,
+          error: "gemini CLI unavailable",
+        },
     settingsTemplate: GEMINI_RECOMMENDED_SETTINGS_TEMPLATE,
   };
 }

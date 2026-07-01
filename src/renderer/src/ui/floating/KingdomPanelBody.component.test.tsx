@@ -53,6 +53,10 @@ function installRw() {
     failClosedHookInstalled: true,
     managedPolicyInstalled: true,
     launchApprovalMode: "yolo",
+    sessionDiagnostics: {
+      listSessionsAvailable: true,
+      sessionCount: 0,
+    },
     settingsTemplate: JSON.stringify(
       {
         hooksConfig: {
@@ -122,6 +126,7 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText("Google sign-in")).toBeVisible();
     expect(screen.getByText("cached OAuth")).toBeVisible();
     expect(screen.getByText(/cannot infer/i)).toBeVisible();
+    expect(screen.getByText("0 sessions")).toBeVisible();
     await waitFor(() => {
       expect(screen.getByText(/--approval-mode yolo/i)).toBeVisible();
     });

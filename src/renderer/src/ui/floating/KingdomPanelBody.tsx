@@ -914,12 +914,44 @@ function geminiDetails(status: HooksStatus | null) {
       ),
     },
     {
+      label: "sessions",
+      value: geminiSessionDiagnostics(status),
+    },
+    {
       label: "template",
       value: (
         <GeminiSettingsTemplateButton template={status.settingsTemplate} />
       ),
     },
   ];
+}
+
+function geminiSessionDiagnostics(status: HooksStatus) {
+  const diagnostics = status.sessionDiagnostics;
+  if (!diagnostics) return <span className="text-muted">not checked</span>;
+  if (diagnostics.listSessionsAvailable) {
+    return (
+      <span>
+        <Code>
+          {typeof diagnostics.sessionCount === "number"
+            ? `${diagnostics.sessionCount} sessions`
+            : "available"}
+        </Code>{" "}
+        through <Code>--list-sessions</Code>
+      </span>
+    );
+  }
+  return (
+    <span className="text-warning">
+      unavailable
+      {diagnostics.error ? (
+        <>
+          {" "}
+          <span className="text-muted">{diagnostics.error}</span>
+        </>
+      ) : null}
+    </span>
+  );
 }
 
 function PreloadRestartHint({ title }: { title: string }) {

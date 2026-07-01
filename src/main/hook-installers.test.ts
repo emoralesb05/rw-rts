@@ -27,7 +27,10 @@ async function withMockHome<T>(
   }));
   vi.doMock("node:child_process", () => ({
     execFileSync: vi.fn((file, args) => {
-      if (file === "gemini") return "0.49.0\n";
+      if (file === "gemini" && Array.isArray(args)) {
+        if (args[0] === "--version") return "0.49.0\n";
+        if (args[0] === "--list-sessions") return "No saved sessions found.\n";
+      }
       if (Array.isArray(args) && args[0] === "auth") {
         return JSON.stringify({
           loggedIn: true,
@@ -275,6 +278,10 @@ describe("provider hook installers", () => {
           failClosedHookInstalled: true,
           managedPolicyInstalled: true,
           launchApprovalMode: "yolo",
+          sessionDiagnostics: {
+            listSessionsAvailable: true,
+            sessionCount: 0,
+          },
           authIssue: {
             code: "gemini-headless-auth-missing",
           },
@@ -358,6 +365,10 @@ describe("provider hook installers", () => {
             severity: "info",
             message: expect.stringContaining("cannot infer"),
             action: expect.stringContaining("Google AI Pro"),
+          },
+          sessionDiagnostics: {
+            listSessionsAvailable: true,
+            sessionCount: 0,
           },
         });
       })

@@ -187,6 +187,13 @@ export const HooksStatusSchema = z.object({
   failClosedHookInstalled: z.boolean().optional(),
   managedPolicyInstalled: z.boolean().optional(),
   launchApprovalMode: z.enum(["default", "yolo"]).optional(),
+  sessionDiagnostics: z
+    .object({
+      listSessionsAvailable: z.boolean(),
+      sessionCount: z.number().int().nonnegative().optional(),
+      error: z.string().optional(),
+    })
+    .optional(),
   settingsTemplate: z.string().optional(),
 });
 export type HooksStatus = z.infer<typeof HooksStatusSchema>;
