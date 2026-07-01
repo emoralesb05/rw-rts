@@ -42,7 +42,7 @@ contextual popover emerging from the world instead of as a fixed screen bar.
 |---|---|---|
 | `KingdomHeader.tsx` | top-center | Kingdom name + status pill |
 | `WielderHUD.tsx` | top-left | Live party roster |
-| `AlertsHUD.tsx` | top-right | Permission letters, important alerts |
+| `AlertsHUD.tsx` | top-right | Permission letters, saved-rule choices, important alerts |
 | `LettersHUD.tsx` | bottom-right | Notable / non-blocking letters |
 | `WorldCommandHUD.tsx` | selected world | Contextual selected-world command popover with focus / dispatch / seal and clickable mission-line agents |
 | `PartyRow.tsx` | inside WielderHUD | Per-wielder row in the roster |
@@ -92,10 +92,10 @@ The right-edge `ChatDrawer` is a separate singleton (not in the panel array). It
 
 The chat stream renders `AgentEvent`s into one of:
 
-- **User prompt bubble** — markdown-rendered (KCL Streamdown), gold-edge styling
+- **User prompt bubble** — Streamdown-rendered markdown, gold-edge styling
 - **Tool use card** — collapsible, terse-by-default for Read/Edit/Write/MultiEdit/NotebookEdit
 - **Tool result block** — terminal-style for Bash, diff for Edit/MultiEdit/Write, plain text otherwise
-- **Permission marker** — inline, click to spotlight the letter card
+- **Permission marker** — inline, click to spotlight the pending letter card
 - **Subagent spawn marker** — indented child events
 - **Error banner** — red tint, exit code chip
 
@@ -107,7 +107,8 @@ Bottom-left, one-line summaries across all wielders. Click routing:
 
 - `tool_use` / `tool_result` / `assistant_text` / `user_prompt` / `error` → open a chat-drawer tab for the wielder, scroll to that timestamp
 - `permission_request` → highlight the matching alert card in AlertsHUD (silent fail if already resolved)
-- `session_start` / `session_end` / `subagent_spawn` / `permission_resolved` → not clickable (system markers)
+- `permission_resolved` → saved-rule auto-resolution audit row; not clickable
+- `session_start` / `session_end` / `subagent_spawn` → not clickable (system markers)
 
 ## Streamdown plugin set
 

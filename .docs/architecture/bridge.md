@@ -79,17 +79,29 @@ Several providers re-fire the same hook in rapid succession (validate-then-execu
 
 ## Permission resolution path
 
-Bidirectional permission events are stored in a `Pending` map keyed by `requestId`:
+Actionable permission events go through Realmkeeper-local saved rules before the
+renderer sees a letter. The bridge builds a request context from provider, tool,
+cwd/repo root, session id, input, and provider options, then checks
+`src/main/permission-rules.ts`.
+
+If a saved rule matches and the provider options allow that decision, the bridge
+answers immediately and emits `permission_resolved` with rule metadata for the
+activity-log audit row. Cursor remains observe-only because normal allowlist mode
+does not expose an authoritative allow/deny decision to hooks.
+
+Requests that need the King are stored in a `Pending` map keyed by `requestId`:
 
 ```ts
-{ socket, sessionId, cwd, tool }
+{ socket | resolve, sessionId, cwd, tool, name, input, options }
 ```
 
-When the user clicks allow/deny in realmkeeper:
-1. Renderer fires `IPC.ResolvePermission`
-2. Main calls `resolvePermissionRequest(requestId, decision, message)`
-3. Bridge looks up the pending socket, writes the provider-shaped reply, closes
-4. Bridge emits a `permission_resolved` event so the activity log can update
+When the user chooses an action in Realmkeeper:
+
+1. One-shot allow/deny goes through `IPC.ResolvePermission`
+2. Saved-rule choices go through `IPC.ApplyPermissionChoice`
+3. Main resolves the pending socket or callback with the provider-shaped reply
+4. Saved-rule decisions are persisted to `~/.realmkeeper/permissions.json`
+5. Rule-based resolutions emit `permission_resolved` so the activity log can audit them
 
 ## IPC sender-frame guard
 

@@ -8,7 +8,7 @@ No active implementation plans.
 
 ## Removed From Active
 
-Completed provider-hardening plans were removed once their decisions shipped.
+Completed provider plans were removed once their decisions shipped.
 Durable provider behavior now lives in [`../providers/`](../providers/), and
 dated probe evidence lives in [`../providers/probes/`](../providers/probes/).
 The provider-neutral permission-rule plan shipped as Realmkeeper-local saved

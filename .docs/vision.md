@@ -4,7 +4,7 @@ The strategic north star — philosophy, design model, locked decisions
 Q1–Q44, open questions, known gaps, and backlog. Forward-looking.
 
 For **what shipped when**, see [`../CHANGELOG.md`](../CHANGELOG.md).
-For **tactical per-feature plans**, see [`./plans/`](./plans/).
+For **active implementation plans**, see [`./plans/`](./plans/).
 For **how things are built today**, see [`./architecture/`](./architecture/) and [`./providers/`](./providers/).
 For **vocabulary**, see [`./glossary.md`](./glossary.md).
 
@@ -589,7 +589,7 @@ open questions go below.
 Items deferred but on the radar. Not "killed" — revive when their
 trigger condition shows up. Order is rough priority (highest first).
 
-### Active workstream — see plans/
+### Current implementation status
 
 No active implementation plan is open. Provider-neutral permission rules now
 ship as Realmkeeper-local saved rules; see [`./architecture/state.md`](./architecture/state.md)

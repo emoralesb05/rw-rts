@@ -1,9 +1,9 @@
 # Architecture
 
-How Realmkeeper is built. Slow-changing reference for our internal design.
+How Realmkeeper is built. Slow-changing reference for the current internal design.
 
 For external-tool quirks and integration notes, see [`.docs/providers/`](../providers/).
-For tactical per-feature plans, see [`.docs/plans/`](../plans/).
+Implementation plans are temporary; if any are active, they are indexed in [`.docs/plans/`](../plans/).
 Vocabulary (RW terms + technical) is centralized in [`.docs/glossary.md`](../glossary.md) — skim that before reading the rest.
 
 ## Files
@@ -11,7 +11,7 @@ Vocabulary (RW terms + technical) is centralized in [`.docs/glossary.md`](../glo
 - [`processes.md`](./processes.md) — Electron processes, security boundaries, single-window decision
 - [`ipc.md`](./ipc.md) — IPC channels reference + the `safeHandle` sender-frame guard
 - [`events.md`](./events.md) — event bus, `AgentEvent` shape, transcript watchers, fixtures, ordering
-- [`state.md`](./state.md) — live (Zustand), persisted, pending permissions, spawn provenance, standing orders, agent manager
+- [`state.md`](./state.md) — live (Zustand), persisted, pending permissions, saved permission rules, spawn provenance, standing orders, agent manager
 - [`bridge.md`](./bridge.md) — the unix-socket hook bridge: dispatch, dedup, normalization
 - [`renderer.md`](./renderer.md) — Phaser + DOM coexistence, HUD, floating panels, conversation stream, activity log
 - [`build.md`](./build.md) — stack (Bun, Electron 41, Vite, React 19, Phaser 4), scripts, hot-reload caveats, debugging
@@ -26,5 +26,5 @@ If you're new: `processes.md` → `events.md` → `bridge.md` → `renderer.md`.
 
 - Per-CLI quirks (Claude/Codex/Cursor/Gemini) → [`../providers/`](../providers/)
 - Strategic north star (philosophy, locked decisions, open questions) → [`../vision.md`](../vision.md)
-- Tactical per-feature plans → [`../plans/`](../plans/)
+- Temporary implementation plans → [`../plans/`](../plans/)
 - UI concept art → `../concept-art.png`, `../sprite-prompts.md`
