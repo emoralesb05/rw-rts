@@ -48,6 +48,7 @@ import { IPC } from "@shared/ipc";
 import {
   AppSettingsSchema,
   HooksStatusSchema,
+  KillAgentRequestSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
   OpenPathRequestSchema,
@@ -66,6 +67,7 @@ import {
   SendPromptRequestSchema,
   SpawnAgentRequestSchema,
   SpawnAgentResponseSchema,
+  VoidResponseSchema,
   WorkspaceRootValidationSchema,
   WorkspaceRootPathSchema,
 } from "@shared/schemas";
@@ -256,27 +258,37 @@ void app.whenReady().then(async () => {
     SpawnAgentResponseSchema
   );
 
-  safeHandle(IPC.SendPrompt, (_e, raw: unknown) => {
-    const req = parseIpcPayload(IPC.SendPrompt, SendPromptRequestSchema, raw);
-    if (AgentManager.get(req.unitId)) {
-      AgentManager.send(req.unitId, req.prompt);
-      return;
-    }
-    if (!req.sessionId || !req.tool || !req.cwd) {
-      throw new Error(`Unknown unit ${req.unitId}`);
-    }
-    AgentManager.sendToObserved(
-      { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },
-      req.prompt
-    );
-  });
+  safeHandle(
+    IPC.SendPrompt,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(IPC.SendPrompt, SendPromptRequestSchema, raw);
+      if (AgentManager.get(req.unitId)) {
+        AgentManager.send(req.unitId, req.prompt);
+        return;
+      }
+      if (!req.sessionId || !req.tool || !req.cwd) {
+        throw new Error(`Unknown unit ${req.unitId}`);
+      }
+      AgentManager.sendToObserved(
+        { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },
+        req.prompt
+      );
+    },
+    VoidResponseSchema
+  );
 
-  safeHandle(IPC.KillAgent, (_e, unitId: unknown) => {
-    if (typeof unitId !== "string" || !unitId) {
-      throw new Error(`[realmkeeper] invalid ${IPC.KillAgent} payload`);
-    }
-    AgentManager.kill(unitId);
-  });
+  safeHandle(
+    IPC.KillAgent,
+    (_e, raw: unknown) => {
+      const unitId = parseIpcPayload(
+        IPC.KillAgent,
+        KillAgentRequestSchema,
+        raw
+      );
+      AgentManager.kill(unitId);
+    },
+    VoidResponseSchema
+  );
 
   safeHandle(
     IPC.ListUnits,
@@ -395,11 +407,19 @@ void app.whenReady().then(async () => {
     OpenPathResponseSchema
   );
 
-  safeHandle(IPC.PlayFixture, (_e, raw: unknown) => {
-    const req = parseIpcPayload(IPC.PlayFixture, PlayFixtureRequestSchema, raw);
-    const cwd = resolve(req.cwd || ".");
-    playFixture(req.scenario, cwd);
-  });
+  safeHandle(
+    IPC.PlayFixture,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.PlayFixture,
+        PlayFixtureRequestSchema,
+        raw
+      );
+      const cwd = resolve(req.cwd || ".");
+      playFixture(req.scenario, cwd);
+    },
+    VoidResponseSchema
+  );
 
   safeHandle(
     IPC.ResolvePermission,
@@ -500,10 +520,18 @@ void app.whenReady().then(async () => {
   );
 
   safeHandle(IPC.LoadPersisted, () => loadPersisted(), PersistedStateSchema);
-  safeHandle(IPC.SavePersisted, (_e, raw: unknown) => {
-    const state = parseIpcPayload(IPC.SavePersisted, PersistedStateSchema, raw);
-    setPersisted(state);
-  });
+  safeHandle(
+    IPC.SavePersisted,
+    (_e, raw: unknown) => {
+      const state = parseIpcPayload(
+        IPC.SavePersisted,
+        PersistedStateSchema,
+        raw
+      );
+      setPersisted(state);
+    },
+    VoidResponseSchema
+  );
   safeHandle(IPC.ResetPersisted, () => resetPersisted(), PersistedStateSchema);
 
   app.on("activate", () => {

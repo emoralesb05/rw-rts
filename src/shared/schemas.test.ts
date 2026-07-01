@@ -9,6 +9,7 @@ import {
   GeminiSettingsSchema,
   HooksStatusSchema,
   HookPayloadSchema,
+  KillAgentRequestSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
   MutedSessionIdsSchema,
@@ -21,6 +22,7 @@ import {
   SendPromptRequestSchema,
   SpawnAgentRequestSchema,
   SpawnAgentResponseSchema,
+  VoidResponseSchema,
   WorkspaceRootValidationSchema,
   parseProviderStreamMessage,
 } from "./schemas";
@@ -356,6 +358,9 @@ describe("runtime schemas", () => {
       })
     ).toMatchObject({ tool: "gemini" });
 
+    expect(KillAgentRequestSchema.parse("unit-1")).toBe("unit-1");
+    expect(VoidResponseSchema.parse(undefined)).toBeUndefined();
+
     expect(
       SpawnAgentResponseSchema.parse({
         unitId: "unit-1",
@@ -410,6 +415,9 @@ describe("runtime schemas", () => {
         sessionId: "session-1",
       })
     ).toThrow();
+
+    expect(() => KillAgentRequestSchema.parse("")).toThrow();
+    expect(() => VoidResponseSchema.parse(null)).toThrow();
 
     expect(() =>
       HooksStatusSchema.parse({

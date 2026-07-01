@@ -15,6 +15,7 @@ import {
   ResolvePermissionResponseSchema,
   ResolveUserInputResponseSchema,
   SpawnAgentResponseSchema,
+  VoidResponseSchema,
   WorkspaceRootValidationSchema,
   type ApplyPermissionChoiceRequest,
   type AppSettings,
@@ -77,10 +78,10 @@ const api = {
     return invokeParsed(IPC.SpawnAgent, SpawnAgentResponseSchema, req);
   },
   sendPrompt(req: SendPromptRequest) {
-    return ipcRenderer.invoke(IPC.SendPrompt, req) as Promise<void>;
+    return invokeParsed(IPC.SendPrompt, VoidResponseSchema, req);
   },
   killAgent(unitId: string) {
-    return ipcRenderer.invoke(IPC.KillAgent, unitId) as Promise<void>;
+    return invokeParsed(IPC.KillAgent, VoidResponseSchema, unitId);
   },
   listUnits() {
     return invokeParsed(IPC.ListUnits, ListUnitsResponseSchema);
@@ -122,7 +123,7 @@ const api = {
     return invokeParsed(IPC.GeminiHooksStatus, HooksStatusSchema);
   },
   playFixture(req: PlayFixtureRequest) {
-    return ipcRenderer.invoke(IPC.PlayFixture, req) as Promise<void>;
+    return invokeParsed(IPC.PlayFixture, VoidResponseSchema, req);
   },
   openPath(
     path: string,
@@ -137,7 +138,7 @@ const api = {
     return invokeParsed(IPC.LoadPersisted, PersistedStateSchema);
   },
   savePersisted(state: PersistedState) {
-    return ipcRenderer.invoke(IPC.SavePersisted, state) as Promise<void>;
+    return invokeParsed(IPC.SavePersisted, VoidResponseSchema, state);
   },
   resetPersisted() {
     return invokeParsed(IPC.ResetPersisted, PersistedStateSchema);

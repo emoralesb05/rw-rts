@@ -34,6 +34,9 @@ export type ListUnitEntry = z.infer<typeof ListUnitEntrySchema>;
 export const ListUnitsResponseSchema = z.array(ListUnitEntrySchema);
 export type ListUnitsResponse = z.infer<typeof ListUnitsResponseSchema>;
 
+export const KillAgentRequestSchema = z.string().min(1);
+export type KillAgentRequest = z.infer<typeof KillAgentRequestSchema>;
+
 export const SendPromptRequestSchema = z.object({
   unitId: z.string().min(1),
   prompt: z.string(),
@@ -113,6 +116,9 @@ export type OpenPathRequest = z.infer<typeof OpenPathRequestSchema>;
 
 export const OpenPathResponseSchema = z.string();
 export type OpenPathResponse = z.infer<typeof OpenPathResponseSchema>;
+
+export const VoidResponseSchema = z.void();
+export type VoidResponse = z.infer<typeof VoidResponseSchema>;
 
 export const WorkspaceRootPathSchema = z.string();
 export type WorkspaceRootPath = z.infer<typeof WorkspaceRootPathSchema>;
