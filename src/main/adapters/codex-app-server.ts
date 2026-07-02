@@ -33,6 +33,15 @@ type PendingRequest = {
   resolve(value: unknown): void;
   reject(err: Error): void;
 };
+type CodexDynamicToolCall = {
+  namespace?: string | null;
+  tool: string;
+  callId?: string;
+  threadId?: string;
+  turnId?: string;
+  arguments?: unknown;
+};
+type CodexDynamicToolHandler = (call: CodexDynamicToolCall) => JsonRecord;
 type CodexAppServerStatus =
   | "starting"
   | "initialized"
@@ -54,6 +63,10 @@ const CODEX_APP_SERVER_APPROVAL_CATEGORIES = {
   openAiFormElicitation: "decline-only",
   dynamicTools: "fail-closed",
 } as const;
+
+const CODEX_DYNAMIC_TOOL_REGISTRY: Readonly<
+  Partial<Record<string, CodexDynamicToolHandler>>
+> = {};
 
 export function textInput(text: string): JsonRecord {
   return { type: "text", text, text_elements: [] };
@@ -514,6 +527,14 @@ class CodexAppServerClient {
         mcpElicitationEvent
       );
       return;
+    }
+
+    if (method === "item/tool/call") {
+      const result = codexAppServerDynamicToolResponse(msg.params);
+      if (result) {
+        this.write({ id, result });
+        return;
+      }
     }
 
     this.handleUnsupportedServerRequest(id, method, msg.params);
@@ -990,6 +1011,15 @@ export function codexAppServerUnsupportedRequestError(method: string): string {
   return `Codex app-server request ${method} was declined by Realmkeeper's adapter`;
 }
 
+export function codexAppServerDynamicToolResponse(
+  params: unknown
+): JsonRecord | null {
+  const call = codexDynamicToolCall(params);
+  if (!call) return null;
+  const handler = CODEX_DYNAMIC_TOOL_REGISTRY[codexDynamicToolKey(call)];
+  return handler ? handler(call) : null;
+}
+
 export function codexAppServerUnsupportedRequestPayload(
   method: string,
   params: unknown
@@ -1042,6 +1072,24 @@ export function codexAppServerUnsupportedRequestPayload(
   }
 
   return { name: method };
+}
+
+function codexDynamicToolCall(params: unknown): CodexDynamicToolCall | null {
+  const p = record(params) ?? {};
+  const tool = stringValue(p.tool);
+  if (!tool) return null;
+  return {
+    namespace: p.namespace === null ? null : stringValue(p.namespace),
+    tool,
+    callId: stringValue(p.callId),
+    threadId: stringValue(p.threadId),
+    turnId: stringValue(p.turnId),
+    arguments: p.arguments,
+  };
+}
+
+function codexDynamicToolKey(call: CodexDynamicToolCall): string {
+  return [call.namespace ?? undefined, call.tool].filter(Boolean).join(".");
 }
 
 export function codexAppServerPermissionResponse(

@@ -10,6 +10,7 @@ import {
   buildThreadStartParams,
   buildTurnStartParams,
   buildTurnSteerParams,
+  codexAppServerDynamicToolResponse,
   codexAppServerFailClosedResponse,
   codexAppServerMcpElicitationResponse,
   codexAppServerPermissionResponse,
@@ -819,6 +820,17 @@ describe("active CLI stream normalization", () => {
       contentItems: [],
       success: false,
     });
+    expect(
+      codexAppServerDynamicToolResponse({
+        namespace: "browser",
+        tool: "open",
+        callId: "call-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        arguments: { url: "https://example.com" },
+      })
+    ).toBeNull();
+    expect(codexAppServerDynamicToolResponse({ arguments: {} })).toBeNull();
     expect(codexAppServerFailClosedResponse("unknown/request")).toEqual({});
     expect(codexAppServerUnsupportedRequestError("item/tool/call")).toBe(
       "Codex app-server request item/tool/call was declined by Realmkeeper's adapter"

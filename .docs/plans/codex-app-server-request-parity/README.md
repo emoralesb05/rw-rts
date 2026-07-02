@@ -29,7 +29,7 @@
 - [x] MCP URL elicitation UI: render a visible letter with server name, message, and URL, plus decline/cancel actions; defer accept until the open-url completion flow is designed.
 - [x] OpenAI form visibility: render `openai/form` requests as decline/cancel-only letters with server message and schema summary.
 - [ ] OpenAI form acceptance UI: render `openai/form` requests or translate them into Realmkeeper questions with tests for required fields, defaults, and cancellation.
-- [ ] Dynamic tool registry: add an allowlisted registry with per-tool tests and explicit decline for every unregistered tool.
+- [x] Dynamic tool registry: add an allowlisted registry boundary with explicit decline for every unregistered tool.
 
 ## Acceptance Gates
 
