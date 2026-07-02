@@ -404,6 +404,69 @@ describe("event reducer", () => {
     });
   });
 
+  it("creates MCP URL elicitation letters with decline and cancel actions", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:10",
+          responseKind: "mcp-elicitation",
+          text: "Sign in to GitHub.",
+          input: {
+            serverName: "github",
+            mode: "url",
+            message: "Sign in to GitHub.",
+            url: "https://example.com/oauth",
+          },
+          questions: [],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      title: expect.stringContaining("needs MCP input"),
+      body: expect.stringContaining("https://example.com/oauth"),
+      userInputQuestions: [],
+      actions: [
+        {
+          label: "decline",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:10",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "decline",
+          },
+        },
+        {
+          label: "cancel",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:10",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "cancel",
+          },
+        },
+      ],
+    });
+  });
+
   it("keeps multiple user input letters from the same Codex session", async () => {
     const { applyOneEvent } = await loadReducer();
     let state = baseState();

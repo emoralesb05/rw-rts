@@ -50,7 +50,7 @@ const CODEX_APP_SERVER_APPROVAL_CATEGORIES = {
   permissions: "actionable",
   userInput: "answerable",
   mcpFormElicitation: "answerable",
-  mcpUrlElicitation: "fail-closed",
+  mcpUrlElicitation: "decline-only",
   openAiFormElicitation: "fail-closed",
   dynamicTools: "fail-closed",
 } as const;
@@ -775,10 +775,39 @@ export function buildCodexAppServerMcpElicitationEvent(args: {
 }): AgentEvent | null {
   if (args.method !== "mcpServer/elicitation/request") return null;
   const p = record(args.params) ?? {};
-  if (p.mode !== "form") return null;
+  const mode = stringValue(p.mode);
+  const message = stringValue(p.message) ?? "MCP server needs input.";
+  if (mode === "url") {
+    const url = stringValue(p.url);
+    if (!url) return null;
+    return {
+      sessionId: args.sessionId,
+      tool: "codex",
+      cwd: args.cwd,
+      source: args.source ?? "spawned",
+      timestamp: Date.now(),
+      kind: "user_input_request",
+      payload: {
+        requestId: codexAppServerRequestId(args.sessionId, args.id),
+        name: "McpElicitation",
+        text: message,
+        input: compactRecord({
+          serverName: stringValue(p.serverName),
+          threadId: stringValue(p.threadId),
+          turnId: nullableStringValue(p.turnId),
+          mode,
+          message,
+          elicitationId: stringValue(p.elicitationId),
+          url,
+        }),
+        questions: [],
+        responseKind: "mcp-elicitation",
+      },
+    };
+  }
+  if (mode !== "form") return null;
   const questions = parseMcpElicitationQuestions(p.requestedSchema);
   if (!questions.length) return null;
-  const message = stringValue(p.message) ?? "MCP server needs input.";
   return {
     sessionId: args.sessionId,
     tool: "codex",

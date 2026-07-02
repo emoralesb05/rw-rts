@@ -26,7 +26,7 @@
 ## Slices
 
 - [x] Unsupported request context: error events include `payload.name` and compact `payload.input` for MCP elicitations, malformed user-input requests, and dynamic tool calls before declining.
-- [ ] MCP URL elicitation UI: render a visible letter with server name, message, and URL, plus decline/cancel actions; defer accept until the open-url completion flow is designed.
+- [x] MCP URL elicitation UI: render a visible letter with server name, message, and URL, plus decline/cancel actions; defer accept until the open-url completion flow is designed.
 - [ ] OpenAI form UI: render `openai/form` requests or translate them into Realmkeeper questions with tests for required fields, defaults, and cancellation.
 - [ ] Dynamic tool registry: add an allowlisted registry with per-tool tests and explicit decline for every unregistered tool.
 

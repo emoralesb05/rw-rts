@@ -717,7 +717,7 @@ describe("active CLI stream normalization", () => {
     );
   });
 
-  it("declines unsupported Codex app-server request shapes fail-closed", () => {
+  it("surfaces URL MCP elicitations and declines unsupported Codex app-server request shapes fail-closed", () => {
     expect(
       buildCodexAppServerMcpElicitationEvent({
         id: 10,
@@ -725,12 +725,36 @@ describe("active CLI stream normalization", () => {
         params: {
           serverName: "github",
           mode: "url",
+          message: "Sign in to GitHub.",
+          elicitationId: "elicit-1",
           url: "https://example.com/oauth",
+          threadId: "thread-1",
+          turnId: null,
         },
         sessionId: "thread-1",
         cwd: "/repo",
       })
-    ).toBeNull();
+    ).toMatchObject({
+      sessionId: "thread-1",
+      tool: "codex",
+      cwd: "/repo",
+      kind: "user_input_request",
+      payload: {
+        requestId: "codex-app-server:thread-1:10",
+        name: "McpElicitation",
+        text: "Sign in to GitHub.",
+        responseKind: "mcp-elicitation",
+        questions: [],
+        input: {
+          serverName: "github",
+          mode: "url",
+          message: "Sign in to GitHub.",
+          elicitationId: "elicit-1",
+          url: "https://example.com/oauth",
+          threadId: "thread-1",
+        },
+      },
+    });
 
     expect(
       buildCodexAppServerMcpElicitationEvent({

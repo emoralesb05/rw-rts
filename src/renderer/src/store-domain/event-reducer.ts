@@ -825,6 +825,25 @@ export function applyOneEvent(
       event.payload.responseKind === "mcp-elicitation"
         ? "mcp-elicitation"
         : undefined;
+    const input =
+      event.payload.input &&
+      typeof event.payload.input === "object" &&
+      !Array.isArray(event.payload.input)
+        ? (event.payload.input as Record<string, unknown>)
+        : undefined;
+    const mcpMode = typeof input?.mode === "string" ? input.mode : undefined;
+    const isMcpUrlElicitation =
+      responseKind === "mcp-elicitation" && mcpMode === "url";
+    const mcpMessage =
+      typeof input?.message === "string" && input.message
+        ? input.message
+        : event.payload.text;
+    const mcpServerName =
+      typeof input?.serverName === "string" && input.serverName
+        ? input.serverName
+        : undefined;
+    const mcpUrl =
+      typeof input?.url === "string" && input.url ? input.url : undefined;
     const autoResolutionMs =
       typeof event.payload.autoResolutionMs === "number"
         ? event.payload.autoResolutionMs
@@ -842,8 +861,16 @@ export function applyOneEvent(
           ? `${palette} needs MCP input`
           : `${palette} needs your answer`,
         {
-          body:
-            count === 1 && firstQuestion
+          body: isMcpUrlElicitation
+            ? [
+                mcpMessage ?? "An MCP server needs browser confirmation.",
+                mcpServerName ? `Server: ${mcpServerName}.` : undefined,
+                mcpUrl ? `URL: ${mcpUrl}` : undefined,
+                timeoutNote.trim() || undefined,
+              ]
+                .filter(Boolean)
+                .join(" ")
+            : count === 1 && firstQuestion
               ? `${firstQuestion}${timeoutNote}`
               : responseKind === "mcp-elicitation"
                 ? `An MCP server is asking for ${count || "multiple"} fields before Codex can continue.${timeoutNote}`
@@ -851,8 +878,30 @@ export function applyOneEvent(
           sessionId: id,
           worldId,
           userInputQuestions: questions,
-          actions:
-            responseKind === "mcp-elicitation"
+          actions: isMcpUrlElicitation
+            ? [
+                {
+                  label: "decline",
+                  action: {
+                    kind: "user-input-submit",
+                    requestId: event.payload.requestId,
+                    answers: {},
+                    responseKind,
+                    responseAction: "decline",
+                  },
+                },
+                {
+                  label: "cancel",
+                  action: {
+                    kind: "user-input-submit",
+                    requestId: event.payload.requestId,
+                    answers: {},
+                    responseKind,
+                    responseAction: "cancel",
+                  },
+                },
+              ]
+            : responseKind === "mcp-elicitation"
               ? [
                   {
                     label: "accept",
