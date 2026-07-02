@@ -834,7 +834,7 @@ export function applyOneEvent(
     const mcpMode = typeof input?.mode === "string" ? input.mode : undefined;
     const isMcpDeclineOnlyElicitation =
       responseKind === "mcp-elicitation" &&
-      (mcpMode === "url" || mcpMode === "openai/form");
+      (mcpMode === "url" || (mcpMode === "openai/form" && count === 0));
     const mcpMessage =
       typeof input?.message === "string" && input.message
         ? input.message

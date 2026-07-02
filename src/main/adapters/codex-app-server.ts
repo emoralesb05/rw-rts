@@ -827,6 +827,7 @@ export function buildCodexAppServerMcpElicitationEvent(args: {
     };
   }
   if (mode === "openai/form") {
+    const questions = parseMcpElicitationQuestions(p.requestedSchema);
     return {
       sessionId: args.sessionId,
       tool: "codex",
@@ -846,7 +847,7 @@ export function buildCodexAppServerMcpElicitationEvent(args: {
           message,
           requestedSchema: codexAppServerSchemaSummary(p.requestedSchema),
         }),
-        questions: [],
+        questions,
         responseKind: "mcp-elicitation",
       },
     };

@@ -795,6 +795,68 @@ describe("active CLI stream normalization", () => {
     });
 
     expect(
+      buildCodexAppServerMcpElicitationEvent({
+        id: 13,
+        method: "mcpServer/elicitation/request",
+        params: {
+          serverName: "forms",
+          mode: "openai/form",
+          message: "Choose repository metadata.",
+          requestedSchema: {
+            type: "object",
+            required: ["repository"],
+            properties: {
+              repository: {
+                type: "string",
+                title: "Repository",
+                description: "Which repository should the MCP server use?",
+                enum: ["rw-rts", "other"],
+                enumNames: ["Realmkeeper", "Other repo"],
+              },
+            },
+          },
+          threadId: "thread-1",
+        },
+        sessionId: "thread-1",
+        cwd: "/repo",
+      })
+    ).toMatchObject({
+      sessionId: "thread-1",
+      tool: "codex",
+      cwd: "/repo",
+      kind: "user_input_request",
+      payload: {
+        requestId: "codex-app-server:thread-1:13",
+        name: "McpElicitation",
+        text: "Choose repository metadata.",
+        responseKind: "mcp-elicitation",
+        input: {
+          serverName: "forms",
+          mode: "openai/form",
+          message: "Choose repository metadata.",
+          requestedSchema: {
+            type: "object",
+            propertyCount: 1,
+            requiredCount: 1,
+          },
+          threadId: "thread-1",
+        },
+        questions: [
+          {
+            id: "repository",
+            header: "Repository",
+            question: "Which repository should the MCP server use?",
+            required: true,
+            options: [
+              { label: "Realmkeeper", value: "rw-rts" },
+              { label: "Other repo", value: "other" },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(
       buildCodexAppServerUserInputEvent({
         id: 12,
         method: "item/tool/requestUserInput",

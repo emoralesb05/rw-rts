@@ -530,6 +530,89 @@ describe("event reducer", () => {
     });
   });
 
+  it("creates schema-compatible OpenAI form MCP letters with accept and decline actions", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:13",
+          responseKind: "mcp-elicitation",
+          text: "Choose repository metadata.",
+          input: {
+            serverName: "forms",
+            mode: "openai/form",
+            message: "Choose repository metadata.",
+            requestedSchema: {
+              type: "object",
+              propertyCount: 1,
+              requiredCount: 1,
+            },
+          },
+          questions: [
+            {
+              id: "repository",
+              header: "Repository",
+              question: "Which repository should the MCP server use?",
+              required: true,
+              options: [{ label: "Realmkeeper", value: "rw-rts" }],
+            },
+          ],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      title: expect.stringContaining("needs MCP input"),
+      body: expect.stringContaining(
+        "Which repository should the MCP server use?"
+      ),
+      userInputQuestions: [
+        {
+          id: "repository",
+          header: "Repository",
+          question: "Which repository should the MCP server use?",
+          required: true,
+        },
+      ],
+      actions: [
+        {
+          label: "accept",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:13",
+            responseKind: "mcp-elicitation",
+            responseAction: "accept",
+          },
+        },
+        {
+          label: "decline",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:13",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "decline",
+          },
+        },
+      ],
+    });
+  });
+
   it("keeps multiple user input letters from the same Codex session", async () => {
     const { applyOneEvent } = await loadReducer();
     let state = baseState();

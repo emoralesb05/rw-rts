@@ -4,9 +4,7 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
-- [`codex-app-server-request-parity`](./codex-app-server-request-parity/) —
-  finish visible, explicit handling for Codex app-server request shapes that
-  still fail closed.
+No active implementation plans.
 
 ## Removed From Active
 
@@ -16,3 +14,7 @@ dated probe evidence lives in [`../providers/probes/`](../providers/probes/).
 The provider-neutral permission-rule plan shipped as Realmkeeper-local saved
 rules; provider-native config mirroring remains deferred until it can be made an
 explicit per-provider opt-in.
+Codex app-server request parity shipped as visible decline/cancel handling for
+URL and arbitrary form elicitations, schema-compatible form acceptance, and a
+dynamic-tool allowlist boundary; durable behavior lives in
+[`../providers/codex.md`](../providers/codex.md).
