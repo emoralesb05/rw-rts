@@ -516,7 +516,7 @@ class CodexAppServerClient {
       return;
     }
 
-    this.handleUnsupportedServerRequest(id, method);
+    this.handleUnsupportedServerRequest(id, method, msg.params);
   }
 
   private handlePermissionServerRequest(
@@ -528,7 +528,7 @@ class CodexAppServerClient {
     if (!this.sessionId) return;
     const requestId = event.payload.requestId;
     if (!requestId) {
-      this.handleUnsupportedServerRequest(id, method);
+      this.handleUnsupportedServerRequest(id, method, params);
       return;
     }
 
@@ -575,10 +575,18 @@ class CodexAppServerClient {
     bus.emitAgentEvent(event);
   }
 
-  private handleUnsupportedServerRequest(id: JsonRpcId, method: string) {
+  private handleUnsupportedServerRequest(
+    id: JsonRpcId,
+    method: string,
+    params?: unknown
+  ) {
     if (!this.sessionId) return;
     this.unsupportedRequestCounts[method] =
       (this.unsupportedRequestCounts[method] ?? 0) + 1;
+    const requestPayload = codexAppServerUnsupportedRequestPayload(
+      method,
+      params
+    );
     this.write({ id, result: codexAppServerFailClosedResponse(method) });
     bus.emitAgentEvent({
       sessionId: this.sessionId,
@@ -587,6 +595,7 @@ class CodexAppServerClient {
       timestamp: Date.now(),
       kind: "error",
       payload: {
+        ...requestPayload,
         error: codexAppServerUnsupportedRequestError(method),
         codexAppServer: buildCodexAppServerDiagnostics({
           status: this.status,
@@ -927,6 +936,60 @@ export function codexAppServerUnsupportedRequestError(method: string): string {
   return `Codex app-server request ${method} was declined by Realmkeeper's adapter`;
 }
 
+export function codexAppServerUnsupportedRequestPayload(
+  method: string,
+  params: unknown
+): Pick<AgentEvent["payload"], "name" | "input"> {
+  const p = record(params) ?? {};
+
+  if (method === "mcpServer/elicitation/request") {
+    return {
+      name: "McpElicitation",
+      input: compactRecord({
+        serverName: stringValue(p.serverName),
+        mode: stringValue(p.mode),
+        message: stringValue(p.message),
+        url: stringValue(p.url),
+        elicitationId: stringValue(p.elicitationId),
+        threadId: stringValue(p.threadId),
+        turnId: nullableStringValue(p.turnId),
+        requestedSchema: codexAppServerSchemaSummary(p.requestedSchema),
+      }),
+    };
+  }
+
+  if (method === "item/tool/call") {
+    return {
+      name: "DynamicToolCall",
+      input: compactRecord({
+        namespace: p.namespace === null ? null : stringValue(p.namespace),
+        tool: stringValue(p.tool),
+        callId: stringValue(p.callId),
+        threadId: stringValue(p.threadId),
+        turnId: stringValue(p.turnId),
+        arguments: p.arguments,
+      }),
+    };
+  }
+
+  if (method === "item/tool/requestUserInput") {
+    return {
+      name: "UserInput",
+      input: compactRecord({
+        itemId: stringValue(p.itemId),
+        threadId: stringValue(p.threadId),
+        turnId: stringValue(p.turnId),
+        questionCount: Array.isArray(p.questions)
+          ? p.questions.length
+          : undefined,
+        autoResolutionMs: nullableNumberValue(p.autoResolutionMs),
+      }),
+    };
+  }
+
+  return { name: method };
+}
+
 export function codexAppServerPermissionResponse(
   method: string,
   params: unknown,
@@ -1239,6 +1302,22 @@ function grantedPermissionsFromRequest(value: unknown): JsonRecord {
     granted.fileSystem = permissions.fileSystem;
   }
   return granted;
+}
+
+function codexAppServerSchemaSummary(value: unknown): JsonRecord | undefined {
+  if (value === undefined) return undefined;
+  const schema = record(value);
+  if (!schema) {
+    return { valueType: value === null ? "null" : typeof value };
+  }
+  const properties = record(schema.properties);
+  return compactRecord({
+    type: stringValue(schema.type),
+    propertyCount: properties ? Object.keys(properties).length : undefined,
+    requiredCount: Array.isArray(schema.required)
+      ? schema.required.length
+      : undefined,
+  });
 }
 
 function compactRecord(value: JsonRecord): JsonRecord {

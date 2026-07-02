@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `codex` (verified locally 2026-06-25: `codex-cli 0.142.2`, typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
+- Binary: `codex` (verified locally 2026-07-02: `codex-cli 0.142.5`, typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
 - Two surfaces: **Codex CLI** (`codex`) and **Codex Desktop / VS Code** (separate bundled binary; version may differ)
 - Settings: `~/.codex/config.toml` (hooks live under `[[hooks.<EventName>]]` arrays)
 - Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# realmkeeper-hooks-start` … `# realmkeeper-hooks-end`)
@@ -86,7 +86,10 @@ prompt, and unsupported-request error events. The object includes lifecycle
 `status`, current `threadId`, current `activeTurnId` when known, the launch
 `approvalPolicy` / `sandbox`, the adapter's approval category map, and
 `unsupportedRequestCount(s)` with the latest unsupported method. These fields
-are diagnostics only; they do not change how turns are routed.
+are diagnostics only; they do not change how turns are routed. Unsupported
+request errors also carry `payload.name` and compact `payload.input` context for
+MCP elicitations, dynamic tool calls, and malformed user-input requests so the
+UI can show what Realmkeeper declined without granting the request.
 
 OpenAI's current Codex config reference exposes granular approval knobs beyond the older global modes:
 

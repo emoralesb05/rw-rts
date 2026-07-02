@@ -4,7 +4,9 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
-No active implementation plans.
+- [`codex-app-server-request-parity`](./codex-app-server-request-parity/) —
+  finish visible, explicit handling for Codex app-server request shapes that
+  still fail closed.
 
 ## Removed From Active
 

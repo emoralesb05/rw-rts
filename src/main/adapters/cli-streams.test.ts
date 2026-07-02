@@ -15,6 +15,7 @@ import {
   codexAppServerPermissionResponse,
   codexAppServerUserInputResponse,
   codexAppServerUnsupportedRequestError,
+  codexAppServerUnsupportedRequestPayload,
   normalizeCodexAppServerNotification,
 } from "./codex-app-server";
 import { normalizeCodexStreamMessage } from "./codex-cli";
@@ -775,6 +776,80 @@ describe("active CLI stream normalization", () => {
     expect(codexAppServerUnsupportedRequestError("item/tool/call")).toBe(
       "Codex app-server request item/tool/call was declined by Realmkeeper's adapter"
     );
+
+    expect(
+      codexAppServerUnsupportedRequestPayload("mcpServer/elicitation/request", {
+        serverName: "github",
+        mode: "url",
+        message: "Sign in to GitHub.",
+        elicitationId: "elicit-1",
+        url: "https://example.com/oauth",
+        threadId: "thread-1",
+        turnId: null,
+      })
+    ).toEqual({
+      name: "McpElicitation",
+      input: {
+        serverName: "github",
+        mode: "url",
+        message: "Sign in to GitHub.",
+        elicitationId: "elicit-1",
+        url: "https://example.com/oauth",
+        threadId: "thread-1",
+      },
+    });
+    expect(
+      codexAppServerUnsupportedRequestPayload("mcpServer/elicitation/request", {
+        serverName: "forms",
+        mode: "openai/form",
+        message: "Complete the form.",
+        requestedSchema: true,
+      })
+    ).toEqual({
+      name: "McpElicitation",
+      input: {
+        serverName: "forms",
+        mode: "openai/form",
+        message: "Complete the form.",
+        requestedSchema: { valueType: "boolean" },
+      },
+    });
+    expect(
+      codexAppServerUnsupportedRequestPayload("item/tool/requestUserInput", {
+        itemId: "item-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        questions: [],
+      })
+    ).toEqual({
+      name: "UserInput",
+      input: {
+        itemId: "item-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        questionCount: 0,
+      },
+    });
+    expect(
+      codexAppServerUnsupportedRequestPayload("item/tool/call", {
+        namespace: "browser",
+        tool: "open",
+        callId: "call-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        arguments: { url: "https://example.com" },
+      })
+    ).toEqual({
+      name: "DynamicToolCall",
+      input: {
+        namespace: "browser",
+        tool: "open",
+        callId: "call-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        arguments: { url: "https://example.com" },
+      },
+    });
   });
 
   it("normalizes Cursor completed tool calls", () => {
