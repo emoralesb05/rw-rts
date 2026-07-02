@@ -832,8 +832,9 @@ export function applyOneEvent(
         ? (event.payload.input as Record<string, unknown>)
         : undefined;
     const mcpMode = typeof input?.mode === "string" ? input.mode : undefined;
-    const isMcpUrlElicitation =
-      responseKind === "mcp-elicitation" && mcpMode === "url";
+    const isMcpDeclineOnlyElicitation =
+      responseKind === "mcp-elicitation" &&
+      (mcpMode === "url" || mcpMode === "openai/form");
     const mcpMessage =
       typeof input?.message === "string" && input.message
         ? input.message
@@ -861,10 +862,14 @@ export function applyOneEvent(
           ? `${palette} needs MCP input`
           : `${palette} needs your answer`,
         {
-          body: isMcpUrlElicitation
+          body: isMcpDeclineOnlyElicitation
             ? [
-                mcpMessage ?? "An MCP server needs browser confirmation.",
+                mcpMessage ??
+                  (mcpMode === "openai/form"
+                    ? "An MCP server needs form input."
+                    : "An MCP server needs browser confirmation."),
                 mcpServerName ? `Server: ${mcpServerName}.` : undefined,
+                mcpMode === "openai/form" ? "Mode: openai/form." : undefined,
                 mcpUrl ? `URL: ${mcpUrl}` : undefined,
                 timeoutNote.trim() || undefined,
               ]
@@ -878,7 +883,7 @@ export function applyOneEvent(
           sessionId: id,
           worldId,
           userInputQuestions: questions,
-          actions: isMcpUrlElicitation
+          actions: isMcpDeclineOnlyElicitation
             ? [
                 {
                   label: "decline",

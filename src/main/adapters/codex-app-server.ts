@@ -51,7 +51,7 @@ const CODEX_APP_SERVER_APPROVAL_CATEGORIES = {
   userInput: "answerable",
   mcpFormElicitation: "answerable",
   mcpUrlElicitation: "decline-only",
-  openAiFormElicitation: "fail-closed",
+  openAiFormElicitation: "decline-only",
   dynamicTools: "fail-closed",
 } as const;
 
@@ -799,6 +799,31 @@ export function buildCodexAppServerMcpElicitationEvent(args: {
           message,
           elicitationId: stringValue(p.elicitationId),
           url,
+        }),
+        questions: [],
+        responseKind: "mcp-elicitation",
+      },
+    };
+  }
+  if (mode === "openai/form") {
+    return {
+      sessionId: args.sessionId,
+      tool: "codex",
+      cwd: args.cwd,
+      source: args.source ?? "spawned",
+      timestamp: Date.now(),
+      kind: "user_input_request",
+      payload: {
+        requestId: codexAppServerRequestId(args.sessionId, args.id),
+        name: "McpElicitation",
+        text: message,
+        input: compactRecord({
+          serverName: stringValue(p.serverName),
+          threadId: stringValue(p.threadId),
+          turnId: nullableStringValue(p.turnId),
+          mode,
+          message,
+          requestedSchema: codexAppServerSchemaSummary(p.requestedSchema),
         }),
         questions: [],
         responseKind: "mcp-elicitation",

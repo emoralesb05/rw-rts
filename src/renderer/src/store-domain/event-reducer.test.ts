@@ -467,6 +467,69 @@ describe("event reducer", () => {
     });
   });
 
+  it("creates OpenAI form MCP elicitation letters with decline and cancel actions", async () => {
+    const { applyOneEvent } = await loadReducer();
+    let state = baseState();
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("session_start", {
+        timestamp: 1,
+        tool: "codex",
+        source: "realmkeeper",
+      })
+    );
+    state = reduce(
+      applyOneEvent,
+      state,
+      agentEvent("user_input_request", {
+        timestamp: 2,
+        tool: "codex",
+        source: "realmkeeper",
+        payload: {
+          requestId: "codex-app-server:thread-1:11",
+          responseKind: "mcp-elicitation",
+          text: "Complete the custom form.",
+          input: {
+            serverName: "forms",
+            mode: "openai/form",
+            message: "Complete the custom form.",
+            requestedSchema: { valueType: "boolean" },
+          },
+          questions: [],
+        },
+      })
+    );
+
+    expect(state.letters[0]).toMatchObject({
+      title: expect.stringContaining("needs MCP input"),
+      body: expect.stringContaining("Mode: openai/form."),
+      userInputQuestions: [],
+      actions: [
+        {
+          label: "decline",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:11",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "decline",
+          },
+        },
+        {
+          label: "cancel",
+          action: {
+            kind: "user-input-submit",
+            requestId: "codex-app-server:thread-1:11",
+            answers: {},
+            responseKind: "mcp-elicitation",
+            responseAction: "cancel",
+          },
+        },
+      ],
+    });
+  });
+
   it("keeps multiple user input letters from the same Codex session", async () => {
     const { applyOneEvent } = await loadReducer();
     let state = baseState();

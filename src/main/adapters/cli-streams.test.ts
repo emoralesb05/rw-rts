@@ -717,7 +717,7 @@ describe("active CLI stream normalization", () => {
     );
   });
 
-  it("surfaces URL MCP elicitations and declines unsupported Codex app-server request shapes fail-closed", () => {
+  it("surfaces decline-only MCP elicitations and declines unsupported Codex app-server request shapes fail-closed", () => {
     expect(
       buildCodexAppServerMcpElicitationEvent({
         id: 10,
@@ -763,12 +763,35 @@ describe("active CLI stream normalization", () => {
         params: {
           serverName: "forms",
           mode: "openai/form",
-          form: { title: "Unsupported custom form" },
+          message: "Complete the custom form.",
+          requestedSchema: true,
+          threadId: "thread-1",
+          turnId: "turn-1",
         },
         sessionId: "thread-1",
         cwd: "/repo",
       })
-    ).toBeNull();
+    ).toMatchObject({
+      sessionId: "thread-1",
+      tool: "codex",
+      cwd: "/repo",
+      kind: "user_input_request",
+      payload: {
+        requestId: "codex-app-server:thread-1:11",
+        name: "McpElicitation",
+        text: "Complete the custom form.",
+        responseKind: "mcp-elicitation",
+        questions: [],
+        input: {
+          serverName: "forms",
+          mode: "openai/form",
+          message: "Complete the custom form.",
+          requestedSchema: { valueType: "boolean" },
+          threadId: "thread-1",
+          turnId: "turn-1",
+        },
+      },
+    });
 
     expect(
       buildCodexAppServerUserInputEvent({

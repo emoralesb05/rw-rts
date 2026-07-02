@@ -5,7 +5,7 @@
 > **Drafted:** 2026-07-02
 > **Last updated:** 2026-07-02
 > **Engineer profile:** Senior TypeScript/Electron provider-adapter engineer. Read `src/main/adapters/codex-app-server.ts`, `src/main/adapters/user-input-bridge.ts`, `src/shared/events.ts`, and the renderer letter flow before editing.
-> **Effort:** 4 focused slices
+> **Effort:** 5 focused slices
 > **Scope:** Make every Codex app-server server request either actionable in Realmkeeper or visibly declined with enough context to debug.
 
 ## Evidence
@@ -21,13 +21,14 @@
 - Add visible diagnostics before adding new approvals or tool execution.
 - Do not execute dynamic tool calls through a generic dispatcher. Add an explicit Realmkeeper allowlist before the first supported dynamic tool.
 - Treat MCP URL elicitations as visible user requests first; acceptance needs an intentional browser/open-url completion path.
-- Treat `openai/form` as a renderer task, not a schema shortcut. Typed `form` remains the only accepted MCP elicitation mode until arbitrary form rendering exists.
+- Surface `openai/form` requests as decline/cancel-only until arbitrary form rendering exists. Typed `form` remains the only accepted MCP elicitation mode.
 
 ## Slices
 
 - [x] Unsupported request context: error events include `payload.name` and compact `payload.input` for MCP elicitations, malformed user-input requests, and dynamic tool calls before declining.
 - [x] MCP URL elicitation UI: render a visible letter with server name, message, and URL, plus decline/cancel actions; defer accept until the open-url completion flow is designed.
-- [ ] OpenAI form UI: render `openai/form` requests or translate them into Realmkeeper questions with tests for required fields, defaults, and cancellation.
+- [x] OpenAI form visibility: render `openai/form` requests as decline/cancel-only letters with server message and schema summary.
+- [ ] OpenAI form acceptance UI: render `openai/form` requests or translate them into Realmkeeper questions with tests for required fields, defaults, and cancellation.
 - [ ] Dynamic tool registry: add an allowlisted registry with per-tool tests and explicit decline for every unregistered tool.
 
 ## Acceptance Gates
