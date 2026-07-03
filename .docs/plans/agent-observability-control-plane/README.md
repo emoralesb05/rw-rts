@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (initial research-backed plan)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
 > **Engineer profile:** Senior TypeScript/Electron engineer — event modeling, local persistence, renderer state; read `.docs/architecture/events.md`, `.docs/architecture/bridge.md`, `.docs/architecture/state.md`, `src/shared/schemas/events.ts`, `src/main/event-bus.ts`, and `src/renderer/src/store-domain/event-reducer.ts` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add local-first trace/session observability on top of Realmkeeper's existing event bus · **Origin:** Follow-on from provider hardening and parity work
@@ -72,6 +72,31 @@ OTel-shaped export.
    low-noise letters for actionable anomalies. Add a manual export command
    that writes OTel-shaped JSON for a selected session/day, with full content
    excluded unless an explicit setting enables it.
+
+## Implementation progress
+
+Shipped on `main`:
+
+- `TraceRecord`/`SpanRecord` projection from the flat AgentEvent stream,
+  covering sessions, prompt turns, tools, permission waits, user-input waits,
+  subagents, session-control events, errors, and orchestration run events.
+- Local trace store under `~/.realmkeeper/traces/` with day export support.
+- Kingdom Observatory tab with trace counts, active waits, monitor signals,
+  recent errors, trace sessions, and manual metadata-only OTel-shaped export.
+- Monitor signals for waiting, slow tool, stale trace, and recent error states.
+- Orchestration lifecycle/checkpoint/budget events flow through the same
+  AgentEvent/trace/export path.
+
+Still active:
+
+- Emit low-noise actionable letters from monitor signals, rather than only
+  showing them in Observatory.
+- Add fixture/e2e coverage that opens Observatory and verifies an active trace,
+  a waiting state, a completed trace, and an error/budget signal.
+- Validate OTel-shaped export against a real collector before claiming strict
+  OTel compliance.
+- Surface provider token/cost data only when the provider stream exposes it
+  reliably.
 
 ## Acceptance gate
 

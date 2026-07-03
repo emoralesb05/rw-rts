@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (initial research-backed plan)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -75,6 +75,38 @@ and make every step observable and interruptible.
    stuck waiting, repeated tool loops, error streaks, slow tools, and budget
    thresholds pause or stop runs. Add restart recovery so pending runs resume
    only when their checkpoint and provider capability state are still valid.
+
+## Implementation progress
+
+Shipped on `main`:
+
+- Durable `OrchestrationRun` schemas, local `runs.json` store, migrations,
+  lifecycle transitions, checkpoints, and restart recovery.
+- Main-process Standing Order engine that schedules ticks, uses
+  `rw:control-session`, records steps/checkpoints, completes at iteration
+  budget, fails retryable send streaks, pauses malformed runs, pauses explicit
+  control-plane failures, and pauses runtime budget breaches.
+- Run Board UI with list, refresh, pause, resume, stop, and durable run state
+  shared across the HUD and wielder detail panel.
+- Standing Order creation routes through the durable main orchestration engine;
+  legacy renderer Standing Orders remain only as a fallback for older persisted
+  state/preload shapes.
+- Orchestration run events emit onto the normal AgentEvent bus and project into
+  Observatory/trace export spans.
+- Shared constrained template registry declares Standing Order, provider
+  handoff review, parallel provider comparison, and fix-then-test budgets,
+  controls, stop rules, and prompt payload names.
+
+Still active:
+
+- Implement execution engines and UI entry points for provider handoff review,
+  parallel provider comparison, and fix-then-test templates.
+- Retire or migrate the legacy renderer Standing Order runner once old
+  persisted `standingOrders` are safely converted or expired.
+- Add fixture/e2e coverage for recurring prompt completion, provider error
+  pause, permission/input pause, and budget pause in the packaged app path.
+- Link Run Board rows directly to related traces, permission/input letters, and
+  provider session details.
 
 ## Acceptance gate
 

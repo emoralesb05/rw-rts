@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (initial research-backed plan)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -78,6 +78,31 @@ Gemini all support the same live-control surface.
    unsupported, stale, and provider-error control attempts. Verify disabled
    states, visible errors, and event emission. Add live-provider probes only
    for behavior not already covered by existing provider docs/probes.
+
+## Implementation progress
+
+Shipped on `main`:
+
+- Shared provider/session capability resolver with provider-specific control
+  availability and reasons.
+- Typed `rw:control-session` IPC with explicit failure reason codes.
+- Wielder panel controls use capabilities for decree, interrupt, and recall
+  states; unsupported controls stay disabled with explanatory tooltips.
+- Realmkeeper-originated controls emit normal `session_control` events, and
+  observability projects them into trace spans.
+- Orchestration uses the same session-control plane for Standing Orders and
+  pauses durable runs on explicit control-plane failures.
+
+Still active:
+
+- Wire additional provider-native controls that remain intentionally marked
+  "not wired": Codex fork/attach/list sessions, Claude background agent
+  discovery/attach/stop probes, Cursor authoritative attach/injection, and
+  Gemini ACP/live interrupt.
+- Add e2e fixtures for supported, unsupported, stale, and provider-error
+  control attempts in the packaged app path.
+- Keep Cursor permission/control behavior observe-only unless provider docs or
+  probes prove an authoritative control path.
 
 ## Acceptance gate
 
