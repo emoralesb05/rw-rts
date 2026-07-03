@@ -58,6 +58,7 @@ describe("sessionControlEventFor", () => {
           action: "stop",
           ok: false,
           reason: "Realmkeeper did not spawn this process.",
+          reasonCode: "capability_unavailable",
         }),
         {
           sessionId: "owned-session",
@@ -72,6 +73,7 @@ describe("sessionControlEventFor", () => {
         controlAction: "stop",
         ok: false,
         reason: "Realmkeeper did not spawn this process.",
+        reasonCode: "capability_unavailable",
       },
     });
   });

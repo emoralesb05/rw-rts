@@ -28,6 +28,7 @@ export function sessionControlEventFor(
       controlAction: req.action,
       ok: response.ok,
       reason: response.reason,
+      reasonCode: response.reasonCode,
     },
     source: "realmkeeper",
   };

@@ -83,10 +83,21 @@ export const ControlSessionRequestSchema = z.object({
 });
 export type ControlSessionRequest = z.infer<typeof ControlSessionRequestSchema>;
 
+export const ControlSessionFailureReasonCodeSchema = z.enum([
+  "capability_unavailable",
+  "missing_session_metadata",
+  "invalid_request",
+  "provider_error",
+]);
+export type ControlSessionFailureReasonCode = z.infer<
+  typeof ControlSessionFailureReasonCodeSchema
+>;
+
 export const ControlSessionResponseSchema = z.object({
   action: SessionControlActionSchema,
   ok: z.boolean(),
   reason: z.string().optional(),
+  reasonCode: ControlSessionFailureReasonCodeSchema.optional(),
 });
 export type ControlSessionResponse = z.infer<
   typeof ControlSessionResponseSchema

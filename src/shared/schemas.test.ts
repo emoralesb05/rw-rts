@@ -253,7 +253,9 @@ describe("runtime schemas", () => {
         kind: "session_control",
         payload: {
           controlAction: "interrupt",
-          ok: true,
+          ok: false,
+          reason: "Codex has no active turn to interrupt right now.",
+          reasonCode: "capability_unavailable",
         },
         source: "realmkeeper",
       })
@@ -261,7 +263,9 @@ describe("runtime schemas", () => {
       kind: "session_control",
       payload: {
         controlAction: "interrupt",
-        ok: true,
+        ok: false,
+        reason: "Codex has no active turn to interrupt right now.",
+        reasonCode: "capability_unavailable",
       },
     });
   });

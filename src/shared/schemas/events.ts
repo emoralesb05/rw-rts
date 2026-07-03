@@ -52,6 +52,7 @@ export const AgentEventPayloadSchema = z.looseObject({
   controlAction: z.string().optional(),
   ok: z.boolean().optional(),
   reason: z.string().optional(),
+  reasonCode: z.string().optional(),
   resolution: z.enum(["allow", "deny", "error"]).optional(),
   decision: PermissionDecisionSchema.optional(),
   optionId: z.string().optional(),

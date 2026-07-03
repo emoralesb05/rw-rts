@@ -316,6 +316,7 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
       action: req.action,
       ok: false,
       reason: capability.reason,
+      reasonCode: "capability_unavailable",
     });
   }
 
@@ -326,6 +327,7 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
         action: req.action,
         ok: false,
         reason: "Prompt is required.",
+        reasonCode: "invalid_request",
       });
     }
     if (!spawnedHere && (!req.sessionId || !req.cwd)) {
@@ -333,6 +335,7 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
         action: req.action,
         ok: false,
         reason: "Observed session metadata is missing.",
+        reasonCode: "missing_session_metadata",
       });
     }
     sendPromptFromRequest({
@@ -359,6 +362,7 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
         action: req.action,
         ok: false,
         reason: err instanceof Error ? err.message : "Interrupt failed.",
+        reasonCode: "provider_error",
       });
     }
   }
@@ -367,6 +371,7 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
     action: req.action,
     ok: false,
     reason: capability.reason,
+    reasonCode: "capability_unavailable",
   });
 }
 

@@ -139,6 +139,46 @@ describe("MainOrchestrationEngine", () => {
     });
   });
 
+  it("pauses standing-order runs on explicit control-plane failures", async () => {
+    const time = clock(25_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({
+        action: "send" as const,
+        ok: false,
+        reason: "Standing Orders stay scoped to Realmkeeper-owned sessions.",
+        reasonCode: "capability_unavailable" as const,
+      })
+    );
+    const run = await store.createRun({
+      template: "standing-order",
+      title: "Pause unsupported",
+      status: "running",
+      params: standingOrderParams(),
+      budget: { maxIterations: 5, maxConsecutiveFailures: 2 },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).toHaveBeenCalledTimes(1);
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason: "Standing Orders stay scoped to Realmkeeper-owned sessions.",
+      steps: [{ status: "failed" }],
+      checkpoints: [{ label: "Standing order iteration 1 failed" }],
+    });
+  });
+
   it("pauses malformed standing-order runs before provider control", async () => {
     const store = new LocalOrchestrationStore({
       rootDir: await tempRoot(),
@@ -198,10 +238,7 @@ describe("MainOrchestrationEngine", () => {
     expect(controlSession).toHaveBeenCalledTimes(2);
     await expect(store.getRun(run.id)).resolves.toMatchObject({
       status: "running",
-      steps: [
-        { kind: "standing-order-tick" },
-        { kind: "standing-order-tick" },
-      ],
+      steps: [{ kind: "standing-order-tick" }, { kind: "standing-order-tick" }],
     });
   });
 });

@@ -96,15 +96,11 @@ export class MainOrchestrationEngine {
     const params = parsed.data;
     const iteration = standingOrderTickCount(run) + 1;
     const maxIterations = run.budget.maxIterations ?? DEFAULT_MAX_ITERATIONS;
-    const result = await this.controlSession({
-      action: "send",
-      unitId: params.unitId,
-      sessionId: params.sessionId,
-      tool: params.tool,
-      cwd: params.cwd,
-      status: params.status,
-      prompt: standingOrderPrompt(params.prompt, iteration, maxIterations),
-    });
+    const result = await this.sendStandingOrderControl(
+      params,
+      iteration,
+      maxIterations
+    );
     const now = this.now();
     const ok = result.ok;
     const step = standingOrderStep(run, iteration, now, params, result);
@@ -126,11 +122,15 @@ export class MainOrchestrationEngine {
     const latest = await this.store.getRun(run.id);
     if (!latest) return undefined;
     if (!ok) {
-      const failures =
-        consecutiveStandingOrderFailures(run) + 1;
+      if (shouldPauseForControlFailure(result)) {
+        return this.store.pauseRun(
+          run.id,
+          result.reason ?? "Standing order control is unavailable."
+        );
+      }
+      const failures = consecutiveStandingOrderFailures(run) + 1;
       const maxFailures =
-        run.budget.maxConsecutiveFailures ??
-        DEFAULT_MAX_CONSECUTIVE_FAILURES;
+        run.budget.maxConsecutiveFailures ?? DEFAULT_MAX_CONSECUTIVE_FAILURES;
       if (failures >= maxFailures) {
         return this.store.failRun(
           run.id,
@@ -152,6 +152,34 @@ export class MainOrchestrationEngine {
     const lastTickAt = lastStandingOrderTickAt(run);
     if (!lastTickAt) return true;
     return this.now() - lastTickAt >= parsed.data.intervalMs;
+  }
+
+  private async sendStandingOrderControl(
+    params: StandingOrderRunParams,
+    iteration: number,
+    maxIterations: number
+  ): Promise<ControlSessionResponse> {
+    try {
+      return await this.controlSession({
+        action: "send",
+        unitId: params.unitId,
+        sessionId: params.sessionId,
+        tool: params.tool,
+        cwd: params.cwd,
+        status: params.status,
+        prompt: standingOrderPrompt(params.prompt, iteration, maxIterations),
+      });
+    } catch (err) {
+      return {
+        action: "send",
+        ok: false,
+        reason:
+          err instanceof Error
+            ? err.message
+            : "Standing order provider control failed.",
+        reasonCode: "provider_error",
+      };
+    }
   }
 }
 
@@ -183,7 +211,7 @@ function standingOrderStep(
     providerSessionId: params.sessionId,
     inputSummary: params.prompt,
     outputSummary: result.ok ? "sent" : undefined,
-    error: result.ok ? undefined : result.reason ?? "Send failed.",
+    error: result.ok ? undefined : (result.reason ?? "Send failed."),
   };
 }
 
@@ -210,4 +238,13 @@ function consecutiveStandingOrderFailures(run: OrchestrationRun): number {
     count++;
   }
   return count;
+}
+
+function shouldPauseForControlFailure(result: ControlSessionResponse): boolean {
+  return (
+    result.reasonCode === "capability_unavailable" ||
+    result.reasonCode === "missing_session_metadata" ||
+    result.reasonCode === "invalid_request" ||
+    result.reasonCode === "provider_error"
+  );
 }
