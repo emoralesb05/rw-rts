@@ -63,3 +63,26 @@ test("controls durable orchestration runs from the Run board", async ({
   }, RUN_ID);
   expect(storedStatus).toBe("stopped");
 });
+
+test("creates queued orchestration runs from the Run board", async ({
+  appPage: page,
+}) => {
+  await waitForRealmkeeper(page);
+
+  await page.getByRole("button", { name: "Open Kingdom panel" }).click();
+  const kingdom = page.getByRole("dialog", { name: "Kingdom" });
+  await expect(kingdom).toBeVisible();
+
+  await kingdom.getByRole("tab", { name: /runs/i }).click();
+  await kingdom
+    .getByRole("button", { name: "Create Provider Handoff Review run" })
+    .click();
+
+  const row = kingdom
+    .getByRole("listitem")
+    .filter({ hasText: "Provider Handoff Review draft" })
+    .first();
+  await expect(row).toBeVisible();
+  await expect(row.getByText("provider-handoff-review")).toBeVisible();
+  await expect(row.getByText("queued", { exact: true })).toBeVisible();
+});

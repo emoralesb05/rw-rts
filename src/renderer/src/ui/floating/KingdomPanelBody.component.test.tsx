@@ -5,7 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { KingdomPanelBody } from "./KingdomPanelBody";
 import { useStore } from "../../store";
 import type { AgentEvent, UnitState } from "@shared/events";
-import type { HooksStatus } from "@shared/schemas";
+import type {
+  CreateOrchestrationRunRequest,
+  HooksStatus,
+} from "@shared/schemas";
 import type { OrchestrationRun } from "@shared/orchestration";
 
 const BASE_STATUS: HooksStatus = {
@@ -121,7 +124,17 @@ function installRw() {
       })
     ),
     listOrchestrationRuns: vi.fn(() => Promise.resolve([run])),
-    createOrchestrationRun: vi.fn(),
+    createOrchestrationRun: vi.fn((req: CreateOrchestrationRunRequest) =>
+      Promise.resolve({
+        ...run,
+        id: "run-2",
+        template: req.template,
+        title: req.title,
+        status: req.status ?? "queued",
+        budget: req.budget ?? {},
+        params: req.params,
+      })
+    ),
     controlOrchestrationRun: vi.fn(() =>
       Promise.resolve({
         ...run,
@@ -237,9 +250,7 @@ describe("KingdomPanelBody", () => {
     expect(rw.exportTraces).toHaveBeenCalledWith({
       day: new Date(now - 1_000).toISOString().slice(0, 10),
     });
-    expect(
-      await screen.findByText(/2026-07-03-all\.otel\.json/)
-    ).toBeVisible();
+    expect(await screen.findByText(/2026-07-03-all\.otel\.json/)).toBeVisible();
   });
 
   it("copies the Gemini settings template from the connection tab", async () => {
@@ -306,5 +317,39 @@ describe("KingdomPanelBody", () => {
       expect(screen.getAllByText("paused").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("Paused from Run Board.")).toBeVisible();
+  });
+
+  it("creates queued draft runs from registered templates", async () => {
+    const { rw } = installRw();
+    const user = userEvent.setup();
+
+    render(<KingdomPanelBody initialTab="runs" />);
+
+    expect(await screen.findByText("New run")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /create provider handoff review run/i,
+      })
+    );
+
+    expect(rw.createOrchestrationRun).toHaveBeenCalledWith({
+      template: "provider-handoff-review",
+      title: "Provider Handoff Review draft",
+      params: {
+        sourceTraceId: "manual",
+        handoffPrompt: "Review the selected session trace.",
+      },
+      budget: {
+        maxIterations: 3,
+        maxConsecutiveFailures: 1,
+        maxRuntimeMs: 1_800_000,
+      },
+      status: "queued",
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Provider Handoff Review draft")).toBeVisible();
+    });
+    expect(screen.getAllByText("queued").length).toBeGreaterThan(0);
   });
 });

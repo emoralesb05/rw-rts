@@ -38,6 +38,14 @@ import type {
   OrchestrationRun,
   OrchestrationRunStatus,
 } from "@shared/orchestration";
+import {
+  defaultBudgetForTemplate,
+  FIX_THEN_TEST_TEMPLATE_ID,
+  ORCHESTRATION_TEMPLATES,
+  PARALLEL_COMPARISON_TEMPLATE_ID,
+  PROVIDER_HANDOFF_TEMPLATE_ID,
+  type OrchestrationTemplateId,
+} from "@shared/orchestration-templates";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -108,6 +116,36 @@ const DEMO_FIXTURES = [
     items: [{ id: "visual-qa-board", label: "RTS board · all states" }],
   },
 ] as const;
+
+const RUN_TEMPLATE_OPTIONS: OrchestrationTemplateId[] = [
+  PROVIDER_HANDOFF_TEMPLATE_ID,
+  PARALLEL_COMPARISON_TEMPLATE_ID,
+  FIX_THEN_TEST_TEMPLATE_ID,
+];
+
+function draftRunParams(
+  templateId: OrchestrationTemplateId
+): Record<string, unknown> {
+  switch (templateId) {
+    case PROVIDER_HANDOFF_TEMPLATE_ID:
+      return {
+        sourceTraceId: "manual",
+        handoffPrompt: "Review the selected session trace.",
+      };
+    case PARALLEL_COMPARISON_TEMPLATE_ID:
+      return {
+        providerTargets: [],
+        comparisonPrompt: "Compare approaches for the selected task.",
+      };
+    case FIX_THEN_TEST_TEMPLATE_ID:
+      return {
+        taskPrompt: "Implement the selected task.",
+        verificationCommand: "bun run test",
+      };
+    case "standing-order":
+      return {};
+  }
+}
 
 type KingdomTabProps = ComponentProps<"div">;
 
@@ -691,6 +729,28 @@ function RunsTab() {
     }
   };
 
+  const createRun = async (templateId: OrchestrationTemplateId) => {
+    const key = `create:${templateId}`;
+    if (busy) return;
+    setBusy(key);
+    try {
+      const template = ORCHESTRATION_TEMPLATES[templateId];
+      const result = await safeIpc(() =>
+        window.rw.createOrchestrationRun({
+          template: template.id,
+          title: `${template.title} draft`,
+          params: draftRunParams(template.id),
+          budget: defaultBudgetForTemplate(template.id),
+          status: "queued",
+        })
+      );
+      if (result) replaceRun(result);
+      else await refreshOrchestrationRuns();
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const activeCount = runs.filter((run) => run.status === "running").length;
   const pausedCount = runs.filter((run) => run.status === "paused").length;
   const terminalCount = runs.filter((run) =>
@@ -707,6 +767,32 @@ function RunsTab() {
         <KingdomStat label="paused" value={pausedCount} />
         <KingdomStat label="closed" value={terminalCount} />
       </div>
+
+      <KingdomSection title="New run">
+        <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3">
+          {RUN_TEMPLATE_OPTIONS.map((templateId) => {
+            const template = ORCHESTRATION_TEMPLATES[templateId];
+            return (
+              <Button
+                key={template.id}
+                type="button"
+                className="min-h-[44px] justify-start px-2.5 py-2 text-left text-[11px]"
+                disabled={busy !== null}
+                onClick={() => void createRun(template.id)}
+                aria-label={`Create ${template.title} run`}
+              >
+                <Play className="size-3" />
+                <span className="min-w-0">
+                  <span className="block truncate">{template.title}</span>
+                  <span className="text-muted block truncate font-mono text-[10px]">
+                    {template.id}
+                  </span>
+                </span>
+              </Button>
+            );
+          })}
+        </div>
+      </KingdomSection>
 
       <KingdomSection title="Run board" count={runs.length}>
         <div className="mb-1 flex flex-wrap items-center gap-2">
