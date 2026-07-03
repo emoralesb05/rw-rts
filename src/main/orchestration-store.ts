@@ -20,6 +20,7 @@ export type OrchestrationStoreOptions = {
   rootDir?: string;
   now?: () => number;
   idFactory?: () => string;
+  onRunEvent?: (run: OrchestrationRun, event: OrchestrationRunEvent) => void;
 };
 
 export type CreateOrchestrationRunInput = {
@@ -45,12 +46,16 @@ export class LocalOrchestrationStore {
   private readonly rootDir: string;
   private readonly now: () => number;
   private readonly idFactory: () => string;
+  private readonly onRunEvent:
+    | ((run: OrchestrationRun, event: OrchestrationRunEvent) => void)
+    | undefined;
   private cache: OrchestrationStoreFile | null = null;
 
   constructor(options: OrchestrationStoreOptions = {}) {
     this.rootDir = options.rootDir ?? defaultOrchestrationRoot();
     this.now = options.now ?? Date.now;
     this.idFactory = options.idFactory ?? randomUUID;
+    this.onRunEvent = options.onRunEvent;
   }
 
   async listRuns(): Promise<OrchestrationRun[]> {
@@ -70,6 +75,15 @@ export class LocalOrchestrationStore {
     const now = this.now();
     const id = input.id ?? this.idFactory();
     const status = input.status ?? "queued";
+    const initialEvent = this.event(
+      status === "running"
+        ? "started"
+        : status === "paused"
+          ? "paused"
+          : "created",
+      now,
+      status === "paused" ? "Created paused." : undefined
+    );
     const run = OrchestrationRunSchema.parse({
       id,
       template: input.template,
@@ -89,20 +103,11 @@ export class LocalOrchestrationStore {
       steps: [],
       checkpoints: [],
       budget: input.budget ?? {},
-      events: [
-        this.event(
-          status === "running"
-            ? "started"
-            : status === "paused"
-              ? "paused"
-              : "created",
-          now,
-          status === "paused" ? "Created paused." : undefined
-        ),
-      ],
+      events: [initialEvent],
     });
     file.runs[id] = run;
     await this.persist();
+    this.emitRunEvent(run, initialEvent);
     return run;
   }
 
@@ -149,10 +154,7 @@ export class LocalOrchestrationStore {
     return this.transition(runId, "running", "started");
   }
 
-  async pauseRun(
-    runId: string,
-    reason = "Paused."
-  ): Promise<OrchestrationRun> {
+  async pauseRun(runId: string, reason = "Paused."): Promise<OrchestrationRun> {
     return this.transition(runId, "paused", "paused", reason);
   }
 
@@ -160,10 +162,7 @@ export class LocalOrchestrationStore {
     return this.transition(runId, "running", "resumed");
   }
 
-  async stopRun(
-    runId: string,
-    reason = "Stopped."
-  ): Promise<OrchestrationRun> {
+  async stopRun(runId: string, reason = "Stopped."): Promise<OrchestrationRun> {
     return this.transition(runId, "stopped", "stopped", reason);
   }
 
@@ -178,22 +177,29 @@ export class LocalOrchestrationStore {
   async recoverAfterRestart(): Promise<OrchestrationRun[]> {
     const file = await this.load();
     const recovered: OrchestrationRun[] = [];
+    const emitted: {
+      run: OrchestrationRun;
+      event: OrchestrationRunEvent;
+    }[] = [];
     for (const run of Object.values(file.runs)) {
       if (run.status !== "running") continue;
       const now = this.now();
       const reason =
         "Paused after restart; validate checkpoint and provider capability before resuming.";
+      const event = this.event("recovered", now, reason);
       const next = OrchestrationRunSchema.parse({
         ...run,
         status: "paused",
         pauseReason: reason,
         updatedAt: now,
-        events: [...run.events, this.event("recovered", now, reason)],
+        events: [...run.events, event],
       });
       file.runs[run.id] = next;
       recovered.push(next);
+      emitted.push({ run: next, event });
     }
     if (recovered.length > 0) await this.persist();
+    for (const item of emitted) this.emitRunEvent(item.run, item.event);
     return recovered;
   }
 
@@ -230,9 +236,13 @@ export class LocalOrchestrationStore {
     const file = await this.load();
     const current = file.runs[runId];
     if (!current) throw new Error(`Unknown orchestration run ${runId}`);
+    const priorEventIds = new Set(current.events.map((event) => event.id));
     const next = OrchestrationRunSchema.parse(update(current, this.now()));
     file.runs[runId] = next;
     await this.persist();
+    for (const event of next.events) {
+      if (!priorEventIds.has(event.id)) this.emitRunEvent(next, event);
+    }
     return next;
   }
 
@@ -249,6 +259,17 @@ export class LocalOrchestrationStore {
       message,
       ...refs,
     };
+  }
+
+  private emitRunEvent(
+    run: OrchestrationRun,
+    event: OrchestrationRunEvent
+  ): void {
+    try {
+      this.onRunEvent?.(run, event);
+    } catch (err) {
+      console.warn("[realmkeeper] orchestration event listener failed", err);
+    }
   }
 
   private async load(): Promise<OrchestrationStoreFile> {

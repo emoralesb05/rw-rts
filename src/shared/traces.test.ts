@@ -138,6 +138,51 @@ describe("projectTraces", () => {
     expect(trace.status).toBe("error");
   });
 
+  it("projects orchestration events as trace spans", () => {
+    const [trace] = projectTraces([
+      event("codex", "s1", 1, "session_start"),
+      event("codex", "s1", 2, "orchestration_event", {
+        orchestrationRunId: "run-1",
+        orchestrationRunTitle: "Keep tests moving",
+        orchestrationRunStatus: "running",
+        orchestrationTemplate: "standing-order",
+        orchestrationEventKind: "checkpoint",
+        checkpointId: "checkpoint-1",
+        stepId: "step-1",
+        text: "Iteration sent",
+      }),
+      event("codex", "s1", 3, "orchestration_event", {
+        orchestrationRunId: "run-1",
+        orchestrationEventKind: "failed",
+        text: "Provider failed repeatedly.",
+      }),
+    ]);
+
+    expect(
+      trace.spans.filter((span) => span.kind === "orchestration")
+    ).toMatchObject([
+      {
+        name: "orchestration checkpoint",
+        status: "ok",
+        attributes: {
+          "orchestration.run.id": "run-1",
+          "orchestration.template": "standing-order",
+          "orchestration.step.id": "step-1",
+          "orchestration.checkpoint.id": "checkpoint-1",
+        },
+        content: {
+          redacted: true,
+          summary: "Iteration sent",
+        },
+      },
+      {
+        name: "orchestration failed",
+        status: "error",
+      },
+    ]);
+    expect(trace.status).toBe("error");
+  });
+
   it("keeps raw content out of projected traces unless explicitly requested", () => {
     const source = [
       event("gemini", "s1", 1, "user_prompt", {

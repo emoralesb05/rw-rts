@@ -13,7 +13,8 @@ export type SpanKind =
   | "user_input_wait"
   | "subagent"
   | "error"
-  | "session_control";
+  | "session_control"
+  | "orchestration";
 
 export type SpanStatus = "active" | "ok" | "error";
 
@@ -456,6 +457,45 @@ function projectTrace(
       finishSpan(s, event.timestamp, ok ? "ok" : "error");
       trace.spans.push(s);
       if (!ok) trace.status = "error";
+      continue;
+    }
+
+    if (event.kind === "orchestration_event") {
+      const eventKind = payloadString(event, "orchestrationEventKind");
+      const isError =
+        eventKind === "failed" ||
+        eventKind === "budget_exceeded" ||
+        eventKind === "provider_error";
+      const s = span(
+        trace,
+        "orchestration",
+        entry,
+        eventKind ? `orchestration ${eventKind}` : "orchestration event",
+        parentSpanId(),
+        {
+          "gen_ai.operation.name": "orchestration",
+          "agent.event.kind": event.kind,
+          "orchestration.run.id":
+            payloadString(event, "orchestrationRunId") ?? null,
+          "orchestration.run.title":
+            payloadString(event, "orchestrationRunTitle") ?? null,
+          "orchestration.run.status":
+            payloadString(event, "orchestrationRunStatus") ?? null,
+          "orchestration.template":
+            payloadString(event, "orchestrationTemplate") ?? null,
+          "orchestration.event.kind": eventKind ?? null,
+          "orchestration.step.id": payloadString(event, "stepId") ?? null,
+          "orchestration.checkpoint.id":
+            payloadString(event, "checkpointId") ?? null,
+        },
+        contentFor(event.payload.text ?? event.payload.reason, policy)
+      );
+      finishSpan(s, event.timestamp, isError ? "error" : "ok");
+      trace.spans.push(s);
+      if (isError) {
+        trace.status = "error";
+        if (activeTurn) activeTurn.status = "error";
+      }
       continue;
     }
 

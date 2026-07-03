@@ -54,6 +54,7 @@ import {
 } from "./trace-store";
 import { LocalOrchestrationStore } from "./orchestration-store";
 import { MainOrchestrationEngine } from "./orchestration-engine";
+import { agentEventForOrchestrationRun } from "./orchestration-events";
 import { IPC } from "@shared/ipc";
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
@@ -105,7 +106,12 @@ import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
-const orchestrationStore = new LocalOrchestrationStore();
+const orchestrationStore = new LocalOrchestrationStore({
+  onRunEvent: (run, event) => {
+    const agentEvent = agentEventForOrchestrationRun(run, event);
+    if (agentEvent) bus.emitAgentEvent(agentEvent);
+  },
+});
 const orchestrationEngine = new MainOrchestrationEngine({
   store: orchestrationStore,
   controlSession,

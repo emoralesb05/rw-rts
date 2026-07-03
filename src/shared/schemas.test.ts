@@ -266,6 +266,35 @@ describe("runtime schemas", () => {
     });
   });
 
+  it("accepts Realmkeeper orchestration lifecycle events", () => {
+    expect(
+      AgentEventSchema.parse({
+        sessionId: "s1",
+        tool: "codex",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "orchestration_event",
+        payload: {
+          orchestrationRunId: "run-1",
+          orchestrationRunTitle: "Keep tests moving",
+          orchestrationRunStatus: "running",
+          orchestrationTemplate: "standing-order",
+          orchestrationEventKind: "checkpoint",
+          stepId: "step-1",
+          checkpointId: "checkpoint-1",
+          text: "Iteration sent",
+        },
+        source: "realmkeeper",
+      })
+    ).toMatchObject({
+      kind: "orchestration_event",
+      payload: {
+        orchestrationRunId: "run-1",
+        orchestrationEventKind: "checkpoint",
+      },
+    });
+  });
+
   it("accepts Cursor provider identity diagnostics on event payloads", () => {
     expect(
       AgentEventSchema.parse({

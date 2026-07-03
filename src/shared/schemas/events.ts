@@ -21,6 +21,7 @@ export const AgentEventKindSchema = z.enum([
   "permission_resolved",
   "user_input_request",
   "user_input_resolved",
+  "orchestration_event",
 ]);
 export type AgentEventKind = z.infer<typeof AgentEventKindSchema>;
 
@@ -59,6 +60,13 @@ export const AgentEventPayloadSchema = z.looseObject({
   ruleLabel: z.string().optional(),
   ruleScope: PermissionRuleScopeSchema.optional(),
   durationMs: z.number().finite().nonnegative().optional(),
+  orchestrationRunId: z.string().optional(),
+  orchestrationRunTitle: z.string().optional(),
+  orchestrationRunStatus: z.string().optional(),
+  orchestrationTemplate: z.string().optional(),
+  orchestrationEventKind: z.string().optional(),
+  stepId: z.string().optional(),
+  checkpointId: z.string().optional(),
 });
 export type AgentEventPayload = z.infer<typeof AgentEventPayloadSchema>;
 

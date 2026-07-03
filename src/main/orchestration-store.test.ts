@@ -118,6 +118,39 @@ describe("LocalOrchestrationStore", () => {
     expect(completed.endedAt).toBe(2_005);
   });
 
+  it("notifies listeners for newly appended run events", async () => {
+    const emitted: string[] = [];
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: clock(2_500),
+      onRunEvent: (_run, event) => emitted.push(event.kind),
+    });
+    const run = await store.createRun({
+      template: "standing-order",
+      title: "Keep tests moving",
+      status: "running",
+    });
+
+    await store.upsertStep(run.id, {
+      id: "step-1",
+      title: "Iteration 1",
+      kind: "standing-order-tick",
+      status: "completed",
+      attempts: 1,
+      createdAt: 2_501,
+      updatedAt: 2_501,
+    });
+    await store.addCheckpoint(run.id, {
+      id: "checkpoint-1",
+      label: "Iteration sent",
+      createdAt: 2_502,
+      stepId: "step-1",
+    });
+
+    expect(emitted).toEqual(["started", "step_updated", "checkpoint"]);
+  });
+
   it("records stop and failure terminal states", async () => {
     const store = new LocalOrchestrationStore({
       rootDir: await tempRoot(),
@@ -133,12 +166,12 @@ describe("LocalOrchestrationStore", () => {
       title: "Compare providers",
     });
 
-    await expect(store.stopRun(stopped.id, "User stopped.")).resolves.toMatchObject(
-      {
-        status: "stopped",
-        endedAt: 3_002,
-      }
-    );
+    await expect(
+      store.stopRun(stopped.id, "User stopped.")
+    ).resolves.toMatchObject({
+      status: "stopped",
+      endedAt: 3_002,
+    });
     await expect(
       store.failRun(failed.id, "Provider capability missing.")
     ).resolves.toMatchObject({
