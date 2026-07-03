@@ -2,10 +2,44 @@ import type { Locator, Page } from "@playwright/test";
 import { expect } from "../fixtures/electron";
 
 export type ProviderTool = "claude" | "cursor" | "codex" | "gemini";
+export type OrchestrationRunStatus =
+  | "queued"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "stopped";
+export type OrchestrationRun = {
+  id: string;
+  template: string;
+  title: string;
+  status: OrchestrationRunStatus;
+};
 
 export type RwE2eWindow = Window & {
   rw: {
     playFixture(req: { scenario: string; cwd?: string }): Promise<void>;
+    createOrchestrationRun(req: {
+      id?: string;
+      template: string;
+      title: string;
+      params?: Record<string, unknown>;
+      cwd?: string;
+      repoRoot?: string;
+      budget?: {
+        maxIterations?: number;
+        maxRuntimeMs?: number;
+        maxConsecutiveFailures?: number;
+        maxToolMs?: number;
+      };
+      status?: Extract<OrchestrationRunStatus, "queued" | "running" | "paused">;
+    }): Promise<OrchestrationRun>;
+    controlOrchestrationRun(req: {
+      runId: string;
+      action: "start" | "pause" | "resume" | "stop" | "complete" | "fail";
+      reason?: string;
+    }): Promise<OrchestrationRun>;
+    listOrchestrationRuns(): Promise<OrchestrationRun[]>;
   };
   __rwSeedVisualQa?: () => { activeWorldId: string | null };
   __rwStore?: {
