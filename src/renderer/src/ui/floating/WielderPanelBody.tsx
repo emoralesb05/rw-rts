@@ -13,6 +13,7 @@ import {
   Heart,
   MapPin,
   MessageSquare,
+  OctagonX,
   Power,
   RotateCw,
 } from "lucide-react";
@@ -132,6 +133,8 @@ export function WielderPanelBody({ unitId }: Props) {
   const decreeReason = controlReason(capabilities, "issueDecree");
   const canRecall = canControl(capabilities, "stop");
   const recallReason = controlReason(capabilities, "stop");
+  const canInterrupt = canControl(capabilities, "interrupt");
+  const interruptReason = controlReason(capabilities, "interrupt");
 
   return (
     <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
@@ -267,7 +270,7 @@ export function WielderPanelBody({ unitId }: Props) {
           </TooltipHint>
         )}
       </div>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-6 gap-1">
         <TooltipHint label="open chat in the drawer">
           <span className="inline-flex w-full">
             <Button
@@ -308,6 +311,36 @@ export function WielderPanelBody({ unitId }: Props) {
             >
               {/* ⚜ stays as the gold royal sigil — RW-themed and intentional. */}
               ⚜ decree
+            </Button>
+          </span>
+        </TooltipHint>
+        <TooltipHint
+          label={
+            canInterrupt ? "halt — interrupt this active turn" : interruptReason
+          }
+        >
+          <span className="inline-flex w-full">
+            <Button
+              type="button"
+              className={cn(
+                "h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]",
+                "border-[#ffa850]/45 bg-[#ffa850]/[0.08] text-[#ffb070] hover:border-[#ffa850]/70 hover:bg-[#ffa850]/[0.14]"
+              )}
+              disabled={!canInterrupt}
+              onClick={() =>
+                void window.rw
+                  .controlSession({
+                    action: "interrupt",
+                    unitId: unit.id,
+                    sessionId: unit.sessionId,
+                    tool: unit.tool,
+                    cwd: unit.cwd,
+                    status: unit.status,
+                  })
+                  .catch(() => {})
+              }
+            >
+              <OctagonX size={11} aria-hidden /> halt
             </Button>
           </span>
         </TooltipHint>
