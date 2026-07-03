@@ -46,6 +46,11 @@ import {
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
+import {
+  flushTraceStore,
+  startTraceStore,
+  stopTraceStore,
+} from "./trace-store";
 import { IPC } from "@shared/ipc";
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
@@ -350,6 +355,8 @@ if (!app.isPackaged && !isE2E) {
 }
 
 void app.whenReady().then(async () => {
+  startTraceStore();
+
   // Refresh the user-dir copy of bin/realmkeeper-hook from the bundled
   // source. Runs every boot — keeps the installed script in sync with
   // the app version. Must run before hook installers (so they
@@ -695,5 +702,7 @@ app.on("window-all-closed", () => {
 
 app.on("will-quit", () => {
   stopRuntimeServices();
+  stopTraceStore();
   flushPersisted();
+  void flushTraceStore();
 });
