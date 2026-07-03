@@ -15,6 +15,8 @@ import { applyOneEvent } from "./store-domain/event-reducer";
 import {
   dismissInformationalLetters,
   isPermissionChoiceAction,
+  isPermissionLetter,
+  isUserInputLetter,
   permissionResolutionForAction,
   userInputResolutionForAction,
 } from "./store-domain/permissions";
@@ -24,6 +26,7 @@ import {
   ordersToPersisted,
   type StandingOrder,
 } from "./store-domain/standing-orders";
+import { usePanels } from "./ui/floating/panel-store";
 import { unitIdentityForUnit } from "./unit-identity";
 
 export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
@@ -93,6 +96,7 @@ export type Store = {
   hydratePersisted(state: PersistedState): void;
   sealRealm(worldId: string): void;
   comfort(sessionId: string): ComfortReceipt;
+  addLetter(letter: Letter): void;
   dismissLetter(letterId: string): void;
   dismissInformationalLetters(): void;
   applyLetterAction(letter: Letter, action: LetterAction): void;
@@ -126,11 +130,30 @@ const _comfortCooldown = new Map<string, number>();
 const COMFORT_COST = 50;
 const COMFORT_HP = 30;
 const COMFORT_COOLDOWN_MS = 30_000;
+const MAX_LETTERS = 50;
 
 function runsById(runs: OrchestrationRun[]): Record<string, OrchestrationRun> {
   const out: Record<string, OrchestrationRun> = {};
   for (const run of runs) out[run.id] = run;
   return out;
+}
+
+function appendLetter(letters: readonly Letter[], letter: Letter): Letter[] {
+  let next = letters.filter((item) => item.id !== letter.id);
+  if (
+    !isPermissionLetter(letter) &&
+    !isUserInputLetter(letter) &&
+    letter.sessionId
+  ) {
+    const sid = letter.sessionId;
+    next = next.filter(
+      (item) =>
+        item.sessionId !== sid ||
+        isPermissionLetter(item) ||
+        isUserInputLetter(item)
+    );
+  }
+  return [letter, ...next].slice(0, MAX_LETTERS);
 }
 
 // Batch incoming events into one store update per animation frame so
@@ -349,6 +372,9 @@ export const useStore = create<Store>((set) => ({
     });
     return "ok";
   },
+  addLetter(letter) {
+    set((s) => ({ letters: appendLetter(s.letters, letter) }));
+  },
   dismissLetter(letterId) {
     set((s) => ({ letters: s.letters.filter((l) => l.id !== letterId) }));
   },
@@ -381,7 +407,7 @@ export const useStore = create<Store>((set) => ({
         s.selectWorld(action.worldId);
         break;
       case "send-word":
-        // Stub; CommandInput is the main path for now.
+        usePanels.getState().openDrawerTab(action.sessionId);
         break;
       case "recall":
         void window.rw.killAgent(action.sessionId).catch(() => {});

@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (monitor letters shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — event modeling, local persistence, renderer state; read `.docs/architecture/events.md`, `.docs/architecture/bridge.md`, `.docs/architecture/state.md`, `src/shared/schemas/events.ts`, `src/main/event-bus.ts`, and `src/renderer/src/store-domain/event-reducer.ts` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add local-first trace/session observability on top of Realmkeeper's existing event bus · **Origin:** Follow-on from provider hardening and parity work
@@ -84,13 +84,15 @@ Shipped on `main`:
 - Kingdom Observatory tab with trace counts, active waits, monitor signals,
   recent errors, trace sessions, and manual metadata-only OTel-shaped export.
 - Monitor signals for waiting, slow tool, stale trace, and recent error states.
+- Low-noise monitor letters for actionable anomalies. Permission/input waits
+  reuse the existing blocking letters when present; slow tools, stale traces,
+  and recent trace errors produce bounded, dismissible letters with send-word
+  and recall actions where a wielder is known.
 - Orchestration lifecycle/checkpoint/budget events flow through the same
   AgentEvent/trace/export path.
 
 Still active:
 
-- Emit low-noise actionable letters from monitor signals, rather than only
-  showing them in Observatory.
 - Add fixture/e2e coverage that opens Observatory and verifies an active trace,
   a waiting state, a completed trace, and an error/budget signal.
 - Validate OTel-shaped export against a real collector before claiming strict

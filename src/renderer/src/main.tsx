@@ -7,6 +7,7 @@ import { attachMusicLoop } from "./audio/music";
 import { attachLetterNotifications } from "./desktop-notifications";
 import { attachOrchestrationRunPoller } from "./orchestration-runs";
 import { attachStandingOrderMigrator } from "./standing-orders";
+import { attachTraceMonitorLetters } from "./trace-monitor-letters";
 import { seedVisualQaState } from "./dev/visual-qa-seed";
 import "./styles.css";
 
@@ -14,6 +15,7 @@ void preloadSounds();
 attachEventStream();
 attachOrchestrationRunPoller();
 attachStandingOrderMigrator();
+attachTraceMonitorLetters();
 attachMusicLoop();
 
 // Hydrate persisted kingdom state on launch. Renderer reads via IPC; the

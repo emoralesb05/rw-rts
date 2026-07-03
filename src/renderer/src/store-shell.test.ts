@@ -37,7 +37,7 @@ function installRendererGlobals() {
   };
 
   vi.stubGlobal("localStorage", localStorage);
-  vi.stubGlobal("window", { rw });
+  vi.stubGlobal("window", { rw, localStorage, innerWidth: 1400 });
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
     cb(0);
     return 1;
@@ -177,6 +177,23 @@ describe("store letter action shell", () => {
     useStore.getState().applyLetterAction(letter, letter.actions[0].action);
 
     expect(rw.killAgent).toHaveBeenCalledWith("unit-1");
+    expect(useStore.getState().letters).toEqual([]);
+  });
+
+  it("routes send-word actions to the chat drawer and dismisses the letter", async () => {
+    installRendererGlobals();
+    const { useStore } = await loadStore();
+    const { usePanels } = await import("./ui/floating/panel-store");
+    const letter = letterWithAction({ kind: "send-word", sessionId: "unit-1" });
+
+    useStore.setState({ letters: [letter] });
+    useStore.getState().applyLetterAction(letter, letter.actions[0].action);
+
+    expect(usePanels.getState().drawer).toMatchObject({
+      openTabs: ["unit-1"],
+      activeTab: "unit-1",
+      minimized: false,
+    });
     expect(useStore.getState().letters).toEqual([]);
   });
 });
