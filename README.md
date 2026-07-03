@@ -288,11 +288,13 @@ replay mode (event-log scrubber), outbound MCP server, Quest system.
 **Known gaps (see `.docs/vision.md` for details):**
 
 - Electron smoke coverage — sandboxing, navigation blocking, sender-frame
-  checks, and IPC schemas are in place; the remaining hardening gap is broader
-  automated coverage for permissions, settings, dispatch, chat, and world
-  selection.
-- Renderer bundle size (~10 MB) — Streamdown markdown stack loads
-  Mermaid/math/Shiki eagerly. Lazy-load is the plan.
+  checks, IPC schemas, permissions, settings, dispatch, chat, world commands,
+  provider fixture turns, and provider prompt IPC are covered. The remaining
+  hardening gap is visual regression snapshots and more failure-state flows.
+- Renderer bundle size — the Streamdown markdown renderer and heavy
+  Mermaid/math/Shiki plugins are lazy-loaded from the chat stream. Remaining
+  bundle work should start from measured cold-start chunks instead of assuming
+  markdown is still the first bottleneck.
 - Recall and standing-order loops on hook-observed sessions — direct
   messages now resume observed sessions, but repeated orders and process
   control stay scoped to sessions Realmkeeper spawned itself.

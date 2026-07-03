@@ -110,7 +110,7 @@ The user-dir copy is what Claude/Cursor/Codex/Gemini actually invoke. Repo and `
 - **Code signing + notarization** — needs Apple Developer ID. Fixes the Gatekeeper warning, allows hosted distribution. ~½ day to wire up via electron-builder's `mac.identity` + notarization config.
 - **Universal binary** — add `"x64"` to `arch` for Intel Mac support. Doubles build time and artifact size.
 - **Auto-update** — `electron-updater` + a hosted release feed (GitHub Releases / S3). Would also need signed builds. Out of scope for personal-tidy distribution.
-- **Bundle size reduction** — biggest win is code-splitting Mermaid/Shiki/KaTeX out of the cold-start chunk (see [`../vision.md`](../vision.md) § Known gaps). Would shave 30-50 MB.
+- **Bundle size reduction** — Streamdown and its Mermaid/math/Shiki plugins now live behind the lazy markdown renderer chunk. Future work should inspect the emitted renderer chunks after `bun run build` and target the next measured cold-start bottleneck.
 
 ## Version constraints
 

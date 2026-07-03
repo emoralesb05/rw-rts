@@ -113,20 +113,25 @@ Shipped foundations:
 - Electron renderer guardrails around navigation, sandboxing, IPC sender origin,
   request schemas, and response schemas
 - Playwright Electron smoke coverage for shell, settings, provider connection
-  status, dispatch, chat, world commands, provider fixture turns, Codex
-  answer/MCP letters, actionable Claude/Codex/Gemini permission cards, and
-  Cursor observe-only permission cards
+- status, dispatch, chat, world commands, provider fixture turns, provider
+  prompt IPC, Codex answer/MCP letters, actionable Claude/Codex/Gemini
+  permission cards, and Cursor observe-only permission cards
+- Codex app-server request parity for user input, MCP URL/form elicitations,
+  schema-compatible OpenAI forms, decline/cancel-only requests, and dynamic-tool
+  allowlist gating
+- Lazy chat markdown rendering: Streamdown plus Mermaid/math/Shiki plugins load
+  from the markdown renderer chunk instead of the conversation stream module
 
 ## Next Hardening
 
 Highest-value follow-ups:
 
-- expand Electron smoke coverage into failure states, visual regression
-  snapshots, and provider resume/send-message flows
-- improve Codex app-server handling for richer request shapes such as MCP
-  forms, user input, and dynamic tool calls
-- reduce renderer cold-start bundle size by splitting Streamdown's heavy
-  Mermaid/math/Shiki pieces
+- expand Electron smoke coverage into failure states and visual regression
+  snapshots
+- capture or synthesize a provider-faithful Claude deferred
+  `AskUserQuestion` resume fixture; the implemented answer-letter path is still
+  synthetic-only because the live CLI probe did not expose the tool
+- keep renderer cold-start bundle size measured as new UI chunks land
 - keep Cursor observe-only UX explicit and low-confusion
 - keep IPC schema coverage mandatory as new channels are added
 - revisit provider-native permission mirroring only as an opt-in after local
