@@ -171,6 +171,22 @@ export class LocalOrchestrationStore {
     });
   }
 
+  async recordRequestIds(
+    runId: string,
+    refs: { permissionRequestId?: string; userInputRequestId?: string }
+  ): Promise<OrchestrationRun> {
+    return this.updateRun(runId, (run, now) => ({
+      ...run,
+      permissionRequestIds: refs.permissionRequestId
+        ? uniqueStrings([...run.permissionRequestIds, refs.permissionRequestId])
+        : run.permissionRequestIds,
+      userInputRequestIds: refs.userInputRequestId
+        ? uniqueStrings([...run.userInputRequestIds, refs.userInputRequestId])
+        : run.userInputRequestIds,
+      updatedAt: now,
+    }));
+  }
+
   async startRun(runId: string): Promise<OrchestrationRun> {
     return this.transition(runId, "running", "started");
   }

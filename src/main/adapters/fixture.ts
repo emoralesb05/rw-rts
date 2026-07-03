@@ -524,6 +524,50 @@ function permissionFixture(tool: AgentTool, cwd: string) {
   ]);
 }
 
+function orchestrationPauseFixture(
+  kind: "permission_request" | "user_input_request" | "error",
+  cwd: string
+) {
+  const sessionId = `orchestration-${kind.replaceAll("_", "-")}-e2e`;
+  const tool: AgentTool = kind === "user_input_request" ? "codex" : "claude";
+  bus.emitAgentEvent({
+    sessionId,
+    tool,
+    cwd,
+    timestamp: Date.now(),
+    kind: "session_start",
+    payload: { text: "orchestration pause fixture" },
+    source: "spawned",
+  });
+  const timer = setTimeout(() => {
+    bus.emitAgentEvent({
+      sessionId,
+      tool,
+      cwd,
+      timestamp: Date.now(),
+      kind,
+      payload:
+        kind === "permission_request"
+          ? {
+              requestId: "orchestration-permission-e2e",
+              name: "Bash",
+              input: { command: "bun run test" },
+            }
+          : kind === "user_input_request"
+            ? {
+                requestId: "orchestration-input-e2e",
+                text: "Choose a verification branch.",
+              }
+            : { error: "orchestration fixture provider error" },
+      source: "spawned",
+    });
+  }, 2_000);
+  activeTimers.set(sessionId, [
+    timer,
+    setTimeout(() => activeTimers.delete(sessionId), 10_000),
+  ]);
+}
+
 function subagentSummon(cwd: string): FakeUnit[] {
   const parentId = randomUUID();
   const childId = randomUUID();
@@ -748,6 +792,9 @@ export type FixtureScenarioId =
   | "permission-codex"
   | "permission-gemini"
   | "permission-cursor"
+  | "orchestration-permission-pause"
+  | "orchestration-input-pause"
+  | "orchestration-error-pause"
   | "demo";
 
 export function playFixture(scenario: FixtureScenarioId, cwd: string) {
@@ -817,6 +864,15 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "permission-cursor":
       permissionFixture("cursor", c);
+      break;
+    case "orchestration-permission-pause":
+      orchestrationPauseFixture("permission_request", c);
+      break;
+    case "orchestration-input-pause":
+      orchestrationPauseFixture("user_input_request", c);
+      break;
+    case "orchestration-error-pause":
+      orchestrationPauseFixture("error", c);
       break;
     case "demo":
       // Fire all providers in parallel for a "show me everything" demo.

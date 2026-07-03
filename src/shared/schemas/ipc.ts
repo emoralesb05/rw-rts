@@ -160,6 +160,9 @@ export const FixtureScenarioSchema = z.enum([
   "permission-codex",
   "permission-gemini",
   "permission-cursor",
+  "orchestration-permission-pause",
+  "orchestration-input-pause",
+  "orchestration-error-pause",
   "demo",
 ]);
 export type FixtureScenario = z.infer<typeof FixtureScenarioSchema>;

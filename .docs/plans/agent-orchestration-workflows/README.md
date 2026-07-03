@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (legacy Standing Order runner retired)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (packaged-app orchestration e2e shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -113,13 +113,14 @@ Shipped on `main`:
 - Run Board rows link to related provider sessions, provider traces, and
   pending permission/input letters when the run record or draft params carry
   enough target metadata.
-- Electron e2e covers Run Board durable controls and target-backed queued
-  template creation.
+- Electron e2e covers Run Board durable controls, target-backed queued
+  template creation, recurring Standing Order completion, provider error
+  pause, permission/input pause, and runtime budget pause in the packaged app
+  path.
 
-Still active:
-
-- Add fixture/e2e coverage for recurring prompt completion, provider error
-  pause, permission/input pause, and budget pause in the packaged app path.
+No active implementation gaps remain for this plan's first local orchestration
+slice. Future work belongs in follow-on plans for cross-provider result
+judging, richer budget/cost signals, or external workflow-engine adoption.
 
 ## Acceptance gate
 

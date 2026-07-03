@@ -90,6 +90,10 @@ const CAPTURE_EVENT_KINDS = new Set<AgentEventKind>([
   "error",
   "session_end",
 ]);
+const INTERVENTION_EVENT_KINDS = new Set<AgentEventKind>([
+  "permission_request",
+  "user_input_request",
+]);
 
 export class MainOrchestrationEngine {
   private readonly store: LocalOrchestrationStore;
@@ -150,6 +154,20 @@ export class MainOrchestrationEngine {
   }
 
   async ingestAgentEvent(event: AgentEvent): Promise<OrchestrationRun[]> {
+    if (INTERVENTION_EVENT_KINDS.has(event.kind)) {
+      const match = (await this.store.listRuns())
+        .flatMap((run) =>
+          pendingInterventionMatches(run, event).map((step) => ({ run, step }))
+        )
+        .sort((a, b) => b.run.updatedAt - a.run.updatedAt)[0];
+      if (!match) return [];
+      const paused = await this.pauseForIntervention(
+        match.run,
+        match.step,
+        event
+      );
+      return paused ? [paused] : [];
+    }
     if (!CAPTURE_EVENT_KINDS.has(event.kind)) return [];
     const matches = (await this.store.listRuns())
       .flatMap((run) =>
@@ -169,6 +187,64 @@ export class MainOrchestrationEngine {
       event
     );
     return captured ? [captured] : [];
+  }
+
+  private async pauseForIntervention(
+    run: OrchestrationRun,
+    step: OrchestrationStep | undefined,
+    event: AgentEvent
+  ): Promise<OrchestrationRun | undefined> {
+    const requestId =
+      typeof event.payload.requestId === "string"
+        ? event.payload.requestId
+        : undefined;
+    if (requestId) {
+      await this.store.recordRequestIds(run.id, {
+        permissionRequestId:
+          event.kind === "permission_request" ? requestId : undefined,
+        userInputRequestId:
+          event.kind === "user_input_request" ? requestId : undefined,
+      });
+    }
+    const now = this.now();
+    if (step && step.status === "running") {
+      await this.store.upsertStep(run.id, {
+        ...step,
+        status: "paused",
+        updatedAt: now,
+        permissionRequestId:
+          event.kind === "permission_request"
+            ? requestId
+            : step.permissionRequestId,
+        userInputRequestId:
+          event.kind === "user_input_request"
+            ? requestId
+            : step.userInputRequestId,
+      });
+    }
+    const label =
+      event.kind === "permission_request"
+        ? "Permission request paused run"
+        : "User input request paused run";
+    await this.store.addCheckpoint(run.id, {
+      id: `${run.id}:${event.kind}:${requestId ?? now}:checkpoint`,
+      label,
+      createdAt: now,
+      stepId: step?.id,
+      traceId: stableTraceId(event.tool, event.sessionId),
+      state: {
+        eventKind: event.kind,
+        requestId,
+        sessionId: event.sessionId,
+        tool: event.tool,
+      },
+    });
+    return this.store.pauseRun(
+      run.id,
+      event.kind === "permission_request"
+        ? "Paused for provider permission request."
+        : "Paused for provider user input request."
+    );
   }
 
   private async tickStandingOrder(
@@ -633,6 +709,79 @@ function pendingCaptureSteps(
   });
 }
 
+function pendingInterventionMatches(
+  run: OrchestrationRun,
+  event: AgentEvent
+): (OrchestrationStep | undefined)[] {
+  if (run.status !== "running") return [];
+  if (!runTargetsEvent(run, event)) return [];
+  const startedAt = run.startedAt ?? run.createdAt;
+  if (event.timestamp < startedAt) return [];
+  const step =
+    pendingCaptureSteps(run, event)[0] ?? latestStepForEvent(run, event);
+  return [step];
+}
+
+function latestStepForEvent(
+  run: OrchestrationRun,
+  event: AgentEvent
+): OrchestrationStep | undefined {
+  return [...run.steps]
+    .filter((step) => step.providerSessionId === event.sessionId)
+    .sort(
+      (a, b) =>
+        (b.startedAt ?? b.createdAt) - (a.startedAt ?? a.createdAt) ||
+        b.updatedAt - a.updatedAt
+    )[0];
+}
+
+function runTargetsEvent(run: OrchestrationRun, event: AgentEvent): boolean {
+  return runEventTargets(run).some((target) => {
+    if (target.sessionId !== event.sessionId) return false;
+    return !target.tool || target.tool === event.tool;
+  });
+}
+
+function runEventTargets(
+  run: OrchestrationRun
+): { sessionId: string; tool?: AgentTool }[] {
+  const targets: { sessionId: string; tool?: AgentTool }[] = [];
+  for (const session of run.providerSessions) {
+    targets.push({ sessionId: session.sessionId, tool: session.tool });
+  }
+  for (const step of run.steps) {
+    if (step.providerSessionId) {
+      targets.push({ sessionId: step.providerSessionId });
+    }
+  }
+  const params = run.params ?? {};
+  const directSessionId = stringParam(params, "sessionId");
+  const directTool = toolParam(params, "tool");
+  if (directSessionId) {
+    targets.push({ sessionId: directSessionId, tool: directTool });
+  }
+  const target = eventTargetFromRecord(recordParam(params.target));
+  if (target) targets.push(target);
+  if (Array.isArray(params.providerTargets)) {
+    for (const value of params.providerTargets) {
+      const providerTarget = eventTargetFromRecord(recordParam(value));
+      if (providerTarget) targets.push(providerTarget);
+    }
+  }
+  return targets;
+}
+
+function eventTargetFromRecord(
+  record: Record<string, unknown> | null
+): { sessionId: string; tool?: AgentTool } | null {
+  const sessionId = stringParam(record, "sessionId");
+  if (!sessionId) return null;
+  return {
+    sessionId,
+    tool: toolParam(record, "tool"),
+  };
+}
+
 function oneShotCaptureSteps(run: OrchestrationRun): OrchestrationStep[] {
   return run.steps.filter((step) => step.kind.endsWith("-result"));
 }
@@ -753,6 +902,28 @@ function serializeSummary(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function recordParam(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringParam(
+  record: Record<string, unknown> | null | undefined,
+  key: string
+): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function toolParam(
+  record: Record<string, unknown> | null | undefined,
+  key: string
+): AgentTool | undefined {
+  const parsed = AgentToolSchema.safeParse(record?.[key]);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function providerHandoffPrompt(params: ProviderHandoffRunParams): string {

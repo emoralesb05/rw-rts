@@ -121,7 +121,7 @@ bus.onAgentEvent((event) => {
 });
 
 function isE2EFixtureSession(sessionId: string): boolean {
-  return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture)-/.test(
+  return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture|summon-|orchestration-)/.test(
     sessionId
   );
 }
@@ -152,6 +152,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    show: !isE2E,
+    paintWhenInitiallyHidden: true,
     backgroundColor: "#0a0e1a",
     titleBarStyle: "hiddenInset",
     title: "Realmkeeper",

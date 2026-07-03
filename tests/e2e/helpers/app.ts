@@ -14,6 +14,7 @@ export type OrchestrationRun = {
   template: string;
   title: string;
   status: OrchestrationRunStatus;
+  pauseReason?: string;
 };
 
 export type RwE2eWindow = Window & {
@@ -44,7 +45,16 @@ export type RwE2eWindow = Window & {
   __rwSeedVisualQa?: () => { activeWorldId: string | null };
   __rwStore?: {
     getState(): {
-      units: Record<string, { tool: ProviderTool }>;
+      units: Record<
+        string,
+        {
+          id: string;
+          sessionId: string;
+          tool: ProviderTool;
+          cwd: string;
+          status: string;
+        }
+      >;
       setWorldCommandAnchor(anchor: {
         worldId: string;
         x: number;

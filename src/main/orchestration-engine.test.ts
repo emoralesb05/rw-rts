@@ -678,6 +678,114 @@ describe("MainOrchestrationEngine", () => {
     });
   });
 
+  it("pauses one-shot runs when providers request permission", async () => {
+    const time = clock(78_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "provider-handoff-review",
+      title: "Review handoff permission",
+      status: "running",
+      params: {
+        target: providerTarget(),
+        handoffPrompt: "Review this change.",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+    await engine.ingestAgentEvent(
+      providerEvent({
+        kind: "permission_request",
+        timestamp: 78_100,
+        payload: { requestId: "perm-1", text: "Allow edit?" },
+      })
+    );
+
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason: "Paused for provider permission request.",
+      permissionRequestIds: ["perm-1"],
+      steps: [
+        { kind: "provider-handoff-review-send", status: "completed" },
+        {
+          kind: "provider-handoff-review-result",
+          status: "paused",
+          permissionRequestId: "perm-1",
+        },
+      ],
+      checkpoints: [
+        { label: "Provider handoff review sent" },
+        { label: "Permission request paused run" },
+      ],
+    });
+  });
+
+  it("pauses runs when providers request user input", async () => {
+    const time = clock(79_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "fix-then-test",
+      title: "Fix with input",
+      status: "running",
+      params: {
+        target: providerTarget({ tool: "codex" }),
+        taskPrompt: "Fix the failing renderer test.",
+        verificationCommand: "bun run test",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+    await engine.ingestAgentEvent(
+      providerEvent({
+        tool: "codex",
+        kind: "user_input_request",
+        timestamp: 79_100,
+        payload: { requestId: "input-1", text: "Which branch?" },
+      })
+    );
+
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason: "Paused for provider user input request.",
+      userInputRequestIds: ["input-1"],
+      steps: [
+        { kind: "fix-then-test-send", status: "completed" },
+        {
+          kind: "fix-then-test-result",
+          status: "paused",
+          userInputRequestId: "input-1",
+        },
+      ],
+      checkpoints: [
+        { label: "Fix-then-test prompt sent" },
+        { label: "User input request paused run" },
+      ],
+    });
+  });
+
   it("pauses template runs with missing provider targets", async () => {
     const store = new LocalOrchestrationStore({
       rootDir: await tempRoot(),

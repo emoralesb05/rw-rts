@@ -18,9 +18,15 @@ bun run dev           # electron-vite dev: Vite + watch + spawn Electron
 bun run build         # electron-vite build: production artifacts under out/
 bun run start         # electron-vite preview: run the built app
 bun run typecheck     # both typecheck:node and typecheck:web
+bun run test:e2e      # build + Playwright Electron suite
 ```
 
 The dev command starts Vite, builds main+preload to `out/`, then spawns Electron with `out/main/index.js` as the entry. CDP is exposed at `localhost:9222` in dev (see `src/main/index.ts` `app.commandLine.appendSwitch('remote-debugging-port', '9222')`).
+
+The e2e harness sets `REALMKEEPER_E2E=1`; in that mode the BrowserWindow is
+created hidden with `paintWhenInitiallyHidden` enabled, so Playwright can still
+interact with the packaged app and capture screenshots without stealing desktop
+focus on macOS.
 
 ## What hot-reloads (and what doesn't)
 
