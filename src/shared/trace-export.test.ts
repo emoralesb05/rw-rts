@@ -145,4 +145,36 @@ describe("exportTracesToOtel", () => {
       status: { code: "STATUS_CODE_ERROR" },
     });
   });
+
+  it("exports known provider usage as OTel span attributes", () => {
+    const traces = projectTraces([
+      event("claude", "s1", 1, "session_start"),
+      event("claude", "s1", 2, "session_end", {
+        output: {
+          input_tokens: 120,
+          output_tokens: 30,
+          total_cost_usd: 0.0042,
+        },
+      }),
+    ]);
+
+    const rootSpan = exportTracesToOtel(traces).resourceSpans[0].scopeSpans[0]
+      .spans[0];
+    const attrs = new Map(
+      rootSpan.attributes.map((attr) => [attr.key, attr.value])
+    );
+
+    expect(attrs.get("gen_ai.usage.input_tokens")).toEqual({
+      intValue: "120",
+    });
+    expect(attrs.get("gen_ai.usage.output_tokens")).toEqual({
+      intValue: "30",
+    });
+    expect(attrs.get("gen_ai.usage.total_tokens")).toEqual({
+      intValue: "150",
+    });
+    expect(attrs.get("gen_ai.usage.cost_usd")).toEqual({
+      doubleValue: 0.0042,
+    });
+  });
 });

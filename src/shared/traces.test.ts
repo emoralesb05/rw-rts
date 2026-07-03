@@ -183,6 +183,32 @@ describe("projectTraces", () => {
     expect(trace.status).toBe("error");
   });
 
+  it("projects known provider usage from session-end payloads", () => {
+    const [trace] = projectTraces([
+      event("cursor", "s1", 1, "session_start"),
+      event("cursor", "s1", 2, "session_end", {
+        output: {
+          inputTokens: 120,
+          outputTokens: 30,
+          totalCostUsd: 0.0042,
+        },
+      }),
+    ]);
+
+    expect(trace.attributes).toMatchObject({
+      "gen_ai.usage.input_tokens": 120,
+      "gen_ai.usage.output_tokens": 30,
+      "gen_ai.usage.total_tokens": 150,
+      "gen_ai.usage.cost_usd": 0.0042,
+    });
+    expect(trace.spans[0].attributes).toMatchObject({
+      "gen_ai.usage.input_tokens": 120,
+      "gen_ai.usage.output_tokens": 30,
+      "gen_ai.usage.total_tokens": 150,
+      "gen_ai.usage.cost_usd": 0.0042,
+    });
+  });
+
   it("keeps raw content out of projected traces unless explicitly requested", () => {
     const source = [
       event("gemini", "s1", 1, "user_prompt", {

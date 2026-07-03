@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (Observatory e2e coverage shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (known usage surfaced)
 > **Engineer profile:** Senior TypeScript/Electron engineer — event modeling, local persistence, renderer state; read `.docs/architecture/events.md`, `.docs/architecture/bridge.md`, `.docs/architecture/state.md`, `src/shared/schemas/events.ts`, `src/main/event-bus.ts`, and `src/renderer/src/store-domain/event-reducer.ts` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add local-first trace/session observability on top of Realmkeeper's existing event bus · **Origin:** Follow-on from provider hardening and parity work
@@ -91,6 +91,9 @@ Shipped on `main`:
 - Packaged-app Observatory e2e coverage that opens the Kingdom panel and
   verifies fixture-backed active, waiting, completed, and error/monitor-signal
   trace states.
+- Known provider usage from `session_end` payloads is normalized into trace
+  and export attributes, then shown as conditional Observatory token/cost stats
+  only when providers emit reliable values.
 - Orchestration lifecycle/checkpoint/budget events flow through the same
   AgentEvent/trace/export path.
 
@@ -98,8 +101,8 @@ Still active:
 
 - Validate OTel-shaped export against a real collector before claiming strict
   OTel compliance.
-- Surface provider token/cost data only when the provider stream exposes it
-  reliably.
+- Extend provider token/cost coverage if Codex app-server or Gemini streams
+  expose reliable usage values.
 
 ## Acceptance gate
 

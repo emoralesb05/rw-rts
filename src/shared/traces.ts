@@ -161,6 +161,92 @@ function payloadString(event: AgentEvent, key: string): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function usageNumber(
+  usage: Record<string, unknown>,
+  keys: readonly string[]
+): number | undefined {
+  for (const key of keys) {
+    const value = numberValue(usage[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function tokenSum(values: readonly (number | undefined)[]): number | undefined {
+  const known = values.filter((value): value is number => value !== undefined);
+  return known.length > 0
+    ? known.reduce((sum, value) => sum + value, 0)
+    : undefined;
+}
+
+function usageAttributes(
+  event: AgentEvent
+): Record<string, TraceAttributeValue> {
+  const usage = recordValue(event.payload.output);
+  if (!usage) return {};
+
+  const inputTokens = usageNumber(usage, [
+    "input_tokens",
+    "inputTokens",
+    "prompt_tokens",
+    "promptTokens",
+  ]);
+  const outputTokens = usageNumber(usage, [
+    "output_tokens",
+    "outputTokens",
+    "completion_tokens",
+    "completionTokens",
+  ]);
+  const cacheCreationInputTokens = usageNumber(usage, [
+    "cache_creation_input_tokens",
+    "cacheCreationInputTokens",
+  ]);
+  const cacheReadInputTokens = usageNumber(usage, [
+    "cache_read_input_tokens",
+    "cacheReadInputTokens",
+  ]);
+  const totalTokens =
+    usageNumber(usage, ["total_tokens", "totalTokens"]) ??
+    tokenSum([
+      inputTokens,
+      outputTokens,
+      cacheCreationInputTokens,
+      cacheReadInputTokens,
+    ]);
+  const costUsd = usageNumber(usage, [
+    "total_cost_usd",
+    "totalCostUsd",
+    "cost_usd",
+    "costUsd",
+  ]);
+
+  return Object.fromEntries(
+    Object.entries({
+      "gen_ai.usage.input_tokens": inputTokens,
+      "gen_ai.usage.output_tokens": outputTokens,
+      "gen_ai.usage.cache_creation_input_tokens": cacheCreationInputTokens,
+      "gen_ai.usage.cache_read_input_tokens": cacheReadInputTokens,
+      "gen_ai.usage.total_tokens": totalTokens,
+      "gen_ai.usage.cost_usd": costUsd,
+    }).filter(([, value]) => value !== undefined)
+  ) as Record<string, TraceAttributeValue>;
+}
+
 function toolName(event: AgentEvent): string {
   return payloadString(event, "name") ?? "tool";
 }
@@ -291,6 +377,9 @@ function projectTrace(
     root.eventIds.push(entry.eventId);
 
     if (event.kind === "session_end") {
+      const usage = usageAttributes(event);
+      Object.assign(trace.attributes, usage);
+      Object.assign(root.attributes, usage);
       closeTurn(event.timestamp, "ok");
       trace.status = trace.status === "error" ? "error" : "completed";
       trace.endedAt = event.timestamp;

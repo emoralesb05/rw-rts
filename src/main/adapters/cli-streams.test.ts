@@ -61,6 +61,36 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("preserves Claude result usage and cost metadata", () => {
+    const events = normalizeStreamMessage(
+      {
+        type: "result",
+        result: "done",
+        usage: {
+          input_tokens: 120,
+          output_tokens: 30,
+        },
+        total_cost_usd: 0.0042,
+      },
+      "s1",
+      "/repo"
+    );
+
+    expect(events).toMatchObject([
+      {
+        kind: "session_end",
+        payload: {
+          text: "done",
+          output: {
+            input_tokens: 120,
+            output_tokens: 30,
+            total_cost_usd: 0.0042,
+          },
+        },
+      },
+    ]);
+  });
+
   it("normalizes Claude brief SendMessage as a generic tool exchange", () => {
     const toolEvents = normalizeStreamMessage(
       {

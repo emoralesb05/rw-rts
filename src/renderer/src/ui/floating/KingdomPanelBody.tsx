@@ -542,6 +542,60 @@ function fmtDuration(ms: number | undefined): string {
   return `${minutes}m`;
 }
 
+function fmtInteger(value: number): string {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function fmtUsd(value: number): string {
+  return value > 0 && value < 0.01
+    ? `$${value.toFixed(4)}`
+    : `$${value.toFixed(2)}`;
+}
+
+function traceNumberAttribute(
+  trace: TraceRecord,
+  key: string
+): number | undefined {
+  const value = trace.attributes[key];
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function traceUsageTotals(traces: readonly TraceRecord[]): {
+  tokens?: number;
+  costUsd?: number;
+} {
+  let tokens = 0;
+  let costUsd = 0;
+  let hasTokens = false;
+  let hasCost = false;
+
+  for (const trace of traces) {
+    const traceTokens = traceNumberAttribute(
+      trace,
+      "gen_ai.usage.total_tokens"
+    );
+    if (traceTokens !== undefined) {
+      tokens += traceTokens;
+      hasTokens = true;
+    }
+
+    const traceCost = traceNumberAttribute(trace, "gen_ai.usage.cost_usd");
+    if (traceCost !== undefined) {
+      costUsd += traceCost;
+      hasCost = true;
+    }
+  }
+
+  return {
+    ...(hasTokens ? { tokens } : {}),
+    ...(hasCost ? { costUsd } : {}),
+  };
+}
+
 function pluralLabel(count: number, singular: string): string {
   return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
@@ -758,6 +812,19 @@ function ObservatoryTab() {
     (trace) => trace.status === "completed"
   ).length;
   const errorCount = traces.filter((trace) => trace.status === "error").length;
+  const usageTotals = useMemo(() => traceUsageTotals(traces), [traces]);
+  const stats: { label: string; value: ReactNode }[] = [
+    { label: "traces", value: traces.length },
+    { label: "active", value: activeCount },
+    { label: "signals", value: signals.length },
+    { label: "errors", value: errorCount },
+    ...(usageTotals.tokens !== undefined
+      ? [{ label: "tokens", value: fmtInteger(usageTotals.tokens) }]
+      : []),
+    ...(usageTotals.costUsd !== undefined
+      ? [{ label: "cost", value: fmtUsd(usageTotals.costUsd) }]
+      : []),
+  ];
   const day = exportDay(traces[0]?.lastEventAt ?? Date.now());
 
   const openTrace = (trace: TraceRecord) => {
@@ -786,11 +853,10 @@ function ObservatoryTab() {
 
   return (
     <KingdomTab>
-      <div className="grid grid-cols-4 gap-2">
-        <KingdomStat label="traces" value={traces.length} />
-        <KingdomStat label="active" value={activeCount} />
-        <KingdomStat label="signals" value={signals.length} />
-        <KingdomStat label="errors" value={errorCount} />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {stats.map((stat) => (
+          <KingdomStat key={stat.label} label={stat.label} value={stat.value} />
+        ))}
       </div>
 
       <KingdomSection title="Trace export">

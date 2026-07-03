@@ -227,6 +227,19 @@ function deferredToolUseRequestId(
   return `claude-deferred:${sessionId}:${id}`;
 }
 
+function resultUsage(msg: ProviderStreamMessage): unknown {
+  const usage = record(msg.usage);
+  const totalCostUsd = msg.total_cost_usd;
+  if (
+    usage &&
+    typeof totalCostUsd === "number" &&
+    Number.isFinite(totalCostUsd)
+  ) {
+    return { ...usage, total_cost_usd: totalCostUsd };
+  }
+  return msg.usage;
+}
+
 export function normalizeStreamMessage(
   msg: ProviderStreamMessage,
   sessionId: string,
@@ -303,7 +316,7 @@ export function normalizeStreamMessage(
       kind: "session_end",
       payload: {
         text: typeof msg.result === "string" ? msg.result : "",
-        output: msg.usage,
+        output: resultUsage(msg),
       },
     });
   }

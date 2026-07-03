@@ -222,6 +222,13 @@ describe("KingdomPanelBody", () => {
           ok: false,
           reason: "not owned",
         }),
+        event(now - 500, "session_end", {
+          output: {
+            inputTokens: 100,
+            outputTokens: 23,
+            totalCostUsd: 0.0042,
+          },
+        }),
         event(now - 45_000, "user_input_request", {
           requestId: "input-1",
           questions: [{ id: "choice", header: "Choice", question: "Pick one" }],
@@ -244,6 +251,10 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText("Trace sessions")).toBeVisible();
     expect(screen.getByText("input")).toBeVisible();
     expect(screen.getAllByText("not owned").length).toBeGreaterThan(0);
+    expect(screen.getByText("tokens")).toBeVisible();
+    expect(screen.getByText("123")).toBeVisible();
+    expect(screen.getByText("cost")).toBeVisible();
+    expect(screen.getByText("$0.0042")).toBeVisible();
     expect(screen.getByText("Vaelen")).toBeVisible();
     expect(screen.getByText(/codex · 3 spans · error/i)).toBeVisible();
 

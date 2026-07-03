@@ -102,9 +102,9 @@ by default.
 ## Coverage gaps
 
 - No real trace exporter probe has been run. Export remains build-gated.
-- No cost/token completeness matrix exists for Claude, Codex, Cursor, and
-  Gemini. The first implementation must measure which stream payloads include
-  usage data.
+- Known Claude/Cursor result usage can be surfaced from `session_end` payloads.
+  Codex app-server and Gemini usage/cost completeness remains unvalidated until
+  those streams expose reliable values in local fixtures or live probes.
 - No retention-size benchmark exists. JSONL is chosen for low dependency risk,
   but a later probe may justify SQLite if trace queries become slow.
 - External vendor integrations are intentionally unvalidated. The plan only
