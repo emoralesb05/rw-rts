@@ -196,17 +196,40 @@ export function DecreeModal() {
     }
   }
 
-  function confirmStandingOrder() {
+  async function confirmStandingOrder() {
     if (!unit || !pendingOrder || busy) return;
     setBusy(true);
     try {
-      useStore
-        .getState()
-        .startStandingOrder(
-          unit.id,
-          pendingOrder.text,
-          pendingOrder.intervalMs
-        );
+      if (window.rw.createOrchestrationRun) {
+        await window.rw.createOrchestrationRun({
+          template: "standing-order",
+          title: `Standing Order · ${unit.displayName}`,
+          status: "running",
+          cwd: unit.cwd,
+          repoRoot: unit.repoRoot,
+          params: {
+            unitId: unit.id,
+            sessionId: unit.sessionId,
+            tool: unit.tool,
+            cwd: unit.cwd,
+            status: unit.status,
+            prompt: pendingOrder.text,
+            intervalMs: pendingOrder.intervalMs,
+          },
+          budget: {
+            maxIterations: 24,
+            maxConsecutiveFailures: 3,
+          },
+        });
+      } else {
+        useStore
+          .getState()
+          .startStandingOrder(
+            unit.id,
+            pendingOrder.text,
+            pendingOrder.intervalMs
+          );
+      }
       setPendingOrder(null);
       closeDecree();
     } finally {

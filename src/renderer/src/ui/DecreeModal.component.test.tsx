@@ -14,6 +14,24 @@ function installRw() {
   const rw = {
     sendPrompt: vi.fn(() => Promise.resolve(true)),
     controlSession: vi.fn(() => Promise.resolve({ action: "send", ok: true })),
+    createOrchestrationRun: vi.fn(() =>
+      Promise.resolve({
+        id: "run-1",
+        template: "standing-order",
+        title: "Standing Order · Vaelen",
+        status: "running",
+        createdAt: 1,
+        updatedAt: 1,
+        providerSessions: [],
+        traceIds: [],
+        permissionRequestIds: [],
+        userInputRequestIds: [],
+        steps: [],
+        checkpoints: [],
+        budget: {},
+        events: [],
+      })
+    ),
     savePersisted: vi.fn(() => Promise.resolve(true)),
     killAgent: vi.fn(() => Promise.resolve(true)),
     resolvePermission: vi.fn(() => Promise.resolve(true)),
@@ -137,7 +155,7 @@ describe("DecreeModal", () => {
     expect(input).toHaveValue("review `src/renderer/src/store.ts` ");
   });
 
-  it("confirms standing orders through the alert dialog", async () => {
+  it("confirms standing orders through the main orchestration engine", async () => {
     const rw = installRw();
     const user = userEvent.setup();
     renderOpenDecree();
@@ -160,15 +178,27 @@ describe("DecreeModal", () => {
     await user.click(screen.getByRole("button", { name: /issue order/i }));
 
     expect(rw.controlSession).not.toHaveBeenCalled();
-    expect(Object.values(useStore.getState().standingOrders)).toEqual([
-      expect.objectContaining({
+    expect(rw.createOrchestrationRun).toHaveBeenCalledWith({
+      template: "standing-order",
+      title: "Standing Order · Vaelen",
+      status: "running",
+      cwd: "/repo",
+      repoRoot: "/repo",
+      params: {
         unitId: "unit-1",
+        sessionId: "unit-1",
+        tool: "claude",
+        cwd: "/repo",
+        status: "idle",
         prompt: "keep checking tests",
         intervalMs: 60_000,
+      },
+      budget: {
         maxIterations: 24,
-        status: "active",
-      }),
-    ]);
+        maxConsecutiveFailures: 3,
+      },
+    });
+    expect(Object.values(useStore.getState().standingOrders)).toEqual([]);
     expect(useStore.getState().decreeUnitId).toBeNull();
   });
 
