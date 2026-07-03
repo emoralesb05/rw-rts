@@ -5,13 +5,9 @@ import { ConversationStream } from "./ConversationStream";
 import { useStore } from "../store";
 import type { AgentEvent, UnitState } from "@shared/events";
 
-vi.mock("streamdown", () => ({
-  Streamdown: ({ children }: { children: string }) => <>{children}</>,
+vi.mock("./MarkdownStream", () => ({
+  default: ({ children }: { children: string }) => <>{children}</>,
 }));
-vi.mock("@streamdown/code", () => ({ code: {} }));
-vi.mock("@streamdown/mermaid", () => ({ mermaid: {} }));
-vi.mock("@streamdown/math", () => ({ math: {} }));
-vi.mock("@streamdown/cjk", () => ({ cjk: {} }));
 
 function unit(
   sessionId: string,
