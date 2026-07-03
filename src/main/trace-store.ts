@@ -1,12 +1,31 @@
-import { mkdir, readFile, appendFile } from "node:fs/promises";
+import { mkdir, readFile, appendFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { AgentEvent } from "@shared/events";
+import {
+  exportTracesToOtel,
+  type TraceExportContentMode,
+} from "@shared/trace-export";
 import { projectTraces, type TraceRecord } from "@shared/traces";
 import { bus } from "./event-bus";
 
 export type TraceStoreOptions = {
   rootDir?: string;
+};
+
+export type ExportTraceDayOptions = {
+  rootDir?: string;
+  day: string;
+  traceId?: string;
+  sessionId?: string;
+  contentMode?: TraceExportContentMode;
+};
+
+export type ExportTraceDayResult = {
+  path: string;
+  traceCount: number;
+  spanCount: number;
+  contentMode: TraceExportContentMode;
 };
 
 export function defaultTraceRoot(): string {
@@ -87,6 +106,62 @@ export async function loadTraceDay(
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as TraceRecord);
+}
+
+export async function exportTraceDay(
+  options: ExportTraceDayOptions
+): Promise<ExportTraceDayResult> {
+  const rootDir = options.rootDir ?? defaultTraceRoot();
+  const contentMode = options.contentMode ?? "metadata-only";
+  const traces = latestTraceSnapshots(await loadTraceDay(rootDir, options.day))
+    .filter((trace) =>
+      options.traceId ? trace.traceId === options.traceId : true
+    )
+    .filter((trace) =>
+      options.sessionId ? trace.sessionId === options.sessionId : true
+    );
+  const exported = exportTracesToOtel(traces, {
+    contentMode,
+    serviceName: "realmkeeper",
+  });
+  const outputDir = join(rootDir, "exports");
+  await mkdir(outputDir, { recursive: true });
+  const path = join(
+    outputDir,
+    `${options.day}-${exportTargetSegment(options)}.otel.json`
+  );
+  await writeFile(path, JSON.stringify(exported, null, 2) + "\n", "utf8");
+  return {
+    path,
+    traceCount: traces.length,
+    spanCount: traces.reduce((sum, trace) => sum + trace.spans.length, 0),
+    contentMode,
+  };
+}
+
+function latestTraceSnapshots(records: TraceRecord[]): TraceRecord[] {
+  const latest = new Map<string, TraceRecord>();
+  for (const record of records) {
+    const current = latest.get(record.traceId);
+    if (!current || record.lastEventAt >= current.lastEventAt) {
+      latest.set(record.traceId, record);
+    }
+  }
+  return Array.from(latest.values()).sort((a, b) => {
+    if (a.startedAt !== b.startedAt) return a.startedAt - b.startedAt;
+    return a.traceId.localeCompare(b.traceId);
+  });
+}
+
+function exportTargetSegment(options: ExportTraceDayOptions): string {
+  if (options.traceId) return safeFileSegment(options.traceId);
+  if (options.sessionId) return safeFileSegment(options.sessionId);
+  return "all";
+}
+
+function safeFileSegment(value: string): string {
+  const safe = value.replace(/[^a-zA-Z0-9_.-]+/g, "_").slice(0, 96);
+  return safe || "trace";
 }
 
 export const traceStore = new LocalTraceStore();

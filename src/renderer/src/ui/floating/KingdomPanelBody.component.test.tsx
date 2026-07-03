@@ -93,6 +93,14 @@ function installRw() {
     uninstallCodexHooks: vi.fn(() => Promise.resolve(BASE_STATUS)),
     installGeminiHooks: vi.fn(() => Promise.resolve(geminiStatus)),
     uninstallGeminiHooks: vi.fn(() => Promise.resolve(geminiStatus)),
+    exportTraces: vi.fn(() =>
+      Promise.resolve({
+        path: "/home/user/.realmkeeper/traces/exports/2026-07-03-all.otel.json",
+        traceCount: 1,
+        spanCount: 3,
+        contentMode: "metadata-only" as const,
+      })
+    ),
     savePersisted: vi.fn(() => Promise.resolve()),
   };
 
@@ -158,8 +166,9 @@ describe("KingdomPanelBody", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders current trace health in the Observatory tab", () => {
-    installRw();
+  it("renders current trace health in the Observatory tab", async () => {
+    const { rw } = installRw();
+    const user = userEvent.setup();
     const now = Date.now();
     useStore.setState({
       units: { s1: unit() },
@@ -185,6 +194,7 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText("Monitor signals")).toBeVisible();
     expect(screen.getByText("Trace error")).toBeVisible();
     expect(screen.getByText("Waiting for input")).toBeVisible();
+    expect(screen.getByText("Trace export")).toBeVisible();
     expect(screen.getByText("Active waits")).toBeVisible();
     expect(screen.getByText("Recent errors")).toBeVisible();
     expect(screen.getByText("Trace sessions")).toBeVisible();
@@ -192,6 +202,15 @@ describe("KingdomPanelBody", () => {
     expect(screen.getAllByText("not owned").length).toBeGreaterThan(0);
     expect(screen.getByText("Vaelen")).toBeVisible();
     expect(screen.getByText(/codex · 3 spans · error/i)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: /export today/i }));
+
+    expect(rw.exportTraces).toHaveBeenCalledWith({
+      day: new Date(now - 1_000).toISOString().slice(0, 10),
+    });
+    expect(
+      await screen.findByText(/2026-07-03-all\.otel\.json/)
+    ).toBeVisible();
   });
 
   it("copies the Gemini settings template from the connection tab", async () => {

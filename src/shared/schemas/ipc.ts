@@ -163,6 +163,31 @@ export type OpenPathRequest = z.infer<typeof OpenPathRequestSchema>;
 export const OpenPathResponseSchema = z.string();
 export type OpenPathResponse = z.infer<typeof OpenPathResponseSchema>;
 
+export const TraceExportContentModeSchema = z.enum([
+  "metadata-only",
+  "summaries",
+  "full-content",
+]);
+export type TraceExportContentMode = z.infer<
+  typeof TraceExportContentModeSchema
+>;
+
+export const ExportTracesRequestSchema = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  traceId: z.string().min(1).optional(),
+  sessionId: z.string().min(1).optional(),
+  contentMode: TraceExportContentModeSchema.optional(),
+});
+export type ExportTracesRequest = z.infer<typeof ExportTracesRequestSchema>;
+
+export const ExportTracesResponseSchema = z.object({
+  path: z.string().min(1),
+  traceCount: z.number().int().nonnegative(),
+  spanCount: z.number().int().nonnegative(),
+  contentMode: TraceExportContentModeSchema,
+});
+export type ExportTracesResponse = z.infer<typeof ExportTracesResponseSchema>;
+
 export const VoidResponseSchema = z.void();
 export type VoidResponse = z.infer<typeof VoidResponseSchema>;
 

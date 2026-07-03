@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AgentEvent } from "@shared/events";
 import {
+  exportTraceDay,
   LocalTraceStore,
   loadTraceDay,
   traceDay,
@@ -83,5 +84,71 @@ describe("LocalTraceStore", () => {
   it("returns an empty list for missing trace days", async () => {
     const dir = await tempRoot();
     expect(await loadTraceDay(dir, traceDay(Date.UTC(2026, 6, 4)))).toEqual([]);
+  });
+
+  it("exports the latest day snapshots as metadata-only OTel JSON", async () => {
+    const dir = await tempRoot();
+    const store = new LocalTraceStore({ rootDir: dir });
+    const day = "2026-07-03";
+
+    await store.ingest(
+      event(Date.UTC(2026, 6, 3, 12), "user_prompt", {
+        text: "secret prompt value",
+      })
+    );
+    await store.ingest(
+      event(Date.UTC(2026, 6, 3, 12, 0, 1), "tool_use", {
+        name: "Bash",
+        input: { command: "cat secrets.txt" },
+      })
+    );
+    await store.flush();
+
+    const result = await exportTraceDay({ rootDir: dir, day });
+    const raw = await readFile(result.path, "utf8");
+
+    expect(result).toMatchObject({
+      traceCount: 1,
+      spanCount: 3,
+      contentMode: "metadata-only",
+    });
+    expect(raw).toContain('"resourceSpans"');
+    expect(raw).toContain('"service.name"');
+    expect(raw).not.toContain("secret prompt value");
+    expect(raw).not.toContain("cat secrets.txt");
+  });
+
+  it("filters exported day snapshots by trace id", async () => {
+    const dir = await tempRoot();
+    const store = new LocalTraceStore({ rootDir: dir });
+    const day = "2026-07-03";
+
+    await store.ingest(
+      event(Date.UTC(2026, 6, 3, 12), "user_prompt", { text: "first" })
+    );
+    await store.ingest({
+      ...event(Date.UTC(2026, 6, 3, 12, 1), "user_prompt", {
+        text: "second",
+      }),
+      sessionId: "s2",
+    });
+    await store.flush();
+
+    const result = await exportTraceDay({
+      rootDir: dir,
+      day,
+      traceId: "trace:codex:s2",
+      contentMode: "summaries",
+    });
+    const raw = await readFile(result.path, "utf8");
+
+    expect(result).toMatchObject({
+      traceCount: 1,
+      spanCount: 2,
+      contentMode: "summaries",
+    });
+    expect(result.path).toContain("trace_codex_s2.otel.json");
+    expect(raw).toContain("second");
+    expect(raw).not.toContain("first");
   });
 });

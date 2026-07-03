@@ -6,6 +6,7 @@ import {
   AppSettingsSchema,
   ApplyPermissionChoiceResponseSchema,
   ControlSessionResponseSchema,
+  ExportTracesResponseSchema,
   HooksStatusSchema,
   ListPermissionRulesResponseSchema,
   ListUnitsResponseSchema,
@@ -21,6 +22,7 @@ import {
   type ApplyPermissionChoiceRequest,
   type AppSettings,
   type ControlSessionRequest,
+  type ExportTracesRequest,
   type SpawnAgentRequest,
   type SendPromptRequest,
   type PlayFixtureRequest,
@@ -187,6 +189,9 @@ const api = {
       IPC.ListWorkspaceRepos,
       ListWorkspaceReposResponseSchema
     );
+  },
+  exportTraces(req: ExportTracesRequest) {
+    return invokeParsed(IPC.ExportTraces, ExportTracesResponseSchema, req);
   },
   getSettings() {
     return invokeParsed(IPC.GetSettings, AppSettingsSchema);

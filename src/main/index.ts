@@ -48,6 +48,7 @@ import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
 import {
   flushTraceStore,
+  exportTraceDay,
   startTraceStore,
   stopTraceStore,
 } from "./trace-store";
@@ -67,6 +68,8 @@ import {
   ApplyPermissionChoiceResponseSchema,
   ControlSessionRequestSchema,
   ControlSessionResponseSchema,
+  ExportTracesRequestSchema,
+  ExportTracesResponseSchema,
   ListPermissionRulesResponseSchema,
   RemovePermissionRuleRequestSchema,
   RemovePermissionRuleResponseSchema,
@@ -646,6 +649,19 @@ void app.whenReady().then(async () => {
     IPC.ListWorkspaceRepos,
     () => listWorkspaceRepos(),
     ListWorkspaceReposResponseSchema
+  );
+  safeHandle(
+    IPC.ExportTraces,
+    async (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ExportTraces,
+        ExportTracesRequestSchema,
+        raw
+      );
+      await flushTraceStore();
+      return exportTraceDay(req);
+    },
+    ExportTracesResponseSchema
   );
   safeHandle(IPC.GetSettings, () => loadSettings(), AppSettingsSchema);
   safeHandle(

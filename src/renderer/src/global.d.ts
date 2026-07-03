@@ -4,6 +4,8 @@ import type {
   SendPromptRequest,
   ControlSessionRequest,
   ControlSessionResponse,
+  ExportTracesRequest,
+  ExportTracesResponse,
   ApplyPermissionChoiceRequest,
   HooksStatus,
   ListUnitEntry,
@@ -58,6 +60,7 @@ declare global {
       removePermissionRule(ruleId: string): Promise<boolean>;
       resolveUserInput(req: ResolveUserInputRequest): Promise<boolean>;
       listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
+      exportTraces(req: ExportTracesRequest): Promise<ExportTracesResponse>;
       getSettings(): Promise<AppSettings>;
       saveSettings(next: AppSettings): Promise<AppSettings>;
       validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;

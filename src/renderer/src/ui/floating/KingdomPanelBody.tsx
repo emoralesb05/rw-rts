@@ -15,7 +15,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Trash2 } from "lucide-react";
 import {
   projectTraces,
   type SpanRecord,
@@ -252,6 +252,10 @@ function signalClass(signal: TraceMonitorSignal): string {
   return signal.severity === "critical" ? "text-danger" : "text-warning";
 }
 
+function exportDay(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
 function OverviewTab() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
@@ -399,6 +403,9 @@ function ObservatoryTab() {
   const events = useStore((s) => s.events);
   const units = useStore((s) => s.units);
   const openDrawerTab = usePanels((s) => s.openDrawerTab);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportResult, setExportResult] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const traces = useMemo(
     () => projectTraces(events).sort((a, b) => b.lastEventAt - a.lastEventAt),
     [events]
@@ -430,10 +437,30 @@ function ObservatoryTab() {
     (trace) => trace.status === "completed"
   ).length;
   const errorCount = traces.filter((trace) => trace.status === "error").length;
+  const day = exportDay(traces[0]?.lastEventAt ?? Date.now());
 
   const openTrace = (trace: TraceRecord) => {
     const unit = units[trace.sessionId];
     if (unit) openDrawerTab(unit.id);
+  };
+
+  const exportCurrentDay = async () => {
+    if (exportBusy) return;
+    setExportBusy(true);
+    setExportResult(null);
+    setExportError(null);
+    try {
+      const result = await safeIpc(() => window.rw.exportTraces({ day }));
+      if (!result) {
+        setExportError("Export unavailable.");
+        return;
+      }
+      setExportResult(
+        `${result.traceCount} traces · ${result.spanCount} spans · ${result.path}`
+      );
+    } finally {
+      setExportBusy(false);
+    }
   };
 
   return (
@@ -444,6 +471,27 @@ function ObservatoryTab() {
         <KingdomStat label="signals" value={signals.length} />
         <KingdomStat label="errors" value={errorCount} />
       </div>
+
+      <KingdomSection title="Trace export">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => void exportCurrentDay()}
+            disabled={exportBusy}
+          >
+            <Download className="size-3.5" />
+            {exportBusy ? "Exporting..." : "Export today"}
+          </Button>
+          <Code>{day}</Code>
+        </div>
+        {exportResult ? (
+          <KingdomFooterNote>{exportResult}</KingdomFooterNote>
+        ) : null}
+        {exportError ? (
+          <KingdomFooterNote>{exportError}</KingdomFooterNote>
+        ) : null}
+      </KingdomSection>
 
       <KingdomSection title="Monitor signals" count={signals.length}>
         {signals.length === 0 ? (

@@ -28,6 +28,7 @@ export const IPC = {
   RemovePermissionRule: "rw:remove-permission-rule",
   ResolveUserInput: "rw:resolve-user-input",
   ListWorkspaceRepos: "rw:list-workspace-repos",
+  ExportTraces: "rw:export-traces",
   GetSettings: "rw:get-settings",
   SaveSettings: "rw:save-settings",
   ValidateWorkspaceRoot: "rw:validate-workspace-root",
