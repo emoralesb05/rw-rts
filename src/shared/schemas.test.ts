@@ -5,6 +5,8 @@ import {
   CodexThreadStartedSchema,
   ControlSessionRequestSchema,
   ControlSessionResponseSchema,
+  ControlOrchestrationRunRequestSchema,
+  CreateOrchestrationRunRequestSchema,
   CursorHooksFileSchema,
   FixtureScenarioSchema,
   GeminiInitMessageSchema,
@@ -13,10 +15,12 @@ import {
   HookPayloadSchema,
   KillAgentRequestSchema,
   ListUnitsResponseSchema,
+  ListOrchestrationRunsResponseSchema,
   ListWorkspaceReposResponseSchema,
   MutedSessionIdsSchema,
   NotificationSettingsSchema,
   OpenPathResponseSchema,
+  OrchestrationRunResponseSchema,
   PermissionOptionSchema,
   PersistedStateSchema,
   ResolvePermissionResponseSchema,
@@ -107,6 +111,50 @@ describe("runtime schemas", () => {
         tool: "unknown",
       })
     ).toThrow();
+  });
+
+  it("accepts typed orchestration run IPC contracts", () => {
+    expect(
+      CreateOrchestrationRunRequestSchema.parse({
+        template: "standing-order",
+        title: "Keep going",
+        cwd: "/repo",
+        budget: { maxIterations: 3 },
+        status: "queued",
+      })
+    ).toMatchObject({
+      template: "standing-order",
+      budget: { maxIterations: 3 },
+    });
+
+    expect(
+      ControlOrchestrationRunRequestSchema.parse({
+        runId: "run-1",
+        action: "pause",
+        reason: "Need approval.",
+      })
+    ).toMatchObject({
+      runId: "run-1",
+      action: "pause",
+    });
+
+    const run = OrchestrationRunResponseSchema.parse({
+      id: "run-1",
+      template: "standing-order",
+      title: "Keep going",
+      status: "queued",
+      createdAt: 1,
+      updatedAt: 1,
+      providerSessions: [],
+      traceIds: [],
+      permissionRequestIds: [],
+      userInputRequestIds: [],
+      steps: [],
+      checkpoints: [],
+      budget: {},
+      events: [],
+    });
+    expect(ListOrchestrationRunsResponseSchema.parse([run])).toHaveLength(1);
   });
 
   it("requires a concrete permission request id", () => {

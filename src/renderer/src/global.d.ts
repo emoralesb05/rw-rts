@@ -4,6 +4,8 @@ import type {
   SendPromptRequest,
   ControlSessionRequest,
   ControlSessionResponse,
+  ControlOrchestrationRunRequest,
+  CreateOrchestrationRunRequest,
   ExportTracesRequest,
   ExportTracesResponse,
   ApplyPermissionChoiceRequest,
@@ -17,6 +19,7 @@ import type {
   WorkspaceRootValidation,
   PermissionRule,
 } from "@shared/schemas";
+import type { OrchestrationRun } from "@shared/orchestration";
 import type { AgentEvent, PersistedState } from "@shared/events";
 import type { seedVisualQaState } from "./dev/visual-qa-seed";
 import type { useStore } from "./store";
@@ -61,6 +64,13 @@ declare global {
       resolveUserInput(req: ResolveUserInputRequest): Promise<boolean>;
       listWorkspaceRepos(): Promise<WorkspaceRepoEntry[]>;
       exportTraces(req: ExportTracesRequest): Promise<ExportTracesResponse>;
+      listOrchestrationRuns(): Promise<OrchestrationRun[]>;
+      createOrchestrationRun(
+        req: CreateOrchestrationRunRequest
+      ): Promise<OrchestrationRun>;
+      controlOrchestrationRun(
+        req: ControlOrchestrationRunRequest
+      ): Promise<OrchestrationRun>;
       getSettings(): Promise<AppSettings>;
       saveSettings(next: AppSettings): Promise<AppSettings>;
       validateWorkspaceRoot(p: string): Promise<WorkspaceRootValidation>;

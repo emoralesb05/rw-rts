@@ -8,6 +8,11 @@ import {
 import { PersistedStateSchema } from "./persisted";
 import { AppSettingsSchema } from "./settings";
 import { UserInputAnswersSchema } from "./user-input";
+import {
+  OrchestrationRunSchema,
+  OrchestrationRunStatusSchema,
+  RunBudgetSchema,
+} from "../orchestration";
 
 export const SpawnAgentRequestSchema = z.object({
   prompt: z.string(),
@@ -187,6 +192,56 @@ export const ExportTracesResponseSchema = z.object({
   contentMode: TraceExportContentModeSchema,
 });
 export type ExportTracesResponse = z.infer<typeof ExportTracesResponseSchema>;
+
+export const CreateOrchestrationRunRequestSchema = z.object({
+  id: z.string().min(1).optional(),
+  template: z.string().min(1),
+  title: z.string().min(1),
+  cwd: z.string().min(1).optional(),
+  repoRoot: z.string().min(1).optional(),
+  budget: RunBudgetSchema.optional(),
+  status: OrchestrationRunStatusSchema.extract([
+    "queued",
+    "running",
+    "paused",
+  ]).optional(),
+});
+export type CreateOrchestrationRunRequest = z.infer<
+  typeof CreateOrchestrationRunRequestSchema
+>;
+
+export const ControlOrchestrationRunActionSchema = z.enum([
+  "start",
+  "pause",
+  "resume",
+  "stop",
+  "complete",
+  "fail",
+]);
+export type ControlOrchestrationRunAction = z.infer<
+  typeof ControlOrchestrationRunActionSchema
+>;
+
+export const ControlOrchestrationRunRequestSchema = z.object({
+  runId: z.string().min(1),
+  action: ControlOrchestrationRunActionSchema,
+  reason: z.string().min(1).optional(),
+});
+export type ControlOrchestrationRunRequest = z.infer<
+  typeof ControlOrchestrationRunRequestSchema
+>;
+
+export const ListOrchestrationRunsResponseSchema = z.array(
+  OrchestrationRunSchema
+);
+export type ListOrchestrationRunsResponse = z.infer<
+  typeof ListOrchestrationRunsResponseSchema
+>;
+
+export const OrchestrationRunResponseSchema = OrchestrationRunSchema;
+export type OrchestrationRunResponse = z.infer<
+  typeof OrchestrationRunResponseSchema
+>;
 
 export const VoidResponseSchema = z.void();
 export type VoidResponse = z.infer<typeof VoidResponseSchema>;

@@ -6,6 +6,8 @@ import {
   AppSettingsSchema,
   ApplyPermissionChoiceResponseSchema,
   ControlSessionResponseSchema,
+  ListOrchestrationRunsResponseSchema,
+  OrchestrationRunResponseSchema,
   ExportTracesResponseSchema,
   HooksStatusSchema,
   ListPermissionRulesResponseSchema,
@@ -21,7 +23,9 @@ import {
   WorkspaceRootValidationSchema,
   type ApplyPermissionChoiceRequest,
   type AppSettings,
+  type ControlOrchestrationRunRequest,
   type ControlSessionRequest,
+  type CreateOrchestrationRunRequest,
   type ExportTracesRequest,
   type SpawnAgentRequest,
   type SendPromptRequest,
@@ -192,6 +196,26 @@ const api = {
   },
   exportTraces(req: ExportTracesRequest) {
     return invokeParsed(IPC.ExportTraces, ExportTracesResponseSchema, req);
+  },
+  listOrchestrationRuns() {
+    return invokeParsed(
+      IPC.ListOrchestrationRuns,
+      ListOrchestrationRunsResponseSchema
+    );
+  },
+  createOrchestrationRun(req: CreateOrchestrationRunRequest) {
+    return invokeParsed(
+      IPC.CreateOrchestrationRun,
+      OrchestrationRunResponseSchema,
+      req
+    );
+  },
+  controlOrchestrationRun(req: ControlOrchestrationRunRequest) {
+    return invokeParsed(
+      IPC.ControlOrchestrationRun,
+      OrchestrationRunResponseSchema,
+      req
+    );
   },
   getSettings() {
     return invokeParsed(IPC.GetSettings, AppSettingsSchema);

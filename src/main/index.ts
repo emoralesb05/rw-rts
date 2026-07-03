@@ -52,6 +52,7 @@ import {
   startTraceStore,
   stopTraceStore,
 } from "./trace-store";
+import { LocalOrchestrationStore } from "./orchestration-store";
 import { IPC } from "@shared/ipc";
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
@@ -68,11 +69,15 @@ import {
   ApplyPermissionChoiceResponseSchema,
   ControlSessionRequestSchema,
   ControlSessionResponseSchema,
+  ControlOrchestrationRunRequestSchema,
+  CreateOrchestrationRunRequestSchema,
   ExportTracesRequestSchema,
   ExportTracesResponseSchema,
   ListPermissionRulesResponseSchema,
+  ListOrchestrationRunsResponseSchema,
   RemovePermissionRuleRequestSchema,
   RemovePermissionRuleResponseSchema,
+  OrchestrationRunResponseSchema,
   ResolvePermissionResponseSchema,
   ResolvePermissionRequestSchema,
   ResolveUserInputRequestSchema,
@@ -99,6 +104,7 @@ import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
+const orchestrationStore = new LocalOrchestrationStore();
 
 function isE2EFixtureSession(sessionId: string): boolean {
   return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture)-/.test(
@@ -359,6 +365,7 @@ if (!app.isPackaged && !isE2E) {
 
 void app.whenReady().then(async () => {
   startTraceStore();
+  await orchestrationStore.recoverAfterRestart();
 
   // Refresh the user-dir copy of bin/realmkeeper-hook from the bundled
   // source. Runs every boot — keeps the installed script in sync with
@@ -662,6 +669,51 @@ void app.whenReady().then(async () => {
       return exportTraceDay(req);
     },
     ExportTracesResponseSchema
+  );
+  safeHandle(
+    IPC.ListOrchestrationRuns,
+    () => orchestrationStore.listRuns(),
+    ListOrchestrationRunsResponseSchema
+  );
+  safeHandle(
+    IPC.CreateOrchestrationRun,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.CreateOrchestrationRun,
+        CreateOrchestrationRunRequestSchema,
+        raw
+      );
+      return orchestrationStore.createRun(req);
+    },
+    OrchestrationRunResponseSchema
+  );
+  safeHandle(
+    IPC.ControlOrchestrationRun,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ControlOrchestrationRun,
+        ControlOrchestrationRunRequestSchema,
+        raw
+      );
+      switch (req.action) {
+        case "start":
+          return orchestrationStore.startRun(req.runId);
+        case "pause":
+          return orchestrationStore.pauseRun(req.runId, req.reason);
+        case "resume":
+          return orchestrationStore.resumeRun(req.runId);
+        case "stop":
+          return orchestrationStore.stopRun(req.runId, req.reason);
+        case "complete":
+          return orchestrationStore.completeRun(req.runId);
+        case "fail":
+          return orchestrationStore.failRun(
+            req.runId,
+            req.reason ?? "Run failed."
+          );
+      }
+    },
+    OrchestrationRunResponseSchema
   );
   safeHandle(IPC.GetSettings, () => loadSettings(), AppSettingsSchema);
   safeHandle(
