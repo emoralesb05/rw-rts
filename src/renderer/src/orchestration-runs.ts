@@ -2,6 +2,10 @@ import type {
   OrchestrationRun,
   OrchestrationRunStatus,
 } from "@shared/orchestration";
+import {
+  defaultBudgetForTemplate,
+  STANDING_ORDER_TEMPLATE_ID,
+} from "@shared/orchestration-templates";
 import { useStore } from "./store";
 
 const ACTIVE_STANDING_ORDER_STATUSES = new Set<OrchestrationRunStatus>([
@@ -9,6 +13,9 @@ const ACTIVE_STANDING_ORDER_STATUSES = new Set<OrchestrationRunStatus>([
   "running",
   "paused",
 ]);
+const STANDING_ORDER_DEFAULT_BUDGET = defaultBudgetForTemplate(
+  STANDING_ORDER_TEMPLATE_ID
+);
 
 export type StandingOrderRunView = {
   run: OrchestrationRun;
@@ -38,7 +45,7 @@ export function isActiveStandingOrderRunForUnit(
   unitId: string
 ): boolean {
   return (
-    run.template === "standing-order" &&
+    run.template === STANDING_ORDER_TEMPLATE_ID &&
     ACTIVE_STANDING_ORDER_STATUSES.has(run.status) &&
     stringParam(run, "unitId") === unitId
   );
@@ -66,7 +73,10 @@ export function standingOrderRunViewsForUnit(
     intervalMs: numberParam(run, "intervalMs") ?? 60_000,
     iterationsRun: run.steps.filter((step) => step.status === "completed")
       .length,
-    maxIterations: run.budget.maxIterations ?? 24,
+    maxIterations:
+      run.budget.maxIterations ??
+      STANDING_ORDER_DEFAULT_BUDGET.maxIterations ??
+      24,
   }));
 }
 

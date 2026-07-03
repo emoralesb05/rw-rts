@@ -47,6 +47,10 @@ import {
   capabilitiesForUnit,
   controlReason,
 } from "@shared/session-capabilities";
+import {
+  defaultBudgetForTemplate,
+  STANDING_ORDER_TEMPLATE_ID,
+} from "@shared/orchestration-templates";
 
 const COMMON_COMMANDS = [
   "bun test",
@@ -202,7 +206,7 @@ export function DecreeModal() {
     try {
       if (window.rw.createOrchestrationRun) {
         const run = await window.rw.createOrchestrationRun({
-          template: "standing-order",
+          template: STANDING_ORDER_TEMPLATE_ID,
           title: `Standing Order · ${unit.displayName}`,
           status: "running",
           cwd: unit.cwd,
@@ -216,10 +220,7 @@ export function DecreeModal() {
             prompt: pendingOrder.text,
             intervalMs: pendingOrder.intervalMs,
           },
-          budget: {
-            maxIterations: 24,
-            maxConsecutiveFailures: 3,
-          },
+          budget: defaultBudgetForTemplate(STANDING_ORDER_TEMPLATE_ID),
         });
         useStore.getState().upsertOrchestrationRun(run);
       } else {

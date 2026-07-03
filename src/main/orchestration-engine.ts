@@ -9,6 +9,10 @@ import type {
   OrchestrationRun,
   OrchestrationStep,
 } from "@shared/orchestration";
+import {
+  defaultBudgetForTemplate,
+  STANDING_ORDER_TEMPLATE_ID,
+} from "@shared/orchestration-templates";
 import type { LocalOrchestrationStore } from "./orchestration-store";
 
 export type OrchestrationControlSession = (
@@ -36,8 +40,13 @@ export type StandingOrderRunParams = z.infer<
 >;
 
 const DEFAULT_POLL_MS = 1000;
-const DEFAULT_MAX_ITERATIONS = 24;
-const DEFAULT_MAX_CONSECUTIVE_FAILURES = 3;
+const STANDING_ORDER_DEFAULT_BUDGET = defaultBudgetForTemplate(
+  STANDING_ORDER_TEMPLATE_ID
+);
+const DEFAULT_MAX_ITERATIONS =
+  STANDING_ORDER_DEFAULT_BUDGET.maxIterations ?? 24;
+const DEFAULT_MAX_CONSECUTIVE_FAILURES =
+  STANDING_ORDER_DEFAULT_BUDGET.maxConsecutiveFailures ?? 3;
 
 export class MainOrchestrationEngine {
   private readonly store: LocalOrchestrationStore;
@@ -83,7 +92,7 @@ export class MainOrchestrationEngine {
   async tickOnce(runId: string): Promise<OrchestrationRun | undefined> {
     const run = await this.store.getRun(runId);
     if (!run || run.status !== "running") return run;
-    if (run.template !== "standing-order") return run;
+    if (run.template !== STANDING_ORDER_TEMPLATE_ID) return run;
 
     const budgetPauseReason = runtimeBudgetPauseReason(run, this.now());
     if (budgetPauseReason) {
@@ -149,7 +158,10 @@ export class MainOrchestrationEngine {
   }
 
   private isDue(run: OrchestrationRun): boolean {
-    if (run.status !== "running" || run.template !== "standing-order") {
+    if (
+      run.status !== "running" ||
+      run.template !== STANDING_ORDER_TEMPLATE_ID
+    ) {
       return false;
     }
     const parsed = StandingOrderRunParamsSchema.safeParse(run.params ?? {});
