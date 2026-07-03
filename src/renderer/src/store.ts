@@ -7,6 +7,7 @@ import type {
   Letter,
   LetterAction,
 } from "@shared/events";
+import type { OrchestrationRun } from "@shared/orchestration";
 import { EMPTY_PERSISTED } from "@shared/events";
 import { MutedSessionIdsSchema } from "@shared/schemas";
 import { play } from "./audio/sounds";
@@ -73,6 +74,10 @@ export type Store = {
   // persisted in this iteration — orders end on app restart. Persistence
   // is a follow-up commit per Q12 schema sketch.
   standingOrders: Record<string, StandingOrder>;
+  // Durable main-process orchestration runs, refreshed by IPC and shared
+  // across the run board, HUD badges, and wielder detail panels.
+  orchestrationRuns: Record<string, OrchestrationRun>;
+  orchestrationRunsMissing: boolean;
 
   ingest(event: AgentEvent): void;
   selectUnit(id: string | null): void;
@@ -87,6 +92,9 @@ export type Store = {
     intervalMs: number,
     maxIterations?: number
   ): string;
+  setOrchestrationRuns(runs: OrchestrationRun[]): void;
+  upsertOrchestrationRun(run: OrchestrationRun): void;
+  refreshOrchestrationRuns(): Promise<OrchestrationRun[] | null>;
   recordOrderTick(orderId: string, ok: boolean): void;
   haltStandingOrder(orderId: string): void;
   toggleMute(sessionId: string): void;
@@ -126,6 +134,12 @@ const _comfortCooldown = new Map<string, number>();
 const COMFORT_COST = 50;
 const COMFORT_HP = 30;
 const COMFORT_COOLDOWN_MS = 30_000;
+
+function runsById(runs: OrchestrationRun[]): Record<string, OrchestrationRun> {
+  const out: Record<string, OrchestrationRun> = {};
+  for (const run of runs) out[run.id] = run;
+  return out;
+}
 
 // Batch incoming events into one store update per animation frame so
 // bursts (e.g. Cursor turn emits 20 tool_use events in <100ms) do not
@@ -170,6 +184,8 @@ export const useStore = create<Store>((set) => ({
   worldCommandAnchor: null,
   decreeUnitId: null,
   standingOrders: {},
+  orchestrationRuns: {},
+  orchestrationRunsMissing: false,
 
   ingest(event) {
     _queue.push(event);
@@ -275,6 +291,39 @@ export const useStore = create<Store>((set) => ({
       return { standingOrders, persisted: nextPersisted };
     });
     return id;
+  },
+  setOrchestrationRuns(runs) {
+    set({
+      orchestrationRuns: runsById(runs),
+      orchestrationRunsMissing: false,
+    });
+  },
+  upsertOrchestrationRun(run) {
+    set((s) => ({
+      orchestrationRuns: {
+        ...s.orchestrationRuns,
+        [run.id]: run,
+      },
+      orchestrationRunsMissing: false,
+    }));
+  },
+  async refreshOrchestrationRuns() {
+    const listRuns = window.rw?.listOrchestrationRuns;
+    if (typeof listRuns !== "function") {
+      set({ orchestrationRunsMissing: true });
+      return null;
+    }
+    try {
+      const runs = await listRuns.call(window.rw);
+      set({
+        orchestrationRuns: runsById(runs),
+        orchestrationRunsMissing: false,
+      });
+      return runs;
+    } catch {
+      set({ orchestrationRunsMissing: true });
+      return null;
+    }
   },
   recordOrderTick(orderId, ok) {
     set((s) => {

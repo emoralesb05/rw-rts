@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
 import { useStore } from "../../store";
+import { hasActiveStandingOrderRunForUnit } from "../../orchestration-runs";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { usePanels } from "../floating/panel-store";
 import { classifyArchetype, ARCHETYPE_TITLE } from "../role-archetype";
@@ -134,11 +135,15 @@ export function PartyRow({ unit }: { unit: UnitState }) {
   const openDrawerTab = usePanels((s) => s.openDrawerTab);
   const panels = usePanels((s) => s.panels);
   const standingOrders = useStore((s) => s.standingOrders);
+  const orchestrationRuns = useStore((s) => s.orchestrationRuns);
   const events = useStore((s) => s.events);
   const archetype = classifyArchetype(unit.id, events);
-  const hasOrder = Object.values(standingOrders).some(
+  const hasLegacyOrder = Object.values(standingOrders).some(
     (o) => o.unitId === unit.id && o.status === "active"
   );
+  const hasOrder =
+    hasLegacyOrder ||
+    hasActiveStandingOrderRunForUnit(orchestrationRuns, unit.id);
   const hpPct = Math.max(0, Math.min(100, unit.hp));
   const mpPct = Math.max(0, Math.min(100, unit.mp));
   const ghosted = unit.status === "complete" || unit.status === "fallen";

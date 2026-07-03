@@ -199,6 +199,13 @@ describe("DecreeModal", () => {
       },
     });
     expect(Object.values(useStore.getState().standingOrders)).toEqual([]);
+    expect(useStore.getState().orchestrationRuns["run-1"]).toEqual(
+      expect.objectContaining({
+        id: "run-1",
+        template: "standing-order",
+        status: "running",
+      })
+    );
     expect(useStore.getState().decreeUnitId).toBeNull();
   });
 

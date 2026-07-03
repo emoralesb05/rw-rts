@@ -201,7 +201,7 @@ export function DecreeModal() {
     setBusy(true);
     try {
       if (window.rw.createOrchestrationRun) {
-        await window.rw.createOrchestrationRun({
+        const run = await window.rw.createOrchestrationRun({
           template: "standing-order",
           title: `Standing Order · ${unit.displayName}`,
           status: "running",
@@ -221,6 +221,7 @@ export function DecreeModal() {
             maxConsecutiveFailures: 3,
           },
         });
+        useStore.getState().upsertOrchestrationRun(run);
       } else {
         useStore
           .getState()

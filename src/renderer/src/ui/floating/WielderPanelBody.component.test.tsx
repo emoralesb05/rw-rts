@@ -10,6 +10,7 @@ import {
   type UnitState,
   type WorldState,
 } from "@shared/events";
+import type { OrchestrationRun } from "@shared/orchestration";
 import { useStore } from "../../store";
 
 function installRw() {
@@ -17,6 +18,15 @@ function installRw() {
     controlSession: vi.fn(() =>
       Promise.resolve({ action: "interrupt", ok: true })
     ),
+    controlOrchestrationRun: vi.fn((req: { runId: string }) =>
+      Promise.resolve({
+        ...orchestrationRun(),
+        id: req.runId,
+        status: "stopped" as const,
+        updatedAt: 3_000,
+      })
+    ),
+    listOrchestrationRuns: vi.fn(() => Promise.resolve([])),
   };
 
   Object.defineProperty(window, "rw", {
@@ -60,13 +70,54 @@ function world(): WorldState {
   };
 }
 
-function renderPanel(activeUnit: UnitState) {
+function orchestrationRun(
+  overrides: Partial<OrchestrationRun> = {}
+): OrchestrationRun {
+  return {
+    id: "run-1",
+    template: "standing-order",
+    title: "Keep tests moving",
+    status: "running",
+    cwd: "/repo",
+    repoRoot: "/repo",
+    params: {
+      unitId: "unit-1",
+      intervalMs: 60_000,
+    },
+    createdAt: 1_000,
+    updatedAt: 2_000,
+    providerSessions: [],
+    traceIds: [],
+    permissionRequestIds: [],
+    userInputRequestIds: [],
+    steps: [
+      {
+        id: "step-1",
+        title: "Iteration 1",
+        kind: "standing-order",
+        status: "completed",
+        attempts: 1,
+        createdAt: 1_000,
+        updatedAt: 1_500,
+        startedAt: 1_000,
+        endedAt: 1_500,
+      },
+    ],
+    checkpoints: [],
+    budget: { maxIterations: 3 },
+    events: [],
+    ...overrides,
+  };
+}
+
+function renderPanel(activeUnit: UnitState, runs: OrchestrationRun[] = []) {
   useStore.setState({
     events: [],
     units: { [activeUnit.id]: activeUnit },
     worlds: { [activeUnit.worldId]: world() },
     persisted: EMPTY_PERSISTED,
     standingOrders: {},
+    orchestrationRuns: Object.fromEntries(runs.map((run) => [run.id, run])),
   });
   render(
     <TooltipProvider>
@@ -115,5 +166,28 @@ describe("WielderPanelBody", () => {
     renderPanel(unit({ status: "idle" }));
 
     expect(screen.getByRole("button", { name: /halt/i })).toBeDisabled();
+  });
+
+  it("shows durable standing orders and stops them from the panel", async () => {
+    const rw = installRw();
+    const user = userEvent.setup();
+    renderPanel(unit({ status: "idle" }), [orchestrationRun()]);
+
+    expect(screen.getByText(/1m · 1\/3 · halt/i)).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /halt standing order keep tests moving/i,
+      })
+    );
+
+    expect(rw.controlOrchestrationRun).toHaveBeenCalledWith({
+      runId: "run-1",
+      action: "stop",
+      reason: "Stopped from Wielder panel.",
+    });
+    expect(useStore.getState().orchestrationRuns["run-1"]).toEqual(
+      expect.objectContaining({ status: "stopped" })
+    );
   });
 });

@@ -644,30 +644,24 @@ function ObservatoryTab() {
 }
 
 function RunsTab() {
-  const [runs, setRuns] = useState<OrchestrationRun[]>([]);
-  const [missing, setMissing] = useState(false);
+  const orchestrationRuns = useStore((s) => s.orchestrationRuns);
+  const missing = useStore((s) => s.orchestrationRunsMissing);
+  const refreshOrchestrationRuns = useStore((s) => s.refreshOrchestrationRuns);
   const [busy, setBusy] = useState<string | null>(null);
-
-  const loadRuns = async () => {
-    const result = await safeIpc(window.rw.listOrchestrationRuns?.bind(window.rw));
-    if (!result) {
-      setMissing(true);
-      return;
-    }
-    setMissing(false);
-    setRuns(result);
-  };
+  const runs = useMemo(
+    () =>
+      Object.values(orchestrationRuns).sort(
+        (a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt
+      ),
+    [orchestrationRuns]
+  );
 
   useEffect(() => {
-    void loadRuns();
-  }, []);
+    void refreshOrchestrationRuns();
+  }, [refreshOrchestrationRuns]);
 
   const replaceRun = (run: OrchestrationRun) => {
-    setRuns((current) =>
-      current
-        .map((item) => (item.id === run.id ? run : item))
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-    );
+    useStore.getState().upsertOrchestrationRun(run);
   };
 
   const controlRun = async (
@@ -691,7 +685,7 @@ function RunsTab() {
         })
       );
       if (result) replaceRun(result);
-      else setMissing(true);
+      else await refreshOrchestrationRuns();
     } finally {
       setBusy(null);
     }
@@ -720,7 +714,7 @@ function RunsTab() {
             type="button"
             variant="ghost"
             className="min-h-0 px-2 py-1 text-[10px]"
-            onClick={() => void loadRuns()}
+            onClick={() => void refreshOrchestrationRuns()}
           >
             <RotateCw className="size-3" />
             Refresh
@@ -733,7 +727,7 @@ function RunsTab() {
             {runs.map((run) => (
               <li
                 key={run.id}
-                className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-sm bg-surface-2/40 px-2 py-1 text-[11px]"
+                className="bg-surface-2/40 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-sm px-2 py-1 text-[11px]"
               >
                 <span className={runStatusClass(run.status)}>●</span>
                 <span className="min-w-0">

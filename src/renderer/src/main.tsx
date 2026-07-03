@@ -5,12 +5,14 @@ import { useStore } from "./store";
 import { preloadSounds, play } from "./audio/sounds";
 import { attachMusicLoop } from "./audio/music";
 import { attachLetterNotifications } from "./desktop-notifications";
+import { attachOrchestrationRunPoller } from "./orchestration-runs";
 import { attachStandingOrderRunner } from "./standing-orders";
 import { seedVisualQaState } from "./dev/visual-qa-seed";
 import "./styles.css";
 
 void preloadSounds();
 attachEventStream();
+attachOrchestrationRunPoller();
 attachStandingOrderRunner();
 attachMusicLoop();
 

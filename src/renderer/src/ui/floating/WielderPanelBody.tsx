@@ -6,7 +6,7 @@
  * If the unit no longer exists (session ended and was cleaned up), the
  * body shows a stub instead of crashing — the user can close the panel.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronRight,
   CornerDownRight,
@@ -24,6 +24,7 @@ import {
 } from "@shared/session-capabilities";
 import { usePanels } from "./panel-store";
 import { useStore, unitIdentityForUnit } from "../../store";
+import { standingOrderRunViewsForUnit } from "../../orchestration-runs";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { classifyArchetype, ARCHETYPE_TITLE } from "../role-archetype";
@@ -93,12 +94,16 @@ export function WielderPanelBody({ unitId }: Props) {
   const worlds = useStore((s) => s.worlds);
   const events = useStore((s) => s.events);
   const standingOrders = useStore((s) => s.standingOrders);
+  const orchestrationRuns = useStore((s) => s.orchestrationRuns);
+  const upsertOrchestrationRun = useStore((s) => s.upsertOrchestrationRun);
+  const refreshOrchestrationRuns = useStore((s) => s.refreshOrchestrationRuns);
   const persistedWielders = useStore((s) => s.persisted.wielders);
   const selectWorld = useStore((s) => s.selectWorld);
   const comfort = useStore((s) => s.comfort);
   const haltStandingOrder = useStore((s) => s.haltStandingOrder);
   const setPanelSize = usePanels((s) => s.setSize);
   const openDrawerTab = usePanels((s) => s.openDrawerTab);
+  const [busyRunId, setBusyRunId] = useState<string | null>(null);
   const archetype = unit ? classifyArchetype(unit.id, events) : "roamer";
 
   // Status panel is content-driven; reset any height a previous body
@@ -116,6 +121,10 @@ export function WielderPanelBody({ unitId }: Props) {
   }
 
   const palette = ROLE_PALETTE[unit.role];
+  const durableOrders = standingOrderRunViewsForUnit(
+    orchestrationRuns,
+    unit.id
+  );
   const activeOrders = Object.values(standingOrders).filter(
     (o) => o.unitId === unit.id && o.status === "active"
   );
@@ -135,6 +144,22 @@ export function WielderPanelBody({ unitId }: Props) {
   const recallReason = controlReason(capabilities, "stop");
   const canInterrupt = canControl(capabilities, "interrupt");
   const interruptReason = controlReason(capabilities, "interrupt");
+  const stopOrchestrationRun = async (runId: string) => {
+    if (busyRunId) return;
+    setBusyRunId(runId);
+    try {
+      const result = await window.rw.controlOrchestrationRun({
+        runId,
+        action: "stop",
+        reason: "Stopped from Wielder panel.",
+      });
+      upsertOrchestrationRun(result);
+    } catch {
+      await refreshOrchestrationRuns();
+    } finally {
+      setBusyRunId(null);
+    }
+  };
 
   return (
     <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
@@ -202,8 +227,29 @@ export function WielderPanelBody({ unitId }: Props) {
           </div>
         </div>
       </div>
-      {activeOrders.length > 0 && (
+      {(durableOrders.length > 0 || activeOrders.length > 0) && (
         <div className="flex flex-wrap gap-1">
+          {durableOrders.map(
+            ({ intervalMs, iterationsRun, maxIterations, run }) => (
+              <TooltipHint
+                key={run.id}
+                label={`Standing Order — ${run.status} · ${iterationsRun}/${maxIterations} iterations · click to stop`}
+              >
+                <button
+                  type="button"
+                  aria-label={`Halt standing order ${run.title}`}
+                  className="border-accent-alt/45 bg-accent-alt/[0.08] text-accent-alt hover:bg-accent-alt/[0.18] inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-left font-mono text-[10px] font-semibold hover:border-[#ff5a3c]/60 hover:text-[#ff5a3c] disabled:cursor-not-allowed disabled:opacity-55"
+                  disabled={busyRunId !== null}
+                  onClick={() => void stopOrchestrationRun(run.id)}
+                >
+                  <RotateCw size={11} aria-hidden />{" "}
+                  {Math.round(intervalMs / 60_000)}m · {iterationsRun}/
+                  {maxIterations} ·{" "}
+                  {run.status === "paused" ? "paused" : "halt"}
+                </button>
+              </TooltipHint>
+            )
+          )}
           {activeOrders.map((o) => (
             <TooltipHint
               key={o.id}
@@ -211,6 +257,7 @@ export function WielderPanelBody({ unitId }: Props) {
             >
               <button
                 type="button"
+                aria-label={`Halt legacy standing order ${o.id}`}
                 className="border-accent-alt/45 bg-accent-alt/[0.08] text-accent-alt hover:bg-accent-alt/[0.18] inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-left font-mono text-[10px] font-semibold hover:border-[#ff5a3c]/60 hover:text-[#ff5a3c]"
                 onClick={() => haltStandingOrder(o.id)}
               >
