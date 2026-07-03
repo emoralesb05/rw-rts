@@ -102,4 +102,45 @@ describe("AgentManager", () => {
       "Unknown unit missing"
     );
   });
+
+  it("routes interrupts to agents that expose an interrupt control", async () => {
+    const interrupt = vi.fn();
+
+    vi.doMock("./adapters/claude-cli", () => ({
+      spawnClaudeAgent: vi.fn(),
+      resumeClaudeSession: vi.fn(),
+      listAgents: () => [],
+      getAgent: () => undefined,
+    }));
+    vi.doMock("./adapters/cursor-cli", () => ({
+      spawnCursorAgent: vi.fn(),
+      resumeCursorSession: vi.fn(),
+      listCursorAgents: () => [],
+      getCursorAgent: () => undefined,
+    }));
+    vi.doMock("./adapters/codex-cli", () => ({
+      spawnCodexAgent: vi.fn(),
+      resumeCodexSession: vi.fn(),
+      listCodexAgents: () => [],
+      getCodexAgent: () => ({
+        unitId: "codex-1",
+        sessionId: "codex-1",
+        cwd: "/repo",
+        send: vi.fn(),
+        interrupt,
+        kill: vi.fn(),
+      }),
+    }));
+    vi.doMock("./adapters/gemini-cli", () => ({
+      spawnGeminiAgent: vi.fn(),
+      resumeGeminiSession: vi.fn(),
+      listGeminiAgents: () => [],
+      getGeminiAgent: () => undefined,
+    }));
+
+    const { AgentManager } = await import("./agent-manager");
+    AgentManager.interrupt("codex-1");
+
+    expect(interrupt).toHaveBeenCalled();
+  });
 });

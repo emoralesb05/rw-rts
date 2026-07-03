@@ -46,6 +46,47 @@ export const SendPromptRequestSchema = z.object({
 });
 export type SendPromptRequest = z.infer<typeof SendPromptRequestSchema>;
 
+export const SessionStatusSchema = z.enum([
+  "idle",
+  "working",
+  "casting",
+  "moving",
+  "complete",
+  "fallen",
+]);
+
+export const SessionControlActionSchema = z.enum([
+  "send",
+  "steer",
+  "interrupt",
+  "stop",
+  "fork",
+  "attach",
+  "listProviderSessions",
+]);
+export type SessionControlAction = z.infer<typeof SessionControlActionSchema>;
+
+export const ControlSessionRequestSchema = z.object({
+  action: SessionControlActionSchema,
+  unitId: z.string().min(1),
+  sessionId: z.string().min(1).optional(),
+  tool: AgentToolSchema,
+  cwd: z.string().min(1).optional(),
+  prompt: z.string().optional(),
+  status: SessionStatusSchema.optional(),
+  activeTurnKnown: z.boolean().optional(),
+});
+export type ControlSessionRequest = z.infer<typeof ControlSessionRequestSchema>;
+
+export const ControlSessionResponseSchema = z.object({
+  action: SessionControlActionSchema,
+  ok: z.boolean(),
+  reason: z.string().optional(),
+});
+export type ControlSessionResponse = z.infer<
+  typeof ControlSessionResponseSchema
+>;
+
 export const ResolvePermissionRequestSchema = z.object({
   requestId: z.string().min(1),
   decision: PermissionDecisionSchema,

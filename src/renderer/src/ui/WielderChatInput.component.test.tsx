@@ -5,8 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { WielderChatInput } from "./WielderChatInput";
 import type { UnitState } from "@shared/events";
 
-function installRw(sendPrompt = vi.fn(() => Promise.resolve(true))) {
-  const rw = { sendPrompt };
+function installRw(
+  controlSession = vi.fn(() => Promise.resolve({ action: "send", ok: true }))
+) {
+  const rw = { controlSession };
 
   Object.defineProperty(window, "rw", {
     configurable: true,
@@ -53,11 +55,13 @@ describe("WielderChatInput", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     await waitFor(() => {
-      expect(rw.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.controlSession).toHaveBeenCalledWith({
+        action: "send",
         unitId: "unit-1",
         sessionId: "unit-1",
         tool: "claude",
         cwd: "/repo",
+        status: "idle",
         prompt: "please run the focused tests",
       });
     });
@@ -72,17 +76,19 @@ describe("WielderChatInput", () => {
     const input = screen.getByPlaceholderText(/message vaelen/i);
     await user.click(input);
     await user.keyboard("{Meta>}{Enter}{/Meta}");
-    expect(rw.sendPrompt).not.toHaveBeenCalled();
+    expect(rw.controlSession).not.toHaveBeenCalled();
 
     await user.type(input, "ship it");
     await user.keyboard("{Meta>}{Enter}{/Meta}");
 
     await waitFor(() => {
-      expect(rw.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.controlSession).toHaveBeenCalledWith({
+        action: "send",
         unitId: "unit-1",
         sessionId: "unit-1",
         tool: "claude",
         cwd: "/repo",
+        status: "idle",
         prompt: "ship it",
       });
     });
@@ -98,11 +104,13 @@ describe("WielderChatInput", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     await waitFor(() => {
-      expect(rw.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.controlSession).toHaveBeenCalledWith({
+        action: "send",
         unitId: "unit-1",
         sessionId: "unit-1",
         tool: "claude",
         cwd: "/repo",
+        status: "idle",
         prompt: "continue from here",
       });
     });
@@ -134,7 +142,7 @@ describe("WielderChatInput", () => {
     await user.click(screen.getByRole("button", { name: /send message/i }));
 
     await waitFor(() => {
-      expect(rw.sendPrompt).toHaveBeenCalled();
+      expect(rw.controlSession).toHaveBeenCalled();
     });
     expect(input).toHaveValue("retry later");
   });

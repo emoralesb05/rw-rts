@@ -46,6 +46,7 @@ import {
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { IPC } from "@shared/ipc";
+import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
   AppSettingsSchema,
   HooksStatusSchema,
@@ -58,6 +59,8 @@ import {
   PlayFixtureRequestSchema,
   ApplyPermissionChoiceRequestSchema,
   ApplyPermissionChoiceResponseSchema,
+  ControlSessionRequestSchema,
+  ControlSessionResponseSchema,
   ListPermissionRulesResponseSchema,
   RemovePermissionRuleRequestSchema,
   RemovePermissionRuleResponseSchema,
@@ -71,6 +74,9 @@ import {
   VoidResponseSchema,
   WorkspaceRootValidationSchema,
   WorkspaceRootPathSchema,
+  type ControlSessionRequest,
+  type ControlSessionResponse,
+  type SendPromptRequest,
 } from "@shared/schemas";
 import type { z } from "zod";
 import {
@@ -224,6 +230,92 @@ async function offerHookInstall() {
   }
 }
 
+function sendPromptFromRequest(req: SendPromptRequest): void {
+  if (AgentManager.get(req.unitId)) {
+    AgentManager.send(req.unitId, req.prompt);
+    return;
+  }
+  if (!req.sessionId || !req.tool || !req.cwd) {
+    throw new Error(`Unknown unit ${req.unitId}`);
+  }
+  if (isE2E && isE2EFixtureSession(req.sessionId)) {
+    bus.emitAgentEvent({
+      sessionId: req.sessionId,
+      tool: req.tool,
+      cwd: req.cwd,
+      timestamp: Date.now(),
+      kind: "user_prompt",
+      payload: { text: req.prompt },
+      source: "realmkeeper",
+    });
+    return;
+  }
+  AgentManager.sendToObserved(
+    { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },
+    req.prompt
+  );
+}
+
+function controlSession(req: ControlSessionRequest): ControlSessionResponse {
+  const spawnedHere = Boolean(AgentManager.get(req.unitId));
+  const capabilities = resolveSessionCapabilities({
+    tool: req.tool,
+    spawnedHere,
+    status: req.status,
+    activeTurnKnown: req.activeTurnKnown,
+  });
+  const capability = capabilities.controls[req.action];
+  if (!capability.available) {
+    return { action: req.action, ok: false, reason: capability.reason };
+  }
+
+  if (req.action === "send" || req.action === "steer") {
+    const prompt = req.prompt?.trim();
+    if (!prompt) {
+      return { action: req.action, ok: false, reason: "Prompt is required." };
+    }
+    if (!spawnedHere && (!req.sessionId || !req.cwd)) {
+      return {
+        action: req.action,
+        ok: false,
+        reason: "Observed session metadata is missing.",
+      };
+    }
+    sendPromptFromRequest({
+      unitId: req.unitId,
+      sessionId: req.sessionId,
+      tool: req.tool,
+      cwd: req.cwd,
+      prompt,
+    });
+    return { action: req.action, ok: true };
+  }
+
+  if (req.action === "stop") {
+    AgentManager.kill(req.unitId);
+    return { action: req.action, ok: true };
+  }
+
+  if (req.action === "interrupt") {
+    try {
+      AgentManager.interrupt(req.unitId);
+      return { action: req.action, ok: true };
+    } catch (err) {
+      return {
+        action: req.action,
+        ok: false,
+        reason: err instanceof Error ? err.message : "Interrupt failed.",
+      };
+    }
+  }
+
+  return {
+    action: req.action,
+    ok: false,
+    reason: capability.reason,
+  };
+}
+
 // Expose CDP for agent-browser attach in dev.
 if (!app.isPackaged && !isE2E) {
   app.commandLine.appendSwitch("remote-debugging-port", "9222");
@@ -282,31 +374,22 @@ void app.whenReady().then(async () => {
     IPC.SendPrompt,
     (_e, raw: unknown) => {
       const req = parseIpcPayload(IPC.SendPrompt, SendPromptRequestSchema, raw);
-      if (AgentManager.get(req.unitId)) {
-        AgentManager.send(req.unitId, req.prompt);
-        return;
-      }
-      if (!req.sessionId || !req.tool || !req.cwd) {
-        throw new Error(`Unknown unit ${req.unitId}`);
-      }
-      if (isE2E && isE2EFixtureSession(req.sessionId)) {
-        bus.emitAgentEvent({
-          sessionId: req.sessionId,
-          tool: req.tool,
-          cwd: req.cwd,
-          timestamp: Date.now(),
-          kind: "user_prompt",
-          payload: { text: req.prompt },
-          source: "realmkeeper",
-        });
-        return;
-      }
-      AgentManager.sendToObserved(
-        { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },
-        req.prompt
-      );
+      sendPromptFromRequest(req);
     },
     VoidResponseSchema
+  );
+
+  safeHandle(
+    IPC.ControlSession,
+    (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ControlSession,
+        ControlSessionRequestSchema,
+        raw
+      );
+      return controlSession(req);
+    },
+    ControlSessionResponseSchema
   );
 
   safeHandle(

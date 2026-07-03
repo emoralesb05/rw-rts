@@ -2,6 +2,8 @@ import type {
   SpawnAgentRequest,
   SpawnAgentResponse,
   SendPromptRequest,
+  ControlSessionRequest,
+  ControlSessionResponse,
   ApplyPermissionChoiceRequest,
   HooksStatus,
   ListUnitEntry,
@@ -24,6 +26,9 @@ declare global {
       spawnAgent(req: SpawnAgentRequest): Promise<SpawnAgentResponse>;
       sendPrompt(req: SendPromptRequest): Promise<void>;
       killAgent(unitId: string): Promise<void>;
+      controlSession(
+        req: ControlSessionRequest
+      ): Promise<ControlSessionResponse>;
       listUnits(): Promise<ListUnitEntry[]>;
       installHooks(): Promise<HooksStatus>;
       uninstallHooks(): Promise<HooksStatus>;

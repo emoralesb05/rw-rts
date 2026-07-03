@@ -13,6 +13,7 @@ vi.mock("../audio/sounds", () => ({
 function installRw() {
   const rw = {
     sendPrompt: vi.fn(() => Promise.resolve(true)),
+    controlSession: vi.fn(() => Promise.resolve({ action: "send", ok: true })),
     savePersisted: vi.fn(() => Promise.resolve(true)),
     killAgent: vi.fn(() => Promise.resolve(true)),
     resolvePermission: vi.fn(() => Promise.resolve(true)),
@@ -102,8 +103,13 @@ describe("DecreeModal", () => {
     await user.click(screen.getByRole("button", { name: /issue decree/i }));
 
     await waitFor(() => {
-      expect(rw.sendPrompt).toHaveBeenCalledWith({
+      expect(rw.controlSession).toHaveBeenCalledWith({
+        action: "send",
         unitId: "unit-1",
+        sessionId: "unit-1",
+        tool: "claude",
+        cwd: "/repo",
+        status: "idle",
         prompt: "[Decree from the King]\n\nrun the test suite",
       });
     });
@@ -153,7 +159,7 @@ describe("DecreeModal", () => {
 
     await user.click(screen.getByRole("button", { name: /issue order/i }));
 
-    expect(rw.sendPrompt).not.toHaveBeenCalled();
+    expect(rw.controlSession).not.toHaveBeenCalled();
     expect(Object.values(useStore.getState().standingOrders)).toEqual([
       expect.objectContaining({
         unitId: "unit-1",
@@ -171,7 +177,7 @@ describe("DecreeModal", () => {
     renderOpenDecree({ spawnedHere: false });
 
     expect(
-      screen.getByText(/observed-only — Realmkeeper didn't spawn/i)
+      screen.getByText(/Decrees stay scoped to Realmkeeper-owned sessions/i)
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/issue your command/i)).toBeDisabled();
     expect(

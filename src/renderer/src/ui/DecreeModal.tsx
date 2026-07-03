@@ -9,8 +9,8 @@
  * distinct from Send word's gentle text-only prompt.
  *
  * Wired via store.openDecreeFor(unitId) — set on a wielder card click.
- * Modal closes on Esc or click-outside. Send dispatches via the
- * existing sendPrompt IPC (same channel as Send word).
+ * Modal closes on Esc or click-outside. Send dispatches through the
+ * shared session-control IPC.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -42,6 +42,11 @@ import { Textarea } from "./components/kit/Textarea";
 import { useStore } from "../store";
 import { cn } from "@/lib/cn";
 import type { AgentEvent } from "@shared/events";
+import {
+  canControl,
+  capabilitiesForUnit,
+  controlReason,
+} from "@shared/session-capabilities";
 
 const COMMON_COMMANDS = [
   "bun test",
@@ -122,6 +127,16 @@ export function DecreeModal() {
 
   if (!unit) return null;
 
+  const capabilities = capabilitiesForUnit(unit);
+  const canIssueDecree = canControl(capabilities, "issueDecree");
+  const canRunStandingOrder = canControl(capabilities, "runStandingOrder");
+  const commandAvailable =
+    intervalMs === null ? canIssueDecree : canRunStandingOrder;
+  const directControlReason =
+    intervalMs === null
+      ? controlReason(capabilities, "issueDecree")
+      : controlReason(capabilities, "runStandingOrder");
+
   function handleChange(v: string) {
     setText(v);
     // Detect palette triggers based on the last token after a space/newline.
@@ -153,7 +168,8 @@ export function DecreeModal() {
 
   async function send() {
     if (!unit || !text.trim() || busy) return;
-    if (!unit.spawnedHere) return;
+    if (intervalMs === null && !canIssueDecree) return;
+    if (intervalMs !== null && !canRunStandingOrder) return;
     const trimmed = text.trim();
     if (intervalMs !== null) {
       const intervalLabel =
@@ -164,7 +180,16 @@ export function DecreeModal() {
     setBusy(true);
     try {
       const prompt = `[Decree from the King]\n\n${trimmed}`;
-      await window.rw.sendPrompt({ unitId: unit.id, prompt });
+      const result = await window.rw.controlSession({
+        action: "send",
+        unitId: unit.id,
+        sessionId: unit.sessionId,
+        tool: unit.tool,
+        cwd: unit.cwd,
+        status: unit.status,
+        prompt,
+      });
+      if (!result.ok) throw new Error(result.reason ?? "Send failed.");
       closeDecree();
     } finally {
       setBusy(false);
@@ -189,7 +214,7 @@ export function DecreeModal() {
     }
   }
 
-  const sendDisabled = busy || !text.trim() || !unit.spawnedHere;
+  const sendDisabled = busy || !text.trim() || !commandAvailable;
 
   return (
     <Dialog
@@ -220,10 +245,9 @@ export function DecreeModal() {
           </span>
           <DialogIconClose className="ml-auto" aria-label="close" />
         </DialogHeader>
-        {!unit.spawnedHere && (
+        {!commandAvailable && (
           <div className="border-b border-[#ff5a3c]/30 bg-[#ff5a3c]/[0.12] px-4 py-2.5 text-xs text-[#ffb6a0]">
-            {unit.displayName} is observed-only — Realmkeeper didn't spawn this
-            wielder, so we can't send it commands.
+            {directControlReason}
           </div>
         )}
         <div className="relative min-h-0 flex-1 p-4">
@@ -244,7 +268,7 @@ export function DecreeModal() {
               }
             }}
             rows={5}
-            disabled={busy || !unit.spawnedHere}
+            disabled={busy || (!canIssueDecree && !canRunStandingOrder)}
           />
           {mode.kind === "files" && fileSuggestions.length > 0 && (
             <Palette
@@ -282,7 +306,9 @@ export function DecreeModal() {
                   : "border-line text-muted hover:border-accent-alt/50 hover:text-text"
               )}
               onClick={() => setIntervalMs(i.ms)}
-              disabled={busy || !unit.spawnedHere}
+              disabled={
+                busy || (i.ms === null ? !canIssueDecree : !canRunStandingOrder)
+              }
             >
               {i.label}
             </Button>

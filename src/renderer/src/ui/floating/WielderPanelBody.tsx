@@ -16,6 +16,11 @@ import {
   Power,
   RotateCw,
 } from "lucide-react";
+import {
+  canControl,
+  capabilitiesForUnit,
+  controlReason,
+} from "@shared/session-capabilities";
 import { usePanels } from "./panel-store";
 import { useStore, unitIdentityForUnit } from "../../store";
 import { ROLE_HEX, ROLE_PALETTE } from "../../game/units";
@@ -122,6 +127,11 @@ export function WielderPanelBody({ unitId }: Props) {
   const focusPct = unit.auraState ? 100 : 35;
   const ghosted = unit.status === "complete" || unit.status === "fallen";
   const canComfort = !ghosted && unit.hp < 100 && (world?.glimmer ?? 0) >= 50;
+  const capabilities = capabilitiesForUnit(unit);
+  const canIssueDecree = canControl(capabilities, "issueDecree");
+  const decreeReason = controlReason(capabilities, "issueDecree");
+  const canRecall = canControl(capabilities, "stop");
+  const recallReason = controlReason(capabilities, "stop");
 
   return (
     <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
@@ -150,8 +160,8 @@ export function WielderPanelBody({ unitId }: Props) {
             <TooltipHint
               label={
                 unit.spawnedHere
-                  ? "spawned by Realmkeeper — you can send prompts here"
-                  : "observed terminal session — read-only"
+                  ? "spawned by Realmkeeper — direct controls are available"
+                  : "observed terminal session — limited controls"
               }
             >
               <Badge
@@ -284,16 +294,16 @@ export function WielderPanelBody({ unitId }: Props) {
         </TooltipHint>
         <TooltipHint
           label={
-            !unit.spawnedHere
-              ? "observed-only — Realmkeeper didn't spawn this wielder"
-              : "decree — directive command (file/function/shell)"
+            canIssueDecree
+              ? "decree — directive command (file/function/shell)"
+              : decreeReason
           }
         >
           <span className="inline-flex w-full">
             <Button
               type="button"
               className="border-accent-alt/45 bg-accent-alt/[0.06] text-accent-alt hover:border-accent-alt/70 hover:bg-accent-alt/[0.14] h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px] font-semibold"
-              disabled={ghosted || !unit.spawnedHere}
+              disabled={!canIssueDecree}
               onClick={() => useStore.getState().openDecreeFor(unit.id)}
             >
               {/* ⚜ stays as the gold royal sigil — RW-themed and intentional. */}
@@ -325,11 +335,7 @@ export function WielderPanelBody({ unitId }: Props) {
         </TooltipHint>
         <AlertDialog>
           <TooltipHint
-            label={
-              !unit.spawnedHere
-                ? "observed-only — Realmkeeper didn't spawn this wielder, no process to recall"
-                : "recall — end this session"
-            }
+            label={canRecall ? "recall — end this session" : recallReason}
           >
             <span className="inline-flex w-full">
               <AlertDialogTrigger asChild>
@@ -337,11 +343,7 @@ export function WielderPanelBody({ unitId }: Props) {
                   type="button"
                   variant="danger"
                   className="h-6 min-h-0 w-full gap-1 rounded-sm px-1 py-0 text-[10px]"
-                  // Recall calls window.rw.killAgent, which only knows about
-                  // processes Realmkeeper spawned. For hook-observed wielders it
-                  // would silently no-op; gate the same way decree does so the
-                  // button reflects what's actually possible.
-                  disabled={ghosted || !unit.spawnedHere}
+                  disabled={!canRecall}
                 >
                   <Power size={11} aria-hidden /> recall
                 </Button>
@@ -352,15 +354,24 @@ export function WielderPanelBody({ unitId }: Props) {
             <AlertDialogHeader>
               <AlertDialogTitle>Recall {unit.displayName}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This ends the spawned session. Hook-observed sessions cannot be
-                recalled from Realmkeeper.
+                This ends the spawned session. Sessions Realmkeeper did not
+                spawn cannot be recalled from here.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() =>
-                  void window.rw.killAgent(unit.id).catch(() => {})
+                  void window.rw
+                    .controlSession({
+                      action: "stop",
+                      unitId: unit.id,
+                      sessionId: unit.sessionId,
+                      tool: unit.tool,
+                      cwd: unit.cwd,
+                      status: unit.status,
+                    })
+                    .catch(() => {})
                 }
               >
                 Recall

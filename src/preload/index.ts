@@ -5,6 +5,7 @@ import {
   AgentEventSchema,
   AppSettingsSchema,
   ApplyPermissionChoiceResponseSchema,
+  ControlSessionResponseSchema,
   HooksStatusSchema,
   ListPermissionRulesResponseSchema,
   ListUnitsResponseSchema,
@@ -19,6 +20,7 @@ import {
   WorkspaceRootValidationSchema,
   type ApplyPermissionChoiceRequest,
   type AppSettings,
+  type ControlSessionRequest,
   type SpawnAgentRequest,
   type SendPromptRequest,
   type PlayFixtureRequest,
@@ -82,6 +84,9 @@ const api = {
   },
   killAgent(unitId: string) {
     return invokeParsed(IPC.KillAgent, VoidResponseSchema, unitId);
+  },
+  controlSession(req: ControlSessionRequest) {
+    return invokeParsed(IPC.ControlSession, ControlSessionResponseSchema, req);
   },
   listUnits() {
     return invokeParsed(IPC.ListUnits, ListUnitsResponseSchema);

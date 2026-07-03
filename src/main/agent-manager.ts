@@ -30,6 +30,7 @@ type AnyAgent = {
   sessionId: string;
   cwd: string;
   send(prompt: string): void;
+  interrupt?(): void;
   kill(): void;
 };
 
@@ -90,6 +91,12 @@ export const AgentManager = {
     const agent = get(unitId);
     if (!agent) throw new Error(`Unknown unit ${unitId}`);
     agent.send(prompt);
+  },
+  interrupt(unitId: string) {
+    const agent = get(unitId);
+    if (!agent) throw new Error(`Unknown unit ${unitId}`);
+    if (!agent.interrupt) throw new Error(`Unit ${unitId} cannot interrupt`);
+    agent.interrupt();
   },
   kill(unitId: string) {
     get(unitId)?.kill();

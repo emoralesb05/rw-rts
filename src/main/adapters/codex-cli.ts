@@ -28,6 +28,7 @@ export type SpawnedCodexAgent = {
   cwd: string;
   proc: ChildProcess;
   send(prompt: string): void;
+  interrupt(): void;
   kill(): void;
 };
 

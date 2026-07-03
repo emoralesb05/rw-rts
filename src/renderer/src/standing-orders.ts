@@ -1,7 +1,8 @@
 /**
  * Standing Order loop runner — Phase 2B item #14b.
  *
- * Active orders fire their prompt at intervalMs cadence via window.rw.sendPrompt.
+ * Active orders fire their prompt at intervalMs cadence through
+ * window.rw.controlSession.
  * Each tick records ok/fail in the store; the store auto-flips status to
  * "exhausted" after maxIterations or "failed" after 3 consecutive failures.
  *
@@ -14,6 +15,7 @@
  * binds it to a matching spawned unit.
  */
 
+import { canControl, capabilitiesForUnit } from "@shared/session-capabilities";
 import { useStore } from "./store";
 
 const timers = new Map<string, ReturnType<typeof setInterval>>();
@@ -29,7 +31,7 @@ export function attachStandingOrderRunner(): () => void {
     const unit = useStore.getState().units[order.unitId];
     if (
       !unit ||
-      !unit.spawnedHere ||
+      !canControl(capabilitiesForUnit(unit), "runStandingOrder") ||
       unit.status === "fallen" ||
       unit.status === "complete"
     ) {
@@ -38,10 +40,16 @@ export function attachStandingOrderRunner(): () => void {
       return;
     }
     try {
-      await window.rw.sendPrompt({
+      const result = await window.rw.controlSession({
+        action: "send",
         unitId: order.unitId,
+        sessionId: unit.sessionId,
+        tool: unit.tool,
+        cwd: unit.cwd,
+        status: unit.status,
         prompt: `[Standing Order — iteration ${order.iterationsRun + 1}/${order.maxIterations}]\n\n${order.prompt}`,
       });
+      if (!result.ok) throw new Error(result.reason ?? "Send failed.");
       useStore.getState().recordOrderTick(orderId, true);
     } catch {
       useStore.getState().recordOrderTick(orderId, false);

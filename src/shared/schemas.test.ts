@@ -3,6 +3,8 @@ import {
   AgentEventSchema,
   ClaudeSettingsSchema,
   CodexThreadStartedSchema,
+  ControlSessionRequestSchema,
+  ControlSessionResponseSchema,
   CursorHooksFileSchema,
   FixtureScenarioSchema,
   GeminiInitMessageSchema,
@@ -47,6 +49,61 @@ describe("runtime schemas", () => {
       SpawnAgentRequestSchema.parse({
         prompt: "run",
         cwd: "/repo",
+        tool: "unknown",
+      })
+    ).toThrow();
+  });
+
+  it("accepts typed session-control requests and responses", () => {
+    expect(
+      ControlSessionRequestSchema.parse({
+        action: "send",
+        unitId: "unit-1",
+        sessionId: "session-1",
+        tool: "codex",
+        cwd: "/repo",
+        status: "working",
+        activeTurnKnown: true,
+        prompt: "continue",
+      })
+    ).toMatchObject({
+      action: "send",
+      tool: "codex",
+      prompt: "continue",
+    });
+
+    expect(
+      ControlSessionResponseSchema.parse({
+        action: "interrupt",
+        ok: false,
+        reason: "not available",
+      })
+    ).toEqual({
+      action: "interrupt",
+      ok: false,
+      reason: "not available",
+    });
+  });
+
+  it("rejects malformed session-control requests", () => {
+    expect(() =>
+      ControlSessionRequestSchema.parse({
+        action: "explode",
+        unitId: "unit-1",
+        tool: "claude",
+      })
+    ).toThrow();
+    expect(() =>
+      ControlSessionRequestSchema.parse({
+        action: "issueDecree",
+        unitId: "unit-1",
+        tool: "claude",
+      })
+    ).toThrow();
+    expect(() =>
+      ControlSessionRequestSchema.parse({
+        action: "send",
+        unitId: "unit-1",
         tool: "unknown",
       })
     ).toThrow();

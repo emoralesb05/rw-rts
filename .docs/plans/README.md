@@ -4,7 +4,13 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
-No active implementation plans.
+- [`agent-observability-control-plane/`](./agent-observability-control-plane/) —
+  local-first traces, session health, and monitor views for provider sessions.
+- [`session-control-plane/`](./session-control-plane/) — provider-aware
+  in-app send, steer, interrupt, fork, stop, and attach controls.
+- [`agent-orchestration-workflows/`](./agent-orchestration-workflows/) —
+  durable local runs that coordinate provider sessions through explicit
+  checkpoints, budgets, and human intervention.
 
 ## Removed From Active
 

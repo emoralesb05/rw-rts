@@ -6,34 +6,47 @@
 import { useCallback, useState } from "react";
 import { Send } from "lucide-react";
 import type { UnitState } from "@shared/events";
+import { capabilitiesForUnit } from "@shared/session-capabilities";
 import { Button } from "./components/kit/Button";
 import { Textarea } from "./components/kit/Textarea";
 
 export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
-  const ghosted = unit.status === "complete" || unit.status === "fallen";
-  const disabled = busy || ghosted;
+  const capabilities = capabilitiesForUnit(unit);
+  const sendCapability = capabilities.controls.send;
+  const disabled = busy || !sendCapability.available;
 
   const send = useCallback(async () => {
     const text = prompt.trim();
     if (!text || disabled) return;
     setBusy(true);
     try {
-      await window.rw.sendPrompt({
+      const result = await window.rw.controlSession({
+        action: "send",
         unitId: unit.id,
         sessionId: unit.sessionId,
         tool: unit.tool,
         cwd: unit.cwd,
+        status: unit.status,
         prompt: text,
       });
+      if (!result.ok) throw new Error(result.reason ?? "Send failed.");
       setPrompt("");
     } catch {
       // Keep the text in place so the user can retry.
     } finally {
       setBusy(false);
     }
-  }, [prompt, disabled, unit.id, unit.sessionId, unit.tool, unit.cwd]);
+  }, [
+    prompt,
+    disabled,
+    unit.id,
+    unit.sessionId,
+    unit.tool,
+    unit.cwd,
+    unit.status,
+  ]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Cmd/Ctrl+Enter sends; shift+enter inserts a newline; bare Enter
@@ -46,7 +59,7 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   };
 
   let placeholder: string;
-  if (ghosted) placeholder = `${unit.displayName} is no longer active.`;
+  if (!sendCapability.available) placeholder = sendCapability.reason;
   else placeholder = `Message ${unit.displayName}…  (⌘↵ to send)`;
 
   const canSend = !disabled && !!prompt.trim();

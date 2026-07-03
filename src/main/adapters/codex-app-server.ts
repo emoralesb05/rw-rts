@@ -24,6 +24,7 @@ export type CodexAppServerAgent = {
   cwd: string;
   proc: ChildProcess;
   send(prompt: string): void;
+  interrupt(): void;
   kill(): void;
 };
 
@@ -208,6 +209,22 @@ export async function spawnCodexAppServerAgent(opts: {
         source: "spawned",
       });
       void client.sendPrompt(prompt).catch((err: unknown) => {
+        bus.emitAgentEvent({
+          sessionId,
+          tool: "codex",
+          cwd: opts.cwd,
+          timestamp: Date.now(),
+          kind: "error",
+          payload: {
+            error: errorMessage(err),
+            codexAppServer: client.diagnostics("error"),
+          },
+          source: "spawned",
+        });
+      });
+    },
+    interrupt() {
+      void client.interruptActiveTurn().catch((err: unknown) => {
         bus.emitAgentEvent({
           sessionId,
           tool: "codex",

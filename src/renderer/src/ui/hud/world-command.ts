@@ -1,4 +1,5 @@
 import type { AgentEvent, Letter, UnitState, WorldState } from "@shared/events";
+import { canControl, capabilitiesForUnit } from "@shared/session-capabilities";
 
 export type WorldCommandReadState =
   | "calm"
@@ -83,6 +84,9 @@ export function createWorldCommandBrief(args: {
   const liveUnits = worldUnits.filter(isLive);
   const activeUnits = worldUnits.filter(unitIsActive);
   const spawnedLiveUnits = liveUnits.filter((unit) => unit.spawnedHere);
+  const stoppableLiveUnits = liveUnits.filter((unit) =>
+    canControl(capabilitiesForUnit(unit), "stop")
+  );
   const working = worldUnits.filter((unit) => unit.status === "working").length;
   const casting = worldUnits.filter((unit) => unit.status === "casting").length;
   const fallen = worldUnits.filter((unit) => unit.status === "fallen").length;
@@ -173,7 +177,7 @@ export function createWorldCommandBrief(args: {
     primaryUnit: liveUnits[0] ?? worldUnits[0],
     spawnedPrimaryUnit,
     comfortTarget,
-    recallTarget: spawnedPrimaryUnit,
+    recallTarget: stoppableLiveUnits[0],
     pendingLetters,
     recentEvents,
     canSeal:
