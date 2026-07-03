@@ -10,11 +10,17 @@
  */
 import {
   useEffect,
+  useMemo,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
 import { Check, Copy, Trash2 } from "lucide-react";
+import {
+  projectTraces,
+  type SpanRecord,
+  type TraceRecord,
+} from "@shared/traces";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -45,7 +51,7 @@ import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
 import type { HooksStatus, PermissionRule } from "@shared/schemas";
 
-type TabKey = "overview" | "settings" | "connection" | "demos";
+type TabKey = "overview" | "observatory" | "settings" | "connection" | "demos";
 
 const DEMO_FIXTURES = [
   {
@@ -213,6 +219,31 @@ function fmtRelDays(ts: number): string {
   return days === 0 ? "today" : `${days}d ago`;
 }
 
+function fmtDuration(ms: number | undefined): string {
+  if (ms === undefined) return "active";
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  return `${minutes}m`;
+}
+
+function traceStatusClass(status: TraceRecord["status"]): string {
+  if (status === "error") return "text-danger";
+  if (status === "completed") return "text-success";
+  return "text-warning";
+}
+
+function waitingLabel(span: SpanRecord): string {
+  if (span.kind === "permission_wait") return "permission";
+  if (span.kind === "user_input_wait") return "input";
+  return span.name;
+}
+
+function traceDisplayName(trace: TraceRecord): string {
+  return `${trace.tool} · ${trace.sessionId.slice(0, 12)}`;
+}
+
 function OverviewTab() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
@@ -352,6 +383,154 @@ function OverviewTab() {
           Active sessions stay running.
         </KingdomFooterNote>
       </KingdomSection>
+    </KingdomTab>
+  );
+}
+
+function ObservatoryTab() {
+  const events = useStore((s) => s.events);
+  const units = useStore((s) => s.units);
+  const openDrawerTab = usePanels((s) => s.openDrawerTab);
+  const traces = useMemo(
+    () => projectTraces(events).sort((a, b) => b.lastEventAt - a.lastEventAt),
+    [events]
+  );
+  const waiting = traces
+    .flatMap((trace) =>
+      trace.spans
+        .filter(
+          (span) =>
+            span.status === "active" &&
+            (span.kind === "permission_wait" || span.kind === "user_input_wait")
+        )
+        .map((span) => ({ trace, span }))
+    )
+    .slice(0, 6);
+  const recentErrors = traces
+    .flatMap((trace) =>
+      trace.spans
+        .filter((span) => span.status === "error")
+        .map((span) => ({ trace, span }))
+    )
+    .sort((a, b) => b.span.startTime - a.span.startTime)
+    .slice(0, 6);
+  const activeCount = traces.filter(
+    (trace) => trace.status === "active"
+  ).length;
+  const completedCount = traces.filter(
+    (trace) => trace.status === "completed"
+  ).length;
+  const errorCount = traces.filter((trace) => trace.status === "error").length;
+
+  const openTrace = (trace: TraceRecord) => {
+    const unit = units[trace.sessionId];
+    if (unit) openDrawerTab(unit.id);
+  };
+
+  return (
+    <KingdomTab>
+      <div className="grid grid-cols-4 gap-2">
+        <KingdomStat label="traces" value={traces.length} />
+        <KingdomStat label="active" value={activeCount} />
+        <KingdomStat label="waiting" value={waiting.length} />
+        <KingdomStat label="errors" value={errorCount} />
+      </div>
+
+      <KingdomSection title="Active waits" count={waiting.length}>
+        {waiting.length === 0 ? (
+          <KingdomEmpty>No active waits.</KingdomEmpty>
+        ) : (
+          <ul className={KINGDOM_LIST_CLASS}>
+            {waiting.map(({ trace, span }) => (
+              <li key={span.spanId} className={KINGDOM_LIST_ITEM_CLASS}>
+                <span className="text-warning">!</span>
+                <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                  {traceDisplayName(trace)}
+                </span>
+                <span className={KINGDOM_LIST_SECONDARY_CLASS}>
+                  {waitingLabel(span)}
+                </span>
+                <span className={KINGDOM_LIST_META_CLASS}>
+                  {fmtDuration(trace.lastEventAt - span.startTime)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </KingdomSection>
+
+      <KingdomSection title="Recent errors" count={recentErrors.length}>
+        {recentErrors.length === 0 ? (
+          <KingdomEmpty>
+            No trace errors in the current event window.
+          </KingdomEmpty>
+        ) : (
+          <ul className={KINGDOM_LIST_CLASS}>
+            {recentErrors.map(({ trace, span }) => (
+              <li key={span.spanId} className={KINGDOM_LIST_ITEM_CLASS}>
+                <span className="text-danger">×</span>
+                <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                  {traceDisplayName(trace)}
+                </span>
+                <span className={KINGDOM_LIST_SECONDARY_CLASS}>
+                  {span.content?.summary ?? span.name}
+                </span>
+                <span className={KINGDOM_LIST_META_CLASS}>
+                  {fmtDuration(trace.lastEventAt - span.startTime)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </KingdomSection>
+
+      <KingdomSection title="Trace sessions" count={traces.length}>
+        {traces.length === 0 ? (
+          <KingdomEmpty>No traces yet.</KingdomEmpty>
+        ) : (
+          <ul className={KINGDOM_LIST_CLASS}>
+            {traces.slice(0, 10).map((trace) => {
+              const unit = units[trace.sessionId];
+              const body = (
+                <>
+                  <span className={traceStatusClass(trace.status)}>●</span>
+                  <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                    {unit?.displayName ?? traceDisplayName(trace)}
+                  </span>
+                  <span className={KINGDOM_LIST_SECONDARY_CLASS}>
+                    {trace.tool} · {trace.spans.length} spans · {trace.status}
+                  </span>
+                  <span className={KINGDOM_LIST_META_CLASS}>
+                    {fmtDuration(trace.lastEventAt - trace.startedAt)}
+                  </span>
+                </>
+              );
+              return unit ? (
+                <li key={trace.traceId}>
+                  <button
+                    type="button"
+                    className={cn(
+                      KINGDOM_LIST_ITEM_CLASS,
+                      "hover:bg-accent-alt/[0.08] w-full cursor-pointer border-0 text-left"
+                    )}
+                    onClick={() => openTrace(trace)}
+                  >
+                    {body}
+                  </button>
+                </li>
+              ) : (
+                <li key={trace.traceId} className={KINGDOM_LIST_ITEM_CLASS}>
+                  {body}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </KingdomSection>
+
+      <KingdomFooterNote>
+        Completed traces: {completedCount}. Error traces: {errorCount}.
+      </KingdomFooterNote>
     </KingdomTab>
   );
 }
@@ -1087,12 +1266,16 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
     >
       <TabsList aria-label="kingdom panel">
         <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="observatory">Observatory</TabsTrigger>
         <TabsTrigger value="settings">Settings</TabsTrigger>
         <TabsTrigger value="connection">Connection</TabsTrigger>
         <TabsTrigger value="demos">Demos</TabsTrigger>
       </TabsList>
       <TabsContent value="overview">
         <OverviewTab />
+      </TabsContent>
+      <TabsContent value="observatory">
+        <ObservatoryTab />
       </TabsContent>
       <TabsContent value="settings">
         <SettingsPanelBody
