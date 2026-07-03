@@ -85,6 +85,12 @@ let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
 
+function isE2EFixtureSession(sessionId: string): boolean {
+  return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture)-/.test(
+    sessionId
+  );
+}
+
 if (isE2E && process.env.REALMKEEPER_USER_DATA) {
   app.setPath("userData", process.env.REALMKEEPER_USER_DATA);
 }
@@ -282,6 +288,18 @@ void app.whenReady().then(async () => {
       }
       if (!req.sessionId || !req.tool || !req.cwd) {
         throw new Error(`Unknown unit ${req.unitId}`);
+      }
+      if (isE2E && isE2EFixtureSession(req.sessionId)) {
+        bus.emitAgentEvent({
+          sessionId: req.sessionId,
+          tool: req.tool,
+          cwd: req.cwd,
+          timestamp: Date.now(),
+          kind: "user_prompt",
+          payload: { text: req.prompt },
+          source: "realmkeeper",
+        });
+        return;
       }
       AgentManager.sendToObserved(
         { sessionId: req.sessionId, tool: req.tool, cwd: req.cwd },

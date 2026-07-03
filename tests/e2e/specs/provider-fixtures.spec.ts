@@ -36,6 +36,32 @@ test("renders activity for all provider fixture turns", async ({
   ).toBeVisible();
 });
 
+test("sends chat follow-ups through Realmkeeper prompt IPC", async ({
+  appPage: page,
+}) => {
+  await waitForRealmkeeper(page);
+  await playFixture(page, "cursor-turn");
+  await waitForTools(page, ["cursor"]);
+
+  await page
+    .getByRole("button", { name: /Open chat with /i })
+    .first()
+    .click();
+  const chatDrawer = page.getByRole("complementary", {
+    name: "Wielder chats",
+  });
+  await expect(chatDrawer).toBeVisible();
+
+  const prompt = "Please summarize the fixture follow-up.";
+  const input = page.getByPlaceholder(/Message .+⌘↵ to send/i);
+  await input.fill(prompt);
+  await chatDrawer.getByRole("button", { name: /^Send message to /i }).click();
+
+  await expect(input).toHaveValue("");
+  await expect(chatDrawer.getByText("via Realmkeeper")).toBeVisible();
+  await expect(chatDrawer.getByText(prompt)).toBeVisible();
+});
+
 test("submits Codex user-input and MCP elicitation letters", async ({
   appPage: page,
 }) => {
