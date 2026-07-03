@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AgentEvent } from "@shared/events";
 import { MainOrchestrationEngine } from "./orchestration-engine";
 import { LocalOrchestrationStore } from "./orchestration-store";
 
@@ -49,6 +50,25 @@ function providerTarget(
     cwd: "/repo",
     status: "idle" as const,
     ...overrides,
+  };
+}
+
+function providerEvent(
+  overrides: Partial<AgentEvent> & {
+    kind: AgentEvent["kind"];
+    timestamp: number;
+  }
+): AgentEvent {
+  const { kind, timestamp, ...rest } = overrides;
+  return {
+    sessionId: "session-2",
+    tool: "claude",
+    cwd: "/repo",
+    timestamp,
+    kind,
+    payload: {},
+    source: "hook",
+    ...rest,
   };
 }
 
@@ -330,15 +350,53 @@ describe("MainOrchestrationEngine", () => {
         "[Provider Handoff Review]\n\nReview this change.\n\nSource trace: trace-1",
     });
     await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "completed",
+      status: "running",
+      providerSessions: [
+        {
+          tool: "claude",
+          sessionId: "session-2",
+          unitId: "unit-2",
+          traceId: "trace:claude:session-2",
+        },
+      ],
+      traceIds: ["trace:claude:session-2"],
       steps: [
         {
           kind: "provider-handoff-review-send",
           status: "completed",
           providerSessionId: "session-2",
         },
+        {
+          kind: "provider-handoff-review-result",
+          status: "running",
+          providerSessionId: "session-2",
+        },
       ],
       checkpoints: [{ label: "Provider handoff review sent" }],
+    });
+
+    await engine.ingestAgentEvent(
+      providerEvent({
+        kind: "assistant_text",
+        timestamp: 50_100,
+        payload: { text: "Looks good; add one regression test." },
+      })
+    );
+
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      steps: [
+        { kind: "provider-handoff-review-send", status: "completed" },
+        {
+          kind: "provider-handoff-review-result",
+          status: "completed",
+          outputSummary: "Looks good; add one regression test.",
+        },
+      ],
+      checkpoints: [
+        { label: "Provider handoff review sent" },
+        { label: "Provider response captured" },
+      ],
     });
   });
 
@@ -392,11 +450,50 @@ describe("MainOrchestrationEngine", () => {
       })
     );
     await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "completed",
+      status: "running",
       steps: [
         { kind: "parallel-provider-comparison-send", status: "completed" },
+        { kind: "parallel-provider-comparison-result", status: "running" },
         { kind: "parallel-provider-comparison-send", status: "completed" },
+        { kind: "parallel-provider-comparison-result", status: "running" },
       ],
+    });
+
+    await engine.ingestAgentEvent(
+      providerEvent({
+        kind: "assistant_text",
+        timestamp: 60_100,
+        payload: { text: "Claude favors a smaller patch." },
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "running",
+      steps: [
+        { kind: "parallel-provider-comparison-send", status: "completed" },
+        {
+          kind: "parallel-provider-comparison-result",
+          status: "completed",
+          outputSummary: "Claude favors a smaller patch.",
+        },
+        { kind: "parallel-provider-comparison-send", status: "completed" },
+        { kind: "parallel-provider-comparison-result", status: "running" },
+      ],
+    });
+
+    await engine.ingestAgentEvent(
+      providerEvent({
+        sessionId: "session-3",
+        tool: "codex",
+        kind: "assistant_text",
+        timestamp: 60_200,
+        payload: { text: "Codex recommends updating the e2e fixture too." },
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      checkpoints: expect.arrayContaining([
+        expect.objectContaining({ label: "Provider response captured" }),
+      ]),
     });
   });
 
@@ -436,9 +533,148 @@ describe("MainOrchestrationEngine", () => {
       })
     );
     await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "completed",
-      steps: [{ kind: "fix-then-test-send", status: "completed" }],
+      status: "running",
+      steps: [
+        { kind: "fix-then-test-send", status: "completed" },
+        { kind: "fix-then-test-result", status: "running" },
+      ],
       checkpoints: [{ label: "Fix-then-test prompt sent" }],
+    });
+
+    await engine.ingestAgentEvent(
+      providerEvent({
+        tool: "codex",
+        kind: "tool_result",
+        timestamp: 70_100,
+        payload: { output: "FAIL renderer.spec.ts" },
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "running",
+      steps: [
+        { kind: "fix-then-test-send", status: "completed" },
+        {
+          kind: "fix-then-test-result",
+          status: "running",
+          outputSummary: "FAIL renderer.spec.ts",
+        },
+      ],
+      checkpoints: [
+        { label: "Fix-then-test prompt sent" },
+        { label: "Provider tool result captured" },
+      ],
+    });
+
+    await engine.ingestAgentEvent(
+      providerEvent({
+        tool: "codex",
+        kind: "assistant_text",
+        timestamp: 70_200,
+        payload: { text: "Fixed the renderer test and reran bun run test." },
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      steps: [
+        { kind: "fix-then-test-send", status: "completed" },
+        {
+          kind: "fix-then-test-result",
+          status: "completed",
+          outputSummary: "Fixed the renderer test and reran bun run test.",
+        },
+      ],
+    });
+  });
+
+  it("does not resend one-shot prompts while waiting for provider output", async () => {
+    const time = clock(75_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "provider-handoff-review",
+      title: "Review handoff once",
+      status: "running",
+      params: {
+        target: providerTarget(),
+        handoffPrompt: "Review this once.",
+      },
+      budget: { maxRuntimeMs: 60_000 },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickDueRuns();
+    await engine.tickDueRuns();
+
+    expect(controlSession).toHaveBeenCalledTimes(1);
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "running",
+      steps: [
+        { kind: "provider-handoff-review-send", status: "completed" },
+        { kind: "provider-handoff-review-result", status: "running" },
+      ],
+    });
+  });
+
+  it("pauses one-shot runs when provider output emits an error", async () => {
+    const time = clock(77_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "provider-handoff-review",
+      title: "Review handoff error",
+      status: "running",
+      params: {
+        target: providerTarget(),
+        handoffPrompt: "Review this change.",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+    await engine.ingestAgentEvent(
+      providerEvent({
+        kind: "error",
+        timestamp: 77_100,
+        payload: { error: "Provider crashed." },
+      })
+    );
+
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason:
+        "Provider emitted an error while the run was waiting for output.",
+      steps: [
+        { kind: "provider-handoff-review-send", status: "completed" },
+        {
+          kind: "provider-handoff-review-result",
+          status: "failed",
+          error: "Provider crashed.",
+        },
+      ],
+      checkpoints: [
+        { label: "Provider handoff review sent" },
+        { label: "Provider error captured" },
+      ],
     });
   });
 

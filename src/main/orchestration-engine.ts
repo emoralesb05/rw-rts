@@ -5,7 +5,9 @@ import {
   type ControlSessionRequest,
   type ControlSessionResponse,
 } from "@shared/schemas";
+import type { AgentEvent, AgentEventKind, AgentTool } from "@shared/events";
 import type {
+  OrchestrationProviderSession,
   OrchestrationRun,
   OrchestrationStep,
 } from "@shared/orchestration";
@@ -81,6 +83,13 @@ const DEFAULT_MAX_ITERATIONS =
   STANDING_ORDER_DEFAULT_BUDGET.maxIterations ?? 24;
 const DEFAULT_MAX_CONSECUTIVE_FAILURES =
   STANDING_ORDER_DEFAULT_BUDGET.maxConsecutiveFailures ?? 3;
+const RESULT_SUMMARY_LIMIT = 360;
+const CAPTURE_EVENT_KINDS = new Set<AgentEventKind>([
+  "assistant_text",
+  "tool_result",
+  "error",
+  "session_end",
+]);
 
 export class MainOrchestrationEngine {
   private readonly store: LocalOrchestrationStore;
@@ -140,6 +149,28 @@ export class MainOrchestrationEngine {
     }
   }
 
+  async ingestAgentEvent(event: AgentEvent): Promise<OrchestrationRun[]> {
+    if (!CAPTURE_EVENT_KINDS.has(event.kind)) return [];
+    const matches = (await this.store.listRuns())
+      .flatMap((run) =>
+        pendingCaptureSteps(run, event).map((step) => ({ run, step }))
+      )
+      .sort(
+        (a, b) =>
+          (a.step.startedAt ?? a.step.createdAt) -
+            (b.step.startedAt ?? b.step.createdAt) ||
+          a.run.createdAt - b.run.createdAt
+      );
+    const match = matches[0];
+    if (!match) return [];
+    const captured = await this.captureOneShotEvent(
+      match.run,
+      match.step,
+      event
+    );
+    return captured ? [captured] : [];
+  }
+
   private async tickStandingOrder(
     run: OrchestrationRun
   ): Promise<OrchestrationRun | undefined> {
@@ -157,6 +188,12 @@ export class MainOrchestrationEngine {
     }
 
     const params = parsed.data;
+    if (!hasRecordedProviderSession(run, params)) {
+      await this.store.recordProviderSession(
+        run.id,
+        providerSessionForTarget(params)
+      );
+    }
     const iteration = standingOrderTickCount(run) + 1;
     const maxIterations = run.budget.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     const result = await this.sendStandingOrderControl(
@@ -217,13 +254,19 @@ export class MainOrchestrationEngine {
       );
     }
     const params = parsed.data;
-    return this.tickOneShotSend({
+    const budgetPauseReason = runtimeBudgetPauseReason(run, this.now());
+    if (budgetPauseReason) {
+      return this.store.pauseRunForBudget(run.id, budgetPauseReason);
+    }
+    return this.ensureOneShotSend({
       run,
       target: params.target,
       stepId: `${run.id}:provider-handoff-review:send`,
       stepKind: "provider-handoff-review-send",
       stepTitle: "Send provider handoff review",
       checkpointLabel: "Provider handoff review sent",
+      captureKind: "provider-handoff-review-result",
+      captureTitle: "Capture provider handoff review",
       prompt: providerHandoffPrompt(params),
       inputSummary: params.handoffPrompt,
     });
@@ -241,22 +284,29 @@ export class MainOrchestrationEngine {
         "Parallel provider comparison run is missing provider targets."
       );
     }
+    const budgetPauseReason = runtimeBudgetPauseReason(run, this.now());
+    if (budgetPauseReason) {
+      return this.store.pauseRunForBudget(run.id, budgetPauseReason);
+    }
     const params = parsed.data;
+    let currentRun = run;
     for (const [idx, target] of params.providerTargets.entries()) {
-      const result = await this.tickOneShotSend({
-        run,
+      const result = await this.ensureOneShotSend({
+        run: currentRun,
         target,
         stepId: `${run.id}:parallel-provider-comparison:${idx + 1}`,
         stepKind: "parallel-provider-comparison-send",
         stepTitle: `Send comparison prompt ${idx + 1}`,
         checkpointLabel: `Parallel comparison prompt ${idx + 1} sent`,
+        captureKind: "parallel-provider-comparison-result",
+        captureTitle: `Capture comparison response ${idx + 1}`,
         prompt: parallelComparisonPrompt(params),
         inputSummary: params.comparisonPrompt,
-        completeOnSuccess: false,
       });
       if (result?.status !== "running") return result;
+      currentRun = result;
     }
-    return this.store.completeRun(run.id);
+    return completeIfAllCapturesFinished(this.store, currentRun);
   }
 
   private async tickFixThenTest(
@@ -270,29 +320,65 @@ export class MainOrchestrationEngine {
       );
     }
     const params = parsed.data;
-    return this.tickOneShotSend({
+    const budgetPauseReason = runtimeBudgetPauseReason(run, this.now());
+    if (budgetPauseReason) {
+      return this.store.pauseRunForBudget(run.id, budgetPauseReason);
+    }
+    return this.ensureOneShotSend({
       run,
       target: params.target,
       stepId: `${run.id}:fix-then-test:send`,
       stepKind: "fix-then-test-send",
       stepTitle: "Send fix-then-test prompt",
       checkpointLabel: "Fix-then-test prompt sent",
+      captureKind: "fix-then-test-result",
+      captureTitle: "Capture fix-then-test result",
       prompt: fixThenTestPrompt(params),
       inputSummary: `${params.taskPrompt}\n${params.verificationCommand}`,
     });
   }
 
-  private async tickOneShotSend(options: {
+  private async ensureOneShotSend(options: {
     run: OrchestrationRun;
     target: ProviderTarget;
     stepId: string;
     stepKind: string;
     stepTitle: string;
     checkpointLabel: string;
+    captureKind: string;
+    captureTitle: string;
     prompt: string;
     inputSummary: string;
-    completeOnSuccess?: boolean;
   }): Promise<OrchestrationRun | undefined> {
+    if (!hasRecordedProviderSession(options.run, options.target)) {
+      await this.store.recordProviderSession(
+        options.run.id,
+        providerSessionForTarget(options.target)
+      );
+    }
+    const captureId = captureStepId(options.stepId);
+    const existingSend = options.run.steps.find(
+      (step) => step.id === options.stepId
+    );
+    if (existingSend) {
+      if (
+        existingSend.status === "completed" &&
+        !options.run.steps.some((step) => step.id === captureId)
+      ) {
+        return this.store.upsertStep(
+          options.run.id,
+          oneShotCaptureStep({
+            id: captureId,
+            kind: options.captureKind,
+            title: options.captureTitle,
+            target: options.target,
+            now: this.now(),
+          })
+        );
+      }
+      return options.run;
+    }
+
     const result = await this.sendProviderControl(
       options.target,
       options.prompt,
@@ -317,6 +403,7 @@ export class MainOrchestrationEngine {
         : `${options.stepTitle} failed`,
       createdAt: now,
       stepId: step.id,
+      traceId: stableTraceId(options.target.tool, options.target.sessionId),
       state: {
         ok: result.ok,
         reason: result.reason,
@@ -331,18 +418,71 @@ export class MainOrchestrationEngine {
         result.reason ?? "Provider control failed."
       );
     }
-    if (options.completeOnSuccess === false) return latest;
-    return this.store.completeRun(options.run.id);
+    return this.store.upsertStep(
+      options.run.id,
+      oneShotCaptureStep({
+        id: captureId,
+        kind: options.captureKind,
+        title: options.captureTitle,
+        target: options.target,
+        now,
+      })
+    );
+  }
+
+  private async captureOneShotEvent(
+    run: OrchestrationRun,
+    step: OrchestrationStep,
+    event: AgentEvent
+  ): Promise<OrchestrationRun | undefined> {
+    const now = this.now();
+    const capture = capturedOutput(event);
+    const failed = event.kind === "error";
+    const completed =
+      event.kind === "assistant_text" || event.kind === "session_end";
+    const nextStep: OrchestrationStep = {
+      ...step,
+      status: failed ? "failed" : completed ? "completed" : "running",
+      updatedAt: now,
+      endedAt: failed || completed ? now : step.endedAt,
+      outputSummary: capture.summary,
+      error: failed ? capture.summary : step.error,
+    };
+    await this.store.upsertStep(run.id, nextStep);
+    await this.store.addCheckpoint(run.id, {
+      id: captureCheckpointId(run, step),
+      label: capture.label,
+      createdAt: now,
+      stepId: step.id,
+      traceId: stableTraceId(event.tool, event.sessionId),
+      state: {
+        eventKind: event.kind,
+        summary: capture.summary,
+        sessionId: event.sessionId,
+        tool: event.tool,
+      },
+    });
+
+    const latest = await this.store.getRun(run.id);
+    if (!latest) return undefined;
+    if (failed) {
+      return this.store.pauseRun(
+        run.id,
+        "Provider emitted an error while the run was waiting for output."
+      );
+    }
+    if (!completed) return latest;
+    return completeIfAllCapturesFinished(this.store, latest);
   }
 
   private isDue(run: OrchestrationRun): boolean {
     if (run.status !== "running") return false;
     if (run.template !== STANDING_ORDER_TEMPLATE_ID) {
+      if (!isOneShotTemplate(run.template)) return false;
       return (
-        (run.template === PROVIDER_HANDOFF_TEMPLATE_ID ||
-          run.template === PARALLEL_COMPARISON_TEMPLATE_ID ||
-          run.template === FIX_THEN_TEST_TEMPLATE_ID) &&
-        run.steps.length === 0
+        run.steps.length === 0 ||
+        hasPendingCaptureStep(run) ||
+        Boolean(runtimeBudgetPauseReason(run, this.now()))
       );
     }
     const parsed = StandingOrderRunParamsSchema.safeParse(run.params ?? {});
@@ -443,12 +583,176 @@ function oneShotStep(options: {
     startedAt: options.now,
     endedAt: options.now,
     providerSessionId: options.target.sessionId,
+    traceId: stableTraceId(options.target.tool, options.target.sessionId),
     inputSummary: options.inputSummary,
     outputSummary: options.result.ok ? "sent" : undefined,
     error: options.result.ok
       ? undefined
       : (options.result.reason ?? "Send failed."),
   };
+}
+
+function oneShotCaptureStep(options: {
+  id: string;
+  kind: string;
+  title: string;
+  target: ProviderTarget;
+  now: number;
+}): OrchestrationStep {
+  return {
+    id: options.id,
+    title: options.title,
+    kind: options.kind,
+    status: "running",
+    attempts: 1,
+    createdAt: options.now,
+    updatedAt: options.now,
+    startedAt: options.now,
+    providerSessionId: options.target.sessionId,
+    traceId: stableTraceId(options.target.tool, options.target.sessionId),
+    inputSummary: "Waiting for provider output.",
+  };
+}
+
+function pendingCaptureSteps(
+  run: OrchestrationRun,
+  event: AgentEvent
+): OrchestrationStep[] {
+  if (run.status !== "running" || !isOneShotTemplate(run.template)) return [];
+  return oneShotCaptureSteps(run).filter((step) => {
+    if (step.status !== "running") return false;
+    if (step.providerSessionId !== event.sessionId) return false;
+    if (
+      step.traceId &&
+      step.traceId !== stableTraceId(event.tool, event.sessionId)
+    ) {
+      return false;
+    }
+    const startedAt = step.startedAt ?? step.createdAt;
+    return event.timestamp >= startedAt;
+  });
+}
+
+function oneShotCaptureSteps(run: OrchestrationRun): OrchestrationStep[] {
+  return run.steps.filter((step) => step.kind.endsWith("-result"));
+}
+
+function hasPendingCaptureStep(run: OrchestrationRun): boolean {
+  return oneShotCaptureSteps(run).some((step) => step.status === "running");
+}
+
+async function completeIfAllCapturesFinished(
+  store: LocalOrchestrationStore,
+  run: OrchestrationRun
+): Promise<OrchestrationRun | undefined> {
+  const latest = (await store.getRun(run.id)) ?? run;
+  const captureSteps = oneShotCaptureSteps(latest);
+  if (
+    captureSteps.length > 0 &&
+    captureSteps.every((step) => step.status === "completed")
+  ) {
+    return store.completeRun(latest.id);
+  }
+  return latest;
+}
+
+function isOneShotTemplate(template: string): boolean {
+  return (
+    template === PROVIDER_HANDOFF_TEMPLATE_ID ||
+    template === PARALLEL_COMPARISON_TEMPLATE_ID ||
+    template === FIX_THEN_TEST_TEMPLATE_ID
+  );
+}
+
+function providerSessionForTarget(
+  target: Pick<ProviderTarget, "unitId" | "sessionId" | "tool" | "cwd">
+): OrchestrationProviderSession {
+  return {
+    unitId: target.unitId,
+    sessionId: target.sessionId,
+    tool: target.tool,
+    cwd: target.cwd,
+    traceId: stableTraceId(target.tool, target.sessionId),
+  };
+}
+
+function hasRecordedProviderSession(
+  run: OrchestrationRun,
+  target: Pick<ProviderTarget, "sessionId" | "tool">
+): boolean {
+  const traceId = stableTraceId(target.tool, target.sessionId);
+  return (
+    run.providerSessions.some(
+      (session) =>
+        session.tool === target.tool && session.sessionId === target.sessionId
+    ) && run.traceIds.includes(traceId)
+  );
+}
+
+function stableTraceId(tool: AgentTool, sessionId: string): string {
+  return `trace:${tool}:${sessionId}`;
+}
+
+function captureStepId(sendStepId: string): string {
+  return `${sendStepId}:result`;
+}
+
+function captureCheckpointId(
+  run: OrchestrationRun,
+  step: OrchestrationStep
+): string {
+  const prefix = `${step.id}:capture:`;
+  const count =
+    run.checkpoints.filter((checkpoint) => checkpoint.id.startsWith(prefix))
+      .length + 1;
+  return `${prefix}${count}`;
+}
+
+function capturedOutput(event: AgentEvent): { label: string; summary: string } {
+  if (event.kind === "assistant_text") {
+    return {
+      label: "Provider response captured",
+      summary: compactSummary(event.payload.text ?? "Assistant responded."),
+    };
+  }
+  if (event.kind === "tool_result") {
+    return {
+      label: "Provider tool result captured",
+      summary: compactSummary(
+        event.payload.output ?? event.payload.text ?? "Tool result emitted."
+      ),
+    };
+  }
+  if (event.kind === "error") {
+    return {
+      label: "Provider error captured",
+      summary: compactSummary(
+        event.payload.error ?? event.payload.text ?? "Provider emitted error."
+      ),
+    };
+  }
+  return {
+    label: "Provider session ended",
+    summary: compactSummary(event.payload.text ?? "Provider session ended."),
+  };
+}
+
+function compactSummary(value: unknown): string {
+  const text = serializeSummary(value).replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > RESULT_SUMMARY_LIMIT
+    ? `${text.slice(0, RESULT_SUMMARY_LIMIT - 1)}…`
+    : text;
+}
+
+function serializeSummary(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value === undefined || value === null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function providerHandoffPrompt(params: ProviderHandoffRunParams): string {

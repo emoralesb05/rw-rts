@@ -116,6 +116,9 @@ const orchestrationEngine = new MainOrchestrationEngine({
   store: orchestrationStore,
   controlSession,
 });
+bus.onAgentEvent((event) => {
+  void orchestrationEngine.ingestAgentEvent(event);
+});
 
 function isE2EFixtureSession(sessionId: string): boolean {
   return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture)-/.test(

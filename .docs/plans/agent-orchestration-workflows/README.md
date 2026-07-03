@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (run draft target/parameter selection shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (one-shot run result capture shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -105,14 +105,15 @@ Shipped on `main`:
   comparison, and fix-then-test templates as checkpointed one-shot sends
   through `rw:control-session`, completing on success and pausing visibly when
   required target metadata or provider control is unavailable.
+- One-shot templates now wait for provider output after sending, record compact
+  assistant/tool/error/session-end result checkpoints against the provider
+  trace, complete only after every target produces a response, and pause if
+  provider output emits an error.
 - Electron e2e covers Run Board durable controls and target-backed queued
   template creation.
 
 Still active:
 
-- Capture provider responses/results for one-shot templates; current execution
-  records successful prompt send checkpoints, not semantic review/comparison
-  completion.
 - Retire or migrate the legacy renderer Standing Order runner once old
   persisted `standingOrders` are safely converted or expired.
 - Add fixture/e2e coverage for recurring prompt completion, provider error

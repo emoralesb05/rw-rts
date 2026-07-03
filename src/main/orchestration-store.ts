@@ -8,6 +8,7 @@ import {
   OrchestrationStoreFileSchema,
   type OrchestrationCheckpoint,
   type OrchestrationEventKind,
+  type OrchestrationProviderSession,
   type OrchestrationRun,
   type OrchestrationRunEvent,
   type OrchestrationRunStatus,
@@ -148,6 +149,26 @@ export class LocalOrchestrationStore {
         }),
       ],
     }));
+  }
+
+  async recordProviderSession(
+    runId: string,
+    session: OrchestrationProviderSession
+  ): Promise<OrchestrationRun> {
+    return this.updateRun(runId, (run, now) => {
+      const providerSessions = upsertProviderSession(
+        run.providerSessions,
+        session
+      );
+      return {
+        ...run,
+        providerSessions,
+        traceIds: session.traceId
+          ? uniqueStrings([...run.traceIds, session.traceId])
+          : run.traceIds,
+        updatedAt: now,
+      };
+    });
   }
 
   async startRun(runId: string): Promise<OrchestrationRun> {
@@ -335,4 +356,22 @@ function migrateStoreFile(value: unknown): OrchestrationStoreFile {
     schemaVersion: 1,
     runs,
   });
+}
+
+function upsertProviderSession(
+  sessions: OrchestrationProviderSession[],
+  next: OrchestrationProviderSession
+): OrchestrationProviderSession[] {
+  const existing = sessions.findIndex(
+    (session) =>
+      session.tool === next.tool && session.sessionId === next.sessionId
+  );
+  if (existing < 0) return [...sessions, next];
+  return sessions.map((session, idx) =>
+    idx === existing ? { ...session, ...next } : session
+  );
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values));
 }
