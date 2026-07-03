@@ -179,6 +179,42 @@ describe("MainOrchestrationEngine", () => {
     });
   });
 
+  it("pauses standing-order runs before sending when runtime budget is exceeded", async () => {
+    const time = clock(27_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "standing-order",
+      title: "Runtime budget",
+      status: "running",
+      params: standingOrderParams(),
+      budget: { maxRuntimeMs: 10 },
+    });
+    time.set(27_020);
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).not.toHaveBeenCalled();
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason: "Run exceeded runtime budget (20ms/10ms).",
+      events: expect.arrayContaining([
+        expect.objectContaining({ kind: "budget_exceeded" }),
+      ]),
+    });
+  });
+
   it("pauses malformed standing-order runs before provider control", async () => {
     const store = new LocalOrchestrationStore({
       rootDir: await tempRoot(),

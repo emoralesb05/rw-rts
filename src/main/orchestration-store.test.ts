@@ -151,6 +151,36 @@ describe("LocalOrchestrationStore", () => {
     expect(emitted).toEqual(["started", "step_updated", "checkpoint"]);
   });
 
+  it("pauses runs with a budget-exceeded event", async () => {
+    const emitted: string[] = [];
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: clock(2_800),
+      onRunEvent: (_run, event) => emitted.push(event.kind),
+    });
+    const run = await store.createRun({
+      template: "standing-order",
+      title: "Budget guard",
+      status: "running",
+      budget: { maxRuntimeMs: 1000 },
+    });
+
+    const paused = await store.pauseRunForBudget(
+      run.id,
+      "Run exceeded runtime budget."
+    );
+
+    expect(paused).toMatchObject({
+      status: "paused",
+      pauseReason: "Run exceeded runtime budget.",
+      events: expect.arrayContaining([
+        expect.objectContaining({ kind: "budget_exceeded" }),
+      ]),
+    });
+    expect(emitted).toEqual(["started", "budget_exceeded"]);
+  });
+
   it("records stop and failure terminal states", async () => {
     const store = new LocalOrchestrationStore({
       rootDir: await tempRoot(),

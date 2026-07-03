@@ -174,6 +174,19 @@ export class LocalOrchestrationStore {
     return this.transition(runId, "failed", "failed", reason);
   }
 
+  async pauseRunForBudget(
+    runId: string,
+    reason: string
+  ): Promise<OrchestrationRun> {
+    return this.updateRun(runId, (run, now) => ({
+      ...run,
+      status: "paused",
+      pauseReason: reason,
+      updatedAt: now,
+      events: [...run.events, this.event("budget_exceeded", now, reason)],
+    }));
+  }
+
   async recoverAfterRestart(): Promise<OrchestrationRun[]> {
     const file = await this.load();
     const recovered: OrchestrationRun[] = [];

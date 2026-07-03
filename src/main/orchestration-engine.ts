@@ -85,6 +85,11 @@ export class MainOrchestrationEngine {
     if (!run || run.status !== "running") return run;
     if (run.template !== "standing-order") return run;
 
+    const budgetPauseReason = runtimeBudgetPauseReason(run, this.now());
+    if (budgetPauseReason) {
+      return this.store.pauseRunForBudget(run.id, budgetPauseReason);
+    }
+
     const parsed = StandingOrderRunParamsSchema.safeParse(run.params ?? {});
     if (!parsed.success) {
       return this.store.pauseRun(
@@ -247,4 +252,13 @@ function shouldPauseForControlFailure(result: ControlSessionResponse): boolean {
     result.reasonCode === "invalid_request" ||
     result.reasonCode === "provider_error"
   );
+}
+
+function runtimeBudgetPauseReason(run: OrchestrationRun, now: number): string {
+  const maxRuntimeMs = run.budget.maxRuntimeMs;
+  if (maxRuntimeMs === undefined) return "";
+  const startedAt = run.startedAt ?? run.createdAt;
+  const elapsedMs = Math.max(0, now - startedAt);
+  if (elapsedMs < maxRuntimeMs) return "";
+  return `Run exceeded runtime budget (${elapsedMs}ms/${maxRuntimeMs}ms).`;
 }
