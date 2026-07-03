@@ -1,87 +1,66 @@
-/**
- * Standing Order loop runner — Phase 2B item #14b.
- *
- * Active orders fire their prompt at intervalMs cadence through
- * window.rw.controlSession.
- * Each tick records ok/fail in the store; the store auto-flips status to
- * "exhausted" after maxIterations or "failed" after 3 consecutive failures.
- *
- * Per Q37 (vision.md): max 24 iterations default, stop after 3 in-a-row
- * failures, no cost cap. Failure = sendPrompt rejected (network/IPC error)
- * — tool-result-level failure isn't visible from this layer.
- *
- * Active orders are persisted by store.ts. If an order rehydrates
- * before its wielder appears, this runner waits until applyOneEvent
- * binds it to a matching spawned unit.
- */
-
-import { canControl, capabilitiesForUnit } from "@shared/session-capabilities";
+import {
+  defaultBudgetForTemplate,
+  STANDING_ORDER_TEMPLATE_ID,
+} from "@shared/orchestration-templates";
 import { useStore } from "./store";
 
-const timers = new Map<string, ReturnType<typeof setInterval>>();
+const migrating = new Set<string>();
 
-export function attachStandingOrderRunner(): () => void {
-  const tick = async (orderId: string) => {
-    const order = useStore.getState().standingOrders[orderId];
-    if (!order || order.status !== "active") return;
-    // Order persisted from a prior session and the wielder hasn't
-    // reappeared yet — wait silently. applyOneEvent will bind unitId
-    // when a matching session shows up.
-    if (!order.unitId) return;
-    const unit = useStore.getState().units[order.unitId];
-    if (
-      !unit ||
-      !canControl(capabilitiesForUnit(unit), "runStandingOrder") ||
-      unit.status === "fallen" ||
-      unit.status === "complete"
-    ) {
-      // Wielder is gone or in a state where commands won't land — halt.
-      useStore.getState().haltStandingOrder(orderId);
-      return;
-    }
+export function attachStandingOrderMigrator(): () => void {
+  const migrate = async (orderId: string) => {
+    const state = useStore.getState();
+    const order = state.standingOrders[orderId];
+    if (!order || order.status !== "active" || !order.unitId) return;
+    if (migrating.has(orderId)) return;
+    const unit = state.units[order.unitId];
+    if (!unit) return;
+
+    migrating.add(orderId);
     try {
-      const result = await window.rw.controlSession({
-        action: "send",
-        unitId: order.unitId,
-        sessionId: unit.sessionId,
-        tool: unit.tool,
+      const remainingIterations = Math.max(
+        1,
+        order.maxIterations - order.iterationsRun
+      );
+      const run = await window.rw.createOrchestrationRun({
+        template: STANDING_ORDER_TEMPLATE_ID,
+        title: `Standing Order · ${unit.displayName}`,
+        status: "running",
         cwd: unit.cwd,
-        status: unit.status,
-        prompt: `[Standing Order — iteration ${order.iterationsRun + 1}/${order.maxIterations}]\n\n${order.prompt}`,
+        repoRoot: unit.repoRoot,
+        params: {
+          unitId: unit.id,
+          sessionId: unit.sessionId,
+          tool: unit.tool,
+          cwd: unit.cwd,
+          status: unit.status,
+          prompt: order.prompt,
+          intervalMs: order.intervalMs,
+          migratedStandingOrderId: order.id,
+        },
+        budget: {
+          ...defaultBudgetForTemplate(STANDING_ORDER_TEMPLATE_ID),
+          maxIterations: remainingIterations,
+        },
       });
-      if (!result.ok) throw new Error(result.reason ?? "Send failed.");
-      useStore.getState().recordOrderTick(orderId, true);
-    } catch {
-      useStore.getState().recordOrderTick(orderId, false);
+      useStore.getState().upsertOrchestrationRun(run);
+      useStore.getState().haltStandingOrder(orderId);
+    } finally {
+      migrating.delete(orderId);
     }
   };
 
-  const ensureTimers = () => {
+  const ensureMigrations = () => {
     const orders = useStore.getState().standingOrders;
-    // Clear timers for orders that are no longer active.
-    for (const [id, t] of timers) {
-      const order = orders[id];
-      if (!order || order.status !== "active") {
-        clearInterval(t);
-        timers.delete(id);
-      }
-    }
-    // Start timers for newly-active orders.
     for (const [id, order] of Object.entries(orders)) {
-      if (order.status !== "active" || timers.has(id)) continue;
-      // Fire once immediately so the user sees movement, then on interval.
-      void tick(id);
-      const t = setInterval(() => void tick(id), order.intervalMs);
-      timers.set(id, t);
+      if (order.status === "active" && order.unitId) void migrate(id);
     }
   };
 
-  const unsub = useStore.subscribe(() => ensureTimers());
-  ensureTimers();
+  const unsub = useStore.subscribe(() => ensureMigrations());
+  ensureMigrations();
 
   return () => {
     unsub();
-    for (const t of timers.values()) clearInterval(t);
-    timers.clear();
+    migrating.clear();
   };
 }

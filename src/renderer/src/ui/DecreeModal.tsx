@@ -204,34 +204,24 @@ export function DecreeModal() {
     if (!unit || !pendingOrder || busy) return;
     setBusy(true);
     try {
-      if (window.rw.createOrchestrationRun) {
-        const run = await window.rw.createOrchestrationRun({
-          template: STANDING_ORDER_TEMPLATE_ID,
-          title: `Standing Order · ${unit.displayName}`,
-          status: "running",
+      const run = await window.rw.createOrchestrationRun({
+        template: STANDING_ORDER_TEMPLATE_ID,
+        title: `Standing Order · ${unit.displayName}`,
+        status: "running",
+        cwd: unit.cwd,
+        repoRoot: unit.repoRoot,
+        params: {
+          unitId: unit.id,
+          sessionId: unit.sessionId,
+          tool: unit.tool,
           cwd: unit.cwd,
-          repoRoot: unit.repoRoot,
-          params: {
-            unitId: unit.id,
-            sessionId: unit.sessionId,
-            tool: unit.tool,
-            cwd: unit.cwd,
-            status: unit.status,
-            prompt: pendingOrder.text,
-            intervalMs: pendingOrder.intervalMs,
-          },
-          budget: defaultBudgetForTemplate(STANDING_ORDER_TEMPLATE_ID),
-        });
-        useStore.getState().upsertOrchestrationRun(run);
-      } else {
-        useStore
-          .getState()
-          .startStandingOrder(
-            unit.id,
-            pendingOrder.text,
-            pendingOrder.intervalMs
-          );
-      }
+          status: unit.status,
+          prompt: pendingOrder.text,
+          intervalMs: pendingOrder.intervalMs,
+        },
+        budget: defaultBudgetForTemplate(STANDING_ORDER_TEMPLATE_ID),
+      });
+      useStore.getState().upsertOrchestrationRun(run);
       setPendingOrder(null);
       closeDecree();
     } finally {

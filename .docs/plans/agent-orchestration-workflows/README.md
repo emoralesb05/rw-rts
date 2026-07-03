@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (Run Board row links shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (legacy Standing Order runner retired)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -88,9 +88,10 @@ Shipped on `main`:
   control-plane failures, and pauses runtime budget breaches.
 - Run Board UI with list, refresh, pause, resume, stop, and durable run state
   shared across the HUD and wielder detail panel.
-- Standing Order creation routes through the durable main orchestration engine;
-  legacy renderer Standing Orders remain only as a fallback for older persisted
-  state/preload shapes.
+- Standing Order creation routes through the durable main orchestration engine.
+  The old renderer timer runner is retired; hydrated legacy persisted
+  `standingOrders` migrate into durable runs once their matching wielder
+  reappears, then halt so they drop from persisted state.
 - Orchestration run events emit onto the normal AgentEvent bus and project into
   Observatory/trace export spans.
 - Shared constrained template registry declares Standing Order, provider
@@ -117,8 +118,6 @@ Shipped on `main`:
 
 Still active:
 
-- Retire or migrate the legacy renderer Standing Order runner once old
-  persisted `standingOrders` are safely converted or expired.
 - Add fixture/e2e coverage for recurring prompt completion, provider error
   pause, permission/input pause, and budget pause in the packaged app path.
 

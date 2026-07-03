@@ -19,11 +19,9 @@ import {
   userInputResolutionForAction,
 } from "./store-domain/permissions";
 import {
-  createStandingOrder,
   haltStandingOrderById,
   hydrateStandingOrders,
   ordersToPersisted,
-  recordStandingOrderTickById,
   type StandingOrder,
 } from "./store-domain/standing-orders";
 import { unitIdentityForUnit } from "./unit-identity";
@@ -70,9 +68,10 @@ export type Store = {
   worldCommandAnchor: WorldCommandAnchor | null;
   // DecreeModal is open for this unitId when non-null (Phase 2B #14).
   decreeUnitId: string | null;
-  // Active recurring Decrees (Phase 2B #14b). Keyed by orderId. NOT
-  // persisted in this iteration — orders end on app restart. Persistence
-  // is a follow-up commit per Q12 schema sketch.
+  // Legacy recurring Decrees loaded from persisted `standingOrders`.
+  // Current creation goes through durable main-process orchestration
+  // runs; hydrated legacy records are migrated once their wielder
+  // reappears, then halted so they drop from persisted state.
   standingOrders: Record<string, StandingOrder>;
   // Durable main-process orchestration runs, refreshed by IPC and shared
   // across the run board, HUD badges, and wielder detail panels.
@@ -86,16 +85,9 @@ export type Store = {
   setWorldCommandAnchor(anchor: WorldCommandAnchor | null): void;
   openDecreeFor(unitId: string): void;
   closeDecree(): void;
-  startStandingOrder(
-    unitId: string,
-    prompt: string,
-    intervalMs: number,
-    maxIterations?: number
-  ): string;
   setOrchestrationRuns(runs: OrchestrationRun[]): void;
   upsertOrchestrationRun(run: OrchestrationRun): void;
   refreshOrchestrationRuns(): Promise<OrchestrationRun[] | null>;
-  recordOrderTick(orderId: string, ok: boolean): void;
   haltStandingOrder(orderId: string): void;
   toggleMute(sessionId: string): void;
   hydratePersisted(state: PersistedState): void;
@@ -262,36 +254,6 @@ export const useStore = create<Store>((set) => ({
   closeDecree() {
     set({ decreeUnitId: null });
   },
-  startStandingOrder(unitId, prompt, intervalMs, maxIterations = 24) {
-    const now = Date.now();
-    const id = `so-${now.toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const unit = useStore.getState().units[unitId];
-    // Identity must match the bus-stamped repoRoot used by applyOneEvent
-    // when rebinding orders to wielders on restart. Earlier bug: this
-    // used `unit.cwd`, which differs from `event.repoRoot` whenever the
-    // session started in a subdirectory of a repo — order persisted
-    // but never re-attached. Fall back to cwd for units that pre-date
-    // the repoRoot field on UnitState.
-    const order = createStandingOrder({
-      id,
-      unitId,
-      unit,
-      prompt,
-      intervalMs,
-      maxIterations,
-      now,
-    });
-    set((s) => {
-      const standingOrders = { ...s.standingOrders, [id]: order };
-      const nextPersisted = {
-        ...s.persisted,
-        standingOrders: ordersToPersisted(standingOrders),
-      };
-      void window.rw.savePersisted(nextPersisted).catch(() => {});
-      return { standingOrders, persisted: nextPersisted };
-    });
-    return id;
-  },
   setOrchestrationRuns(runs) {
     set({
       orchestrationRuns: runsById(runs),
@@ -324,23 +286,6 @@ export const useStore = create<Store>((set) => ({
       set({ orchestrationRunsMissing: true });
       return null;
     }
-  },
-  recordOrderTick(orderId, ok) {
-    set((s) => {
-      const standingOrders = recordStandingOrderTickById(
-        s.standingOrders,
-        orderId,
-        ok,
-        Date.now()
-      );
-      if (!standingOrders) return s;
-      const nextPersisted = {
-        ...s.persisted,
-        standingOrders: ordersToPersisted(standingOrders),
-      };
-      void window.rw.savePersisted(nextPersisted).catch(() => {});
-      return { standingOrders, persisted: nextPersisted };
-    });
   },
   haltStandingOrder(orderId) {
     set((s) => {
