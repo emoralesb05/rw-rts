@@ -83,6 +83,9 @@ describe("runtime schemas", () => {
 
   it("accepts answer-letter fixture scenarios", () => {
     expect(FixtureScenarioSchema.parse("codex-inputs")).toBe("codex-inputs");
+    expect(FixtureScenarioSchema.parse("codex-decline-only-inputs")).toBe(
+      "codex-decline-only-inputs"
+    );
     expect(FixtureScenarioSchema.parse("claude-question")).toBe(
       "claude-question"
     );

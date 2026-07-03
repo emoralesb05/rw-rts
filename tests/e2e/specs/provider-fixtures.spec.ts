@@ -66,6 +66,45 @@ test("submits Codex user-input and MCP elicitation letters", async ({
   await expect(mcpCard).toBeHidden();
 });
 
+test("surfaces Codex decline-only MCP elicitation letters", async ({
+  appPage: page,
+}) => {
+  await waitForRealmkeeper(page);
+  await playFixture(page, "codex-decline-only-inputs");
+
+  const urlCard = alertCard(page, "https://example.com/oauth");
+  const formCard = alertCard(page, "Mode: openai/form.");
+
+  await expect(urlCard).toBeVisible();
+  await expect(urlCard.getByRole("button", { name: /^accept$/i })).toHaveCount(
+    0
+  );
+  await expect(
+    urlCard.getByRole("button", { name: /^decline$/i })
+  ).toBeVisible();
+  await expect(
+    urlCard.getByRole("button", { name: /^cancel$/i })
+  ).toBeVisible();
+
+  await expect(formCard).toBeVisible();
+  await expect(formCard.getByText("fixture-form")).toBeVisible();
+  await expect(formCard.getByRole("button", { name: /^accept$/i })).toHaveCount(
+    0
+  );
+  await expect(
+    formCard.getByRole("button", { name: /^decline$/i })
+  ).toBeVisible();
+  await expect(
+    formCard.getByRole("button", { name: /^cancel$/i })
+  ).toBeVisible();
+
+  await urlCard.getByRole("button", { name: /^cancel$/i }).click();
+  await expect(urlCard).toBeHidden();
+
+  await formCard.getByRole("button", { name: /^decline$/i }).click();
+  await expect(formCard).toBeHidden();
+});
+
 const actionablePermissionCases: {
   tool: Exclude<ProviderTool, "cursor">;
   scenario: string;

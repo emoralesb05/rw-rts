@@ -287,6 +287,68 @@ function scheduleCodexInputs(cwd: string) {
   activeTimers.set(sessionId, timers);
 }
 
+function scheduleCodexDeclineOnlyInputs(cwd: string) {
+  const sessionId = `codex-decline-only-inputs-${randomUUID()}`;
+  const urlRequestId = `fixture-codex-mcp-url-${randomUUID()}`;
+  const formRequestId = `fixture-codex-openai-form-${randomUUID()}`;
+  const timers: NodeJS.Timeout[] = [];
+  const emit = (
+    delayMs: number,
+    kind: AgentEvent["kind"],
+    payload: AgentEvent["payload"]
+  ) => {
+    timers.push(
+      setTimeout(() => {
+        bus.emitAgentEvent({
+          sessionId,
+          tool: "codex",
+          cwd,
+          timestamp: Date.now(),
+          kind,
+          payload,
+          source: "spawned",
+        });
+      }, delayMs)
+    );
+  };
+
+  emit(100, "session_start", {
+    text: "codex decline-only MCP fixture",
+  });
+  emit(450, "user_input_request", {
+    requestId: urlRequestId,
+    name: "McpElicitation",
+    text: "Sign in to the fixture MCP server.",
+    input: {
+      serverName: "fixture-oauth",
+      threadId: sessionId,
+      mode: "url",
+      message: "Sign in to the fixture MCP server.",
+      elicitationId: "fixture-oauth-1",
+      url: "https://example.com/oauth",
+    },
+    responseKind: "mcp-elicitation",
+    questions: [],
+  });
+  emit(850, "user_input_request", {
+    requestId: formRequestId,
+    name: "McpElicitation",
+    text: "Complete the unsupported fixture form.",
+    input: {
+      serverName: "fixture-form",
+      threadId: sessionId,
+      mode: "openai/form",
+      message: "Complete the unsupported fixture form.",
+      requestedSchema: { valueType: "boolean" },
+    },
+    responseKind: "mcp-elicitation",
+    questions: [],
+  });
+
+  timers.push(setTimeout(() => activeTimers.delete(sessionId), 10_000));
+  activeTimers.set(sessionId, timers);
+}
+
 function scheduleClaudeQuestion(cwd: string) {
   const sessionId = `claude-question-${randomUUID()}`;
   const requestId = `fixture-claude-question-${randomUUID()}`;
@@ -675,6 +737,7 @@ export type FixtureScenarioId =
   | "cursor-turn"
   | "codex-shell"
   | "codex-inputs"
+  | "codex-decline-only-inputs"
   | "claude-question"
   | "gemini-turn"
   | "subagent"
@@ -717,6 +780,9 @@ export function playFixture(scenario: FixtureScenarioId, cwd: string) {
       break;
     case "codex-inputs":
       scheduleCodexInputs(c);
+      break;
+    case "codex-decline-only-inputs":
+      scheduleCodexDeclineOnlyInputs(c);
       break;
     case "claude-question":
       scheduleClaudeQuestion(c);
