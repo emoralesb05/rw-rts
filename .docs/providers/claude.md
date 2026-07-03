@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `claude` (verified locally 2026-06-29: `2.1.195 (Claude Code)`, typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
+- Binary: `claude` (verified locally 2026-07-03: `2.1.198 (Claude Code)`, typically `~/.claude/local/node_modules/@anthropic-ai/claude-code/cli.js` symlinked to `/usr/local/bin/claude`)
 - Settings: `~/.claude/settings.json` (hooks live under `hooks.<EventName>`)
 - Install hooks via the realmkeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
 
@@ -107,7 +107,9 @@ Official CLI reference now documents several capabilities worth tracking:
 - `--remote-control` and `claude remote-control` are a separate provider-native control surface. They are not integrated yet; they may be useful if Realmkeeper needs to coordinate local and Claude.ai-visible sessions.
 - `--brief` currently exposes a provider-native `SendMessage` tool in the stream. A live probe shows this is for messaging named Claude agents, not for asking the human user a Realmkeeper-answerable question.
 - Live rich-stream probe with `--include-hook-events`, `--include-partial-messages`, and `--prompt-suggestions` produced `system` hook lifecycle events, `stream_event` message deltas, `rate_limit_event`, the normal final `assistant`, and `result`. The current loose parser accepts those event types and the normalizer safely ignores them unless we add explicit transient rendering.
-- Public hook docs describe `PreToolUse` `updatedInput` as the client-side answer path for `AskUserQuestion`; Realmkeeper now implements that path through answer letters. A live deferred-resume fixture is still missing.
+- Realmkeeper's direct hook path replies to `PreToolUse` / `AskUserQuestion` with `updatedInput`, and renders that request through answer letters.
+- Realmkeeper also normalizes the provider-shaped `result.stop_reason: "tool_deferred"` / `deferred_tool_use.name: "AskUserQuestion"` stream result into an answer letter. This is covered by a synthetic fixture; live deferred-resume capture is still blocked until a logged-in Claude CLI can produce the event.
+- A 2026-07-03 docs re-check found the public hooks page still lists "Defer a tool call for later" in the table of contents, but the fetched body did not expose the `AskUserQuestion`, `tool_deferred`, or `deferred_tool_use` details. Treat the synthetic deferred fixture as a compatibility guard until live capture confirms the shape.
 - A 2026-06-29 live probe with `--tools AskUserQuestion` did **not** expose the tool (`tools: []` in the init event). Claude emitted malformed XML-like text instead and hit the budget cap. Do not use that command shape as the live fixture path.
 - A 2026-06-29 live probe with `--brief --tools SendMessage --setting-sources project,local` exposed `tools: ["SendMessage"]` and emitted a normal `tool_use` block. Sending to `main` returned a provider tool result that said `main` is the main conversation and `SendMessage` expects a named agent. Realmkeeper's generic stream normalizer already preserves that tool exchange, but it is not a replacement for `AskUserQuestion` letters.
 
@@ -126,5 +128,6 @@ Official CLI reference now documents several capabilities worth tracking:
 - **`--bare` and `--safe-mode` disable hooks.** A user running `claude --bare` or `claude --safe-mode` is **invisible to realmkeeper**. `--bare` also skips LSP, plugins, auto-memory, CLAUDE.md discovery, and OAuth/keychain reads. If a user complains "my session isn't showing up", check these flags first.
 - **`--max-budget-usd` is a stop guard, not a hard cost ceiling.** The 2026-06-29 live question probe stopped with `error_max_budget_usd` but reported total cost above the requested cap. Use it to limit runaway probes, not to promise an exact maximum.
 - **`--brief` is not human-question parity.** The current `SendMessage` surface is useful future evidence for Claude agent-to-agent visibility, but Realmkeeper should not route it into answer letters unless Claude exposes a real human user request contract.
+- **Deferred `AskUserQuestion` is synthetic-covered, not live-captured.** `claude config list` reported `Not logged in` on 2026-07-03, so Realmkeeper cannot yet validate the full defer/resume loop against this machine's CLI.
 - **IDE attach lock files** at `~/.claude/ide/<port>.lock` carry `{workspaceFolders, ideName}` — informational, not currently consumed.
 - **Worktree workflow.** `claude --worktree` and `--from-pr` are first-class but we don't model worktrees as separate realmkeeper worlds (`resolveRepoRoot` walks to the worktree's `.git`, which is a file pointer back to the main repo). Sessions in worktrees end up under the main repo's world. Acceptable tradeoff; flagged here so future work knows.

@@ -6,6 +6,7 @@ import {
   parseProviderStreamMessage,
   type ProviderStreamMessage,
 } from "@shared/schemas";
+import { claudeAskUserQuestions } from "./claude-user-input";
 
 export type SpawnOptions = {
   prompt: string;
@@ -218,6 +219,14 @@ function messageContentBlocks(
   });
 }
 
+function deferredToolUseRequestId(
+  sessionId: string,
+  toolUseId: unknown
+): string {
+  const id = typeof toolUseId === "string" && toolUseId ? toolUseId : "unknown";
+  return `claude-deferred:${sessionId}:${id}`;
+}
+
 export function normalizeStreamMessage(
   msg: ProviderStreamMessage,
   sessionId: string,
@@ -266,6 +275,28 @@ export function normalizeStreamMessage(
       }
     }
   } else if (msg.type === "result") {
+    const deferredToolUse = record(msg.deferred_tool_use);
+    if (
+      msg.stop_reason === "tool_deferred" &&
+      deferredToolUse?.name === "AskUserQuestion"
+    ) {
+      const input = deferredToolUse.input;
+      const questions = claudeAskUserQuestions(input);
+      if (questions.length > 0) {
+        out.push({
+          ...base,
+          timestamp: ts,
+          kind: "user_input_request",
+          payload: {
+            name: "AskUserQuestion",
+            input,
+            requestId: deferredToolUseRequestId(sessionId, deferredToolUse.id),
+            text: questions[0]?.question,
+            questions,
+          },
+        });
+      }
+    }
     out.push({
       ...base,
       timestamp: ts,

@@ -136,6 +136,69 @@ describe("active CLI stream normalization", () => {
     ]);
   });
 
+  it("normalizes Claude deferred AskUserQuestion results as answer letters", () => {
+    const events = normalizeStreamMessage(
+      {
+        type: "result",
+        subtype: "success",
+        stop_reason: "tool_deferred",
+        result: "",
+        session_id: "claude-session-1",
+        deferred_tool_use: {
+          id: "toolu-question-1",
+          name: "AskUserQuestion",
+          input: {
+            questions: [
+              {
+                question: "Which framework?",
+                header: "Framework",
+                options: [{ label: "React" }, { label: "Vue" }],
+                multiSelect: false,
+              },
+            ],
+          },
+        },
+      },
+      "s1",
+      "/repo"
+    );
+
+    expect(events).toMatchObject([
+      {
+        sessionId: "s1",
+        tool: "claude",
+        cwd: "/repo",
+        kind: "user_input_request",
+        payload: {
+          name: "AskUserQuestion",
+          requestId: "claude-deferred:s1:toolu-question-1",
+          text: "Which framework?",
+          questions: [
+            {
+              id: "question-1",
+              header: "Framework",
+              question: "Which framework?",
+              required: true,
+              options: [
+                { label: "React", value: "React" },
+                { label: "Vue", value: "Vue" },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        sessionId: "s1",
+        tool: "claude",
+        cwd: "/repo",
+        kind: "session_end",
+        payload: {
+          text: "",
+        },
+      },
+    ]);
+  });
+
   it("ignores Claude rich stream metadata until partial rendering is explicit", () => {
     for (const msg of [
       {
