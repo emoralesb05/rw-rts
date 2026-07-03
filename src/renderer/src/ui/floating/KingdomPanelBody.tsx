@@ -16,9 +16,12 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Activity,
   Check,
   Copy,
   Download,
+  Mail,
+  MessageSquare,
   Pause,
   Play,
   RotateCw,
@@ -34,7 +37,7 @@ import {
   evaluateTraceMonitors,
   type TraceMonitorSignal,
 } from "@shared/trace-monitors";
-import type { UnitState } from "@shared/events";
+import type { Letter, UnitState } from "@shared/events";
 import type {
   OrchestrationRun,
   OrchestrationRunStatus,
@@ -201,6 +204,129 @@ function targetsForUnits(units: Record<string, UnitState>): RunTarget[] {
       status: unit.status,
       displayName: unit.displayName,
     }));
+}
+
+type RunLinkTarget = {
+  unitId?: string;
+  sessionId: string;
+  tool?: string;
+  traceId?: string;
+  unit?: UnitState;
+};
+
+function recordParam(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function stringRecordValue(
+  record: Record<string, unknown> | null | undefined,
+  key: string
+): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function runLinkTargets(
+  run: OrchestrationRun,
+  units: Record<string, UnitState>
+): RunLinkTarget[] {
+  const targets: RunLinkTarget[] = [];
+  for (const session of run.providerSessions) {
+    targets.push({
+      unitId: session.unitId,
+      sessionId: session.sessionId,
+      tool: session.tool,
+      traceId: session.traceId,
+    });
+  }
+  const params = run.params ?? {};
+  const directSessionId = stringRecordValue(params, "sessionId");
+  if (directSessionId) {
+    targets.push({
+      unitId: stringRecordValue(params, "unitId"),
+      sessionId: directSessionId,
+      tool: stringRecordValue(params, "tool"),
+      traceId: stringRecordValue(params, "traceId"),
+    });
+  }
+  const target = targetFromRecord(recordParam(params.target));
+  if (target) targets.push(target);
+  if (Array.isArray(params.providerTargets)) {
+    for (const item of params.providerTargets) {
+      const providerTarget = targetFromRecord(recordParam(item));
+      if (providerTarget) targets.push(providerTarget);
+    }
+  }
+
+  const bySession = new Map<string, RunLinkTarget>();
+  for (const target of targets) {
+    const unit =
+      (target.unitId ? units[target.unitId] : undefined) ??
+      units[target.sessionId] ??
+      Object.values(units).find(
+        (candidate) => candidate.sessionId === target.sessionId
+      );
+    const key = `${target.tool ?? unit?.tool ?? "provider"}:${
+      target.sessionId
+    }`;
+    if (!bySession.has(key)) bySession.set(key, { ...target, unit });
+  }
+  return Array.from(bySession.values());
+}
+
+function targetFromRecord(
+  record: Record<string, unknown> | null
+): RunLinkTarget | null {
+  const sessionId = stringRecordValue(record, "sessionId");
+  if (!sessionId) return null;
+  const tool = stringRecordValue(record, "tool");
+  return {
+    unitId: stringRecordValue(record, "unitId"),
+    sessionId,
+    tool,
+    traceId: tool ? traceIdForProvider(tool, sessionId) : undefined,
+  };
+}
+
+function traceIdForProvider(tool: string, sessionId: string): string {
+  return `trace:${tool}:${sessionId}`;
+}
+
+function runTraceIds(
+  run: OrchestrationRun,
+  targets: RunLinkTarget[]
+): string[] {
+  return Array.from(
+    new Set([
+      ...run.traceIds,
+      ...targets
+        .map(
+          (target) =>
+            target.traceId ??
+            (target.tool
+              ? traceIdForProvider(target.tool, target.sessionId)
+              : undefined)
+        )
+        .filter((value): value is string => Boolean(value)),
+    ])
+  );
+}
+
+function runLetterCount(run: OrchestrationRun, targets: RunLinkTarget[]) {
+  const sessionIds = new Set(targets.map((target) => target.sessionId));
+  const requestIds = new Set([
+    ...run.permissionRequestIds,
+    ...run.userInputRequestIds,
+  ]);
+  return (letter: Letter) => {
+    if (letter.sessionId && sessionIds.has(letter.sessionId)) return true;
+    return letter.actions.some((entry) => {
+      const action = entry.action;
+      return "requestId" in action && requestIds.has(action.requestId);
+    });
+  };
 }
 
 function draftRunParams(
@@ -414,6 +540,10 @@ function fmtDuration(ms: number | undefined): string {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.round(seconds / 60);
   return `${minutes}m`;
+}
+
+function pluralLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 function traceStatusClass(status: TraceRecord["status"]): string {
@@ -808,11 +938,14 @@ function ObservatoryTab() {
   );
 }
 
-function RunsTab() {
+function RunsTab({ onOpenObservatory }: { onOpenObservatory: () => void }) {
   const orchestrationRuns = useStore((s) => s.orchestrationRuns);
   const missing = useStore((s) => s.orchestrationRunsMissing);
   const units = useStore((s) => s.units);
+  const letters = useStore((s) => s.letters);
   const refreshOrchestrationRuns = useStore((s) => s.refreshOrchestrationRuns);
+  const openDrawerTab = usePanels((s) => s.openDrawerTab);
+  const focusAlerts = usePanels((s) => s.focusAlerts);
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedTargetUnitId, setSelectedTargetUnitId] = useState("");
   const [handoffPrompt, setHandoffPrompt] = useState(DEFAULT_HANDOFF_PROMPT);
@@ -911,6 +1044,16 @@ function RunsTab() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const openRunSession = (targets: RunLinkTarget[]) => {
+    const unit = targets.find((target) => target.unit)?.unit;
+    if (unit) openDrawerTab(unit.id);
+  };
+
+  const openRunTrace = (targets: RunLinkTarget[]) => {
+    openRunSession(targets);
+    onOpenObservatory();
   };
 
   const activeCount = runs.filter((run) => run.status === "running").length;
@@ -1040,84 +1183,134 @@ function RunsTab() {
           <KingdomEmpty>No orchestration runs yet.</KingdomEmpty>
         ) : (
           <ul className={KINGDOM_LIST_CLASS}>
-            {runs.map((run) => (
-              <li
-                key={run.id}
-                className="bg-surface-2/40 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-sm px-2 py-1 text-[11px]"
-              >
-                <span className={runStatusClass(run.status)}>●</span>
-                <span className="min-w-0">
-                  <span className={KINGDOM_LIST_PRIMARY_CLASS}>
-                    {run.title}
-                  </span>
-                  <span className="text-muted mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10px]">
-                    <span>{run.template}</span>
-                    <span>{run.status}</span>
-                    <span>{run.steps.length} steps</span>
-                    <span>{fmtDuration(run.updatedAt - run.createdAt)}</span>
-                  </span>
-                  {run.pauseReason || run.failureReason ? (
-                    <span className="text-muted mt-0.5 block truncate text-[10px]">
-                      {run.pauseReason ?? run.failureReason}
+            {runs.map((run) => {
+              const targets = runLinkTargets(run, units);
+              const primaryTarget = targets.find((target) => target.unit);
+              const traceIds = runTraceIds(run, targets);
+              const letterCount = letters.filter(
+                runLetterCount(run, targets)
+              ).length;
+              return (
+                <li
+                  key={run.id}
+                  className="bg-surface-2/40 grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-sm px-2 py-1 text-[11px]"
+                >
+                  <span className={runStatusClass(run.status)}>●</span>
+                  <span className="min-w-0">
+                    <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                      {run.title}
                     </span>
-                  ) : null}
-                </span>
-                <span className="flex items-center gap-1">
-                  {run.status === "queued" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-0 px-2 py-1 text-[10px]"
-                      disabled={busy !== null}
-                      onClick={() => void controlRun(run, "start")}
-                      aria-label={`Start run ${run.title}`}
-                    >
-                      <Play className="size-3" />
-                      start
-                    </Button>
-                  ) : null}
-                  {run.status === "paused" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-0 px-2 py-1 text-[10px]"
-                      disabled={busy !== null}
-                      onClick={() => void controlRun(run, "resume")}
-                      aria-label={`Resume run ${run.title}`}
-                    >
-                      <Play className="size-3" />
-                      resume
-                    </Button>
-                  ) : null}
-                  {run.status === "running" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-0 px-2 py-1 text-[10px]"
-                      disabled={busy !== null}
-                      onClick={() => void controlRun(run, "pause")}
-                      aria-label={`Pause run ${run.title}`}
-                    >
-                      <Pause className="size-3" />
-                      pause
-                    </Button>
-                  ) : null}
-                  {run.status === "running" || run.status === "paused" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="min-h-0 px-2 py-1 text-[10px]"
-                      disabled={busy !== null}
-                      onClick={() => void controlRun(run, "stop")}
-                      aria-label={`Stop run ${run.title}`}
-                    >
-                      <Square className="size-3" />
-                      stop
-                    </Button>
-                  ) : null}
-                </span>
-              </li>
-            ))}
+                    <span className="text-muted mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10px]">
+                      <span>{run.template}</span>
+                      <span>{run.status}</span>
+                      <span>{run.steps.length} steps</span>
+                      <span>{fmtDuration(run.updatedAt - run.createdAt)}</span>
+                      {traceIds.length > 0 ? (
+                        <span>{pluralLabel(traceIds.length, "trace")}</span>
+                      ) : null}
+                      {letterCount > 0 ? (
+                        <span>{pluralLabel(letterCount, "letter")}</span>
+                      ) : null}
+                    </span>
+                    {run.pauseReason || run.failureReason ? (
+                      <span className="text-muted mt-0.5 block truncate text-[10px]">
+                        {run.pauseReason ?? run.failureReason}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex flex-wrap items-center justify-end gap-1">
+                    {primaryTarget?.unit ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        onClick={() => openRunSession(targets)}
+                        aria-label={`Open session for run ${run.title}`}
+                      >
+                        <MessageSquare className="size-3" />
+                        session
+                      </Button>
+                    ) : null}
+                    {traceIds.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        onClick={() => openRunTrace(targets)}
+                        aria-label={`Open trace for run ${run.title}`}
+                      >
+                        <Activity className="size-3" />
+                        trace
+                      </Button>
+                    ) : null}
+                    {letterCount > 0 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        onClick={() => focusAlerts()}
+                        aria-label={`Open letters for run ${run.title}`}
+                      >
+                        <Mail className="size-3" />
+                        letters
+                      </Button>
+                    ) : null}
+                    {run.status === "queued" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        disabled={busy !== null}
+                        onClick={() => void controlRun(run, "start")}
+                        aria-label={`Start run ${run.title}`}
+                      >
+                        <Play className="size-3" />
+                        start
+                      </Button>
+                    ) : null}
+                    {run.status === "paused" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        disabled={busy !== null}
+                        onClick={() => void controlRun(run, "resume")}
+                        aria-label={`Resume run ${run.title}`}
+                      >
+                        <Play className="size-3" />
+                        resume
+                      </Button>
+                    ) : null}
+                    {run.status === "running" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        disabled={busy !== null}
+                        onClick={() => void controlRun(run, "pause")}
+                        aria-label={`Pause run ${run.title}`}
+                      >
+                        <Pause className="size-3" />
+                        pause
+                      </Button>
+                    ) : null}
+                    {run.status === "running" || run.status === "paused" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-0 px-2 py-1 text-[10px]"
+                        disabled={busy !== null}
+                        onClick={() => void controlRun(run, "stop")}
+                        aria-label={`Stop run ${run.title}`}
+                      >
+                        <Square className="size-3" />
+                        stop
+                      </Button>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </KingdomSection>
@@ -1869,7 +2062,7 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
         <ObservatoryTab />
       </TabsContent>
       <TabsContent value="runs">
-        <RunsTab />
+        <RunsTab onOpenObservatory={() => setTab("observatory")} />
       </TabsContent>
       <TabsContent value="settings">
         <SettingsPanelBody

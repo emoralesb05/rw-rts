@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (one-shot run result capture shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (Run Board row links shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -109,6 +109,9 @@ Shipped on `main`:
   assistant/tool/error/session-end result checkpoints against the provider
   trace, complete only after every target produces a response, and pause if
   provider output emits an error.
+- Run Board rows link to related provider sessions, provider traces, and
+  pending permission/input letters when the run record or draft params carry
+  enough target metadata.
 - Electron e2e covers Run Board durable controls and target-backed queued
   template creation.
 
@@ -118,8 +121,6 @@ Still active:
   persisted `standingOrders` are safely converted or expired.
 - Add fixture/e2e coverage for recurring prompt completion, provider error
   pause, permission/input pause, and budget pause in the packaged app path.
-- Link Run Board rows directly to related traces, permission/input letters, and
-  provider session details.
 
 ## Acceptance gate
 

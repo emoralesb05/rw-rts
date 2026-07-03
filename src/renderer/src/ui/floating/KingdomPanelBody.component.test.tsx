@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KingdomPanelBody } from "./KingdomPanelBody";
+import { usePanels } from "./panel-store";
 import { useStore } from "../../store";
 import type { AgentEvent, UnitState } from "@shared/events";
 import type {
@@ -205,6 +206,7 @@ function event(
 describe("KingdomPanelBody", () => {
   afterEach(() => {
     useStore.setState(useStore.getInitialState(), true);
+    usePanels.setState(usePanels.getInitialState(), true);
     vi.restoreAllMocks();
   });
 
@@ -363,5 +365,86 @@ describe("KingdomPanelBody", () => {
       expect(screen.getByText("Provider Handoff Review draft")).toBeVisible();
     });
     expect(screen.getAllByText("queued").length).toBeGreaterThan(0);
+  });
+
+  it("links Run board rows to sessions, traces, and letters", async () => {
+    const { rw } = installRw();
+    const user = userEvent.setup();
+    const linkedRun: OrchestrationRun = {
+      id: "run-linked",
+      template: "provider-handoff-review",
+      title: "Review linked run",
+      status: "running",
+      cwd: "/repo",
+      repoRoot: "/repo",
+      createdAt: 1_000,
+      updatedAt: 2_000,
+      providerSessions: [
+        {
+          unitId: "s1",
+          sessionId: "s1",
+          tool: "codex",
+          cwd: "/repo",
+          traceId: "trace:codex:s1",
+        },
+      ],
+      traceIds: ["trace:codex:s1"],
+      permissionRequestIds: ["perm-1"],
+      userInputRequestIds: [],
+      steps: [],
+      checkpoints: [],
+      budget: {},
+      events: [],
+    };
+    rw.listOrchestrationRuns.mockResolvedValue([linkedRun]);
+    useStore.setState({
+      units: { s1: unit() },
+      events: [
+        event(Date.now() - 1_000, "assistant_text", {
+          text: "Captured review.",
+        }),
+      ],
+      letters: [
+        {
+          id: "letter-1",
+          createdAt: Date.now(),
+          severity: "important",
+          title: "Permission needed",
+          sessionId: "s1",
+          actions: [
+            {
+              label: "Review",
+              action: { kind: "permission-observe", requestId: "perm-1" },
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<KingdomPanelBody initialTab="runs" />);
+
+    expect(await screen.findByText("Review linked run")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Open session for run Review linked run",
+      })
+    );
+    expect(usePanels.getState().drawer?.activeTab).toBe("s1");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Open trace for run Review linked run",
+      })
+    );
+    expect(await screen.findByText("Trace sessions")).toBeVisible();
+
+    await user.click(screen.getByRole("tab", { name: /runs/i }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Open letters for run Review linked run",
+      })
+    );
+    expect(usePanels.getState().alertsZ).not.toBeNull();
   });
 });
