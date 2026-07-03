@@ -4,13 +4,27 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
+No active implementation plans. Current follow-up work is deferred behind
+provider contracts or future product decisions, and is captured in the
+completed plan artifacts below.
+
+## Completed / Watchlist
+
 - [`agent-observability-control-plane/`](./agent-observability-control-plane/) —
-  local-first traces, session health, and monitor views for provider sessions.
+  local-first traces, session health, monitor letters, conditional usage
+  totals, and OTel Collector validation shipped. Watchlist: strict GenAI
+  semantic-convention revalidation and Codex/Gemini usage if providers expose
+  reliable values.
 - [`session-control-plane/`](./session-control-plane/) — provider-aware
-  in-app send, steer, interrupt, fork, stop, and attach controls.
+  in-app send/interject, interrupt/recall gating, typed fail-closed IPC, and
+  packaged-app failure coverage shipped. Watchlist: provider-native fork,
+  attach, list, and live-interrupt controls only after focused probes prove
+  stable contracts.
 - [`agent-orchestration-workflows/`](./agent-orchestration-workflows/) —
-  durable local runs that coordinate provider sessions through explicit
-  checkpoints, budgets, and human intervention.
+  durable local run schemas, main-process execution, Run Board, constrained
+  templates, monitor pauses, and packaged-app orchestration e2e shipped.
+  Watchlist: cross-provider result judging, richer cost budgets, or external
+  workflow-engine adoption if local complexity justifies it.
 
 ## Removed From Active
 

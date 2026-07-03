@@ -16,10 +16,37 @@ export type OrchestrationRun = {
   status: OrchestrationRunStatus;
   pauseReason?: string;
 };
+type ControlSessionResponse = {
+  action: string;
+  ok: boolean;
+  reason?: string;
+  reasonCode?:
+    | "capability_unavailable"
+    | "missing_session_metadata"
+    | "invalid_request"
+    | "provider_error";
+};
 
 export type RwE2eWindow = Window & {
   rw: {
     playFixture(req: { scenario: string; cwd?: string }): Promise<void>;
+    controlSession(req: {
+      action:
+        | "send"
+        | "steer"
+        | "interrupt"
+        | "stop"
+        | "fork"
+        | "attach"
+        | "listProviderSessions";
+      unitId: string;
+      sessionId?: string;
+      tool: ProviderTool;
+      cwd?: string;
+      prompt?: string;
+      status?: string;
+      activeTurnKnown?: boolean;
+    }): Promise<ControlSessionResponse>;
     createOrchestrationRun(req: {
       id?: string;
       template: string;
@@ -45,6 +72,11 @@ export type RwE2eWindow = Window & {
   __rwSeedVisualQa?: () => { activeWorldId: string | null };
   __rwStore?: {
     getState(): {
+      events: Array<{
+        sessionId: string;
+        kind: string;
+        payload: Record<string, unknown>;
+      }>;
       units: Record<
         string,
         {

@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (fail-closed e2e shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -92,15 +92,20 @@ Shipped on `main`:
   observability projects them into trace spans.
 - Orchestration uses the same session-control plane for Standing Orders and
   pauses durable runs on explicit control-plane failures.
+- Packaged-app e2e covers fail-closed session controls for unsupported,
+  stale/missing-metadata, and invalid prompt requests, including typed IPC
+  responses, emitted `session_control` events, and Activity Log rendering.
 
 Still active:
 
-- Wire additional provider-native controls that remain intentionally marked
-  "not wired": Codex fork/attach/list sessions, Claude background agent
-  discovery/attach/stop probes, Cursor authoritative attach/injection, and
-  Gemini ACP/live interrupt.
-- Add e2e fixtures for supported, unsupported, stale, and provider-error
-  control attempts in the packaged app path.
+- None requiring implementation with current provider contracts.
+
+Deferred watchlist:
+
+- Wire additional provider-native controls only after focused probes prove
+  stable contracts: Codex fork/attach/list sessions, Claude background agent
+  discovery/attach/stop, Cursor authoritative attach/injection, and Gemini
+  ACP/live interrupt.
 - Keep Cursor permission/control behavior observe-only unless provider docs or
   probes prove an authoritative control path.
 
