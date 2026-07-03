@@ -96,11 +96,23 @@ Shipped on `main`:
 - Shared constrained template registry declares Standing Order, provider
   handoff review, parallel provider comparison, and fix-then-test budgets,
   controls, stop rules, and prompt payload names.
+- Run Board can create queued draft runs for provider handoff review, parallel
+  provider comparison, and fix-then-test templates using shared default
+  budgets.
+- Main-process engine executes provider handoff review, parallel provider
+  comparison, and fix-then-test templates as checkpointed one-shot sends
+  through `rw:control-session`, completing on success and pausing visibly when
+  required target metadata or provider control is unavailable.
+- Electron e2e covers Run Board durable controls and queued template creation.
 
 Still active:
 
-- Implement execution engines and UI entry points for provider handoff review,
-  parallel provider comparison, and fix-then-test templates.
+- Add richer target/parameter selection for provider handoff review, parallel
+  provider comparison, and fix-then-test drafts instead of relying on manual
+  params/default placeholders.
+- Capture provider responses/results for one-shot templates; current execution
+  records successful prompt send checkpoints, not semantic review/comparison
+  completion.
 - Retire or migrate the legacy renderer Standing Order runner once old
   persisted `standingOrders` are safely converted or expired.
 - Add fixture/e2e coverage for recurring prompt completion, provider error
