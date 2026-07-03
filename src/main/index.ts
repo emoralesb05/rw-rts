@@ -53,6 +53,7 @@ import {
   stopTraceStore,
 } from "./trace-store";
 import { LocalOrchestrationStore } from "./orchestration-store";
+import { MainOrchestrationEngine } from "./orchestration-engine";
 import { IPC } from "@shared/ipc";
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
@@ -105,6 +106,10 @@ let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
 const orchestrationStore = new LocalOrchestrationStore();
+const orchestrationEngine = new MainOrchestrationEngine({
+  store: orchestrationStore,
+  controlSession,
+});
 
 function isE2EFixtureSession(sessionId: string): boolean {
   return /^(claude-question|codex-fixture|cursor-fixture|gemini-fixture)-/.test(
@@ -120,6 +125,7 @@ function stopRuntimeServices() {
   if (runtimeStopped) return;
   runtimeStopped = true;
   AgentManager.killAll();
+  orchestrationEngine.stop();
   stopHookBridge();
   stopClaudeTranscriptWatcher();
   stopCodexTranscriptWatcher();
@@ -366,6 +372,7 @@ if (!app.isPackaged && !isE2E) {
 void app.whenReady().then(async () => {
   startTraceStore();
   await orchestrationStore.recoverAfterRestart();
+  orchestrationEngine.start();
 
   // Refresh the user-dir copy of bin/realmkeeper-hook from the bundled
   // source. Runs every boot — keeps the installed script in sync with

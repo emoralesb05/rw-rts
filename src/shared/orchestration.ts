@@ -114,6 +114,7 @@ export const OrchestrationRunSchema = z.object({
   id: z.string().min(1),
   template: z.string().min(1),
   title: z.string().min(1),
+  params: z.record(z.string(), z.unknown()).optional(),
   status: OrchestrationRunStatusSchema,
   cwd: z.string().min(1).optional(),
   repoRoot: z.string().min(1).optional(),

@@ -26,6 +26,7 @@ export type CreateOrchestrationRunInput = {
   id?: string;
   template: string;
   title: string;
+  params?: Record<string, unknown>;
   cwd?: string;
   repoRoot?: string;
   budget?: RunBudget;
@@ -73,6 +74,7 @@ export class LocalOrchestrationStore {
       id,
       template: input.template,
       title: input.title,
+      params: input.params,
       status,
       cwd: input.cwd,
       repoRoot: input.repoRoot,

@@ -197,6 +197,7 @@ export const CreateOrchestrationRunRequestSchema = z.object({
   id: z.string().min(1).optional(),
   template: z.string().min(1),
   title: z.string().min(1),
+  params: z.record(z.string(), z.unknown()).optional(),
   cwd: z.string().min(1).optional(),
   repoRoot: z.string().min(1).optional(),
   budget: RunBudgetSchema.optional(),
