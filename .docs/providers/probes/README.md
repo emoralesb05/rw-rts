@@ -16,7 +16,7 @@ implementation plans; they are evidence records used by the provider docs.
 | [claude-rich-stream-probe-2026-06-26.md](./claude/claude-rich-stream-probe-2026-06-26.md) | Rich stream flags emit parseable metadata; keep default-off until transient partial rendering exists. |
 | [claude-ask-user-question-live-2026-06-29.md](./claude/claude-ask-user-question-live-2026-06-29.md) | `--tools AskUserQuestion` did not expose the tool in print mode. |
 | [claude-brief-sendmessage-live-2026-06-29.md](./claude/claude-brief-sendmessage-live-2026-06-29.md) | `--brief` exposes `SendMessage`, but it targets named agents, not the human user. |
-| [claude-deferred-ask-user-question-2026-07-03.md](./claude/claude-deferred-ask-user-question-2026-07-03.md) | Deferred `AskUserQuestion` has provider-shaped synthetic coverage; live capture is blocked by local auth. |
+| [claude-deferred-ask-user-question-2026-07-03.md](./claude/claude-deferred-ask-user-question-2026-07-03.md) | Generic `tool_deferred` is live-confirmed; `AskUserQuestion` remains synthetic because clean print mode did not expose it. |
 
 ## Codex
 
