@@ -74,6 +74,17 @@ Sources:
 - `.docs/architecture/events.md`
 - `.docs/architecture/bridge.md`
 
+### H5 — OTel-shaped export is accepted by a real Collector [probe L2 · measured]
+
+The probe script generated a Realmkeeper trace export through
+`projectTraces(...)` and `exportTracesToOtel(...)`, posted it to a Dockerized
+OpenTelemetry Collector OTLP HTTP receiver, and received HTTP 200 for a payload
+containing one trace and three spans. This validates receiver-level
+compatibility for the current JSON export shape.
+
+Source:
+- [`probes/otel-collector-validation-2026-07-03.md`](./probes/otel-collector-validation-2026-07-03.md)
+
 ### D1 — Local-first observability before vendor integration [probe R1/R2/L1 · decided]
 
 Realmkeeper's value is a personal local command room over several existing
@@ -98,10 +109,13 @@ by default.
 | R2 — OTel GenAI/MCP scan | Which trace fields can Realmkeeper align with without overcommitting? | H2, D2 | Network/docs only |
 | R3 — Orchestration docs scan | What orchestration concepts are worth borrowing without replacing provider CLIs? | H3 | Network/docs only |
 | L1 — Local architecture scan | What does Realmkeeper already capture, and what is missing for traces? | H4, D1 | Local repo only |
+| L2 — Collector validation | Does Realmkeeper's generated OTel-shaped JSON get accepted by a real Collector receiver? | H5 | Docker + pinned Collector image |
 
 ## Coverage gaps
 
-- No real trace exporter probe has been run. Export remains build-gated.
+- Collector acceptance has been validated for OTLP/HTTP JSON. Strict GenAI
+  semantic-convention compliance, OTLP/gRPC export, and vendor dashboard
+  behavior remain unvalidated.
 - Known Claude/Cursor result usage can be surfaced from `session_end` payloads.
   Codex app-server and Gemini usage/cost completeness remains unvalidated until
   those streams expose reliable values in local fixtures or live probes.
