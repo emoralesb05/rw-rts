@@ -15,7 +15,16 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { Check, Copy, Download, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  Pause,
+  Play,
+  RotateCw,
+  Square,
+  Trash2,
+} from "lucide-react";
 import {
   projectTraces,
   type SpanRecord,
@@ -25,6 +34,10 @@ import {
   evaluateTraceMonitors,
   type TraceMonitorSignal,
 } from "@shared/trace-monitors";
+import type {
+  OrchestrationRun,
+  OrchestrationRunStatus,
+} from "@shared/orchestration";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -55,7 +68,13 @@ import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
 import type { HooksStatus, PermissionRule } from "@shared/schemas";
 
-type TabKey = "overview" | "observatory" | "settings" | "connection" | "demos";
+type TabKey =
+  | "overview"
+  | "observatory"
+  | "runs"
+  | "settings"
+  | "connection"
+  | "demos";
 
 const DEMO_FIXTURES = [
   {
@@ -236,6 +255,13 @@ function traceStatusClass(status: TraceRecord["status"]): string {
   if (status === "error") return "text-danger";
   if (status === "completed") return "text-success";
   return "text-warning";
+}
+
+function runStatusClass(status: OrchestrationRunStatus): string {
+  if (status === "failed") return "text-danger";
+  if (status === "completed") return "text-success";
+  if (status === "stopped" || status === "paused") return "text-warning";
+  return "text-accent-alt";
 }
 
 function waitingLabel(span: SpanRecord): string {
@@ -613,6 +639,178 @@ function ObservatoryTab() {
       <KingdomFooterNote>
         Completed traces: {completedCount}. Error traces: {errorCount}.
       </KingdomFooterNote>
+    </KingdomTab>
+  );
+}
+
+function RunsTab() {
+  const [runs, setRuns] = useState<OrchestrationRun[]>([]);
+  const [missing, setMissing] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const loadRuns = async () => {
+    const result = await safeIpc(window.rw.listOrchestrationRuns?.bind(window.rw));
+    if (!result) {
+      setMissing(true);
+      return;
+    }
+    setMissing(false);
+    setRuns(result);
+  };
+
+  useEffect(() => {
+    void loadRuns();
+  }, []);
+
+  const replaceRun = (run: OrchestrationRun) => {
+    setRuns((current) =>
+      current
+        .map((item) => (item.id === run.id ? run : item))
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+    );
+  };
+
+  const controlRun = async (
+    run: OrchestrationRun,
+    action: "start" | "pause" | "resume" | "stop"
+  ) => {
+    const key = `${run.id}:${action}`;
+    if (busy) return;
+    setBusy(key);
+    try {
+      const result = await safeIpc(() =>
+        window.rw.controlOrchestrationRun({
+          runId: run.id,
+          action,
+          reason:
+            action === "pause"
+              ? "Paused from Run Board."
+              : action === "stop"
+                ? "Stopped from Run Board."
+                : undefined,
+        })
+      );
+      if (result) replaceRun(result);
+      else setMissing(true);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const activeCount = runs.filter((run) => run.status === "running").length;
+  const pausedCount = runs.filter((run) => run.status === "paused").length;
+  const terminalCount = runs.filter((run) =>
+    ["completed", "failed", "stopped"].includes(run.status)
+  ).length;
+
+  if (missing) return <PreloadRestartHint title="Run board" />;
+
+  return (
+    <KingdomTab>
+      <div className="grid grid-cols-4 gap-2">
+        <KingdomStat label="runs" value={runs.length} />
+        <KingdomStat label="running" value={activeCount} />
+        <KingdomStat label="paused" value={pausedCount} />
+        <KingdomStat label="closed" value={terminalCount} />
+      </div>
+
+      <KingdomSection title="Run board" count={runs.length}>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-0 px-2 py-1 text-[10px]"
+            onClick={() => void loadRuns()}
+          >
+            <RotateCw className="size-3" />
+            Refresh
+          </Button>
+        </div>
+        {runs.length === 0 ? (
+          <KingdomEmpty>No orchestration runs yet.</KingdomEmpty>
+        ) : (
+          <ul className={KINGDOM_LIST_CLASS}>
+            {runs.map((run) => (
+              <li
+                key={run.id}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-sm bg-surface-2/40 px-2 py-1 text-[11px]"
+              >
+                <span className={runStatusClass(run.status)}>●</span>
+                <span className="min-w-0">
+                  <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                    {run.title}
+                  </span>
+                  <span className="text-muted mt-0.5 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 font-mono text-[10px]">
+                    <span>{run.template}</span>
+                    <span>{run.status}</span>
+                    <span>{run.steps.length} steps</span>
+                    <span>{fmtDuration(run.updatedAt - run.createdAt)}</span>
+                  </span>
+                  {run.pauseReason || run.failureReason ? (
+                    <span className="text-muted mt-0.5 block truncate text-[10px]">
+                      {run.pauseReason ?? run.failureReason}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-1">
+                  {run.status === "queued" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-0 px-2 py-1 text-[10px]"
+                      disabled={busy !== null}
+                      onClick={() => void controlRun(run, "start")}
+                      aria-label={`Start run ${run.title}`}
+                    >
+                      <Play className="size-3" />
+                      start
+                    </Button>
+                  ) : null}
+                  {run.status === "paused" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-0 px-2 py-1 text-[10px]"
+                      disabled={busy !== null}
+                      onClick={() => void controlRun(run, "resume")}
+                      aria-label={`Resume run ${run.title}`}
+                    >
+                      <Play className="size-3" />
+                      resume
+                    </Button>
+                  ) : null}
+                  {run.status === "running" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-0 px-2 py-1 text-[10px]"
+                      disabled={busy !== null}
+                      onClick={() => void controlRun(run, "pause")}
+                      aria-label={`Pause run ${run.title}`}
+                    >
+                      <Pause className="size-3" />
+                      pause
+                    </Button>
+                  ) : null}
+                  {run.status === "running" || run.status === "paused" ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="min-h-0 px-2 py-1 text-[10px]"
+                      disabled={busy !== null}
+                      onClick={() => void controlRun(run, "stop")}
+                      aria-label={`Stop run ${run.title}`}
+                    >
+                      <Square className="size-3" />
+                      stop
+                    </Button>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </KingdomSection>
     </KingdomTab>
   );
 }
@@ -1349,6 +1547,7 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
       <TabsList aria-label="kingdom panel">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="observatory">Observatory</TabsTrigger>
+        <TabsTrigger value="runs">Runs</TabsTrigger>
         <TabsTrigger value="settings">Settings</TabsTrigger>
         <TabsTrigger value="connection">Connection</TabsTrigger>
         <TabsTrigger value="demos">Demos</TabsTrigger>
@@ -1358,6 +1557,9 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
       </TabsContent>
       <TabsContent value="observatory">
         <ObservatoryTab />
+      </TabsContent>
+      <TabsContent value="runs">
+        <RunsTab />
       </TabsContent>
       <TabsContent value="settings">
         <SettingsPanelBody

@@ -6,6 +6,7 @@ import { KingdomPanelBody } from "./KingdomPanelBody";
 import { useStore } from "../../store";
 import type { AgentEvent, UnitState } from "@shared/events";
 import type { HooksStatus } from "@shared/schemas";
+import type { OrchestrationRun } from "@shared/orchestration";
 
 const BASE_STATUS: HooksStatus = {
   installed: false,
@@ -14,6 +15,24 @@ const BASE_STATUS: HooksStatus = {
 };
 
 function installRw() {
+  const run: OrchestrationRun = {
+    id: "run-1",
+    template: "standing-order",
+    title: "Keep tests moving",
+    status: "running",
+    cwd: "/repo",
+    repoRoot: "/repo",
+    createdAt: 1_000,
+    updatedAt: 3_000,
+    providerSessions: [],
+    traceIds: [],
+    permissionRequestIds: [],
+    userInputRequestIds: [],
+    steps: [],
+    checkpoints: [],
+    budget: { maxIterations: 3 },
+    events: [],
+  };
   const claudeStatus: HooksStatus = {
     ...BASE_STATUS,
     hooksConfigPath: "/home/user/.claude/settings.json",
@@ -99,6 +118,16 @@ function installRw() {
         traceCount: 1,
         spanCount: 3,
         contentMode: "metadata-only" as const,
+      })
+    ),
+    listOrchestrationRuns: vi.fn(() => Promise.resolve([run])),
+    createOrchestrationRun: vi.fn(),
+    controlOrchestrationRun: vi.fn(() =>
+      Promise.resolve({
+        ...run,
+        status: "paused" as const,
+        updatedAt: 4_000,
+        pauseReason: "Paused from Run Board.",
       })
     ),
     savePersisted: vi.fn(() => Promise.resolve()),
@@ -250,5 +279,32 @@ describe("KingdomPanelBody", () => {
     expect(
       screen.getByRole("button", { name: /copy gemini settings template/i })
     ).toHaveTextContent("Copied");
+  });
+
+  it("lists durable runs and controls them from the Runs tab", async () => {
+    const { rw } = installRw();
+    const user = userEvent.setup();
+
+    render(<KingdomPanelBody initialTab="runs" />);
+
+    expect(await screen.findByText("Run board")).toBeVisible();
+    expect(screen.getByText("Keep tests moving")).toBeVisible();
+    expect(screen.getByText("standing-order")).toBeVisible();
+    expect(screen.getAllByText("running").length).toBeGreaterThan(0);
+    expect(screen.getByText("2s")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /pause run keep tests moving/i })
+    );
+
+    expect(rw.controlOrchestrationRun).toHaveBeenCalledWith({
+      runId: "run-1",
+      action: "pause",
+      reason: "Paused from Run Board.",
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText("paused").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("Paused from Run Board.")).toBeVisible();
   });
 });
