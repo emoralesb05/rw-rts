@@ -39,6 +39,19 @@ function standingOrderParams() {
   };
 }
 
+function providerTarget(
+  overrides: Partial<ReturnType<typeof standingOrderParams>> = {}
+) {
+  return {
+    unitId: "unit-2",
+    sessionId: "session-2",
+    tool: "claude" as const,
+    cwd: "/repo",
+    status: "idle" as const,
+    ...overrides,
+  };
+}
+
 describe("MainOrchestrationEngine", () => {
   afterEach(async () => {
     if (root) await rm(root, { recursive: true, force: true });
@@ -275,6 +288,188 @@ describe("MainOrchestrationEngine", () => {
     await expect(store.getRun(run.id)).resolves.toMatchObject({
       status: "running",
       steps: [{ kind: "standing-order-tick" }, { kind: "standing-order-tick" }],
+    });
+  });
+
+  it("executes provider handoff review runs as one-shot sends", async () => {
+    const time = clock(50_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "provider-handoff-review",
+      title: "Review handoff",
+      status: "running",
+      params: {
+        target: providerTarget(),
+        sourceTraceId: "trace-1",
+        handoffPrompt: "Review this change.",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).toHaveBeenCalledWith({
+      action: "send",
+      unitId: "unit-2",
+      sessionId: "session-2",
+      tool: "claude",
+      cwd: "/repo",
+      status: "idle",
+      prompt:
+        "[Provider Handoff Review]\n\nReview this change.\n\nSource trace: trace-1",
+    });
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      steps: [
+        {
+          kind: "provider-handoff-review-send",
+          status: "completed",
+          providerSessionId: "session-2",
+        },
+      ],
+      checkpoints: [{ label: "Provider handoff review sent" }],
+    });
+  });
+
+  it("executes parallel comparison runs against each target", async () => {
+    const time = clock(60_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "parallel-provider-comparison",
+      title: "Compare providers",
+      status: "running",
+      params: {
+        providerTargets: [
+          providerTarget(),
+          providerTarget({
+            unitId: "unit-3",
+            sessionId: "session-3",
+            tool: "codex",
+          }),
+        ],
+        comparisonPrompt: "Compare these approaches.",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).toHaveBeenCalledTimes(2);
+    expect(controlSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        unitId: "unit-2",
+        prompt: "[Parallel Provider Comparison]\n\nCompare these approaches.",
+      })
+    );
+    expect(controlSession).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        unitId: "unit-3",
+        tool: "codex",
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      steps: [
+        { kind: "parallel-provider-comparison-send", status: "completed" },
+        { kind: "parallel-provider-comparison-send", status: "completed" },
+      ],
+    });
+  });
+
+  it("executes fix-then-test runs as bounded provider prompts", async () => {
+    const time = clock(70_000);
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: time.now,
+    });
+    const controlSession = vi.fn(() =>
+      Promise.resolve({ action: "send" as const, ok: true })
+    );
+    const run = await store.createRun({
+      template: "fix-then-test",
+      title: "Fix failing tests",
+      status: "running",
+      params: {
+        target: providerTarget({ tool: "codex" }),
+        taskPrompt: "Fix the failing renderer test.",
+        verificationCommand: "bun run test",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+      now: time.now,
+    });
+
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: "codex",
+        prompt:
+          "[Fix Then Test]\n\nTask:\nFix the failing renderer test.\n\nVerification:\nbun run test",
+      })
+    );
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "completed",
+      steps: [{ kind: "fix-then-test-send", status: "completed" }],
+      checkpoints: [{ label: "Fix-then-test prompt sent" }],
+    });
+  });
+
+  it("pauses template runs with missing provider targets", async () => {
+    const store = new LocalOrchestrationStore({
+      rootDir: await tempRoot(),
+      idFactory: ids(),
+      now: clock(80_000).now,
+    });
+    const controlSession = vi.fn();
+    const run = await store.createRun({
+      template: "parallel-provider-comparison",
+      title: "Broken comparison",
+      status: "running",
+      params: {
+        providerTargets: [],
+        comparisonPrompt: "Compare this.",
+      },
+    });
+    const engine = new MainOrchestrationEngine({
+      store,
+      controlSession,
+    });
+
+    await engine.tickOnce(run.id);
+
+    expect(controlSession).not.toHaveBeenCalled();
+    await expect(store.getRun(run.id)).resolves.toMatchObject({
+      status: "paused",
+      pauseReason:
+        "Parallel provider comparison run is missing provider targets.",
     });
   });
 });

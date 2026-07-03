@@ -1,8 +1,9 @@
 import { expect, test } from "../fixtures/electron";
 import { waitForRealmkeeper, type RwE2eWindow } from "../helpers/app";
 
-const RUN_ID = "e2e-run-board-provider-handoff";
-const RUN_TITLE = "Provider Handoff Review - E2E durable run";
+const RUN_ID = "e2e-run-board-manual-control";
+const RUN_TEMPLATE = "manual-e2e-control";
+const RUN_TITLE = "Manual Control - E2E durable run";
 
 test("controls durable orchestration runs from the Run board", async ({
   appPage: page,
@@ -10,11 +11,11 @@ test("controls durable orchestration runs from the Run board", async ({
   await waitForRealmkeeper(page);
 
   await page.evaluate(
-    async ({ id, title }) => {
+    async ({ id, template, title }) => {
       await (window as unknown as RwE2eWindow).rw.createOrchestrationRun({
         id,
         title,
-        template: "provider-handoff-review",
+        template,
         params: {
           sourceTraceId: "trace-e2e",
           handoffPrompt: "Review the fixture result.",
@@ -27,7 +28,7 @@ test("controls durable orchestration runs from the Run board", async ({
         status: "running",
       });
     },
-    { id: RUN_ID, title: RUN_TITLE }
+    { id: RUN_ID, template: RUN_TEMPLATE, title: RUN_TITLE }
   );
 
   await page.getByRole("button", { name: "Open Kingdom panel" }).click();
@@ -42,7 +43,7 @@ test("controls durable orchestration runs from the Run board", async ({
     .filter({ hasText: RUN_TITLE })
     .first();
   await expect(row).toBeVisible();
-  await expect(row.getByText("provider-handoff-review")).toBeVisible();
+  await expect(row.getByText(RUN_TEMPLATE)).toBeVisible();
   await expect(row.getByText("running", { exact: true })).toBeVisible();
 
   await row.getByRole("button", { name: `Pause run ${RUN_TITLE}` }).click();
