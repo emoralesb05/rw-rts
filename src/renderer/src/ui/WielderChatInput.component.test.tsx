@@ -116,6 +116,42 @@ describe("WielderChatInput", () => {
     });
   });
 
+  it("interrupts Codex-owned active turns from the chat drawer", async () => {
+    const rw = installRw(
+      vi.fn(() => Promise.resolve({ action: "interrupt", ok: true }))
+    );
+    const user = userEvent.setup();
+    render(
+      <WielderChatInput unit={unit({ tool: "codex", status: "working" })} />
+    );
+
+    const halt = screen.getByRole("button", {
+      name: /interrupt active turn/i,
+    });
+    expect(halt).toBeEnabled();
+
+    await user.click(halt);
+
+    expect(rw.controlSession).toHaveBeenCalledWith({
+      action: "interrupt",
+      unitId: "unit-1",
+      sessionId: "unit-1",
+      tool: "codex",
+      cwd: "/repo",
+      status: "working",
+    });
+  });
+
+  it("keeps chat interrupt disabled when the provider cannot halt the turn", () => {
+    const rw = installRw();
+    render(<WielderChatInput unit={unit({ tool: "claude" })} />);
+
+    expect(
+      screen.getByRole("button", { name: /interrupt active turn/i })
+    ).toBeDisabled();
+    expect(rw.controlSession).not.toHaveBeenCalled();
+  });
+
   it("disables command input for inactive units", () => {
     installRw();
     const { rerender } = render(

@@ -4,18 +4,22 @@
  * observed wielders are driven through provider-specific session resume.
  */
 import { useCallback, useState } from "react";
-import { Send } from "lucide-react";
+import { OctagonX, Send } from "lucide-react";
 import type { UnitState } from "@shared/events";
 import { capabilitiesForUnit } from "@shared/session-capabilities";
 import { Button } from "./components/kit/Button";
 import { Textarea } from "./components/kit/Textarea";
+import { cn } from "@/lib/cn";
 
 export function WielderChatInput({ unit }: { unit: UnitState }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [interrupting, setInterrupting] = useState(false);
   const capabilities = capabilitiesForUnit(unit);
   const sendCapability = capabilities.controls.send;
+  const interruptCapability = capabilities.controls.interrupt;
   const disabled = busy || !sendCapability.available;
+  const interruptDisabled = interrupting || !interruptCapability.available;
 
   const send = useCallback(async () => {
     const text = prompt.trim();
@@ -41,6 +45,32 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
   }, [
     prompt,
     disabled,
+    unit.id,
+    unit.sessionId,
+    unit.tool,
+    unit.cwd,
+    unit.status,
+  ]);
+
+  const interrupt = useCallback(async () => {
+    if (interruptDisabled) return;
+    setInterrupting(true);
+    try {
+      await window.rw.controlSession({
+        action: "interrupt",
+        unitId: unit.id,
+        sessionId: unit.sessionId,
+        tool: unit.tool,
+        cwd: unit.cwd,
+        status: unit.status,
+      });
+    } catch {
+      // The running prompt, if any, remains visible and can be retried.
+    } finally {
+      setInterrupting(false);
+    }
+  }, [
+    interruptDisabled,
     unit.id,
     unit.sessionId,
     unit.tool,
@@ -76,6 +106,29 @@ export function WielderChatInput({ unit }: { unit: UnitState }) {
         rows={2}
         spellCheck
       />
+      <Button
+        type="button"
+        className={cn(
+          "h-9 min-h-9 w-20 px-3 py-1.5 text-[11px]",
+          "border-[#ffa850]/45 bg-[#ffa850]/[0.08] text-[#ffb070] hover:border-[#ffa850]/70 hover:bg-[#ffa850]/[0.14]"
+        )}
+        onClick={interrupt}
+        disabled={interruptDisabled}
+        aria-label={`Interrupt active turn for ${unit.displayName}`}
+        title={
+          interruptCapability.available
+            ? `Interrupt active turn for ${unit.displayName}`
+            : interruptCapability.reason
+        }
+      >
+        {interrupting ? (
+          "…"
+        ) : (
+          <>
+            <OctagonX size={13} aria-hidden /> halt
+          </>
+        )}
+      </Button>
       <Button
         type="button"
         variant={canSend ? "primary" : "default"}
