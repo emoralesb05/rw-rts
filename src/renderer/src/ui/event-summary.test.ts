@@ -38,6 +38,33 @@ describe("activity event summaries", () => {
     ).toEqual({ text: "asked permission · Edit", tone: "warn" });
   });
 
+  it("summarizes session controls and failures", () => {
+    expect(
+      summarizeEvent(
+        event({
+          kind: "session_control",
+          payload: { controlAction: "interrupt", ok: true },
+        })
+      )
+    ).toEqual({ text: "interrupt requested", tone: "warn" });
+
+    expect(
+      summarizeEvent(
+        event({
+          kind: "session_control",
+          payload: {
+            controlAction: "stop",
+            ok: false,
+            reason: "Realmkeeper did not spawn this process.",
+          },
+        })
+      )
+    ).toEqual({
+      text: "stop failed · Realmkeeper did not spawn this process.",
+      tone: "danger",
+    });
+  });
+
   it("summarizes errors as danger", () => {
     expect(
       summarizeEvent(

@@ -195,6 +195,29 @@ describe("runtime schemas", () => {
     });
   });
 
+  it("accepts Realmkeeper session-control events", () => {
+    expect(
+      AgentEventSchema.parse({
+        sessionId: "s1",
+        tool: "codex",
+        cwd: "/repo",
+        timestamp: 1,
+        kind: "session_control",
+        payload: {
+          controlAction: "interrupt",
+          ok: true,
+        },
+        source: "realmkeeper",
+      })
+    ).toMatchObject({
+      kind: "session_control",
+      payload: {
+        controlAction: "interrupt",
+        ok: true,
+      },
+    });
+  });
+
   it("accepts Cursor provider identity diagnostics on event payloads", () => {
     expect(
       AgentEventSchema.parse({

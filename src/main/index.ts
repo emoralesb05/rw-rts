@@ -45,6 +45,7 @@ import {
 } from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
+import { sessionControlEventFor } from "./session-control-events";
 import { IPC } from "@shared/ipc";
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import {
@@ -256,8 +257,27 @@ function sendPromptFromRequest(req: SendPromptRequest): void {
   );
 }
 
+type ManagedAgent = NonNullable<ReturnType<typeof AgentManager.get>>;
+
+function emitSessionControlEvent(
+  req: ControlSessionRequest,
+  response: ControlSessionResponse,
+  agent?: ManagedAgent
+): void {
+  const event = sessionControlEventFor(req, response, {
+    sessionId: agent?.sessionId,
+    cwd: agent?.cwd ?? process.cwd(),
+  });
+  if (event) bus.emitAgentEvent(event);
+}
+
 function controlSession(req: ControlSessionRequest): ControlSessionResponse {
-  const spawnedHere = Boolean(AgentManager.get(req.unitId));
+  const agent = AgentManager.get(req.unitId);
+  const spawnedHere = Boolean(agent);
+  const respond = (response: ControlSessionResponse) => {
+    emitSessionControlEvent(req, response, agent);
+    return response;
+  };
   const capabilities = resolveSessionCapabilities({
     tool: req.tool,
     spawnedHere,
@@ -266,20 +286,28 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
   });
   const capability = capabilities.controls[req.action];
   if (!capability.available) {
-    return { action: req.action, ok: false, reason: capability.reason };
+    return respond({
+      action: req.action,
+      ok: false,
+      reason: capability.reason,
+    });
   }
 
   if (req.action === "send" || req.action === "steer") {
     const prompt = req.prompt?.trim();
     if (!prompt) {
-      return { action: req.action, ok: false, reason: "Prompt is required." };
+      return respond({
+        action: req.action,
+        ok: false,
+        reason: "Prompt is required.",
+      });
     }
     if (!spawnedHere && (!req.sessionId || !req.cwd)) {
-      return {
+      return respond({
         action: req.action,
         ok: false,
         reason: "Observed session metadata is missing.",
-      };
+      });
     }
     sendPromptFromRequest({
       unitId: req.unitId,
@@ -288,32 +316,32 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
       cwd: req.cwd,
       prompt,
     });
-    return { action: req.action, ok: true };
+    return respond({ action: req.action, ok: true });
   }
 
   if (req.action === "stop") {
     AgentManager.kill(req.unitId);
-    return { action: req.action, ok: true };
+    return respond({ action: req.action, ok: true });
   }
 
   if (req.action === "interrupt") {
     try {
       AgentManager.interrupt(req.unitId);
-      return { action: req.action, ok: true };
+      return respond({ action: req.action, ok: true });
     } catch (err) {
-      return {
+      return respond({
         action: req.action,
         ok: false,
         reason: err instanceof Error ? err.message : "Interrupt failed.",
-      };
+      });
     }
   }
 
-  return {
+  return respond({
     action: req.action,
     ok: false,
     reason: capability.reason,
-  };
+  });
 }
 
 // Expose CDP for agent-browser attach in dev.

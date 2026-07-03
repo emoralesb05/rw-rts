@@ -973,6 +973,30 @@ function SessionMarker({ ev }: { ev: AgentEvent }) {
   );
 }
 
+function SessionControlRow({ ev }: { ev: AgentEvent }) {
+  const action = String(ev.payload.controlAction ?? "control");
+  const failed = ev.payload.ok === false;
+  const reason = String(ev.payload.reason ?? "").trim();
+  return (
+    <div
+      className={cn(
+        markerClass,
+        failed
+          ? "[&>span:last-child]:text-danger"
+          : "[&>span:last-child]:text-[#ffb070]"
+      )}
+    >
+      <span className={markerLineClass} />
+      <span className={markerTextClass}>
+        Realmkeeper {failed ? "could not" : "requested"} {action}
+        {failed && reason && (
+          <span className="font-normal opacity-75"> · {reason}</span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 function ErrorRow({ ev }: { ev: AgentEvent }) {
   return (
     <div className="border-danger bg-danger/[0.12] text-danger flex items-start gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[11px]">
@@ -1175,6 +1199,9 @@ export function ConversationStream({
           case "session_start":
           case "session_end":
             body = <SessionMarker ev={e} />;
+            break;
+          case "session_control":
+            body = <SessionControlRow ev={e} />;
             break;
           case "subagent_spawn":
             body = <SubagentSpawnRow ev={e} units={units} />;

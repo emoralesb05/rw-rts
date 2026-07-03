@@ -10,6 +10,7 @@ import { UserInputQuestionSchema } from "./user-input";
 export const AgentEventKindSchema = z.enum([
   "session_start",
   "session_end",
+  "session_control",
   "user_prompt",
   "assistant_text",
   "tool_use",
@@ -47,6 +48,9 @@ export const AgentEventPayloadSchema = z.looseObject({
   questions: z.array(UserInputQuestionSchema).optional(),
   responseKind: z.literal("mcp-elicitation").optional(),
   autoResolutionMs: z.number().int().nonnegative().nullable().optional(),
+  controlAction: z.string().optional(),
+  ok: z.boolean().optional(),
+  reason: z.string().optional(),
   resolution: z.enum(["allow", "deny", "error"]).optional(),
   decision: PermissionDecisionSchema.optional(),
   optionId: z.string().optional(),

@@ -74,6 +74,14 @@ export function summarizeEvent(ev: AgentEvent): ActivitySummary {
     const text = trim(String(ev.payload.text ?? ""), 80);
     return { text: `“${text}”`, tone: "ok" };
   }
+  if (ev.kind === "session_control") {
+    const action = String(ev.payload.controlAction ?? "control");
+    if (ev.payload.ok === false) {
+      const reason = trim(String(ev.payload.reason ?? "failed"), 64);
+      return { text: `${action} failed · ${reason}`, tone: "danger" };
+    }
+    return { text: `${action} requested`, tone: "warn" };
+  }
   if (ev.kind === "session_start") {
     return { text: "session start", tone: "ok" };
   }

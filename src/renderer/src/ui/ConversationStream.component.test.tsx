@@ -118,4 +118,30 @@ describe("ConversationStream", () => {
     expect(screen.getByText("via Realmkeeper")).toBeInTheDocument();
     expect(screen.getByText("continue the investigation")).toBeInTheDocument();
   });
+
+  it("renders Realmkeeper session-control markers", () => {
+    useStore.setState({
+      units: { "s-1": unit("s-1", "Faolan") },
+      events: [
+        event("s-1", 1, "session_control", {
+          controlAction: "interrupt",
+          ok: true,
+        }),
+        event("s-1", 2, "session_control", {
+          controlAction: "stop",
+          ok: false,
+          reason: "Realmkeeper did not spawn this process.",
+        }),
+      ],
+      mutedSessionIds: {},
+    });
+
+    render(<ConversationStream sessionId="s-1" cap={10} />);
+
+    expect(screen.getByText(/Realmkeeper requested interrupt/)).toBeDefined();
+    expect(screen.getByText(/Realmkeeper could not stop/)).toBeDefined();
+    expect(
+      screen.getByText(/Realmkeeper did not spawn this process/)
+    ).toBeInTheDocument();
+  });
 });
