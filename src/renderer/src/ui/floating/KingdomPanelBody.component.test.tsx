@@ -322,10 +322,14 @@ describe("KingdomPanelBody", () => {
   it("creates queued draft runs from registered templates", async () => {
     const { rw } = installRw();
     const user = userEvent.setup();
+    useStore.setState({
+      units: { s1: unit() },
+    });
 
     render(<KingdomPanelBody initialTab="runs" />);
 
     expect(await screen.findByText("New run")).toBeVisible();
+    expect(screen.getByText(/Vaelen · codex · working/i)).toBeVisible();
 
     await user.click(
       screen.getByRole("button", {
@@ -337,8 +341,16 @@ describe("KingdomPanelBody", () => {
       template: "provider-handoff-review",
       title: "Provider Handoff Review draft",
       params: {
-        sourceTraceId: "manual",
-        handoffPrompt: "Review the selected session trace.",
+        target: {
+          unitId: "s1",
+          sessionId: "s1",
+          tool: "codex",
+          cwd: "/repo",
+          status: "working",
+        },
+        sourceTraceId: "trace:codex:s1",
+        handoffPrompt:
+          "Review the selected session. Identify risks, missed tests, and next actions.",
       },
       budget: {
         maxIterations: 3,

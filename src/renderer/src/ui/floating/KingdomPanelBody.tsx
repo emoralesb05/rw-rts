@@ -34,6 +34,7 @@ import {
   evaluateTraceMonitors,
   type TraceMonitorSignal,
 } from "@shared/trace-monitors";
+import type { UnitState } from "@shared/events";
 import type {
   OrchestrationRun,
   OrchestrationRunStatus,
@@ -46,6 +47,7 @@ import {
   PROVIDER_HANDOFF_TEMPLATE_ID,
   type OrchestrationTemplateId,
 } from "@shared/orchestration-templates";
+import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -57,6 +59,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "../components/primitives/Tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/primitives/Select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +80,9 @@ import {
 import { Button } from "../components/kit/Button";
 import { Code } from "../components/kit/Code";
 import { EmptyState } from "../components/kit/EmptyState";
+import { Field } from "../components/kit/Field";
 import { Skeleton } from "../components/kit/Skeleton";
+import { Textarea } from "../components/kit/Textarea";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
 import type { HooksStatus, PermissionRule } from "@shared/schemas";
@@ -123,28 +134,144 @@ const RUN_TEMPLATE_OPTIONS: OrchestrationTemplateId[] = [
   FIX_THEN_TEST_TEMPLATE_ID,
 ];
 
+const DEFAULT_HANDOFF_PROMPT =
+  "Review the selected session. Identify risks, missed tests, and next actions.";
+const DEFAULT_COMPARISON_PROMPT =
+  "Compare approaches for the current task. Call out tradeoffs and recommended next steps.";
+const DEFAULT_FIX_TASK_PROMPT = "Implement the selected task.";
+const DEFAULT_VERIFICATION_COMMAND = "bun run test";
+
+type RunTarget = {
+  unitId: string;
+  sessionId: string;
+  tool: UnitState["tool"];
+  cwd: string;
+  status: UnitState["status"];
+  displayName: string;
+};
+
+type DraftRunContext = {
+  selectedTarget: RunTarget | null;
+  comparisonTargets: RunTarget[];
+  handoffPrompt: string;
+  comparisonPrompt: string;
+  taskPrompt: string;
+  verificationCommand: string;
+};
+
+function targetPayload(target: RunTarget): Record<string, unknown> {
+  return {
+    unitId: target.unitId,
+    sessionId: target.sessionId,
+    tool: target.tool,
+    cwd: target.cwd,
+    status: target.status,
+  };
+}
+
+function targetLabel(target: RunTarget): string {
+  return `${target.displayName} · ${target.tool} · ${target.status}`;
+}
+
+function traceIdForTarget(target: RunTarget): string {
+  return `trace:${target.tool}:${target.sessionId}`;
+}
+
+function targetsForUnits(units: Record<string, UnitState>): RunTarget[] {
+  return Object.values(units)
+    .filter((unit) => {
+      if (!unit.sessionId || !unit.cwd) return false;
+      const capabilities = resolveSessionCapabilities({
+        tool: unit.tool,
+        spawnedHere: unit.spawnedHere,
+        status: unit.status,
+      });
+      return capabilities.controls.send.available;
+    })
+    .sort(
+      (a, b) =>
+        (b.spawnedAt ?? b.lastActivity) - (a.spawnedAt ?? a.lastActivity) ||
+        a.displayName.localeCompare(b.displayName)
+    )
+    .map((unit) => ({
+      unitId: unit.id,
+      sessionId: unit.sessionId,
+      tool: unit.tool,
+      cwd: unit.cwd,
+      status: unit.status,
+      displayName: unit.displayName,
+    }));
+}
+
 function draftRunParams(
-  templateId: OrchestrationTemplateId
-): Record<string, unknown> {
+  templateId: OrchestrationTemplateId,
+  context: DraftRunContext
+): Record<string, unknown> | null {
   switch (templateId) {
-    case PROVIDER_HANDOFF_TEMPLATE_ID:
+    case PROVIDER_HANDOFF_TEMPLATE_ID: {
+      if (!context.selectedTarget) return null;
       return {
-        sourceTraceId: "manual",
-        handoffPrompt: "Review the selected session trace.",
+        target: targetPayload(context.selectedTarget),
+        sourceTraceId: traceIdForTarget(context.selectedTarget),
+        handoffPrompt: context.handoffPrompt.trim(),
       };
-    case PARALLEL_COMPARISON_TEMPLATE_ID:
+    }
+    case PARALLEL_COMPARISON_TEMPLATE_ID: {
+      if (context.comparisonTargets.length === 0) return null;
       return {
-        providerTargets: [],
-        comparisonPrompt: "Compare approaches for the selected task.",
+        providerTargets: context.comparisonTargets.map(targetPayload),
+        comparisonPrompt: context.comparisonPrompt.trim(),
       };
-    case FIX_THEN_TEST_TEMPLATE_ID:
+    }
+    case FIX_THEN_TEST_TEMPLATE_ID: {
+      if (!context.selectedTarget) return null;
       return {
-        taskPrompt: "Implement the selected task.",
-        verificationCommand: "bun run test",
+        target: targetPayload(context.selectedTarget),
+        taskPrompt: context.taskPrompt.trim(),
+        verificationCommand: context.verificationCommand.trim(),
       };
+    }
     case "standing-order":
       return {};
   }
+}
+
+function draftRunUnavailableReason(
+  templateId: OrchestrationTemplateId,
+  context: DraftRunContext
+): string {
+  if (
+    (templateId === PROVIDER_HANDOFF_TEMPLATE_ID ||
+      templateId === FIX_THEN_TEST_TEMPLATE_ID) &&
+    !context.selectedTarget
+  ) {
+    return "No send-capable target session.";
+  }
+  if (
+    templateId === PARALLEL_COMPARISON_TEMPLATE_ID &&
+    context.comparisonTargets.length === 0
+  ) {
+    return "No send-capable provider sessions.";
+  }
+  if (
+    templateId === PROVIDER_HANDOFF_TEMPLATE_ID &&
+    !context.handoffPrompt.trim()
+  ) {
+    return "Handoff prompt is required.";
+  }
+  if (
+    templateId === PARALLEL_COMPARISON_TEMPLATE_ID &&
+    !context.comparisonPrompt.trim()
+  ) {
+    return "Comparison prompt is required.";
+  }
+  if (templateId === FIX_THEN_TEST_TEMPLATE_ID) {
+    if (!context.taskPrompt.trim()) return "Task prompt is required.";
+    if (!context.verificationCommand.trim()) {
+      return "Verification command is required.";
+    }
+  }
+  return "";
 }
 
 type KingdomTabProps = ComponentProps<"div">;
@@ -684,8 +811,18 @@ function ObservatoryTab() {
 function RunsTab() {
   const orchestrationRuns = useStore((s) => s.orchestrationRuns);
   const missing = useStore((s) => s.orchestrationRunsMissing);
+  const units = useStore((s) => s.units);
   const refreshOrchestrationRuns = useStore((s) => s.refreshOrchestrationRuns);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedTargetUnitId, setSelectedTargetUnitId] = useState("");
+  const [handoffPrompt, setHandoffPrompt] = useState(DEFAULT_HANDOFF_PROMPT);
+  const [comparisonPrompt, setComparisonPrompt] = useState(
+    DEFAULT_COMPARISON_PROMPT
+  );
+  const [taskPrompt, setTaskPrompt] = useState(DEFAULT_FIX_TASK_PROMPT);
+  const [verificationCommand, setVerificationCommand] = useState(
+    DEFAULT_VERIFICATION_COMMAND
+  );
   const runs = useMemo(
     () =>
       Object.values(orchestrationRuns).sort(
@@ -693,6 +830,21 @@ function RunsTab() {
       ),
     [orchestrationRuns]
   );
+  const runTargets = useMemo(() => targetsForUnits(units), [units]);
+  const selectedTarget =
+    runTargets.find((target) => target.unitId === selectedTargetUnitId) ??
+    runTargets[0] ??
+    null;
+
+  useEffect(() => {
+    if (!runTargets.length) {
+      if (selectedTargetUnitId) setSelectedTargetUnitId("");
+      return;
+    }
+    if (!runTargets.some((target) => target.unitId === selectedTargetUnitId)) {
+      setSelectedTargetUnitId(runTargets[0].unitId);
+    }
+  }, [runTargets, selectedTargetUnitId]);
 
   useEffect(() => {
     void refreshOrchestrationRuns();
@@ -732,6 +884,16 @@ function RunsTab() {
   const createRun = async (templateId: OrchestrationTemplateId) => {
     const key = `create:${templateId}`;
     if (busy) return;
+    const context: DraftRunContext = {
+      selectedTarget,
+      comparisonTargets: runTargets,
+      handoffPrompt,
+      comparisonPrompt,
+      taskPrompt,
+      verificationCommand,
+    };
+    const params = draftRunParams(templateId, context);
+    if (!params) return;
     setBusy(key);
     try {
       const template = ORCHESTRATION_TEMPLATES[templateId];
@@ -739,7 +901,7 @@ function RunsTab() {
         window.rw.createOrchestrationRun({
           template: template.id,
           title: `${template.title} draft`,
-          params: draftRunParams(template.id),
+          params,
           budget: defaultBudgetForTemplate(template.id),
           status: "queued",
         })
@@ -756,6 +918,14 @@ function RunsTab() {
   const terminalCount = runs.filter((run) =>
     ["completed", "failed", "stopped"].includes(run.status)
   ).length;
+  const draftContext: DraftRunContext = {
+    selectedTarget,
+    comparisonTargets: runTargets,
+    handoffPrompt,
+    comparisonPrompt,
+    taskPrompt,
+    verificationCommand,
+  };
 
   if (missing) return <PreloadRestartHint title="Run board" />;
 
@@ -769,23 +939,83 @@ function RunsTab() {
       </div>
 
       <KingdomSection title="New run">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(160px,0.8fr)_1fr_1fr_0.8fr]">
+          <Field label="Target">
+            <Select
+              value={selectedTarget?.unitId ?? ""}
+              onValueChange={setSelectedTargetUnitId}
+              disabled={runTargets.length === 0}
+            >
+              <SelectTrigger aria-label="Run template target">
+                <SelectValue
+                  placeholder={
+                    runTargets.length === 0 ? "No send-capable sessions" : ""
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {runTargets.map((target) => (
+                  <SelectItem key={target.unitId} value={target.unitId}>
+                    {targetLabel(target)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Handoff prompt">
+            <Textarea
+              className="min-h-[66px] text-[11px]"
+              value={handoffPrompt}
+              onChange={(event) => setHandoffPrompt(event.target.value)}
+            />
+          </Field>
+          <Field label="Comparison prompt">
+            <Textarea
+              className="min-h-[66px] text-[11px]"
+              value={comparisonPrompt}
+              onChange={(event) => setComparisonPrompt(event.target.value)}
+            />
+          </Field>
+          <Field label="Fix/test">
+            <Textarea
+              className="min-h-[40px] text-[11px]"
+              value={taskPrompt}
+              onChange={(event) => setTaskPrompt(event.target.value)}
+            />
+            <input
+              className="border-line bg-surface-2 text-text focus-visible:border-accent mt-1 min-h-8 w-full rounded-sm border px-3 py-1.5 font-mono text-[11px] shadow-sm focus:outline-none"
+              value={verificationCommand}
+              onChange={(event) => setVerificationCommand(event.target.value)}
+              aria-label="Verification command"
+            />
+          </Field>
+        </div>
+        <KingdomFooterNote>
+          Comparison uses {runTargets.length} send-capable session
+          {runTargets.length === 1 ? "" : "s"}.
+        </KingdomFooterNote>
         <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3">
           {RUN_TEMPLATE_OPTIONS.map((templateId) => {
             const template = ORCHESTRATION_TEMPLATES[templateId];
+            const unavailableReason = draftRunUnavailableReason(
+              template.id,
+              draftContext
+            );
             return (
               <Button
                 key={template.id}
                 type="button"
                 className="min-h-[44px] justify-start px-2.5 py-2 text-left text-[11px]"
-                disabled={busy !== null}
+                disabled={busy !== null || !!unavailableReason}
                 onClick={() => void createRun(template.id)}
                 aria-label={`Create ${template.title} run`}
+                title={unavailableReason || undefined}
               >
                 <Play className="size-3" />
                 <span className="min-w-0">
                   <span className="block truncate">{template.title}</span>
                   <span className="text-muted block truncate font-mono text-[10px]">
-                    {template.id}
+                    {unavailableReason || template.id}
                   </span>
                 </span>
               </Button>

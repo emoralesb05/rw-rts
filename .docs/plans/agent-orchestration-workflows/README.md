@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (implementation progress reconciled)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (run draft target/parameter selection shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -97,19 +97,19 @@ Shipped on `main`:
   handoff review, parallel provider comparison, and fix-then-test budgets,
   controls, stop rules, and prompt payload names.
 - Run Board can create queued draft runs for provider handoff review, parallel
-  provider comparison, and fix-then-test templates using shared default
-  budgets.
+  provider comparison, and fix-then-test templates using selected
+  send-capable provider sessions, editable prompt fields, verification command
+  input, shared default budgets, and disabled states when required inputs are
+  missing.
 - Main-process engine executes provider handoff review, parallel provider
   comparison, and fix-then-test templates as checkpointed one-shot sends
   through `rw:control-session`, completing on success and pausing visibly when
   required target metadata or provider control is unavailable.
-- Electron e2e covers Run Board durable controls and queued template creation.
+- Electron e2e covers Run Board durable controls and target-backed queued
+  template creation.
 
 Still active:
 
-- Add richer target/parameter selection for provider handoff review, parallel
-  provider comparison, and fix-then-test drafts instead of relying on manual
-  params/default placeholders.
 - Capture provider responses/results for one-shot templates; current execution
   records successful prompt send checkpoints, not semantic review/comparison
   completion.

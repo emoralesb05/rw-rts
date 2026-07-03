@@ -1,5 +1,10 @@
 import { expect, test } from "../fixtures/electron";
-import { waitForRealmkeeper, type RwE2eWindow } from "../helpers/app";
+import {
+  playFixture,
+  waitForRealmkeeper,
+  waitForTools,
+  type RwE2eWindow,
+} from "../helpers/app";
 
 const RUN_ID = "e2e-run-board-manual-control";
 const RUN_TEMPLATE = "manual-e2e-control";
@@ -69,6 +74,8 @@ test("creates queued orchestration runs from the Run board", async ({
   appPage: page,
 }) => {
   await waitForRealmkeeper(page);
+  await playFixture(page, "summon-vaelen");
+  await waitForTools(page, ["claude"]);
 
   await page.getByRole("button", { name: "Open Kingdom panel" }).click();
   const kingdom = page.getByRole("dialog", { name: "Kingdom" });
