@@ -160,15 +160,16 @@ describe("KingdomPanelBody", () => {
 
   it("renders current trace health in the Observatory tab", () => {
     installRw();
+    const now = Date.now();
     useStore.setState({
       units: { s1: unit() },
       events: [
-        event(2, "session_control", {
+        event(now - 1_000, "session_control", {
           controlAction: "stop",
           ok: false,
           reason: "not owned",
         }),
-        event(1, "user_input_request", {
+        event(now - 45_000, "user_input_request", {
           requestId: "input-1",
           questions: [{ id: "choice", header: "Choice", question: "Pick one" }],
         }),
@@ -181,11 +182,14 @@ describe("KingdomPanelBody", () => {
       "data-state",
       "active"
     );
+    expect(screen.getByText("Monitor signals")).toBeVisible();
+    expect(screen.getByText("Trace error")).toBeVisible();
+    expect(screen.getByText("Waiting for input")).toBeVisible();
     expect(screen.getByText("Active waits")).toBeVisible();
     expect(screen.getByText("Recent errors")).toBeVisible();
     expect(screen.getByText("Trace sessions")).toBeVisible();
     expect(screen.getByText("input")).toBeVisible();
-    expect(screen.getByText("not owned")).toBeVisible();
+    expect(screen.getAllByText("not owned").length).toBeGreaterThan(0);
     expect(screen.getByText("Vaelen")).toBeVisible();
     expect(screen.getByText(/codex · 3 spans · error/i)).toBeVisible();
   });

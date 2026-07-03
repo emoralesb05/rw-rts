@@ -21,6 +21,10 @@ import {
   type SpanRecord,
   type TraceRecord,
 } from "@shared/traces";
+import {
+  evaluateTraceMonitors,
+  type TraceMonitorSignal,
+} from "@shared/trace-monitors";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
@@ -244,6 +248,10 @@ function traceDisplayName(trace: TraceRecord): string {
   return `${trace.tool} · ${trace.sessionId.slice(0, 12)}`;
 }
 
+function signalClass(signal: TraceMonitorSignal): string {
+  return signal.severity === "critical" ? "text-danger" : "text-warning";
+}
+
 function OverviewTab() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
@@ -395,6 +403,7 @@ function ObservatoryTab() {
     () => projectTraces(events).sort((a, b) => b.lastEventAt - a.lastEventAt),
     [events]
   );
+  const signals = useMemo(() => evaluateTraceMonitors(traces), [traces]);
   const waiting = traces
     .flatMap((trace) =>
       trace.spans
@@ -432,9 +441,34 @@ function ObservatoryTab() {
       <div className="grid grid-cols-4 gap-2">
         <KingdomStat label="traces" value={traces.length} />
         <KingdomStat label="active" value={activeCount} />
-        <KingdomStat label="waiting" value={waiting.length} />
+        <KingdomStat label="signals" value={signals.length} />
         <KingdomStat label="errors" value={errorCount} />
       </div>
+
+      <KingdomSection title="Monitor signals" count={signals.length}>
+        {signals.length === 0 ? (
+          <KingdomEmpty>No monitor signals.</KingdomEmpty>
+        ) : (
+          <ul className={KINGDOM_LIST_CLASS}>
+            {signals.slice(0, 6).map((signal) => (
+              <li key={signal.id} className={KINGDOM_LIST_ITEM_CLASS}>
+                <span className={signalClass(signal)}>
+                  {signal.severity === "critical" ? "×" : "!"}
+                </span>
+                <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+                  {signal.title}
+                </span>
+                <span className={KINGDOM_LIST_SECONDARY_CLASS}>
+                  {signal.detail}
+                </span>
+                <span className={KINGDOM_LIST_META_CLASS}>
+                  {fmtDuration(signal.durationMs)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </KingdomSection>
 
       <KingdomSection title="Active waits" count={waiting.length}>
         {waiting.length === 0 ? (
