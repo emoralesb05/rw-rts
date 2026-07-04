@@ -4,9 +4,10 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
-No active implementation plans. Current follow-up work is deferred behind
-provider contracts or future product decisions, and is captured in the
-completed plan artifacts below.
+- [`session-control-plane/`](./session-control-plane/) — follow-up
+  provider-native controls are now partially unblocked by focused probes:
+  Codex provider-session list/fork and Claude provider-session
+  discovery/attach/logs. Cursor IDE control and Gemini ACP remain gated.
 
 ## Completed / Watchlist
 
@@ -17,9 +18,10 @@ completed plan artifacts below.
   reliable values.
 - [`session-control-plane/`](./session-control-plane/) — provider-aware
   in-app send/interject, interrupt/recall gating, typed fail-closed IPC, and
-  packaged-app failure coverage shipped. Watchlist: provider-native fork,
-  attach, list, and live-interrupt controls only after focused probes prove
-  stable contracts.
+  packaged-app failure coverage shipped. Follow-up: Codex list/fork and
+  Claude discovery/attach/logs are ticketable after the 2026-07-03 probe;
+  live stop/respawn, Cursor attach/injection, and Gemini ACP still require
+  stronger probes.
 - [`agent-orchestration-workflows/`](./agent-orchestration-workflows/) —
   durable local run schemas, main-process execution, Run Board, constrained
   templates, monitor pauses, and packaged-app orchestration e2e shipped.

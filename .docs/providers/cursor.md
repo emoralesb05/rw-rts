@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `cursor-agent` (verified locally 2026-06-25: `2026.06.24-00-45-58-9f61de7`; the IDE itself runs the same agent under the hood)
+- Binary: `cursor-agent` (verified locally 2026-07-03: `2026.06.26-7079533`; the IDE itself runs the same agent under the hood)
 - Settings: `~/.cursor/hooks.json` (v1 schema, JSON, NOT TOML)
 - Install hooks via `installCursorHooks()` in `src/main/cursor-hook-installer.ts`. Additive — preserves any existing entries (e.g. peon-ping).
 
@@ -99,6 +99,11 @@ Local `cursor-agent --help` exposes:
 - `--mode plan`, `--mode ask`, `--plan`, and parameterized `--model` values for read-only/planning sessions and model tuning.
 - `--force`/`--yolo`, `--auto-review`, `--sandbox enabled|disabled`, `--trust`, and `--workspace` for autonomy and workspace handling.
 - `--plugin-dir`, `mcp`, `generate-rule`, and `worker` for local plugin/MCP/rule workflows and private cloud worker mode.
+- A 2026-07-03 provider-native control probe confirmed `create-chat`,
+  `resume`, `ls`, and `models` are present; `status`, `about`, and
+  `models` all succeed on this machine. No CLI help or official docs fetch
+  exposed an authoritative IDE attach, IDE input injection, or permission
+  decision API, so observed IDE sessions remain observe-only.
 
 Realmkeeper's Connection tab reports `cursor-agent --version`, the bounded
 `cursor-agent status` result, and the current launch behavior so this

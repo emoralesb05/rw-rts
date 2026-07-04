@@ -124,6 +124,20 @@ Realmkeeper's Gemini policy can be audited instead of being a hidden installer
 detail. ACP is worth a separate spike only if we want a long-lived Gemini
 transport; the current `--prompt`/`--resume` path is simpler and works.
 
+2026-07-03 provider-native control probe:
+
+- Local `gemini --list-sessions` exited 0 and printed `No previous sessions
+  found for this project`, then stderr reported the cached account's
+  `IneligibleTierError` / `UNSUPPORTED_CLIENT` path for Gemini Code Assist for
+  individuals.
+- Current ACP docs make the long-lived control path concrete:
+  `gemini --acp` speaks stdio JSON-RPC and exposes `initialize`,
+  `authenticate`, `newSession`, `loadSession`, `prompt`, `cancel`,
+  `setSessionMode`, and `unstable_setSessionModel`.
+- Realmkeeper should keep `--list-sessions` as diagnostic and defer ACP until
+  API key, Vertex, or eligible Google sign-in is verified headlessly. Once auth
+  is available, ACP `cancel` is the first live-interrupt candidate.
+
 ## Permission Flow
 
 Gemini has two permission-adjacent hooks:

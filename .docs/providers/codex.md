@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `codex` (verified locally 2026-07-02: `codex-cli 0.142.5`, typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
+- Binary: `codex` (verified locally 2026-07-03: `codex-cli 0.142.5`, typically `/usr/local/bin/codex` → `node_modules/@openai/codex/bin/codex.js`)
 - Two surfaces: **Codex CLI** (`codex`) and **Codex Desktop / VS Code** (separate bundled binary; version may differ)
 - Settings: `~/.codex/config.toml` (hooks live under `[[hooks.<EventName>]]` arrays)
 - Install hooks via `installCodexHooks()` in `src/main/codex-hook-installer.ts` (uses marker block `# realmkeeper-hooks-start` … `# realmkeeper-hooks-end`)
@@ -78,6 +78,22 @@ OpenAI's app-server is now the primary Realmkeeper Codex surface:
 - `codex app-server` speaks JSON-RPC over stdio, websocket, or Unix socket.
 - It exposes `thread/start`, `thread/resume`, `thread/fork`, `turn/start`, streamed turn notifications, `turn/interrupt`, and `turn/steer`.
 - `turn/steer` maps cleanly to "interject from Realmkeeper while a turn is running." The old `exec resume` path could only append another turn.
+
+2026-07-03 provider-native control probe:
+
+- `codex app-server generate-json-schema --experimental` on local `0.142.5`
+  exposes `thread/list`, `thread/loaded/list`, `thread/turns/list`,
+  `thread/turns/items/list`, `thread/read`, `thread/fork`, `thread/resume`,
+  `turn/start`, `turn/steer`, and `turn/interrupt`.
+- `thread/list` has the provider-session discovery shape Realmkeeper needs:
+  cwd, source kind, model provider, archived, parent-thread, search,
+  pagination, and sort filters.
+- `thread/fork` supports `threadId`, `cwd`, sandbox/approval settings,
+  permissions profile, runtime workspace roots, and `excludeTurns`.
+- `codex app-server daemon` has `start`, `stop`, `restart`,
+  `enable-remote-control`, `disable-remote-control`, and `version`, but no
+  `status` subcommand; `daemon version` fails cleanly when no control socket
+  exists. Realmkeeper should prefer direct app-server JSON-RPC for list/fork.
 
 App-server can send server-side approval and tool requests to the client (`item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `item/permissions/requestApproval`, MCP elicitations, dynamic tool calls). Realmkeeper maps command, file-change, permission-profile, and legacy exec/patch approvals into normal permission cards. Structured `item/tool/requestUserInput` prompts and typed MCP elicitation `form` mode render as answer letters, preserving choice values, required flags, multi-select flags, and typed boolean/number MCP answers. MCP URL elicitations render decline/cancel-only letters with the server message and URL. MCP `openai/form` elicitations render as normal answer letters when their `requestedSchema` can be translated into Realmkeeper questions; arbitrary form payloads stay decline/cancel-only until Realmkeeper has explicit UI for them. Dynamic tool calls route through an empty allowlisted registry by default, so every unregistered tool still fails closed.
 

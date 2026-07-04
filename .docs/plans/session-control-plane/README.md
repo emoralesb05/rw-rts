@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (fail-closed e2e shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (provider-native controls probed)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -18,6 +18,12 @@ typed IPC with visible success/failure events.
 
 Do this with a capability model, not by pretending Claude, Codex, Cursor, and
 Gemini all support the same live-control surface.
+
+The 2026-07-03 provider-native probe upgrades part of the watchlist into
+ticketable work: Codex app-server list/fork and Claude background
+discovery/attach/logs are concrete enough to implement behind capability gates.
+Cursor stays observe/resume only, and Gemini ACP stays auth-gated until a
+supported headless credential path is verified.
 
 ## Decision
 
@@ -54,6 +60,12 @@ Gemini all support the same live-control surface.
   emit `user_prompt`, `session_control`, or `error` events with provider
   diagnostics so the observability plan can turn them into trace spans and
   monitor signals.
+
+- ✅ **Promote only proven provider-native controls.** Codex app-server
+  `thread/list` and `thread/fork` plus Claude `agents --json --all` discovery
+  and background attach/logs are now probed enough for follow-up tickets.
+  Cursor IDE injection and Gemini ACP interrupt remain unavailable until their
+  provider contracts and auth paths are proven.
 
 ## PR sequence
 
@@ -98,14 +110,16 @@ Shipped on `main`:
 
 Still active:
 
-- None requiring implementation with current provider contracts.
+- Codex provider-session list and fork through app-server, using generated
+  schema snapshots as the contract check.
+- Claude provider-session list plus background attach/logs actions, with
+  stop/respawn gated to background-managed sessions only.
 
 Deferred watchlist:
 
 - Wire additional provider-native controls only after focused probes prove
-  stable contracts: Codex fork/attach/list sessions, Claude background agent
-  discovery/attach/stop, Cursor authoritative attach/injection, and Gemini
-  ACP/live interrupt.
+  stable contracts: Claude background stop/respawn live semantics, Cursor
+  authoritative attach/injection, and Gemini ACP/live interrupt.
 - Keep Cursor permission/control behavior observe-only unless provider docs or
   probes prove an authoritative control path.
 
@@ -126,11 +140,13 @@ Deferred watchlist:
 ## Coverage gaps — what this does NOT validate
 
 - Claude background/remote-control commands still need focused live probes
-  before Realmkeeper treats them as reliable controls.
+  before Realmkeeper treats stop/respawn as reliable controls. Discovery and
+  attach/logs are ticketable after P1.
 - Cursor IDE sessions remain observe-only unless Cursor exposes an
   authoritative attach/injection API or a stronger permission contract.
-- Gemini ACP is not part of this plan. It is only worth pursuing after the
-  simpler prompt/resume/list path proves insufficient.
+- Gemini ACP is not part of the next implementation unit. It has useful
+  `prompt` and `cancel` primitives, but this machine's current OAuth/account
+  tier blocks headless live validation.
 - Provider-native stop semantics differ. The UI must describe whether it is
   stopping a Realmkeeper-owned process, asking a provider to stop, or only
   marking a local control attempt as failed.

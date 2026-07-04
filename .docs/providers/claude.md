@@ -2,7 +2,7 @@
 
 ## Binary & install
 
-- Binary: `claude` (verified locally 2026-07-03: `2.1.199 (Claude Code)`, resolved at `/Users/ed/.local/bin/claude`)
+- Binary: `claude` (verified locally 2026-07-03: `2.1.200 (Claude Code)`, resolved at `/Users/ed/.local/bin/claude`)
 - Settings: `~/.claude/settings.json` (hooks live under `hooks.<EventName>`)
 - Install hooks via the realmkeeper UI (Settings) or `installHooks()` in `src/main/hook-installer.ts`
 
@@ -110,6 +110,13 @@ Official CLI reference now documents several capabilities worth tracking:
 - Realmkeeper's direct hook path replies to `PreToolUse` / `AskUserQuestion` with `updatedInput`, and renders that request through answer letters.
 - Realmkeeper also normalizes the provider-shaped `result.stop_reason: "tool_deferred"` / `deferred_tool_use.name: "AskUserQuestion"` stream result into an answer letter. This is covered by a synthetic fixture; live deferred-envelope capture is confirmed with a Bash hook, while live `AskUserQuestion` capture remains unavailable in clean print mode.
 - A 2026-07-03 live probe verified `claude auth status` succeeds (`loggedIn: true`, `subscriptionType: "max"`) and a temporary Bash `PreToolUse` hook returning `permissionDecision: "defer"` produces a `result.stop_reason: "tool_deferred"` record with `deferred_tool_use`.
+- A 2026-07-03 provider-native control probe on `2.1.200` verified
+  `claude agents --json --all` returns machine-readable sessions with
+  `pid`, `cwd`, `kind`, `startedAt`, `sessionId`, `name`, and `status`.
+  Local help also confirms `attach`, `logs`, `stop`, `respawn`,
+  `daemon status`, and `remote-control`. Treat discovery plus attach/logs as
+  ticketable; keep provider-native stop/respawn gated to sessions whose
+  reported `kind` proves Claude manages them as background sessions.
 - A 2026-07-03 clean print-mode `AskUserQuestion` probe still did not expose that tool. The init event omitted `AskUserQuestion`; Claude searched deferred tools for `select:AskUserQuestion` and returned no matches. Treat the synthetic `AskUserQuestion` deferred fixture as a compatibility guard until live capture confirms the exact tool-specific shape.
 - A 2026-07-03 docs re-check found the public hooks page still lists "Defer a tool call for later" in the table of contents, but the fetched body did not expose the `AskUserQuestion`, `tool_deferred`, or `deferred_tool_use` details.
 - A 2026-06-29 live probe with `--tools AskUserQuestion` did **not** expose the tool (`tools: []` in the init event). Claude emitted malformed XML-like text instead and hit the budget cap. Do not use that command shape as the live fixture path.
