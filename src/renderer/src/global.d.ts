@@ -4,6 +4,8 @@ import type {
   SendPromptRequest,
   ControlSessionRequest,
   ControlSessionResponse,
+  ListProviderSessionsRequest,
+  ListProviderSessionsResponse,
   ControlOrchestrationRunRequest,
   CreateOrchestrationRunRequest,
   ExportTracesRequest,
@@ -34,6 +36,9 @@ declare global {
       controlSession(
         req: ControlSessionRequest
       ): Promise<ControlSessionResponse>;
+      listProviderSessions(
+        req?: ListProviderSessionsRequest
+      ): Promise<ListProviderSessionsResponse>;
       listUnits(): Promise<ListUnitEntry[]>;
       installHooks(): Promise<HooksStatus>;
       uninstallHooks(): Promise<HooksStatus>;

@@ -144,6 +144,48 @@ function installRw() {
         pauseReason: "Paused from Run Board.",
       })
     ),
+    listProviderSessions: vi.fn(() =>
+      Promise.resolve({
+        generatedAt: Date.now(),
+        sessions: [
+          {
+            providerSessionId: "claude-session-1",
+            tool: "claude" as const,
+            displayName: "Claude background",
+            cwd: "/Users/ed/Github/emoralesb05/rw-rts",
+            status: "busy" as const,
+            source: "background",
+            createdAt: Date.now() - 60_000,
+            pid: 4521,
+            availableActions: ["resume", "attach", "logs", "stop", "respawn"],
+          },
+          {
+            providerSessionId: "codex-thread-1",
+            tool: "codex" as const,
+            displayName: "Investigate tests",
+            cwd: "/Users/ed/Github/emoralesb05/rw-rts",
+            status: "active" as const,
+            source: "cli",
+            updatedAt: Date.now() - 120_000,
+            preview: "Checking provider inventory.",
+            modelProvider: "openai",
+            availableActions: ["resume", "fork"],
+          },
+        ],
+        errors: [
+          {
+            tool: "cursor" as const,
+            reasonCode: "not_implemented" as const,
+            message: "Cursor provider-session discovery is not wired yet.",
+          },
+          {
+            tool: "gemini" as const,
+            reasonCode: "not_implemented" as const,
+            message: "Gemini provider-session discovery is not wired yet.",
+          },
+        ],
+      })
+    ),
     savePersisted: vi.fn(() => Promise.resolve()),
   };
 
@@ -330,6 +372,27 @@ describe("KingdomPanelBody", () => {
       expect(screen.getAllByText("paused").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("Paused from Run Board.")).toBeVisible();
+  });
+
+  it("lists native provider sessions from the Sessions tab", async () => {
+    const { rw } = installRw();
+
+    render(<KingdomPanelBody initialTab="sessions" />);
+
+    expect(await screen.findByText("Provider sessions")).toBeVisible();
+    expect(rw.listProviderSessions).toHaveBeenCalled();
+    expect(await screen.findByText("Claude background")).toBeVisible();
+    expect(screen.getByText("Investigate tests")).toBeVisible();
+    expect(screen.getByText("Checking provider inventory.")).toBeVisible();
+    expect(screen.getByText(/background · rw-rts · pid 4521/i)).toBeVisible();
+    expect(screen.getByText(/cli · openai · rw-rts/i)).toBeVisible();
+    expect(screen.getAllByText("resume").length).toBeGreaterThan(1);
+    expect(
+      screen.getByText("Cursor provider-session discovery is not wired yet.")
+    ).toBeVisible();
+    expect(
+      screen.getByText("Gemini provider-session discovery is not wired yet.")
+    ).toBeVisible();
   });
 
   it("creates queued draft runs from registered templates", async () => {

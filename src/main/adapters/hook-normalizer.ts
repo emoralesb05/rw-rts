@@ -63,12 +63,6 @@ function canonicalToolName(raw: unknown): string | undefined {
   return TOOL_NAME_CANONICAL[raw] ?? raw;
 }
 
-function recordValue(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
 function cursorIdentityPayload(conversationId: string, p: HookPayload) {
   const providerSessionId =
     nonEmptyString(p.sessionId) ?? nonEmptyString(p.session_id);

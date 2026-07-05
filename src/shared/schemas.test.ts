@@ -14,6 +14,8 @@ import {
   HooksStatusSchema,
   HookPayloadSchema,
   KillAgentRequestSchema,
+  ListProviderSessionsRequestSchema,
+  ListProviderSessionsResponseSchema,
   ListUnitsResponseSchema,
   ListOrchestrationRunsResponseSchema,
   ListWorkspaceReposResponseSchema,
@@ -539,6 +541,40 @@ describe("runtime schemas", () => {
       ListUnitsResponseSchema.parse([
         { unitId: "unit-1", sessionId: "session-1", cwd: "/repo" },
       ])
+    ).toHaveLength(1);
+
+    expect(
+      ListProviderSessionsRequestSchema.parse({
+        tools: ["claude", "codex"],
+        cwd: "/repo",
+      })
+    ).toMatchObject({ tools: ["claude", "codex"] });
+
+    expect(
+      ListProviderSessionsResponseSchema.parse({
+        generatedAt: 1,
+        sessions: [
+          {
+            providerSessionId: "thread-1",
+            tool: "codex",
+            displayName: "Inspect tests",
+            cwd: "/repo",
+            status: "active",
+            source: "cli",
+            createdAt: 1,
+            updatedAt: 2,
+            modelProvider: "openai",
+            availableActions: ["resume", "fork"],
+          },
+        ],
+        errors: [
+          {
+            tool: "cursor",
+            reasonCode: "not_implemented",
+            message: "Cursor provider-session discovery is not wired yet.",
+          },
+        ],
+      }).sessions
     ).toHaveLength(1);
 
     expect(

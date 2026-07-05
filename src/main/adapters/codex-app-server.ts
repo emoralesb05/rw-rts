@@ -14,6 +14,7 @@ import type { AgentEvent, AgentEventSource } from "@shared/events";
 import { permissionOptionsForTool } from "@shared/provider-permissions";
 import type {
   PermissionDecision,
+  ProviderSessionEntry,
   UserInputAnswers,
   UserInputQuestion,
 } from "@shared/schemas";
@@ -121,6 +122,20 @@ export function buildTurnSteerParams(
 
 export function buildCodexAppServerArgs(): string[] {
   return ["app-server", "--stdio"];
+}
+
+export function buildThreadListParams(opts: {
+  cwd?: string;
+  limit?: number;
+}): JsonRecord {
+  return compactRecord({
+    cwd: opts.cwd,
+    limit: opts.limit ?? 30,
+    sortKey: "updated_at",
+    sortDirection: "desc",
+    sourceKinds: ["cli", "vscode", "exec", "appServer"],
+    useStateDbOnly: true,
+  });
 }
 
 export function buildCodexAppServerDiagnostics(args: {
@@ -293,6 +308,33 @@ export function resumeCodexAppServerSession(opts: {
   client.proc.on("exit", () => unregisterSpawnedSession(opts.sessionId));
   client.proc.on("error", () => unregisterSpawnedSession(opts.sessionId));
   return client.proc;
+}
+
+export async function listCodexAppServerProviderSessions(
+  opts: {
+    cwd?: string;
+    limit?: number;
+    timeoutMs?: number;
+  } = {}
+): Promise<ProviderSessionEntry[]> {
+  const cwd = opts.cwd ?? process.cwd();
+  const client = new CodexAppServerClient(cwd, "realmkeeper", true);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await client.initialize();
+    const request = client.request("thread/list", buildThreadListParams(opts));
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        client.kill();
+        reject(new Error("codex app-server thread/list timed out"));
+      }, opts.timeoutMs ?? 8_000);
+    });
+    const result = await Promise.race([request, timeout]);
+    return normalizeCodexThreadListResponse(result);
+  } finally {
+    if (timer) clearTimeout(timer);
+    client.kill();
+  }
 }
 
 class CodexAppServerClient {
@@ -1438,6 +1480,62 @@ function codexAppServerSchemaSummary(value: unknown): JsonRecord | undefined {
       ? schema.required.length
       : undefined,
   });
+}
+
+export function normalizeCodexThreadListResponse(
+  value: unknown
+): ProviderSessionEntry[] {
+  const data = record(value)?.data;
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((entry) => {
+    const thread = record(entry);
+    const id = stringValue(thread?.id);
+    if (!thread || !id) return [];
+    const cwd = stringValue(thread.cwd);
+    const name = stringValue(thread.name);
+    const preview = stringValue(thread.preview);
+    return [
+      compactRecord({
+        providerSessionId: id,
+        tool: "codex",
+        displayName: name ?? preview?.slice(0, 80) ?? id,
+        cwd,
+        status: codexThreadStatus(thread.status),
+        source: codexSessionSourceLabel(thread.source),
+        createdAt: secondsToMillis(numberValue(thread.createdAt)),
+        updatedAt: secondsToMillis(numberValue(thread.updatedAt)),
+        preview,
+        modelProvider: stringValue(thread.modelProvider),
+        availableActions: ["resume", "fork"],
+      }) as ProviderSessionEntry,
+    ];
+  });
+}
+
+function codexThreadStatus(value: unknown): ProviderSessionEntry["status"] {
+  const status = record(value);
+  const type = stringValue(status?.type) ?? stringValue(value);
+  if (type === "active") return "active";
+  if (type === "idle" || type === "notLoaded") return "idle";
+  if (type === "systemError") return "failed";
+  return "unknown";
+}
+
+function codexSessionSourceLabel(value: unknown): string | undefined {
+  const source = record(value);
+  if (!source) return stringValue(value);
+  const type = stringValue(source.type);
+  if (type) return type;
+  for (const [key, entry] of Object.entries(source)) {
+    if (entry !== undefined && entry !== null) return key;
+  }
+  return undefined;
+}
+
+function secondsToMillis(value: number | undefined): number | undefined {
+  return value === undefined
+    ? undefined
+    : Math.max(0, Math.trunc(value * 1000));
 }
 
 function compactRecord(value: JsonRecord): JsonRecord {

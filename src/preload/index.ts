@@ -10,6 +10,7 @@ import {
   OrchestrationRunResponseSchema,
   ExportTracesResponseSchema,
   HooksStatusSchema,
+  ListProviderSessionsResponseSchema,
   ListPermissionRulesResponseSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
@@ -27,6 +28,7 @@ import {
   type ControlSessionRequest,
   type CreateOrchestrationRunRequest,
   type ExportTracesRequest,
+  type ListProviderSessionsRequest,
   type SpawnAgentRequest,
   type SendPromptRequest,
   type PlayFixtureRequest,
@@ -93,6 +95,13 @@ const api = {
   },
   controlSession(req: ControlSessionRequest) {
     return invokeParsed(IPC.ControlSession, ControlSessionResponseSchema, req);
+  },
+  listProviderSessions(req?: ListProviderSessionsRequest) {
+    return invokeParsed(
+      IPC.ListProviderSessions,
+      ListProviderSessionsResponseSchema,
+      req
+    );
   },
   listUnits() {
     return invokeParsed(IPC.ListUnits, ListUnitsResponseSchema);

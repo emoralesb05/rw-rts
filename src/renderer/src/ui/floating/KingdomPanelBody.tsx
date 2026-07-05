@@ -9,6 +9,7 @@
  *   Connection — hook bridge install/uninstall + socket path
  */
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -88,11 +89,17 @@ import { Skeleton } from "../components/kit/Skeleton";
 import { Textarea } from "../components/kit/Textarea";
 import { RenownBadge, type RenownTier } from "../RenownBadge";
 import { cn } from "@/lib/cn";
-import type { HooksStatus, PermissionRule } from "@shared/schemas";
+import type {
+  HooksStatus,
+  ListProviderSessionsResponse,
+  PermissionRule,
+  ProviderSessionEntry,
+} from "@shared/schemas";
 
 type TabKey =
   | "overview"
   | "observatory"
+  | "sessions"
   | "runs"
   | "settings"
   | "connection"
@@ -1478,6 +1485,195 @@ async function safeIpc<T>(
   }
 }
 
+const PROVIDER_SESSION_TOOLS: UnitState["tool"][] = [
+  "claude",
+  "codex",
+  "cursor",
+  "gemini",
+];
+
+function ProviderSessionsTab() {
+  const [response, setResponse] = useState<ListProviderSessionsResponse | null>(
+    null
+  );
+  const [missing, setMissing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const next = await safeIpc(() => window.rw.listProviderSessions());
+      if (next) {
+        setResponse(next);
+        setMissing(false);
+      } else {
+        setMissing(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  if (missing) return <PreloadRestartHint title="Provider sessions" />;
+
+  const sessions = response?.sessions ?? [];
+  const errorCount = response?.errors.length ?? 0;
+  const providerCount = new Set(sessions.map((session) => session.tool)).size;
+
+  return (
+    <KingdomTab>
+      <div className="grid grid-cols-4 gap-2">
+        <KingdomStat label="sessions" value={sessions.length} />
+        <KingdomStat label="providers" value={providerCount} />
+        <KingdomStat label="notes" value={errorCount} />
+        <KingdomStat
+          label="refreshed"
+          value={response ? fmtRelDays(response.generatedAt) : "—"}
+        />
+      </div>
+
+      <KingdomSection title="Provider sessions">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
+            <RotateCw className={cn("size-3.5", loading && "animate-spin")} />
+            {loading ? "Refreshing..." : "Refresh"}
+          </Button>
+          {response ? (
+            <span className="text-muted text-[10.5px]">
+              {new Date(response.generatedAt).toLocaleTimeString()}
+            </span>
+          ) : null}
+        </div>
+      </KingdomSection>
+
+      {PROVIDER_SESSION_TOOLS.map((tool) => {
+        const toolSessions = sessions.filter(
+          (session) => session.tool === tool
+        );
+        const toolErrors =
+          response?.errors.filter((error) => error.tool === tool) ?? [];
+        return (
+          <KingdomSection
+            key={tool}
+            title={`${providerLabel(tool)} sessions`}
+            count={toolSessions.length}
+          >
+            {toolSessions.length === 0 ? (
+              <KingdomEmpty>No native sessions reported.</KingdomEmpty>
+            ) : (
+              <ul className={KINGDOM_LIST_CLASS}>
+                {toolSessions.map((session) => (
+                  <ProviderSessionRow
+                    key={`${session.tool}:${session.providerSessionId}`}
+                    session={session}
+                  />
+                ))}
+              </ul>
+            )}
+            {toolErrors.map((error) => (
+              <KingdomFooterNote
+                key={`${error.tool}:${error.reasonCode}:${error.message}`}
+              >
+                {error.message}
+              </KingdomFooterNote>
+            ))}
+          </KingdomSection>
+        );
+      })}
+    </KingdomTab>
+  );
+}
+
+function ProviderSessionRow({ session }: { session: ProviderSessionEntry }) {
+  const timestamp = session.updatedAt ?? session.createdAt;
+  return (
+    <li
+      className={cn(
+        KINGDOM_LIST_ITEM_CLASS,
+        "grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+      )}
+    >
+      <span className={providerSessionStatusClass(session.status)}>●</span>
+      <span className="min-w-0">
+        <span className={KINGDOM_LIST_PRIMARY_CLASS}>
+          {session.displayName}
+        </span>
+        <span className="text-muted block overflow-hidden text-[10px] text-ellipsis whitespace-nowrap">
+          {providerSessionSubtitle(session)}
+        </span>
+        {session.preview ? (
+          <span className="text-muted/80 mt-0.5 block overflow-hidden text-[10px] text-ellipsis whitespace-nowrap">
+            {session.preview}
+          </span>
+        ) : null}
+      </span>
+      <span className={KINGDOM_LIST_SECONDARY_CLASS}>{session.status}</span>
+      <span className={KINGDOM_LIST_META_CLASS}>
+        {timestamp ? fmtRelDays(timestamp) : "—"}
+      </span>
+      <span className="col-start-2 col-end-5 flex min-w-0 flex-wrap gap-1 pt-0.5">
+        {session.availableActions.map((action) => (
+          <span
+            key={action}
+            className="border-line/70 bg-surface-2/60 text-muted rounded-sm border px-1.5 py-0.5 text-[9.5px] leading-none"
+          >
+            {action}
+          </span>
+        ))}
+      </span>
+    </li>
+  );
+}
+
+function providerSessionSubtitle(session: ProviderSessionEntry): string {
+  const parts = [
+    session.source,
+    session.modelProvider,
+    session.cwd ? repoLabel(session.cwd) : undefined,
+    session.pid ? `pid ${session.pid}` : undefined,
+    session.providerSessionId,
+  ].filter((part): part is string => Boolean(part));
+  return parts.join(" · ");
+}
+
+function repoLabel(cwd: string): string {
+  const parts = cwd.split("/").filter(Boolean);
+  return parts.at(-1) ?? cwd;
+}
+
+function providerLabel(tool: UnitState["tool"]): string {
+  switch (tool) {
+    case "claude":
+      return "Claude";
+    case "codex":
+      return "Codex";
+    case "cursor":
+      return "Cursor";
+    case "gemini":
+      return "Gemini";
+  }
+}
+
+function providerSessionStatusClass(
+  status: ProviderSessionEntry["status"]
+): string {
+  if (status === "failed") return "text-danger";
+  if (status === "busy" || status === "working" || status === "active") {
+    return "text-warning";
+  }
+  if (status === "complete") return "text-success";
+  return "text-muted";
+}
+
 function ConnectionTab() {
   const [claudeStatus, setClaudeStatus] = useState<HooksStatus | null>(null);
   const [cursorStatus, setCursorStatus] = useState<HooksStatus | null>(null);
@@ -2116,6 +2312,7 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
       <TabsList aria-label="kingdom panel">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="observatory">Observatory</TabsTrigger>
+        <TabsTrigger value="sessions">Sessions</TabsTrigger>
         <TabsTrigger value="runs">Runs</TabsTrigger>
         <TabsTrigger value="settings">Settings</TabsTrigger>
         <TabsTrigger value="connection">Connection</TabsTrigger>
@@ -2126,6 +2323,9 @@ export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
       </TabsContent>
       <TabsContent value="observatory">
         <ObservatoryTab />
+      </TabsContent>
+      <TabsContent value="sessions">
+        <ProviderSessionsTab />
       </TabsContent>
       <TabsContent value="runs">
         <RunsTab onOpenObservatory={() => setTab("observatory")} />

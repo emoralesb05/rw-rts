@@ -6,6 +6,7 @@ import {
   buildCodexAppServerMcpElicitationEvent,
   buildCodexAppServerPermissionEvent,
   buildCodexAppServerUserInputEvent,
+  buildThreadListParams,
   buildThreadResumeParams,
   buildThreadStartParams,
   buildTurnStartParams,
@@ -18,6 +19,7 @@ import {
   codexAppServerUnsupportedRequestError,
   codexAppServerUnsupportedRequestPayload,
   normalizeCodexAppServerNotification,
+  normalizeCodexThreadListResponse,
 } from "./codex-app-server";
 import { normalizeCodexStreamMessage } from "./codex-cli";
 import {
@@ -305,6 +307,52 @@ describe("active CLI stream normalization", () => {
       expectedTurnId: "turn-1",
       input: [{ type: "text", text: "adjust", text_elements: [] }],
     });
+  });
+
+  it("builds and normalizes Codex app-server thread lists", () => {
+    expect(buildThreadListParams({ cwd: "/repo", limit: 5 })).toEqual({
+      cwd: "/repo",
+      limit: 5,
+      sortKey: "updated_at",
+      sortDirection: "desc",
+      sourceKinds: ["cli", "vscode", "exec", "appServer"],
+      useStateDbOnly: true,
+    });
+
+    expect(
+      normalizeCodexThreadListResponse({
+        data: [
+          {
+            id: "thread-1",
+            name: "",
+            preview: "Inspect provider sessions",
+            cwd: "/repo",
+            status: { type: "active" },
+            source: { type: "cli" },
+            createdAt: 1,
+            updatedAt: 2,
+            modelProvider: "openai",
+          },
+          {
+            id: "",
+          },
+        ],
+      })
+    ).toEqual([
+      {
+        providerSessionId: "thread-1",
+        tool: "codex",
+        displayName: "Inspect provider sessions",
+        cwd: "/repo",
+        status: "active",
+        source: "cli",
+        createdAt: 1_000,
+        updatedAt: 2_000,
+        preview: "Inspect provider sessions",
+        modelProvider: "openai",
+        availableActions: ["resume", "fork"],
+      },
+    ]);
   });
 
   it("builds Codex app-server diagnostics with approval categories", () => {

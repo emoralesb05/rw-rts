@@ -4,6 +4,7 @@ export const IPC = {
   KillAgent: "rw:kill-agent",
   SendPrompt: "rw:send-prompt",
   ControlSession: "rw:control-session",
+  ListProviderSessions: "rw:list-provider-sessions",
   ListUnits: "rw:list-units",
   InstallHooks: "rw:install-hooks",
   UninstallHooks: "rw:uninstall-hooks",

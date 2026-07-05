@@ -39,6 +39,71 @@ export type ListUnitEntry = z.infer<typeof ListUnitEntrySchema>;
 export const ListUnitsResponseSchema = z.array(ListUnitEntrySchema);
 export type ListUnitsResponse = z.infer<typeof ListUnitsResponseSchema>;
 
+export const ProviderSessionActionSchema = z.enum([
+  "resume",
+  "fork",
+  "attach",
+  "logs",
+  "stop",
+  "respawn",
+]);
+export type ProviderSessionAction = z.infer<typeof ProviderSessionActionSchema>;
+
+export const ProviderSessionStatusSchema = z.enum([
+  "idle",
+  "busy",
+  "working",
+  "active",
+  "complete",
+  "failed",
+  "unknown",
+]);
+export type ProviderSessionStatus = z.infer<typeof ProviderSessionStatusSchema>;
+
+export const ProviderSessionEntrySchema = z.object({
+  providerSessionId: z.string().min(1),
+  tool: AgentToolSchema,
+  displayName: z.string().min(1),
+  cwd: z.string().optional(),
+  status: ProviderSessionStatusSchema,
+  source: z.string().optional(),
+  createdAt: z.number().int().nonnegative().optional(),
+  updatedAt: z.number().int().nonnegative().optional(),
+  pid: z.number().int().nonnegative().optional(),
+  preview: z.string().optional(),
+  modelProvider: z.string().optional(),
+  availableActions: z.array(ProviderSessionActionSchema),
+});
+export type ProviderSessionEntry = z.infer<typeof ProviderSessionEntrySchema>;
+
+export const ProviderSessionListErrorSchema = z.object({
+  tool: AgentToolSchema,
+  reasonCode: z.enum(["provider_error", "not_implemented"]),
+  message: z.string().min(1),
+});
+export type ProviderSessionListError = z.infer<
+  typeof ProviderSessionListErrorSchema
+>;
+
+export const ListProviderSessionsRequestSchema = z
+  .object({
+    tools: z.array(AgentToolSchema).optional(),
+    cwd: z.string().min(1).optional(),
+  })
+  .optional();
+export type ListProviderSessionsRequest = z.infer<
+  typeof ListProviderSessionsRequestSchema
+>;
+
+export const ListProviderSessionsResponseSchema = z.object({
+  generatedAt: z.number().int().nonnegative(),
+  sessions: z.array(ProviderSessionEntrySchema),
+  errors: z.array(ProviderSessionListErrorSchema),
+});
+export type ListProviderSessionsResponse = z.infer<
+  typeof ListProviderSessionsResponseSchema
+>;
+
 export const KillAgentRequestSchema = z.string().min(1);
 export type KillAgentRequest = z.infer<typeof KillAgentRequestSchema>;
 

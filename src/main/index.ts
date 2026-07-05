@@ -44,6 +44,7 @@ import {
   getGeminiHooksStatus,
 } from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
+import { listProviderSessions } from "./provider-sessions";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
 import {
@@ -61,6 +62,8 @@ import {
   AppSettingsSchema,
   HooksStatusSchema,
   KillAgentRequestSchema,
+  ListProviderSessionsRequestSchema,
+  ListProviderSessionsResponseSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
   OpenPathRequestSchema,
@@ -458,6 +461,19 @@ void app.whenReady().then(async () => {
       return controlSession(req);
     },
     ControlSessionResponseSchema
+  );
+
+  safeHandle(
+    IPC.ListProviderSessions,
+    async (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.ListProviderSessions,
+        ListProviderSessionsRequestSchema,
+        raw
+      );
+      return listProviderSessions(req);
+    },
+    ListProviderSessionsResponseSchema
   );
 
   safeHandle(
