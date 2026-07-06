@@ -8,6 +8,7 @@ export type SessionControlName =
   | "stop"
   | "fork"
   | "attach"
+  | "logs"
   | "listProviderSessions"
   | "issueDecree"
   | "runStandingOrder";
@@ -19,6 +20,7 @@ export const SESSION_CONTROL_NAMES = [
   "stop",
   "fork",
   "attach",
+  "logs",
   "listProviderSessions",
   "issueDecree",
   "runStandingOrder",
@@ -93,6 +95,7 @@ function baseControls(
     stop: unavailable(reason),
     fork: unavailable(reason),
     attach: unavailable(reason),
+    logs: unavailable(reason),
     listProviderSessions: unavailable(reason),
     issueDecree: unavailable(reason),
     runStandingOrder: unavailable(reason),
@@ -170,6 +173,7 @@ export function resolveSessionCapabilities(
       controls.attach = unavailable(
         "Codex native attach/open controls are not wired yet."
       );
+      controls.logs = unavailable("Codex native logs are not wired yet.");
       controls.listProviderSessions = available(
         "Codex app-server can list known threads."
       );
@@ -185,8 +189,11 @@ export function resolveSessionCapabilities(
       controls.fork = unavailable(
         "Claude --fork-session is known but not wired into Realmkeeper yet."
       );
-      controls.attach = unavailable(
-        "Claude attach exists for background agents but is not wired yet."
+      controls.attach = available(
+        "Claude can attach to native agent sessions in Terminal."
+      );
+      controls.logs = available(
+        "Claude can print recent native agent session logs."
       );
       controls.listProviderSessions = available(
         "Claude can list native agent sessions."
@@ -201,6 +208,7 @@ export function resolveSessionCapabilities(
       );
       controls.fork = unavailable("Cursor chat fork is not wired yet.");
       controls.attach = unavailable("Cursor IDE attach is not wired yet.");
+      controls.logs = unavailable("Cursor IDE logs are not wired yet.");
       controls.listProviderSessions = unavailable(
         "Cursor chat discovery is not wired yet."
       );
@@ -214,6 +222,7 @@ export function resolveSessionCapabilities(
       );
       controls.fork = unavailable("Gemini session fork is not wired yet.");
       controls.attach = unavailable("Gemini native attach is not wired yet.");
+      controls.logs = unavailable("Gemini native logs are not wired yet.");
       controls.listProviderSessions = unavailable(
         "Gemini --list-sessions is diagnostic only for now."
       );

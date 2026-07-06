@@ -79,11 +79,22 @@ describe("runtime schemas", () => {
     });
 
     expect(
+      ControlSessionRequestSchema.parse({
+        action: "logs",
+        unitId: "unit-1",
+        sessionId: "session-1",
+        tool: "claude",
+        cwd: "/repo",
+      })
+    ).toMatchObject({ action: "logs" });
+
+    expect(
       ControlSessionResponseSchema.parse({
         action: "interrupt",
         ok: false,
         unitId: "unit-2",
         sessionId: "session-2",
+        output: "provider output",
         reason: "not available",
       })
     ).toEqual({
@@ -91,6 +102,7 @@ describe("runtime schemas", () => {
       ok: false,
       unitId: "unit-2",
       sessionId: "session-2",
+      output: "provider output",
       reason: "not available",
     });
   });

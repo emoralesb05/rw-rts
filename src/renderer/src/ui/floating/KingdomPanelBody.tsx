@@ -27,7 +27,9 @@ import {
   Pause,
   Play,
   RotateCw,
+  ScrollText,
   Square,
+  Terminal,
   Trash2,
 } from "lucide-react";
 import {
@@ -1493,6 +1495,10 @@ const PROVIDER_SESSION_TOOLS: UnitState["tool"][] = [
   "cursor",
   "gemini",
 ];
+type ProviderControlSessionAction = Extract<
+  ProviderSessionAction,
+  "fork" | "attach" | "logs"
+>;
 
 function ProviderSessionsTab() {
   const [response, setResponse] = useState<ListProviderSessionsResponse | null>(
@@ -1502,6 +1508,7 @@ function ProviderSessionsTab() {
   const [loading, setLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionNote, setActionNote] = useState<string | null>(null);
+  const [actionOutput, setActionOutput] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -1524,11 +1531,12 @@ function ProviderSessionsTab() {
 
   const invokeSessionAction = useCallback(
     async (session: ProviderSessionEntry, action: ProviderSessionAction) => {
-      if (action !== "fork") return;
+      if (!providerSessionActionSupported(session, action)) return;
       const key = `${session.tool}:${session.providerSessionId}:${action}`;
       if (actionBusy) return;
       setActionBusy(key);
       setActionNote(null);
+      setActionOutput(null);
       try {
         const result = await safeIpc(() =>
           window.rw.controlSession({
@@ -1544,12 +1552,21 @@ function ProviderSessionsTab() {
           return;
         }
         if (result.ok) {
-          setActionNote(
-            `${providerLabel(session.tool)} forked as ${
-              result.sessionId ?? "a new session"
-            }.`
-          );
-          await refresh();
+          if (action === "fork") {
+            setActionNote(
+              `${providerLabel(session.tool)} forked as ${
+                result.sessionId ?? "a new session"
+              }.`
+            );
+            await refresh();
+          } else {
+            setActionNote(
+              action === "attach"
+                ? (result.output ?? "Opened provider session.")
+                : `${providerLabel(session.tool)} logs for ${session.displayName}.`
+            );
+            setActionOutput(action === "logs" ? (result.output ?? null) : null);
+          }
         } else {
           setActionNote(result.reason ?? "Provider session control failed.");
         }
@@ -1597,6 +1614,11 @@ function ProviderSessionsTab() {
         </div>
         {actionNote ? (
           <KingdomFooterNote>{actionNote}</KingdomFooterNote>
+        ) : null}
+        {actionOutput ? (
+          <pre className="border-line/70 bg-surface-2/55 text-muted max-h-40 overflow-auto rounded-sm border p-2 font-mono text-[10px] leading-[1.45] whitespace-pre-wrap">
+            {actionOutput}
+          </pre>
         ) : null}
       </KingdomSection>
 
@@ -1693,8 +1715,8 @@ function ProviderSessionRow({
                 aria-label={`${action} ${providerLabel(session.tool)} session ${session.displayName}`}
                 onClick={() => void onAction(session, action)}
               >
-                <GitFork className="size-3" />
-                {actionBusy === key ? "forking..." : action}
+                <ProviderSessionActionIcon action={action} />
+                {actionBusy === key ? `${action}...` : action}
               </Button>
             );
           }
@@ -1715,8 +1737,21 @@ function ProviderSessionRow({
 function providerSessionActionSupported(
   session: ProviderSessionEntry,
   action: ProviderSessionAction
-): boolean {
-  return session.tool === "codex" && action === "fork";
+): action is ProviderControlSessionAction {
+  if (session.tool === "codex") return action === "fork";
+  if (session.tool === "claude")
+    return action === "attach" || action === "logs";
+  return false;
+}
+
+function ProviderSessionActionIcon({
+  action,
+}: {
+  action: ProviderSessionAction;
+}) {
+  if (action === "attach") return <Terminal className="size-3" />;
+  if (action === "logs") return <ScrollText className="size-3" />;
+  return <GitFork className="size-3" />;
 }
 
 function providerSessionSubtitle(session: ProviderSessionEntry): string {

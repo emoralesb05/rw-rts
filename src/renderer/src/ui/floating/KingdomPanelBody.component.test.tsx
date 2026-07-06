@@ -144,13 +144,21 @@ function installRw() {
         pauseReason: "Paused from Run Board.",
       })
     ),
-    controlSession: vi.fn(() =>
-      Promise.resolve({
-        action: "fork" as const,
-        ok: true,
-        unitId: "codex-thread-fork",
-        sessionId: "codex-thread-fork",
-      })
+    controlSession: vi.fn((req: { action: string }) =>
+      Promise.resolve(
+        req.action === "logs"
+          ? {
+              action: "logs" as const,
+              ok: true,
+              output: "Claude log line",
+            }
+          : {
+              action: "fork" as const,
+              ok: true,
+              unitId: "codex-thread-fork",
+              sessionId: "codex-thread-fork",
+            }
+      )
     ),
     listProviderSessions: vi.fn(() =>
       Promise.resolve({
@@ -396,6 +404,20 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText(/background · rw-rts · pid 4521/i)).toBeVisible();
     expect(screen.getByText(/cli · openai · rw-rts/i)).toBeVisible();
     expect(screen.getAllByText("resume").length).toBeGreaterThan(1);
+    await user.click(
+      screen.getByRole("button", {
+        name: /logs claude session claude background/i,
+      })
+    );
+    expect(rw.controlSession).toHaveBeenCalledWith({
+      action: "logs",
+      unitId: "claude-session-1",
+      sessionId: "claude-session-1",
+      tool: "claude",
+      cwd: "/Users/ed/Github/emoralesb05/rw-rts",
+    });
+    expect(await screen.findByText("Claude log line")).toBeVisible();
+
     await user.click(
       screen.getByRole("button", {
         name: /fork codex session investigate tests/i,

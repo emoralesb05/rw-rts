@@ -120,6 +120,8 @@ describe("session capabilities", () => {
     expect(controlReason(codex, "fork")).toMatch(/fork known threads/i);
     expect(canControl(codex, "listProviderSessions")).toBe(true);
     expect(canControl(claude, "fork")).toBe(false);
+    expect(canControl(claude, "attach")).toBe(true);
+    expect(canControl(claude, "logs")).toBe(true);
     expect(canControl(claude, "listProviderSessions")).toBe(true);
     expect(canControl(gemini, "listProviderSessions")).toBe(false);
     expect(controlReason(gemini, "listProviderSessions")).toMatch(

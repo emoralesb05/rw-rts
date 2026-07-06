@@ -45,6 +45,7 @@ import {
 } from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { listProviderSessions } from "./provider-sessions";
+import { runClaudeProviderSessionAction } from "./provider-session-actions";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
 import {
@@ -405,6 +406,39 @@ async function controlSession(
         action: req.action,
         ok: false,
         reason: err instanceof Error ? err.message : "Fork failed.",
+        reasonCode: "provider_error",
+      });
+    }
+  }
+
+  if (req.action === "attach" || req.action === "logs") {
+    if (!req.sessionId || !req.cwd) {
+      return respond({
+        action: req.action,
+        ok: false,
+        reason: "Provider session metadata is missing.",
+        reasonCode: "missing_session_metadata",
+      });
+    }
+    try {
+      const result = await runClaudeProviderSessionAction({
+        action: req.action,
+        sessionId: req.sessionId,
+        cwd: req.cwd,
+      });
+      return respond({
+        action: req.action,
+        ok: true,
+        output: result.output,
+      });
+    } catch (err) {
+      return respond({
+        action: req.action,
+        ok: false,
+        reason:
+          err instanceof Error
+            ? err.message
+            : `${req.action === "attach" ? "Attach" : "Logs"} failed.`,
         reasonCode: "provider_error",
       });
     }

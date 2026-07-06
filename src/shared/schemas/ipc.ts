@@ -132,6 +132,7 @@ export const SessionControlActionSchema = z.enum([
   "stop",
   "fork",
   "attach",
+  "logs",
   "listProviderSessions",
 ]);
 export type SessionControlAction = z.infer<typeof SessionControlActionSchema>;
@@ -163,6 +164,7 @@ export const ControlSessionResponseSchema = z.object({
   ok: z.boolean(),
   unitId: z.string().min(1).optional(),
   sessionId: z.string().min(1).optional(),
+  output: z.string().optional(),
   reason: z.string().optional(),
   reasonCode: ControlSessionFailureReasonCodeSchema.optional(),
 });

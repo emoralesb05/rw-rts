@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-06 (Codex provider-session inventory/fork shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-06 (Claude provider-session attach/logs shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -113,11 +113,14 @@ Shipped on `main`:
 - Codex provider-session fork is wired through `rw:control-session`, creates a
   managed app-server thread, emits a normal `session_start`, and refreshes the
   Sessions tab.
+- Claude provider-session attach/logs are wired through `rw:control-session`:
+  attach opens the native session in Terminal on macOS, logs return recent
+  provider output inline, and unsupported platforms fail closed.
 
 Still active:
 
-- Claude background attach/logs actions, with stop/respawn gated to
-  background-managed sessions only.
+- Claude stop/respawn remains gated to background-managed sessions and needs a
+  disposable live probe before wiring.
 - Cursor `cursor-agent ls` discovery and Gemini ACP remain blocked behind the
   deferred probes described below.
 
@@ -147,7 +150,7 @@ Deferred watchlist:
 
 - Claude background/remote-control commands still need focused live probes
   before Realmkeeper treats stop/respawn as reliable controls. Discovery and
-  attach/logs are ticketable after P1.
+  attach/logs shipped from P1; stop/respawn remains unvalidated.
 - Cursor IDE sessions remain observe-only unless Cursor exposes an
   authoritative attach/injection API or a stronger permission contract.
 - Gemini ACP is not part of the next implementation unit. It has useful
