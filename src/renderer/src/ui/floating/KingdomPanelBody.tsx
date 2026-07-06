@@ -21,6 +21,7 @@ import {
   Check,
   Copy,
   Download,
+  GitFork,
   Mail,
   MessageSquare,
   Pause,
@@ -93,6 +94,7 @@ import type {
   HooksStatus,
   ListProviderSessionsResponse,
   PermissionRule,
+  ProviderSessionAction,
   ProviderSessionEntry,
 } from "@shared/schemas";
 
@@ -1498,6 +1500,8 @@ function ProviderSessionsTab() {
   );
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionNote, setActionNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -1517,6 +1521,44 @@ function ProviderSessionsTab() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const invokeSessionAction = useCallback(
+    async (session: ProviderSessionEntry, action: ProviderSessionAction) => {
+      if (action !== "fork") return;
+      const key = `${session.tool}:${session.providerSessionId}:${action}`;
+      if (actionBusy) return;
+      setActionBusy(key);
+      setActionNote(null);
+      try {
+        const result = await safeIpc(() =>
+          window.rw.controlSession({
+            action,
+            unitId: session.providerSessionId,
+            sessionId: session.providerSessionId,
+            tool: session.tool,
+            cwd: session.cwd,
+          })
+        );
+        if (!result) {
+          setActionNote("Provider session control is unavailable.");
+          return;
+        }
+        if (result.ok) {
+          setActionNote(
+            `${providerLabel(session.tool)} forked as ${
+              result.sessionId ?? "a new session"
+            }.`
+          );
+          await refresh();
+        } else {
+          setActionNote(result.reason ?? "Provider session control failed.");
+        }
+      } finally {
+        setActionBusy(null);
+      }
+    },
+    [actionBusy, refresh]
+  );
 
   if (missing) return <PreloadRestartHint title="Provider sessions" />;
 
@@ -1553,6 +1595,9 @@ function ProviderSessionsTab() {
             </span>
           ) : null}
         </div>
+        {actionNote ? (
+          <KingdomFooterNote>{actionNote}</KingdomFooterNote>
+        ) : null}
       </KingdomSection>
 
       {PROVIDER_SESSION_TOOLS.map((tool) => {
@@ -1574,6 +1619,8 @@ function ProviderSessionsTab() {
                 {toolSessions.map((session) => (
                   <ProviderSessionRow
                     key={`${session.tool}:${session.providerSessionId}`}
+                    actionBusy={actionBusy}
+                    onAction={invokeSessionAction}
                     session={session}
                   />
                 ))}
@@ -1593,7 +1640,18 @@ function ProviderSessionsTab() {
   );
 }
 
-function ProviderSessionRow({ session }: { session: ProviderSessionEntry }) {
+function ProviderSessionRow({
+  actionBusy,
+  onAction,
+  session,
+}: {
+  actionBusy: string | null;
+  onAction(
+    session: ProviderSessionEntry,
+    action: ProviderSessionAction
+  ): Promise<void>;
+  session: ProviderSessionEntry;
+}) {
   const timestamp = session.updatedAt ?? session.createdAt;
   return (
     <li
@@ -1621,17 +1679,44 @@ function ProviderSessionRow({ session }: { session: ProviderSessionEntry }) {
         {timestamp ? fmtRelDays(timestamp) : "—"}
       </span>
       <span className="col-start-2 col-end-5 flex min-w-0 flex-wrap gap-1 pt-0.5">
-        {session.availableActions.map((action) => (
-          <span
-            key={action}
-            className="border-line/70 bg-surface-2/60 text-muted rounded-sm border px-1.5 py-0.5 text-[9.5px] leading-none"
-          >
-            {action}
-          </span>
-        ))}
+        {session.availableActions.map((action) => {
+          const key = `${session.tool}:${session.providerSessionId}:${action}`;
+          const supported = providerSessionActionSupported(session, action);
+          if (supported) {
+            return (
+              <Button
+                key={action}
+                type="button"
+                variant="ghost"
+                className="h-5 min-h-0 gap-1 rounded-sm px-1.5 py-0 text-[9.5px] leading-none"
+                disabled={Boolean(actionBusy) || !session.cwd}
+                aria-label={`${action} ${providerLabel(session.tool)} session ${session.displayName}`}
+                onClick={() => void onAction(session, action)}
+              >
+                <GitFork className="size-3" />
+                {actionBusy === key ? "forking..." : action}
+              </Button>
+            );
+          }
+          return (
+            <span
+              key={action}
+              className="border-line/70 bg-surface-2/60 text-muted rounded-sm border px-1.5 py-0.5 text-[9.5px] leading-none"
+            >
+              {action}
+            </span>
+          );
+        })}
       </span>
     </li>
   );
+}
+
+function providerSessionActionSupported(
+  session: ProviderSessionEntry,
+  action: ProviderSessionAction
+): boolean {
+  return session.tool === "codex" && action === "fork";
 }
 
 function providerSessionSubtitle(session: ProviderSessionEntry): string {

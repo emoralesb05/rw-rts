@@ -113,10 +113,14 @@ describe("session capabilities", () => {
 
   it("keeps provider-known but unwired controls unavailable with reasons", () => {
     const claude = capabilitiesForUnit(unit({ tool: "claude" }));
+    const codex = capabilitiesForUnit(unit({ tool: "codex" }));
     const gemini = capabilitiesForUnit(unit({ tool: "gemini" }));
 
+    expect(canControl(codex, "fork")).toBe(true);
+    expect(controlReason(codex, "fork")).toMatch(/fork known threads/i);
+    expect(canControl(codex, "listProviderSessions")).toBe(true);
     expect(canControl(claude, "fork")).toBe(false);
-    expect(controlReason(claude, "fork")).toMatch(/not wired/i);
+    expect(canControl(claude, "listProviderSessions")).toBe(true);
     expect(canControl(gemini, "listProviderSessions")).toBe(false);
     expect(controlReason(gemini, "listProviderSessions")).toMatch(
       /diagnostic only/i

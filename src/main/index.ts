@@ -305,7 +305,9 @@ function emitSessionControlEvent(
   if (event) bus.emitAgentEvent(event);
 }
 
-function controlSession(req: ControlSessionRequest): ControlSessionResponse {
+async function controlSession(
+  req: ControlSessionRequest
+): Promise<ControlSessionResponse> {
   const agent = AgentManager.get(req.unitId);
   const spawnedHere = Boolean(agent);
   const respond = (response: ControlSessionResponse) => {
@@ -370,6 +372,39 @@ function controlSession(req: ControlSessionRequest): ControlSessionResponse {
         action: req.action,
         ok: false,
         reason: err instanceof Error ? err.message : "Interrupt failed.",
+        reasonCode: "provider_error",
+      });
+    }
+  }
+
+  if (req.action === "fork") {
+    if (!req.sessionId || !req.cwd) {
+      return respond({
+        action: req.action,
+        ok: false,
+        reason: "Provider session metadata is missing.",
+        reasonCode: "missing_session_metadata",
+      });
+    }
+    try {
+      const prompt = req.prompt?.trim() || undefined;
+      const forked = await AgentManager.forkProviderSession({
+        sessionId: req.sessionId,
+        tool: req.tool,
+        cwd: req.cwd,
+        prompt,
+      });
+      return respond({
+        action: req.action,
+        ok: true,
+        unitId: forked.unitId,
+        sessionId: forked.sessionId,
+      });
+    } catch (err) {
+      return respond({
+        action: req.action,
+        ok: false,
+        reason: err instanceof Error ? err.message : "Fork failed.",
         reasonCode: "provider_error",
       });
     }

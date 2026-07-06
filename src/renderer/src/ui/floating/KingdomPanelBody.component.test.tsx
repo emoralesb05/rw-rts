@@ -144,6 +144,14 @@ function installRw() {
         pauseReason: "Paused from Run Board.",
       })
     ),
+    controlSession: vi.fn(() =>
+      Promise.resolve({
+        action: "fork" as const,
+        ok: true,
+        unitId: "codex-thread-fork",
+        sessionId: "codex-thread-fork",
+      })
+    ),
     listProviderSessions: vi.fn(() =>
       Promise.resolve({
         generatedAt: Date.now(),
@@ -376,6 +384,7 @@ describe("KingdomPanelBody", () => {
 
   it("lists native provider sessions from the Sessions tab", async () => {
     const { rw } = installRw();
+    const user = userEvent.setup();
 
     render(<KingdomPanelBody initialTab="sessions" />);
 
@@ -387,6 +396,22 @@ describe("KingdomPanelBody", () => {
     expect(screen.getByText(/background · rw-rts · pid 4521/i)).toBeVisible();
     expect(screen.getByText(/cli · openai · rw-rts/i)).toBeVisible();
     expect(screen.getAllByText("resume").length).toBeGreaterThan(1);
+    await user.click(
+      screen.getByRole("button", {
+        name: /fork codex session investigate tests/i,
+      })
+    );
+    expect(rw.controlSession).toHaveBeenCalledWith({
+      action: "fork",
+      unitId: "codex-thread-1",
+      sessionId: "codex-thread-1",
+      tool: "codex",
+      cwd: "/Users/ed/Github/emoralesb05/rw-rts",
+    });
+    expect(
+      await screen.findByText(/Codex forked as codex-thread-fork/i)
+    ).toBeVisible();
+    expect(rw.listProviderSessions).toHaveBeenCalledTimes(2);
     expect(
       screen.getByText("Cursor provider-session discovery is not wired yet.")
     ).toBeVisible();

@@ -6,8 +6,8 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 - [`session-control-plane/`](./session-control-plane/) — follow-up
   provider-native controls are now partially unblocked by focused probes:
-  Codex provider-session list/fork and Claude provider-session
-  discovery/attach/logs. Cursor IDE control and Gemini ACP remain gated.
+  Codex provider-session list/fork and Claude provider-session discovery have
+  shipped. Claude attach/logs, Cursor IDE control, and Gemini ACP remain gated.
 
 ## Completed / Watchlist
 
@@ -19,9 +19,9 @@ Tactical implementation plans. These are more volatile than architecture docs an
 - [`session-control-plane/`](./session-control-plane/) — provider-aware
   in-app send/interject, interrupt/recall gating, typed fail-closed IPC, and
   packaged-app failure coverage shipped. Follow-up: Codex list/fork and
-  Claude discovery/attach/logs are ticketable after the 2026-07-03 probe;
+  Claude discovery shipped after the 2026-07-03 probe; Claude attach/logs,
   live stop/respawn, Cursor attach/injection, and Gemini ACP still require
-  stronger probes.
+  stronger probes or provider support.
 - [`agent-orchestration-workflows/`](./agent-orchestration-workflows/) —
   durable local run schemas, main-process execution, Run Board, constrained
   templates, monitor pauses, and packaged-app orchestration e2e shipped.

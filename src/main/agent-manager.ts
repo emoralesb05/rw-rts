@@ -11,6 +11,7 @@ import {
   getCursorAgent,
 } from "./adapters/cursor-cli";
 import {
+  forkCodexSession,
   spawnCodexAgent,
   resumeCodexSession,
   listCodexAgents,
@@ -82,11 +83,28 @@ function sendToObserved(
   resumeClaudeSession(opts);
 }
 
+async function forkProviderSession(unit: {
+  sessionId: string;
+  tool: SpawnableTool;
+  cwd: string;
+  prompt?: string;
+}): Promise<AnyAgent> {
+  if (unit.tool !== "codex") {
+    throw new Error(`${unit.tool} provider-session fork is not wired`);
+  }
+  return forkCodexSession({
+    sessionId: unit.sessionId,
+    cwd: unit.cwd,
+    prompt: unit.prompt,
+  });
+}
+
 export const AgentManager = {
   spawn,
   list,
   get,
   sendToObserved,
+  forkProviderSession,
   send(unitId: string, prompt: string) {
     const agent = get(unitId);
     if (!agent) throw new Error(`Unknown unit ${unitId}`);

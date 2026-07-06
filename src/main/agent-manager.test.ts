@@ -4,6 +4,16 @@ async function importManagerWithMocks() {
   const resumeClaudeSession = vi.fn();
   const resumeCursorSession = vi.fn();
   const resumeCodexSession = vi.fn();
+  const forkCodexSession = vi.fn(() =>
+    Promise.resolve({
+      unitId: "codex-fork-1",
+      sessionId: "codex-fork-1",
+      cwd: "/repo",
+      send: vi.fn(),
+      interrupt: vi.fn(),
+      kill: vi.fn(),
+    })
+  );
   const resumeGeminiSession = vi.fn();
 
   vi.doMock("./adapters/claude-cli", () => ({
@@ -20,6 +30,7 @@ async function importManagerWithMocks() {
   }));
   vi.doMock("./adapters/codex-cli", () => ({
     spawnCodexAgent: vi.fn(),
+    forkCodexSession,
     resumeCodexSession,
     listCodexAgents: () => [],
     getCodexAgent: () => undefined,
@@ -37,6 +48,7 @@ async function importManagerWithMocks() {
     resumeClaudeSession,
     resumeCursorSession,
     resumeCodexSession,
+    forkCodexSession,
     resumeGeminiSession,
   };
 }
@@ -103,6 +115,35 @@ describe("AgentManager", () => {
     );
   });
 
+  it("routes provider-session forks to Codex", async () => {
+    const { AgentManager, forkCodexSession } = await importManagerWithMocks();
+
+    await expect(
+      AgentManager.forkProviderSession({
+        sessionId: "codex-thread-1",
+        tool: "codex",
+        cwd: "/repo",
+      })
+    ).resolves.toMatchObject({
+      unitId: "codex-fork-1",
+      sessionId: "codex-fork-1",
+    });
+
+    expect(forkCodexSession).toHaveBeenCalledWith({
+      sessionId: "codex-thread-1",
+      cwd: "/repo",
+      prompt: undefined,
+    });
+
+    await expect(
+      AgentManager.forkProviderSession({
+        sessionId: "claude-session-1",
+        tool: "claude",
+        cwd: "/repo",
+      })
+    ).rejects.toThrow(/not wired/i);
+  });
+
   it("routes interrupts to agents that expose an interrupt control", async () => {
     const interrupt = vi.fn();
 
@@ -120,6 +161,7 @@ describe("AgentManager", () => {
     }));
     vi.doMock("./adapters/codex-cli", () => ({
       spawnCodexAgent: vi.fn(),
+      forkCodexSession: vi.fn(),
       resumeCodexSession: vi.fn(),
       listCodexAgents: () => [],
       getCodexAgent: () => ({

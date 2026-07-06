@@ -2,7 +2,7 @@
 
 > **Status:** 📋 Plan
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (provider-native controls probed)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-06 (Codex provider-session inventory/fork shipped)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -107,13 +107,19 @@ Shipped on `main`:
 - Packaged-app e2e covers fail-closed session controls for unsupported,
   stale/missing-metadata, and invalid prompt requests, including typed IPC
   responses, emitted `session_control` events, and Activity Log rendering.
+- Provider-session inventory IPC and the Kingdom panel Sessions tab list
+  Codex app-server threads and Claude native agent rows, with explicit
+  not-wired notes for Cursor and Gemini.
+- Codex provider-session fork is wired through `rw:control-session`, creates a
+  managed app-server thread, emits a normal `session_start`, and refreshes the
+  Sessions tab.
 
 Still active:
 
-- Codex provider-session list and fork through app-server, using generated
-  schema snapshots as the contract check.
-- Claude provider-session list plus background attach/logs actions, with
-  stop/respawn gated to background-managed sessions only.
+- Claude background attach/logs actions, with stop/respawn gated to
+  background-managed sessions only.
+- Cursor `cursor-agent ls` discovery and Gemini ACP remain blocked behind the
+  deferred probes described below.
 
 Deferred watchlist:
 
@@ -130,7 +136,7 @@ Deferred watchlist:
 - IPC schema rejects unsupported actions before adapters run, and adapters
   still fail closed if provider state changes after the UI renders.
 - Codex fixture or mocked app-server test proves active-turn steer/interject,
-  interrupt, fork, and stop-owned behavior.
+  interrupt, stop-owned behavior, and fork dispatch.
 - Claude command-builder tests cover resume, fork, background list, attach,
   logs, stop, and unsupported live-control fallbacks.
 - Renderer tests prove unsupported controls are disabled with reasons and

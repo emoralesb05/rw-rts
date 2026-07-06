@@ -49,6 +49,7 @@ type CodexAppServerStatus =
   | "initialized"
   | "thread-started"
   | "thread-resumed"
+  | "thread-forked"
   | "turn-started"
   | "turn-completed"
   | "interrupted"
@@ -84,6 +85,18 @@ export function buildThreadStartParams(cwd: string): JsonRecord {
 }
 
 export function buildThreadResumeParams(
+  threadId: string,
+  cwd: string
+): JsonRecord {
+  return {
+    threadId,
+    cwd,
+    approvalPolicy: "never",
+    sandbox: "workspace-write",
+  };
+}
+
+export function buildThreadForkParams(
   threadId: string,
   cwd: string
 ): JsonRecord {
@@ -310,6 +323,105 @@ export function resumeCodexAppServerSession(opts: {
   return client.proc;
 }
 
+export async function forkCodexAppServerSession(opts: {
+  sessionId: string;
+  cwd: string;
+  prompt?: string;
+}): Promise<CodexAppServerAgent> {
+  const client = new CodexAppServerClient(opts.cwd);
+  let forkedSessionId: string;
+  try {
+    await client.initialize();
+    forkedSessionId = await client.forkThread(opts.sessionId);
+  } catch (err) {
+    client.kill();
+    throw err;
+  }
+
+  registerSpawnedSession(forkedSessionId);
+
+  const prompt = opts.prompt?.trim();
+  bus.emitAgentEvent({
+    sessionId: forkedSessionId,
+    tool: "codex",
+    cwd: opts.cwd,
+    timestamp: Date.now(),
+    kind: "session_start",
+    payload: {
+      text: prompt || `Forked from Codex thread ${opts.sessionId}`,
+      forkedFromSessionId: opts.sessionId,
+      codexAppServer: client.diagnostics(),
+    },
+    source: "spawned",
+  });
+
+  if (prompt) {
+    try {
+      await client.startTurn(prompt);
+    } catch (err) {
+      unregisterSpawnedSession(forkedSessionId);
+      client.kill();
+      throw err;
+    }
+  }
+
+  const agent: CodexAppServerAgent = {
+    unitId: forkedSessionId,
+    sessionId: forkedSessionId,
+    cwd: opts.cwd,
+    proc: client.proc,
+    send(nextPrompt: string) {
+      bus.emitAgentEvent({
+        sessionId: forkedSessionId,
+        tool: "codex",
+        cwd: opts.cwd,
+        timestamp: Date.now(),
+        kind: "user_prompt",
+        payload: { text: nextPrompt, codexAppServer: client.diagnostics() },
+        source: "spawned",
+      });
+      void client.sendPrompt(nextPrompt).catch((err: unknown) => {
+        bus.emitAgentEvent({
+          sessionId: forkedSessionId,
+          tool: "codex",
+          cwd: opts.cwd,
+          timestamp: Date.now(),
+          kind: "error",
+          payload: {
+            error: errorMessage(err),
+            codexAppServer: client.diagnostics("error"),
+          },
+          source: "spawned",
+        });
+      });
+    },
+    interrupt() {
+      void client.interruptActiveTurn().catch((err: unknown) => {
+        bus.emitAgentEvent({
+          sessionId: forkedSessionId,
+          tool: "codex",
+          cwd: opts.cwd,
+          timestamp: Date.now(),
+          kind: "error",
+          payload: {
+            error: errorMessage(err),
+            codexAppServer: client.diagnostics("error"),
+          },
+          source: "spawned",
+        });
+      });
+    },
+    kill() {
+      void client.interruptActiveTurn().finally(() => client.kill());
+    },
+  };
+
+  client.proc.on("exit", () => unregisterSpawnedSession(forkedSessionId));
+  client.proc.on("error", () => unregisterSpawnedSession(forkedSessionId));
+
+  return agent;
+}
+
 export async function listCodexAppServerProviderSessions(
   opts: {
     cwd?: string;
@@ -451,6 +563,23 @@ class CodexAppServerClient {
     const thread = record(record(result)?.thread);
     this.threadId = stringValue(thread?.id) ?? threadId;
     this.status = "thread-resumed";
+  }
+
+  async forkThread(threadId: string): Promise<string> {
+    const result = await this.request(
+      "thread/fork",
+      buildThreadForkParams(threadId, this.cwd)
+    );
+    const thread = record(record(result)?.thread) ?? record(result);
+    const forkedThreadId =
+      stringValue(thread?.id) ?? stringValue(record(result)?.threadId);
+    if (!forkedThreadId) {
+      throw new Error("codex app-server did not return a forked thread id");
+    }
+    this.sessionId = forkedThreadId;
+    this.threadId = forkedThreadId;
+    this.status = "thread-forked";
+    return forkedThreadId;
   }
 
   async sendPrompt(prompt: string) {

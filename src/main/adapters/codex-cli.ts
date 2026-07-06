@@ -10,6 +10,7 @@
  */
 
 import {
+  forkCodexAppServerSession,
   resumeCodexAppServerSession,
   spawnCodexAppServerAgent,
 } from "./codex-app-server";
@@ -48,6 +49,17 @@ export function resumeCodexSession(opts: {
   prompt: string;
 }): ChildProcess {
   return resumeCodexAppServerSession(opts);
+}
+
+export async function forkCodexSession(opts: {
+  sessionId: string;
+  cwd: string;
+  prompt?: string;
+}): Promise<SpawnedCodexAgent> {
+  const agent = await forkCodexAppServerSession(opts);
+  agents.set(agent.unitId, agent);
+  agent.proc.on("exit", () => agents.delete(agent.unitId));
+  return agent;
 }
 
 export async function spawnCodexAgent(

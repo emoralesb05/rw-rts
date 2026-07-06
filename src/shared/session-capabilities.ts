@@ -166,14 +166,12 @@ export function resolveSessionCapabilities(
           "Codex has no active turn to interrupt right now."
         );
       }
-      controls.fork = unavailable(
-        "Codex thread fork exists in app-server but is not wired into Realmkeeper yet."
-      );
+      controls.fork = available("Codex app-server can fork known threads.");
       controls.attach = unavailable(
         "Codex native attach/open controls are not wired yet."
       );
-      controls.listProviderSessions = unavailable(
-        "Codex provider session discovery is not wired yet."
+      controls.listProviderSessions = available(
+        "Codex app-server can list known threads."
       );
       break;
     }
@@ -190,8 +188,8 @@ export function resolveSessionCapabilities(
       controls.attach = unavailable(
         "Claude attach exists for background agents but is not wired yet."
       );
-      controls.listProviderSessions = unavailable(
-        "Claude background agent discovery is not wired yet."
+      controls.listProviderSessions = available(
+        "Claude can list native agent sessions."
       );
       break;
     case "cursor":

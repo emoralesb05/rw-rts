@@ -161,6 +161,8 @@ export type ControlSessionFailureReasonCode = z.infer<
 export const ControlSessionResponseSchema = z.object({
   action: SessionControlActionSchema,
   ok: z.boolean(),
+  unitId: z.string().min(1).optional(),
+  sessionId: z.string().min(1).optional(),
   reason: z.string().optional(),
   reasonCode: ControlSessionFailureReasonCodeSchema.optional(),
 });

@@ -6,6 +6,7 @@ import {
   buildCodexAppServerMcpElicitationEvent,
   buildCodexAppServerPermissionEvent,
   buildCodexAppServerUserInputEvent,
+  buildThreadForkParams,
   buildThreadListParams,
   buildThreadResumeParams,
   buildThreadStartParams,
@@ -291,6 +292,12 @@ describe("active CLI stream normalization", () => {
       serviceName: "realmkeeper",
     });
     expect(buildThreadResumeParams("thread-1", "/repo")).toEqual({
+      threadId: "thread-1",
+      cwd: "/repo",
+      approvalPolicy: "never",
+      sandbox: "workspace-write",
+    });
+    expect(buildThreadForkParams("thread-1", "/repo")).toEqual({
       threadId: "thread-1",
       cwd: "/repo",
       approvalPolicy: "never",

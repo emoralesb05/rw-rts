@@ -82,11 +82,15 @@ describe("runtime schemas", () => {
       ControlSessionResponseSchema.parse({
         action: "interrupt",
         ok: false,
+        unitId: "unit-2",
+        sessionId: "session-2",
         reason: "not available",
       })
     ).toEqual({
       action: "interrupt",
       ok: false,
+      unitId: "unit-2",
+      sessionId: "session-2",
       reason: "not available",
     });
   });
