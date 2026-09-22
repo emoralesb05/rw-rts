@@ -40,6 +40,16 @@ export function isPermissionLikeLetter(letter: Letter): boolean {
   );
 }
 
+export function isUserInputLikeLetter(letter: Letter): boolean {
+  return letter.actions.some(
+    (entry) => entry.action.kind === "user-input-submit"
+  );
+}
+
+export function isBlockingLetter(letter: Letter): boolean {
+  return isPermissionLikeLetter(letter) || isUserInputLikeLetter(letter);
+}
+
 function byNewestActivity(a: UnitState, b: UnitState): number {
   return b.lastActivity - a.lastActivity;
 }
@@ -90,9 +100,10 @@ export function createWorldCommandBrief(args: {
     (unit) => unit.status === "complete"
   ).length;
   const pendingLetters = letters
-    .filter((letter) => isPermissionLikeLetter(letter))
+    .filter(isBlockingLetter)
     .filter((letter) => letterTargetsWorld(letter, world))
     .sort((a, b) => b.createdAt - a.createdAt);
+  const pendingQuestion = pendingLetters.some(isUserInputLikeLetter);
   const recentEvents = events
     .filter((event) => eventTargetsWorld(event, world))
     .slice(0, 5);
@@ -138,17 +149,19 @@ export function createWorldCommandBrief(args: {
   const objective =
     readState === "sealed"
       ? "Realm seal secured; keep the route quiet."
-      : pendingLetters.length > 0
-        ? "Permission hold: resolve the pending ask."
-        : fallen > 0
-          ? "Recover the fallen wielder before pressure spreads."
-          : world.riftling.length > 0
-            ? "Clear the riftling and stabilize the world."
-            : activeUnits.length > 0
-              ? "Hold the mission line while work resolves."
-              : liveUnits.length > 0
-                ? "Wielders are on standby at the base."
-                : "Dispatch a wielder to establish a mission line.";
+      : pendingQuestion
+        ? "Input hold: answer the waiting question."
+        : pendingLetters.length > 0
+          ? "Permission hold: resolve the pending ask."
+          : fallen > 0
+            ? "Recover the fallen wielder before pressure spreads."
+            : world.riftling.length > 0
+              ? "Clear the riftling and stabilize the world."
+              : activeUnits.length > 0
+                ? "Hold the mission line while work resolves."
+                : liveUnits.length > 0
+                  ? "Wielders are on standby at the base."
+                  : "Dispatch a wielder to establish a mission line.";
 
   const comfortTarget = liveUnits
     .filter((unit) => unit.hp < 100)

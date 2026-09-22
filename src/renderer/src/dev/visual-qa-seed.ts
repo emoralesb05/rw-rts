@@ -355,12 +355,39 @@ export function createVisualQaSeed(now = Date.now()) {
       body: "The mission is waiting on a player instruction.",
       worldId: allUnits[7].worldId,
       sessionId: allUnits[7].id,
+      userInputQuestions: [
+        {
+          id: "direction",
+          header: "Direction",
+          question: "Which path should Mira take next?",
+          options: [
+            {
+              label: "Inspect",
+              description: "Inspect the current implementation first.",
+            },
+            {
+              label: "Build",
+              description: "Continue with the planned implementation.",
+            },
+          ],
+        },
+      ],
       actions: [
         {
-          label: "send word",
-          action: { kind: "send-word", sessionId: allUnits[7].id },
+          label: "send answer",
+          action: {
+            kind: "user-input-submit",
+            requestId: "visual-qa-user-input",
+          },
         },
-        { label: "dismiss", action: { kind: "dismiss" } },
+        {
+          label: "skip",
+          action: {
+            kind: "user-input-submit",
+            requestId: "visual-qa-user-input",
+            answers: {},
+          },
+        },
       ],
     },
   ];

@@ -67,6 +67,10 @@ test("covers the core Electron shell flows", async ({ appPage: page }) => {
   });
   await expect(chatDrawer).toBeVisible();
   await expect(page.getByPlaceholder(/Message .+⌘↵ to send/i)).toBeVisible();
+  await chatDrawer.getByRole("button", { name: "Minimize drawer" }).click();
+  await expect(
+    page.getByRole("complementary", { name: "Wielder chats (minimized)" })
+  ).toBeVisible();
 
   await playFixture(page, "permission");
   await expect(page.getByText(/dangerous-test-junk/i)).toBeVisible();
@@ -77,6 +81,12 @@ test("covers the core Electron shell flows", async ({ appPage: page }) => {
   await expect(page.getByText(/dangerous-test-junk/i)).toBeHidden();
 
   await seedWorldCommand(page);
+  await expect(
+    page.getByRole("button", {
+      name: "Focus next kingdom front: 2 pressure",
+    })
+  ).toBeVisible();
+
   const worldCommand = page.getByRole("region", {
     name: /Crossroads Ward Ops world command/i,
   });
@@ -92,4 +102,22 @@ test("covers the core Electron shell flows", async ({ appPage: page }) => {
 
   expect(intersects(worldCommandBox, wieldersBox)).toBe(false);
   expect(intersects(worldCommandBox, chatButtonBox)).toBe(false);
+
+  await page.getByRole("button", { name: "Open Kingdom panel" }).click();
+  await expect(kingdom).toBeVisible();
+  await expect(
+    kingdom.getByRole("heading", { name: /Live fronts/i })
+  ).toBeVisible();
+  await expect(
+    kingdom.getByRole("button", {
+      name: "Focus Crossroads Ward Ops, pressure, 100% pressure",
+    })
+  ).toBeVisible();
+  await expect(
+    kingdom.getByRole("button", {
+      name: "Focus Lantern Hollow Review, hold, 20% pressure",
+    })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close Kingdom" }).click();
+  await expect(kingdom).toBeHidden();
 });

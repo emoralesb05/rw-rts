@@ -15,8 +15,10 @@ story is done.
 A FFXIV-style HUD overlay on a single full-viewport kingdom canvas:
 
 - **KingdomHeader pill** (top-center) — `⌬ Realmkeeper · ✦ N sealed · ⚔ N
-wielders · ✧ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
-  opens the **Kingdom panel** (Overview · Settings · Connection · Demos).
+wielders · N pressure · ✧ N · founded Nd ago · 🔊 ⚙`. Its live situation
+  chip cycles focus through pressured, blocked, and active worlds. ⚙ opens the
+  **Kingdom panel** (Overview · Observatory · Sessions · Runs · Settings ·
+  Connection · Demos).
 - **WielderHUD** (top-left) — party list with role-colored portrait, name,
   tool pill, behavior-class chip (Tank/Healer/DPS/Roamer), HP/MP bars
   (FF14 stacked nameplate style), live cast bar when mid-tool, status
@@ -44,6 +46,8 @@ wielders · ✧ N · founded Nd ago · 🔊 ⚙`. Mute toggle on the left, ⚙
   opens a contextual command popover from that world, and the
   bottom-center tactical map is interactive: click a world marker to
   select/focus it, or click/drag empty map space to pan the Star Chart.
+  The Kingdom Overview ranks every live front from the same real agent,
+  permission, question, error, and riftling state used by world commands.
 - **Floating panels** — wielder details, Kingdom, Settings, Dispatch,
   Decree composer. All draggable, stack via z-index, no backdrop, close
   individually or with `⌘⇧W` / the `✕ close N` chip.

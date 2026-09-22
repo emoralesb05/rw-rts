@@ -40,7 +40,7 @@ contextual popover emerging from the world instead of as a fixed screen bar.
 
 | File | Where | Purpose |
 |---|---|---|
-| `KingdomHeader.tsx` | top-center | Kingdom name + status pill |
+| `KingdomHeader.tsx` | top-center | Kingdom stats plus a live situation chip that cycles focus through pressured, held, and active worlds |
 | `WielderHUD.tsx` | top-left | Live party roster |
 | `AlertsHUD.tsx` | top-right | Permission letters, saved-rule choices, important alerts |
 | `LettersHUD.tsx` | bottom-right | Notable / non-blocking letters |
@@ -84,9 +84,15 @@ The right-edge `ChatDrawer` is a separate singleton (not in the panel array). It
 |---|---|
 | `WielderPanelBody.tsx` | Per-wielder Status card (portrait + bars + verbs); chat verb opens a drawer tab |
 | `DispatchPanelBody.tsx` | Spawn a new wielder (tool + repo + prompt) |
-| `KingdomPanelBody.tsx` | Tabbed kingdom-wide view |
+| `KingdomPanelBody.tsx` | Tabbed kingdom-wide view; Overview ranks live fronts from the shared realm situation model |
 | `SettingsPanelBody.tsx` | App settings UI |
 | `ChatDrawer.tsx` | Right-edge tabbed conversation drawer (singleton) |
+
+`src/renderer/src/game/realm-situation.ts` is the shared read model for
+kingdom-wide prioritization. It derives each world's pressure / hold / active /
+calm / sealed state through the same `createWorldCommandBrief` logic used by
+the selected-world command HUD. React consumers must use this model rather
+than introduce a separate game-only interpretation of provider state.
 
 ## Conversation rendering (`src/renderer/src/ui/ConversationStream.tsx`)
 

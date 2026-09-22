@@ -6,10 +6,22 @@
  * The pill replaced the old topbar; window-drag has moved to a
  * separate invisible strip behind it.
  */
-import { useState } from "react";
-import { Settings, Volume2, VolumeX } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Activity,
+  CircleCheck,
+  Settings,
+  TriangleAlert,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { useStore } from "../../store";
 import { isMuted, toggleMuted } from "../../audio/sounds";
+import {
+  createRealmSituation,
+  nextRealmFrontId,
+  type RealmSituation,
+} from "../../game/realm-situation";
 import { usePanels } from "../floating/panel-store";
 import { CloseAllChip } from "../CloseAllChip";
 import {
@@ -25,12 +37,34 @@ function fmtDays(foundedAt: number): string {
   return days === 0 ? "today" : `${days}d ago`;
 }
 
+function situationLabel(situation: RealmSituation): string {
+  if (situation.counts.pressure > 0) {
+    return `${situation.counts.pressure} pressure`;
+  }
+  if (situation.counts.hold > 0) {
+    return `${situation.counts.hold} hold${situation.counts.hold === 1 ? "" : "s"}`;
+  }
+  if (situation.counts.active > 0) {
+    return `${situation.counts.active} active`;
+  }
+  return "realm calm";
+}
+
 export function KingdomHeader() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
   const units = useStore((s) => s.units);
+  const letters = useStore((s) => s.letters);
+  const events = useStore((s) => s.events);
+  const activeWorldId = useStore((s) => s.activeWorldId);
+  const selectWorld = useStore((s) => s.selectWorld);
   const openPanel = usePanels((s) => s.openPanel);
   const [muted, setMuted] = useState(isMuted());
+  const situation = useMemo(
+    () => createRealmSituation({ worlds, units, letters, events }),
+    [events, letters, units, worlds]
+  );
+  const nextFrontId = nextRealmFrontId(situation, activeWorldId);
   const liveWielders = Object.values(units).filter(
     (u) => u.status !== "complete" && u.status !== "fallen"
   ).length;
@@ -63,6 +97,44 @@ export function KingdomHeader() {
           </span>
         </TooltipTrigger>
         <TooltipContent>active wielders</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={
+              situation.overallState === "pressure"
+                ? "text-danger border-danger/35 bg-danger/10 hover:bg-danger/15 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase transition-colors"
+                : situation.overallState === "hold"
+                  ? "text-warning border-warning/35 bg-warning/10 hover:bg-warning/15 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase transition-colors"
+                  : situation.overallState === "active"
+                    ? "text-accent-alt border-accent-alt/30 bg-accent-alt/10 hover:bg-accent-alt/15 inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase transition-colors"
+                    : "text-success border-success/25 bg-success/[0.07] inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase"
+            }
+            onClick={() => nextFrontId && selectWorld(nextFrontId)}
+            disabled={!nextFrontId}
+            aria-label={
+              nextFrontId
+                ? `Focus next kingdom front: ${situationLabel(situation)}`
+                : situationLabel(situation)
+            }
+          >
+            {situation.overallState === "pressure" ||
+            situation.overallState === "hold" ? (
+              <TriangleAlert size={11} aria-hidden />
+            ) : situation.overallState === "active" ? (
+              <Activity size={11} aria-hidden />
+            ) : (
+              <CircleCheck size={11} aria-hidden />
+            )}
+            {situationLabel(situation)}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          {nextFrontId
+            ? "Focus the next active or threatened world"
+            : "No active world needs attention"}
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>

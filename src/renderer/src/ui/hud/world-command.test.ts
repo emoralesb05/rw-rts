@@ -53,6 +53,24 @@ function permissionLetter(overrides: Partial<Letter> = {}): Letter {
   };
 }
 
+function questionLetter(overrides: Partial<Letter> = {}): Letter {
+  return {
+    id: "question-1",
+    createdAt: 2200,
+    severity: "important",
+    title: "Question waiting",
+    worldId: "world-1",
+    sessionId: "unit-1",
+    actions: [
+      {
+        label: "answer",
+        action: { kind: "user-input-submit", requestId: "question-1" },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 function event(overrides: Partial<AgentEvent> = {}): AgentEvent {
   return {
     sessionId: "unit-1",
@@ -104,6 +122,20 @@ describe("createWorldCommandBrief", () => {
     expect(brief.readState).toBe("pressure");
     expect(brief.unitCounts.fallen).toBe(1);
     expect(brief.canSeal).toBe(false);
+  });
+
+  it("treats provider questions as world holds", () => {
+    const brief = createWorldCommandBrief({
+      world: world(),
+      units: { "unit-1": unit() },
+      letters: [questionLetter()],
+      events: [],
+      now: 3000,
+    });
+
+    expect(brief.readState).toBe("hold");
+    expect(brief.pendingLetters).toHaveLength(1);
+    expect(brief.objective).toContain("Input hold");
   });
 
   it("allows sealing when the world has units and no riftling", () => {

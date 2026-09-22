@@ -57,6 +57,7 @@ import {
 import { resolveSessionCapabilities } from "@shared/session-capabilities";
 import { useStore } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
+import { createRealmSituation } from "../../game/realm-situation";
 import { seedVisualQaState } from "../../dev/visual-qa-seed";
 import { usePanels } from "./panel-store";
 import { SettingsPanelBody } from "./SettingsPanelBody";
@@ -85,6 +86,7 @@ import {
   AlertDialogTrigger,
 } from "../components/primitives/AlertDialog";
 import { Button } from "../components/kit/Button";
+import { Badge } from "../components/kit/Badge";
 import { Code } from "../components/kit/Code";
 import { EmptyState } from "../components/kit/EmptyState";
 import { Field } from "../components/kit/Field";
@@ -645,9 +647,20 @@ function exportDay(timestamp: number): string {
 function OverviewTab() {
   const persisted = useStore((s) => s.persisted);
   const worlds = useStore((s) => s.worlds);
+  const units = useStore((s) => s.units);
+  const letters = useStore((s) => s.letters);
+  const events = useStore((s) => s.events);
   const eventCount = useStore((s) => s.eventCount);
+  const selectWorld = useStore((s) => s.selectWorld);
   const closeKind = usePanels((s) => s.closeKind);
   const reset = useStore((s) => s.resetKingdom);
+  const situation = useMemo(
+    () => createRealmSituation({ worlds, units, letters, events }),
+    [events, letters, units, worlds]
+  );
+  const liveFronts = situation.fronts.filter(
+    (front) => front.brief.readState !== "sealed"
+  );
   const sessionGlimmer = Object.values(worlds).reduce(
     (sum, w) => sum + (w.glimmer ?? 0),
     0
@@ -687,6 +700,11 @@ function OverviewTab() {
     closeKind("kingdom");
   };
 
+  const focusFront = (worldId: string) => {
+    selectWorld(worldId);
+    closeKind("kingdom");
+  };
+
   return (
     <KingdomTab>
       <div className="grid grid-cols-4 gap-2">
@@ -706,6 +724,63 @@ function OverviewTab() {
           }
         />
       </div>
+
+      <KingdomSection title="Live fronts" count={liveFronts.length}>
+        {liveFronts.length === 0 ? (
+          <KingdomEmpty>No active realm fronts.</KingdomEmpty>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <KingdomStat label="pressure" value={situation.counts.pressure} />
+              <KingdomStat label="holds" value={situation.counts.hold} />
+              <KingdomStat label="active" value={situation.counts.active} />
+            </div>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+              {liveFronts.map(({ world, brief }) => (
+                <li key={world.id}>
+                  <button
+                    type="button"
+                    className="hover:border-accent-alt/35 hover:bg-accent-alt/[0.07] focus-visible:border-accent-alt focus-visible:ring-accent-alt/35 flex w-full min-w-0 flex-col gap-1 rounded-sm border border-white/[0.07] bg-black/15 px-2.5 py-2 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none"
+                    onClick={() => focusFront(world.id)}
+                    aria-label={`Focus ${world.label}, ${brief.readState}, ${brief.pressureScore}% pressure`}
+                  >
+                    <span className="flex w-full min-w-0 items-center gap-2">
+                      <Badge
+                        tone={
+                          brief.readState === "pressure"
+                            ? "danger"
+                            : brief.readState === "hold"
+                              ? "warning"
+                              : brief.readState === "active"
+                                ? "gold"
+                                : "muted"
+                        }
+                        className="h-4 min-h-0 shrink-0 px-1.5 text-[8px]"
+                      >
+                        {brief.readState}
+                      </Badge>
+                      <span className="text-text min-w-0 flex-1 overflow-hidden font-mono text-[11px] font-semibold text-ellipsis whitespace-nowrap">
+                        {world.label}
+                      </span>
+                      <span className="text-muted shrink-0 font-mono text-[9px] tabular-nums">
+                        {brief.pressureScore}%
+                      </span>
+                    </span>
+                    <span className="text-muted line-clamp-1 text-[10px]">
+                      {brief.objective}
+                    </span>
+                    <span className="text-muted/80 flex gap-3 font-mono text-[9px] tabular-nums">
+                      <span>{brief.unitCounts.live} wielders</span>
+                      <span>{world.riftling.length} riftling</span>
+                      <span>{brief.pendingLetters.length} waits</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </KingdomSection>
 
       <KingdomSection title="Sealed worlds" count={sealedWorlds.length}>
         {sealedWorlds.length === 0 ? (

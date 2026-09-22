@@ -29,8 +29,13 @@ describe("visual QA seed", () => {
     expect(seed.events.map((event) => event.kind)).toContain("error");
     expect(
       seed.letters.some((letter) =>
-        letter.actions.some((entry) => entry.action.kind === "send-word")
+        letter.actions.some(
+          (entry) => entry.action.kind === "user-input-submit"
+        )
       )
+    ).toBe(true);
+    expect(
+      seed.letters.some((letter) => letter.userInputQuestions?.length)
     ).toBe(true);
 
     for (const unit of units) {

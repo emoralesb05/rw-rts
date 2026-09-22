@@ -123,6 +123,9 @@ Shipped foundations:
 - main-process monitor reconciliation across Realmkeeper events, Claude/Codex
   inventories, and optional metadata-only Herdr presence/focus
 - unified Star Chart and HUD layout
+- shared Realm situation model with a kingdom-wide pressure indicator and
+  ranked live fronts driven by real agent activity, blocking asks, and world
+  state
 - local provider hooks and installers
 - saved Realmkeeper-local permission rules
 - provider docs and probe evidence
