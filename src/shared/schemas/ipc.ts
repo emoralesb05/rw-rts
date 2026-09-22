@@ -104,6 +104,18 @@ export type ListProviderSessionsResponse = z.infer<
   typeof ListProviderSessionsResponseSchema
 >;
 
+export const UpdateAttentionRequestSchema = z
+  .object({
+    attentionId: z.string().min(1).max(2048),
+    occurrenceId: z.string().min(1).max(128),
+    action: z.enum(["acknowledge", "snooze", "reopen"]),
+  })
+  .strict();
+export type UpdateAttentionRequest = z.infer<
+  typeof UpdateAttentionRequestSchema
+>;
+export const UpdateAttentionResponseSchema = z.boolean();
+
 export const FocusMonitorAgentRequestSchema = z.object({
   agentId: z.string().min(1),
 });
@@ -139,6 +151,7 @@ export const SessionStatusSchema = z.enum([
 
 export const SessionControlActionSchema = z.enum([
   "send",
+  "resume",
   "steer",
   "interrupt",
   "stop",

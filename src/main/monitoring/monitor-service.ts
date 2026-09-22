@@ -7,11 +7,13 @@ import {
   type MonitorIntegrationHealth,
   type MonitorObservation,
   type MonitorSnapshot,
+  type UpdateAttentionRequest,
 } from "@shared/schemas";
 import { compareMonitorAgents } from "@shared/monitoring-order";
 import {
   activityObservationForEvent,
   blockingObservationForEvent,
+  blockingRequestKey,
   eventAgentId,
   providerObservation,
 } from "./monitor-observations";
@@ -22,6 +24,7 @@ import {
   reconcileAgent,
   visibleSnapshot,
 } from "./monitor-reconciler";
+import { MonitorAttention } from "./monitor-attention";
 
 export { MONITOR_FRESHNESS } from "./monitor-policy";
 
@@ -43,7 +46,10 @@ export class MonitorService {
   private version = 0;
   private lastPublished: MonitorSnapshot | undefined;
 
-  constructor(private readonly now: Clock = Date.now) {
+  constructor(
+    private readonly now: Clock = Date.now,
+    private readonly attention = new MonitorAttention(undefined, now)
+  ) {
     this.integrations.set("realmkeeper-events", {
       sourceId: "realmkeeper-events",
       sourceKind: "realmkeeper-event",
@@ -95,7 +101,14 @@ export class MonitorService {
       event.kind === "user_input_resolved" ||
       event.kind === "session_end"
     ) {
-      this.removeSlot(`event:block:${agentId}`);
+      const slot = `event:block:${agentId}`;
+      const pendingId = this.slots.get(slot);
+      const pending = pendingId ? this.observations.get(pendingId) : undefined;
+      if (
+        event.kind === "session_end" ||
+        pending?.revision === blockingRequestKey(event)
+      )
+        this.removeSlot(slot);
     }
 
     if (
@@ -169,6 +182,11 @@ export class MonitorService {
     }
   }
 
+  updateAttention(req: UpdateAttentionRequest): void {
+    this.attention.update(req, this.getSnapshot().attention);
+    this.commit();
+  }
+
   getSnapshot(): MonitorSnapshot {
     const generatedAt = this.now();
     const grouped = new Map<string, MonitorObservation[]>();
@@ -192,7 +210,7 @@ export class MonitorService {
       version: this.version,
       generatedAt,
       agents,
-      attention: attentionFor(agents, integrations),
+      attention: this.attention.project(attentionFor(agents, integrations)),
       integrations,
     };
   }

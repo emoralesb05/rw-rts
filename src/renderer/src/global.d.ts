@@ -34,6 +34,9 @@ declare global {
       onEvent(listener: (event: AgentEvent) => void): () => void;
       onMonitorDelta(listener: (delta: MonitorDelta) => void): () => void;
       getMonitorSnapshot(): Promise<MonitorSnapshot>;
+      updateAttention(
+        req: import("@shared/schemas").UpdateAttentionRequest
+      ): Promise<boolean>;
       focusMonitorAgent(req: { agentId: string }): Promise<boolean>;
       spawnAgent(req: SpawnAgentRequest): Promise<SpawnAgentResponse>;
       sendPrompt(req: SendPromptRequest): Promise<void>;

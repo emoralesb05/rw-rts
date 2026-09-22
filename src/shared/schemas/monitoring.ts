@@ -98,6 +98,7 @@ export type MonitorObservation = z.infer<typeof MonitorObservationSchema>;
 
 export const MonitorControlNameSchema = z.enum([
   "send",
+  "resume",
   "steer",
   "interrupt",
   "stop",
@@ -130,6 +131,7 @@ export const MonitorEvidenceSchema = MonitorObservationSchema.pick({
   stateReason: true,
   currentActivity: true,
   attentionKind: true,
+  revision: true,
 });
 export type MonitorEvidence = z.infer<typeof MonitorEvidenceSchema>;
 
@@ -163,6 +165,8 @@ export type AgentMonitorRecord = z.infer<typeof AgentMonitorRecordSchema>;
 
 export const MonitorAttentionItemSchema = z.object({
   attentionId: z.string().min(1),
+  occurrenceId: z.string().min(1).max(128).optional(),
+  snoozedUntil: z.number().finite().nonnegative().optional(),
   kind: MonitorAttentionKindSchema,
   severity: z.enum(["critical", "warning", "info"]),
   title: z.string().min(1),

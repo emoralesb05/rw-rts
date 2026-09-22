@@ -19,6 +19,10 @@ import { TooltipHint } from "./components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
 import { pulseLetterElement } from "./hud/letter-highlight";
 import type { AgentEvent, UnitState } from "@shared/events";
+import {
+  eventMatchesAgent,
+  type ConversationIdentity,
+} from "../monitoring/agent-conversation";
 
 const RichMarkdownStream = lazy(() => import("./MarkdownStream"));
 
@@ -775,7 +779,13 @@ function UserBubble({
   );
 }
 
-function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
+function PermissionRequestRow({
+  ev,
+  onRequestFocus,
+}: {
+  ev: AgentEvent;
+  onRequestFocus?: (id: string) => void;
+}) {
   const letters = useStore((s) => s.letters);
   const requestId =
     typeof ev.payload.requestId === "string" ? ev.payload.requestId : undefined;
@@ -802,6 +812,10 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   }, [letters, requestId]);
   const onClick = () => {
     if (!requestId || !isActive) return;
+    if (onRequestFocus) {
+      onRequestFocus(requestId);
+      return;
+    }
     window.dispatchEvent(
       new CustomEvent("rw:expand-hud", { detail: { title: "Alerts" } })
     );
@@ -856,7 +870,13 @@ function PermissionRequestRow({ ev }: { ev: AgentEvent }) {
   );
 }
 
-function UserInputRequestRow({ ev }: { ev: AgentEvent }) {
+function UserInputRequestRow({
+  ev,
+  onRequestFocus,
+}: {
+  ev: AgentEvent;
+  onRequestFocus?: (id: string) => void;
+}) {
   const letters = useStore((s) => s.letters);
   const requestId =
     typeof ev.payload.requestId === "string" ? ev.payload.requestId : undefined;
@@ -876,6 +896,10 @@ function UserInputRequestRow({ ev }: { ev: AgentEvent }) {
   }, [letters, requestId]);
   const onClick = () => {
     if (!requestId || !isActive) return;
+    if (onRequestFocus) {
+      onRequestFocus(requestId);
+      return;
+    }
     window.dispatchEvent(
       new CustomEvent("rw:expand-hud", { detail: { title: "Alerts" } })
     );
@@ -1022,6 +1046,8 @@ function UnitBadge({ unit }: { unit: UnitState }) {
 }
 
 type Props = {
+  onRequestFocus?: (id: string) => void;
+  agent?: ConversationIdentity;
   /** When set, only show events for this session. */
   sessionId?: string;
   /** Cap rendered messages to keep scroll perf reasonable. Default 80. */
@@ -1034,12 +1060,21 @@ type Props = {
 };
 
 export function ConversationStream({
+  onRequestFocus,
+  agent,
   sessionId,
   cap = 80,
   scrollToTs,
   scrollToTick,
 }: Props) {
-  const events = useStore((s) => s.events);
+  const allEvents = useStore((s) => s.events);
+  const events = useMemo(
+    () =>
+      agent
+        ? allEvents.filter((event) => eventMatchesAgent(event, agent))
+        : allEvents,
+    [allEvents, agent]
+  );
   const units = useStore((s) => s.units);
   const muted = useStore((s) => s.mutedSessionIds);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1159,7 +1194,7 @@ export function ConversationStream({
     return () => window.clearTimeout(handle);
   }, [scrollToTs, scrollToTick, filtered.length]);
 
-  const showBadges = !sessionId;
+  const showBadges = !sessionId && !agent;
 
   return (
     <div
@@ -1207,10 +1242,14 @@ export function ConversationStream({
             body = <SubagentSpawnRow ev={e} units={units} />;
             break;
           case "permission_request":
-            body = <PermissionRequestRow ev={e} />;
+            body = (
+              <PermissionRequestRow ev={e} onRequestFocus={onRequestFocus} />
+            );
             break;
           case "user_input_request":
-            body = <UserInputRequestRow ev={e} />;
+            body = (
+              <UserInputRequestRow ev={e} onRequestFocus={onRequestFocus} />
+            );
             break;
           case "user_prompt":
             body = (

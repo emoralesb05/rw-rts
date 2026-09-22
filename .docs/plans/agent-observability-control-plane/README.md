@@ -52,8 +52,22 @@ including main-owned freshness, blocking state, and snapshot recovery. Game
 pressure and historical stats remain separate. A bounded last-seen checkpoint
 now retains up to 200 session metadata rows for 30 days, exposes restart gaps,
 and keeps history separate from live agents and permission controls. This is
-not the full journal: durable acknowledgement/snooze, backfill, configurable
+not the full journal: resolved-attention history, backfill, configurable
 retention, and usage rollups remain pending. No new release is implied.
+
+Next working-tree slice: main-owned acknowledgement, fixed 15-minute snooze,
+and reopen actions are implemented via validated occurrence-bound IPC. Preferences
+are persisted separately from live state. New requests reopen; stale actions and
+late mismatched resolutions cannot affect a newer blocker. Exact event-backed
+occurrences can recover their choices after fresh evidence; unidentified continuity
+reopens after restart. No permission is answered by these notification actions.
+The full resolved-attention audit trail and configurable snooze durations remain
+out of scope. See [state ownership](../../architecture/state.md).
+
+Verification for the attention slice: 413 unit/component tests, 25 source-build
+Electron regressions, and 3 targeted packaged-app checks (shell, notification
+controls/Realm blocking, actual restart) passed. Typecheck, lint, and build passed.
+The packaged check used a temporary unsigned macOS arm64 app, not a new release.
 
 The last-seen slice has source-build Electron restart coverage: a saved blocker
 is visible only in history after relaunch, live permission attention stays empty,
@@ -61,9 +75,38 @@ and a fresh fixture session appears separately. Unit coverage exercises metadata
 allowlisting, identity deduplication, retention/caps, quarantine, write failure,
 checkpoint timers, shutdown cleanup, and same-session recovery with fresh evidence.
 This does not establish provider replay, crash-tail recovery, the 100,000-event
-scale target, or packaged verification of these post-release changes.
+scale target, or a complete packaged regression run of all post-release changes.
 
 ## What we decided
+
+Interaction working-tree checkpoint: Monitor now opens a conversation drawer
+alongside the fleet with captured messages/tool activity, inline existing request
+cards, and explicit send/steer/resume semantics. Provider/native identity isolates
+conversations; local routing IDs survive native inventory reconciliation. Model
+and approval status are informational only. Editable model/policy settings,
+provider transcript backfill, and shared Monitor/Realm composer consolidation
+remain pending. Existing Realm chat is unchanged.
+
+Drawer verification: 421 unit/component tests and 26 source-build Electron
+regressions passed. After the compact fleet layout and missing-metadata guards,
+the final build passed 4 packaged-app checks (shell, conversation/message/inline
+permission flow, attention/Realm parity, and restart). Typecheck, lint, and build
+passed. These are isolated fixture checks, not new live-provider compatibility
+claims or a release. That checkpoint retained terminal-session control restrictions.
+
+The next interaction slice adds explicit terminal-session resume with main-owned
+identity/state validation, per-provider/native-session in-memory drafts and pending
+actions, and acceptance versus subsequent activity labels. It does not restore
+controls from last-seen history or claim correlated delivery receipts. Model and
+approval-policy editing remain pending. Provider resume uses existing adapters;
+this is not a new live-CLI compatibility claim.
+
+Resume/draft verification: 433 unit/component tests, typecheck, lint, and build
+passed. All 26 packaged Electron regressions passed; after tightening resume to
+require done (not merely failed), the final packaged build passed 5 targeted shell,
+Monitor interaction/attention/restart, and session-control checks. These use
+isolated fixtures, not live provider turns. No release or commit was made for this
+slice.
 
 | # | Decision | Settled by |
 |---|---|---|

@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@shared/events";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   MonitorAgentState,
   MonitorObservation,
@@ -29,8 +30,21 @@ export function blockingObservationForEvent(
       ? "Permission decision required"
       : "Answer required",
     attentionKind: isPermission ? "permission" : "question",
-    revision: `${event.kind}:${event.timestamp}`,
+    revision: blockingRequestKey(event),
   };
+}
+
+export function blockingRequestKey(event: AgentEvent): string {
+  const kind = event.kind.startsWith("permission") ? "permission" : "question";
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        kind,
+        eventAgentId(event),
+        stringValue(event.payload.requestId) ?? randomUUID(),
+      ])
+    )
+    .digest("hex");
 }
 
 export function activityObservationForEvent(

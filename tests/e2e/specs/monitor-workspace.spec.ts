@@ -2,7 +2,112 @@ import { expect, test } from "../fixtures/electron";
 import { playFixture, waitForRealmkeeper } from "../helpers/app";
 import { _electron as electron } from "@playwright/test";
 import { join, resolve } from "node:path";
-import type { MonitorSnapshot } from "../../../src/shared/schemas";
+import { readFileSync } from "node:fs";
+import type {
+  ControlSessionRequest,
+  ControlSessionResponse,
+  MonitorSnapshot,
+} from "../../../src/shared/schemas";
+
+test("reads and messages an agent and handles its request without leaving Monitor", async ({
+  appPage: page,
+}) => {
+  await waitForRealmkeeper(page);
+  await page.getByRole("button", { name: "Monitor", exact: true }).click();
+  await playFixture(page, "cursor-turn");
+  await page.getByRole("button", { name: "Open conversation" }).click();
+  const conversation = page.getByRole("region", {
+    name: "Agent conversation",
+    exact: true,
+  });
+  await expect(conversation.getByText("rename App to KhApp")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
+  await expect(page.getByText(/Last signal:/).first()).toBeVisible();
+  const message = "Please summarize the monitored fixture.";
+  await conversation
+    .getByRole("textbox", { name: "Message selected agent" })
+    .fill(message);
+  await conversation.getByRole("button", { name: "Send follow-up" }).click();
+  await expect(conversation.getByText(message, { exact: true })).toBeVisible();
+  await expect(
+    conversation.getByRole("textbox", { name: "Message selected agent" })
+  ).toHaveValue("");
+  await expect(conversation.getByText(/re-ran typecheck/)).toBeVisible();
+  await conversation.getByText("Model and approval settings").click();
+  await expect(
+    conversation.getByText(/Effective approval policy: not reported/)
+  ).toBeVisible();
+  await conversation.getByText("Model and approval settings").click();
+  await page.screenshot({
+    path: "/private/tmp/realmkeeper-agent-conversation.png",
+  });
+
+  await expect(
+    conversation.getByRole("button", { name: "Resume with message" })
+  ).toBeVisible();
+  await expect(conversation.getByRole("textbox")).toBeEnabled();
+  await conversation
+    .getByRole("textbox")
+    .fill("Continue this finished fixture.");
+  await page.getByRole("button", { name: "Back to agent details" }).click();
+  await page.getByRole("button", { name: "Open conversation" }).click();
+  await expect(conversation.getByRole("textbox")).toHaveValue(
+    "Continue this finished fixture."
+  );
+  const staleResume = await page.evaluate(async () => {
+    const api = (
+      window as unknown as {
+        rw: { getMonitorSnapshot(): Promise<MonitorSnapshot> };
+      }
+    ).rw;
+    const agent = (await api.getMonitorSnapshot()).agents.find(
+      (entry) => entry.tool === "cursor"
+    )!;
+    return {
+      action: "resume",
+      unitId: agent.sourceLocalId ?? agent.nativeSessionId!,
+      sessionId: agent.nativeSessionId,
+      tool: "cursor",
+      cwd: agent.cwd,
+      prompt: "Must not duplicate",
+      status: "complete",
+    } satisfies ControlSessionRequest;
+  });
+  await conversation
+    .getByRole("button", { name: "Resume with message" })
+    .click();
+  await expect(
+    conversation.getByText("Continue this finished fixture.", { exact: true })
+  ).toBeVisible();
+  await expect(conversation.getByRole("textbox")).toHaveValue("");
+  const rejected = await page.evaluate(
+    (request) =>
+      (
+        window as unknown as {
+          rw: {
+            controlSession(
+              request: ControlSessionRequest
+            ): Promise<ControlSessionResponse>;
+          };
+        }
+      ).rw.controlSession(request),
+    staleResume
+  );
+  expect(rejected.ok).toBe(false);
+  expect(rejected.reasonCode).toBe("capability_unavailable");
+
+  await playFixture(page, "permission-claude");
+  await page.getByRole("button", { name: /Permission needed/ }).click();
+  await expect(conversation.getByText(message, { exact: true })).toHaveCount(0);
+  await expect(
+    conversation.getByRole("textbox", { name: "Message selected agent" })
+  ).toBeDisabled();
+  const request = conversation.locator("[data-letter-request-id]").first();
+  await expect(request).toBeVisible();
+  await request.getByRole("button", { name: "allow", exact: true }).click();
+  await expect(request).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Fleet" })).toBeVisible();
+});
 
 test("surfaces live agents and blocking work in the Monitor workspace", async ({
   appPage: page,
@@ -34,6 +139,14 @@ test("surfaces live agents and blocking work in the Monitor workspace", async ({
   ).toBeVisible();
   await expect(page.getByText(/realmkeeper-events/i).first()).toBeVisible();
 
+  const alert = page.getByRole("article", { name: "Permission needed" });
+  await alert.getByRole("button", { name: "Acknowledge" }).click();
+  await expect(
+    alert.getByText("Acknowledged · still unresolved")
+  ).toBeVisible();
+  await alert.getByRole("button", { name: "Snooze 15m" }).click();
+  await expect(page.getByText("Snoozed (1)")).toBeVisible();
+
   await page.getByLabel("State").selectOption("blocked");
   await expect(page.getByRole("button", { name: /blocked/i })).toHaveCount(1);
   await page.getByLabel("Filter agents").fill("no matching agent");
@@ -53,8 +166,21 @@ test("surfaces live agents and blocking work in the Monitor workspace", async ({
     activity.getByText("Waiting for permission", { exact: true })
   ).toBeVisible();
   await page.getByRole("button", { name: "Monitor", exact: true }).click();
+  await page.getByText("Snoozed (1)").click();
   await expect(
     page.getByRole("button", { name: /Permission needed/i })
+  ).toBeVisible();
+  await page.screenshot({
+    path: "/private/tmp/realmkeeper-attention-snoozed.png",
+  });
+  await page
+    .getByRole("article", { name: "Permission needed" })
+    .getByRole("button", { name: "Reopen" })
+    .click();
+  await expect(
+    page
+      .getByRole("article", { name: "Permission needed" })
+      .getByRole("button", { name: "Acknowledge" })
   ).toBeVisible();
 });
 
@@ -72,6 +198,19 @@ test("keeps restored blockers historical across an actual app restart", async ({
     HOME: process.env.HOME!,
     REALMKEEPER_USER_DATA: process.env.REALMKEEPER_USER_DATA!,
   }));
+  await page
+    .getByRole("article", { name: "Permission needed" })
+    .getByRole("button", { name: "Acknowledge" })
+    .click();
+  await expect(page.getByText("Acknowledged · still unresolved")).toBeVisible();
+  const preferencesFile = join(
+    paths.HOME,
+    ".realmkeeper",
+    "monitor",
+    "attention.json"
+  );
+  const preferences = JSON.parse(readFileSync(preferencesFile, "utf8"));
+  expect(preferences.choices).toHaveLength(1);
   await electronApp.close();
   const restarted = await electron.launch({
     ...(process.env.REALMKEEPER_E2E_EXECUTABLE
@@ -112,6 +251,9 @@ test("keeps restored blockers historical across an actual app restart", async ({
       ).rw.getMonitorSnapshot()
     );
     expect(snapshot.agents).toEqual([]);
+    expect(JSON.parse(readFileSync(preferencesFile, "utf8")).choices).toEqual(
+      preferences.choices
+    );
     expect(
       snapshot.attention.filter((item) => item.kind === "permission")
     ).toEqual([]);
@@ -121,6 +263,11 @@ test("keeps restored blockers historical across an actual app restart", async ({
     await playFixture(next, "permission-claude");
     await expect(
       next.getByRole("button", { name: /Permission needed/i })
+    ).toBeVisible();
+    await expect(
+      next
+        .getByRole("article", { name: "Permission needed" })
+        .getByRole("button", { name: "Acknowledge" })
     ).toBeVisible();
     await expect(
       history.getByText(/Last seen history · 2 sessions/)

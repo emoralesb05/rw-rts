@@ -3,6 +3,7 @@ import type { AgentTool } from "./schemas/common";
 
 export type SessionControlName =
   | "send"
+  | "resume"
   | "steer"
   | "interrupt"
   | "stop"
@@ -15,6 +16,7 @@ export type SessionControlName =
 
 export const SESSION_CONTROL_NAMES = [
   "send",
+  "resume",
   "steer",
   "interrupt",
   "stop",
@@ -88,6 +90,7 @@ function baseControls(
 ): Record<SessionControlName, SessionCapability> {
   return {
     send: unavailable(reason),
+    resume: unavailable(reason),
     steer: unavailable(reason),
     interrupt: unavailable(reason),
     stop: unavailable(reason),
@@ -105,8 +108,13 @@ export function resolveSessionCapabilities(
 ): SessionCapabilities {
   const terminal = isTerminalStatus(input.status);
   if (terminal) {
+    const controls = baseControls("This wielder is no longer active.");
+    if (input.status === "complete")
+      controls.resume = available(
+        "Explicitly start another turn in this provider session."
+      );
     return {
-      controls: baseControls("This wielder is no longer active."),
+      controls,
       permissionAuthority: permissionAuthorityFor(input.tool),
       notes: [`${providerName(input.tool)} session has ended.`],
     };

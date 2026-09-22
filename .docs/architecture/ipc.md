@@ -10,8 +10,9 @@ All defined in `src/shared/ipc.ts`. Every handler in main wraps via `safeHandle(
 | `rw:spawn-agent` | renderer → main | Start a new wielder (claude/cursor/codex/gemini) |
 | `rw:send-prompt` | renderer → main | Pipe a prompt to a spawned wielder's stdin |
 | `rw:kill-agent` | renderer → main | SIGTERM a wielder |
-| `rw:control-session` | renderer → main | Typed session-control boundary for send/steer/interrupt/stop/fork/attach/list actions; unsupported actions return `ok: false` with a reason |
+| `rw:control-session` | renderer → main | Typed session-control boundary for send/resume/steer/interrupt/stop/fork/attach/list actions; explicit terminal resume resolves a current main-owned Monitor record; unsupported actions return `ok: false` with a reason |
 | `rw:list-units` | renderer → main | Snapshot of live spawned agents |
+| `rw:update-attention` | renderer → main | Acknowledge, snooze for 15 minutes, or reopen an exact current notification occurrence; never answer a permission/input request |
 | `rw:install-hooks` / `uninstall-hooks` / `hooks-status` | renderer → main | Manage Claude hook installation |
 | `rw:install-cursor-hooks` / `uninstall-cursor-hooks` / `cursor-hooks-status` | renderer → main | Same for Cursor |
 | `rw:install-codex-hooks` / `uninstall-codex-hooks` / `codex-hooks-status` | renderer → main | Same for Codex |

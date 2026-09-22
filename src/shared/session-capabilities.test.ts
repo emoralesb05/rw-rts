@@ -93,7 +93,7 @@ describe("session capabilities", () => {
     );
   });
 
-  it("disables every direct control once the unit is terminal", () => {
+  it("allows only explicit resume once the unit is terminal", () => {
     const capabilities = capabilitiesForUnit(
       unit({ tool: "gemini", status: "complete", spawnedHere: true })
     );
@@ -107,7 +107,9 @@ describe("session capabilities", () => {
       ])
     );
     expect(
-      Object.values(capabilities.controls).every((c) => !c.available)
+      Object.entries(capabilities.controls).every(([action, c]) =>
+        action === "resume" ? c.available : !c.available
+      )
     ).toBe(true);
   });
 
@@ -127,5 +129,10 @@ describe("session capabilities", () => {
     expect(controlReason(gemini, "listProviderSessions")).toMatch(
       /diagnostic only/i
     );
+  });
+  it("does not treat an error as proof the turn has ended", () => {
+    expect(
+      canControl(capabilitiesForUnit(unit({ status: "fallen" })), "resume")
+    ).toBe(false);
   });
 });

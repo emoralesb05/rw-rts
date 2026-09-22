@@ -21,6 +21,35 @@ function event(
 }
 
 describe("MonitorService", () => {
+  it("retains the local control route when native inventory wins state", () => {
+    const service = new MonitorService(() => 1001);
+    service.ingestAgentEvent({
+      ...event("tool_use", 1000, { providerSessionId: "native" }),
+      sessionId: "local",
+      source: "spawned",
+    });
+    service.ingestProviderSessions({
+      generatedAt: 1001,
+      errors: [],
+      sessions: [
+        {
+          providerSessionId: "native",
+          tool: "codex",
+          displayName: "Agent",
+          cwd: "/repo",
+          status: "working",
+          availableActions: ["resume"],
+        },
+      ],
+    });
+    expect(service.getSnapshot().agents).toHaveLength(1);
+    expect(service.getSnapshot().agents[0]).toMatchObject({
+      nativeSessionId: "native",
+      sourceLocalId: "local",
+      authority: "provider",
+      spawnedHere: true,
+    });
+  });
   it("makes unresolved input authoritative until it is resolved", () => {
     let now = 1_000;
     const service = new MonitorService(() => now);

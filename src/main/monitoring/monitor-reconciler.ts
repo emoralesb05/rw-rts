@@ -1,4 +1,5 @@
 import type { UnitState } from "@shared/events";
+import { createHash } from "node:crypto";
 import type {
   AgentMonitorRecord,
   AgentTool,
@@ -78,7 +79,11 @@ export function reconcileAgent(
     providerId: winner.providerId,
     tool: winner.tool,
     nativeSessionId: winner.nativeSessionId,
-    sourceLocalId: winner.sourceLocalId,
+    // Preserve the local process routing ID even when native inventory wins state.
+    sourceLocalId:
+      metadata.find(
+        (item) => item.sourceKind === "realmkeeper-event" && item.sourceLocalId
+      )?.sourceLocalId ?? winner.sourceLocalId,
     displayName:
       metadata.find((item) => item.displayName)?.displayName ??
       winner.nativeSessionId ??
@@ -112,6 +117,7 @@ export function reconcileAgent(
       stateReason: item.stateReason,
       currentActivity: item.currentActivity,
       attentionKind: item.attentionKind,
+      revision: item.revision,
     })),
     controls:
       capabilities === undefined
@@ -177,6 +183,19 @@ function agentAttention(agent: AgentMonitorRecord): MonitorAttentionItem[] {
   return [
     {
       attentionId: `${kind}:${agent.agentId}`,
+      occurrenceId:
+        agent.evidence[0]?.sourceKind === "realmkeeper-event" &&
+        agent.evidence[0]?.revision
+          ? createHash("sha256")
+              .update(
+                JSON.stringify([
+                  kind,
+                  agent.agentId,
+                  agent.evidence[0].revision,
+                ])
+              )
+              .digest("hex")
+          : undefined,
       kind,
       severity:
         kind === "permission" || kind === "question" || kind === "failure"

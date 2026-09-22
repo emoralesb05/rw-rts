@@ -30,6 +30,7 @@ export function MonitorWorkspace({ onOpenRealm }: MonitorWorkspaceProps) {
   const [providerFilter, setProviderFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [conversationOpen, setConversationOpen] = useState(false);
   const now = useNow();
 
   const providers = useMemo(
@@ -124,7 +125,13 @@ export function MonitorWorkspace({ onOpenRealm }: MonitorWorkspaceProps) {
       ) : null}
 
       <MonitorHistory history={snapshot.history} />
-      <main className="grid min-h-0 flex-1 grid-cols-[280px_minmax(420px,1fr)_360px]">
+      <main
+        className={
+          conversationOpen
+            ? "grid min-h-0 flex-1 grid-cols-[240px_minmax(360px,1fr)_minmax(360px,520px)]"
+            : "grid min-h-0 flex-1 grid-cols-[280px_minmax(420px,1fr)_360px]"
+        }
+      >
         <AttentionRail
           items={snapshot.attention}
           integrations={snapshot.integrations}
@@ -133,6 +140,7 @@ export function MonitorWorkspace({ onOpenRealm }: MonitorWorkspaceProps) {
           now={now}
         />
         <FleetTable
+          compact={conversationOpen}
           agents={agents}
           totalAgents={snapshot.agents.length}
           loading={loading}
@@ -148,7 +156,12 @@ export function MonitorWorkspace({ onOpenRealm }: MonitorWorkspaceProps) {
           onStateFilter={setStateFilter}
           onQuery={setQuery}
         />
-        <Inspector agent={selected} now={now} />
+        <Inspector
+          agent={selected}
+          now={now}
+          conversationOpen={conversationOpen}
+          onConversationToggle={() => setConversationOpen((open) => !open)}
+        />
       </main>
     </div>
   );

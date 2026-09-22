@@ -52,6 +52,32 @@ function event(
 }
 
 describe("ConversationStream", () => {
+  it("isolates Monitor conversation content by provider and native session", async () => {
+    useStore.setState({
+      events: [
+        event("same", 3, "assistant_text", { text: "Correct provider reply" }),
+        {
+          ...event("same", 2, "assistant_text", {
+            text: "Wrong provider secret",
+          }),
+          tool: "codex",
+        },
+        event("different", 1, "assistant_text", {
+          text: "Other session secret",
+        }),
+      ],
+      units: {},
+      mutedSessionIds: {},
+    });
+    render(
+      <ConversationStream
+        agent={{ providerId: "claude", nativeSessionId: "same" }}
+      />
+    );
+    expect(await screen.findByText("Correct provider reply")).toBeVisible();
+    expect(screen.queryByText("Wrong provider secret")).not.toBeInTheDocument();
+    expect(screen.queryByText("Other session secret")).not.toBeInTheDocument();
+  });
   afterEach(() => {
     useStore.setState(useStore.getInitialState(), true);
     vi.restoreAllMocks();

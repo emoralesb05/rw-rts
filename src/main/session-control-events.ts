@@ -15,7 +15,12 @@ export function sessionControlEventFor(
   response: ControlSessionResponse,
   fallback: SessionControlEventFallback
 ): AgentEvent | null {
-  if ((req.action === "send" || req.action === "steer") && response.ok) {
+  if (
+    (req.action === "send" ||
+      req.action === "steer" ||
+      req.action === "resume") &&
+    response.ok
+  ) {
     return null;
   }
   return {

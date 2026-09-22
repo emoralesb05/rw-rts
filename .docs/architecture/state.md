@@ -40,12 +40,71 @@ startup as unverified, not as inactivity. No backfill is performed. Files over
 if quarantine fails, persistence stays disabled and the original is untouched.
 Read/write failures are visible in history, without disabling live monitoring.
 
-Attention acknowledgement/snoozing, observation journaling, configurable
-retention, and usage rollups remain future work. Prompt bodies, tool input/output,
+Observation journaling, configurable retention, and usage rollups remain future work. Prompt bodies, tool input/output,
 free-text activity/reasons, transcript content, and terminal scrollback are not
 included in monitoring checkpoints. Characters and Realm game state are unchanged.
 
+## Attention notification preferences — main
+
+`monitor-attention.ts` projects local acknowledgement and 15-minute snooze
+preferences onto the current attention list. It does not change agent state,
+answer permissions/input, or invoke provider controls. Acknowledged alerts remain
+visible as unresolved; snoozed alerts move to a separate expandable section.
+Reopen removes the local preference. Main's freshness tick publishes snooze expiry.
+
+`~/.realmkeeper/monitor/attention.json` atomically saves choices immediately,
+using hashed occurrence keys, lifecycle, and timestamps only (no request content,
+raw request IDs, titles, or summaries). Preferences are bounded to 1,000 entries
+and 30 days. Save failure rejects the action without optimistic UI dismissal.
+Unreadable/oversized/unsupported-schema files are quarantined; failure to quarantine
+disables writes. Integration health exposes persistence warnings.
+
+Event-backed request identity includes provider, native session, request kind,
+and request ID. A new request gets a new occurrence even in the same session;
+stale UI actions fail closed. A late resolution cannot clear a different current
+request. Resolved/replaced occurrences lose their preferences. Restoring choices
+does not restore alerts: fresh matching evidence is required. Conditions without
+source-backed occurrence identity keep one occurrence during continuous observation,
+but reopen after restart or observed recovery because continuity across a gap is
+unproven. This is notification preference persistence, not a full attention audit log.
+
 ## Live state — renderer (Zustand)
+
+Monitor's selected-agent conversation drawer reuses `ConversationStream`,
+`LetterCard`, and existing session-control IPC. Conversation selection requires
+provider plus native session identity (or an explicit local alias); matching by
+repository or bare session ID across providers is prohibited. This reads captured
+renderer events only, not a full transcript or durable conversation journal.
+Permission/input cards use the existing request actions, including scoped saved
+rules; opening the drawer never changes approval policy.
+
+Messaging distinguishes steering an owned active turn, sending a follow-up, and
+resuming an observed session. Unknown/offline or blocked sessions cannot receive
+new messages from Monitor; observed working sessions must be handled natively or
+wait before resume. Failed sends retain the draft and expose the error. Success
+means IPC acceptance, not a confirmed provider response. Native inventory state
+must retain the event source's local process ID for owned-session routing.
+Model is shown when reported; effective approval policy remains unknown. Model
+switching and a generic auto-approve toggle are not implemented by this UI slice.
+
+Ended sessions now expose a separate `resume` action, not a re-enabled
+ordinary send. Main resolves the current provider/native session, local routing ID,
+working directory, terminal state, and capability before dispatch. History-only,
+changed, working, blocked, failed, and unknown/offline records cannot authorize resume.
+An error alone does not prove that a provider process or turn has ended.
+Existing provider resume/send adapters are reused; provider settings are unchanged.
+Resume is rejected if main no longer reports the session as done; renderer status
+cannot override that check. Provider resume availability/errors still depend on
+the installed CLI.
+
+Conversation drafts, in-flight actions, and acceptance results are keyed by
+provider plus native session in an app-lifetime renderer store. They survive
+selection, drawer, and workspace changes, but not app restart, and are never
+written to monitoring checkpoints or localStorage. Failed sends retain drafts;
+an asynchronous result updates its originating agent, not the current selection.
+Post-send activity labels use scoped captured events and explicitly do not claim
+a correlated delivery receipt. Full message/turn IDs and durable delivery tracking
+remain future work.
 
 `src/renderer/src/store.ts` owns game state and historical events. Reconciled
 operational activity comes from the shared monitor read replica above.

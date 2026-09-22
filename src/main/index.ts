@@ -46,6 +46,7 @@ import {
 import { listWorkspaceRepos } from "./workspace-scan";
 import { listProviderSessions } from "./provider-sessions";
 import { MonitorRuntime } from "./monitoring/monitor-runtime";
+import { resumeTarget } from "./monitoring/resume-target";
 import { runClaudeProviderSessionAction } from "./provider-session-actions";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
@@ -85,6 +86,8 @@ import {
   ListPermissionRulesResponseSchema,
   ListOrchestrationRunsResponseSchema,
   MonitorSnapshotSchema,
+  UpdateAttentionRequestSchema,
+  UpdateAttentionResponseSchema,
   RemovePermissionRuleRequestSchema,
   RemovePermissionRuleResponseSchema,
   OrchestrationRunResponseSchema,
@@ -329,6 +332,34 @@ async function controlSession(
     emitSessionControlEvent(req, response, agent);
     return response;
   };
+  if (req.action === "resume") {
+    const target = resumeTarget(req, monitorRuntime.getSnapshot().agents);
+    if (!target || (agent && agent.sessionId !== target.nativeSessionId)) {
+      return respond({
+        action: req.action,
+        ok: false,
+        reason:
+          "Session changed or is not resumable. Refresh its live state before retrying.",
+        reasonCode: "capability_unavailable",
+      });
+    }
+    const prompt = req.prompt?.trim();
+    if (!prompt)
+      return respond({
+        action: req.action,
+        ok: false,
+        reason: "Prompt is required.",
+        reasonCode: "invalid_request",
+      });
+    sendPromptFromRequest({
+      unitId: target.sourceLocalId ?? target.nativeSessionId!,
+      sessionId: target.nativeSessionId,
+      tool: target.tool,
+      cwd: target.cwd,
+      prompt,
+    });
+    return respond({ action: req.action, ok: true });
+  }
   const capabilities = resolveSessionCapabilities({
     tool: req.tool,
     spawnedHere,
@@ -524,6 +555,17 @@ void app.whenReady().then(async () => {
       return true;
     },
     FocusMonitorAgentResponseSchema
+  );
+
+  safeHandle(
+    IPC.UpdateAttention,
+    (_e, raw: unknown) => {
+      monitorRuntime.updateAttention(
+        parseIpcPayload(IPC.UpdateAttention, UpdateAttentionRequestSchema, raw)
+      );
+      return true;
+    },
+    UpdateAttentionResponseSchema
   );
 
   safeHandle(

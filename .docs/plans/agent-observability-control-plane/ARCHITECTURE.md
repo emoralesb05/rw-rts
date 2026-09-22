@@ -29,6 +29,14 @@ files are quarantined; failure to quarantine disables writes. See
 [state ownership](../../architecture/state.md). The journal, attention lifecycle,
 configurable retention, and rollups below remain targets, not implemented features.
 
+The next working-tree slice adds separate `monitor/attention.json` preferences
+and `rw:update-attention` (acknowledge, fixed 15-minute snooze, reopen). Main binds
+actions to a current occurrence and keeps operational state unchanged. Exact
+event-backed occurrence identity can recover a saved preference only after fresh
+evidence; other conditions reopen across restarts. Resolved/replaced choices are
+removed, not retained as an audit trail. This is not the full attention history
+mechanism described below.
+
 ## Engineer context
 
 Read `.docs/vision.md`, `.docs/architecture/processes.md`,

@@ -9,6 +9,7 @@ import {
 } from "./monitor-format";
 
 type FleetTableProps = {
+  compact?: boolean;
   agents: AgentMonitorRecord[];
   totalAgents: number;
   loading: boolean;
@@ -58,11 +59,22 @@ export function FleetTable(props: FleetTableProps) {
           options={props.states}
         />
       </div>
-      <div className="border-line text-muted grid grid-cols-[minmax(150px,1.25fr)_100px_minmax(160px,1fr)_86px] gap-3 border-b px-4 py-2 text-[10px] font-semibold tracking-[0.12em] uppercase">
+      <div
+        className={cn(
+          "border-line text-muted grid gap-3 border-b px-4 py-2 text-[10px] font-semibold tracking-[0.12em] uppercase",
+          props.compact
+            ? "grid-cols-[minmax(0,1fr)_100px]"
+            : "grid-cols-[minmax(150px,1.25fr)_100px_minmax(160px,1fr)_86px]"
+        )}
+      >
         <span>Agent</span>
         <span>State</span>
-        <span>Current activity</span>
-        <span className="text-right">Observed</span>
+        {!props.compact ? (
+          <>
+            <span>Current activity</span>
+            <span className="text-right">Observed</span>
+          </>
+        ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {props.loading && props.totalAgents === 0 ? (
@@ -88,6 +100,7 @@ export function FleetTable(props: FleetTableProps) {
             <FleetRow
               key={agent.agentId}
               agent={agent}
+              compact={props.compact}
               selected={agent.agentId === props.selectedAgentId}
               now={props.now}
               onSelect={() => props.onSelectAgent(agent.agentId)}
@@ -104,7 +117,9 @@ function FleetRow({
   selected,
   now,
   onSelect,
+  compact,
 }: {
+  compact?: boolean;
   agent: AgentMonitorRecord;
   selected: boolean;
   now: number;
@@ -115,7 +130,10 @@ function FleetRow({
       type="button"
       onClick={onSelect}
       className={cn(
-        "border-line hover:bg-surface-2/55 grid w-full grid-cols-[minmax(150px,1.25fr)_100px_minmax(160px,1fr)_86px] items-center gap-3 border-b px-4 py-3 text-left transition-colors",
+        "border-line hover:bg-surface-2/55 grid w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors",
+        compact
+          ? "grid-cols-[minmax(0,1fr)_100px]"
+          : "grid-cols-[minmax(150px,1.25fr)_100px_minmax(160px,1fr)_86px]",
         selected && "bg-accent/[0.07] shadow-[inset_2px_0_0_#6cc6ff]"
       )}
     >
@@ -134,7 +152,7 @@ function FleetRow({
         </div>
       </div>
       <StatePill state={agent.state} />
-      <div className="min-w-0">
+      <div className={cn("min-w-0", compact && "col-span-2")}>
         <div className="truncate text-[11px]">
           {agent.currentActivity ?? agent.stateReason}
         </div>
@@ -142,7 +160,13 @@ function FleetRow({
           {agent.sources.join(" + ")}
         </div>
       </div>
-      <div className="text-muted text-right text-[10px]">
+      <div
+        className={cn(
+          "text-muted text-right text-[10px]",
+          compact && "col-span-2 flex items-center gap-2 text-left"
+        )}
+      >
+        {compact ? "Last signal:" : null}
         {formatAge(now - agent.lastObservedAt)}
         <div
           className={cn(

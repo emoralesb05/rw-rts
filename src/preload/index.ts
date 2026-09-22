@@ -17,6 +17,8 @@ import {
   ListWorkspaceReposResponseSchema,
   MonitorDeltaSchema,
   MonitorSnapshotSchema,
+  UpdateAttentionResponseSchema,
+  type UpdateAttentionRequest,
   OpenPathResponseSchema,
   PersistedStateSchema,
   RemovePermissionRuleResponseSchema,
@@ -105,6 +107,13 @@ const api = {
   },
   getMonitorSnapshot() {
     return invokeParsed(IPC.GetMonitorSnapshot, MonitorSnapshotSchema);
+  },
+  updateAttention(req: UpdateAttentionRequest) {
+    return invokeParsed(
+      IPC.UpdateAttention,
+      UpdateAttentionResponseSchema,
+      req
+    );
   },
   focusMonitorAgent(req: FocusMonitorAgentRequest) {
     return invokeParsed(

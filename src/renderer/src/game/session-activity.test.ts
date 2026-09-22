@@ -29,7 +29,7 @@ function event(kind: AgentEvent["kind"], timestamp: number): AgentEvent {
     cwd: unit.cwd,
     timestamp,
     kind,
-    payload: {},
+    payload: { requestId: "activity-test-request" },
     source: "hook",
   };
 }

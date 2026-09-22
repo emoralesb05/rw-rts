@@ -1,7 +1,12 @@
 import type { AgentEvent } from "@shared/events";
 import { homedir } from "node:os";
-import { join } from "node:path";
-import type { MonitorDelta, MonitorSnapshot } from "@shared/schemas";
+import { dirname, join } from "node:path";
+import type {
+  MonitorDelta,
+  MonitorSnapshot,
+  UpdateAttentionRequest,
+} from "@shared/schemas";
+import { MonitorAttention } from "./monitor-attention";
 import { listProviderSessions } from "../provider-sessions";
 import { HerdrMonitorSource } from "./herdr-source";
 import { MonitorService } from "./monitor-service";
@@ -13,10 +18,12 @@ const FRESHNESS_TICK_MS = 1_000;
 type MonitorRuntimeOptions = {
   herdrEnabled?: boolean;
   historyFile?: string;
+  attentionFile?: string;
 };
 
 export class MonitorRuntime {
-  private readonly service = new MonitorService();
+  private readonly service: MonitorService;
+  private readonly attention: MonitorAttention;
   private readonly herdr: HerdrMonitorSource;
   private readonly herdrEnabled: boolean;
   private pollTimer: NodeJS.Timeout | undefined;
@@ -25,8 +32,19 @@ export class MonitorRuntime {
   private lifecycle = 0;
   private readonly history: MonitorHistoryStore;
   private historyTimer: NodeJS.Timeout | undefined;
+  private reportedAttentionWarning?: string;
 
   constructor(options: MonitorRuntimeOptions = {}) {
+    this.attention = new MonitorAttention(
+      options.attentionFile ??
+        join(
+          options.historyFile
+            ? dirname(options.historyFile)
+            : join(homedir(), ".realmkeeper", "monitor"),
+          "attention.json"
+        )
+    );
+    this.service = new MonitorService(Date.now, this.attention);
     this.herdrEnabled = options.herdrEnabled ?? true;
     this.herdr = new HerdrMonitorSource(this.service);
     this.history = new MonitorHistoryStore(
@@ -42,6 +60,8 @@ export class MonitorRuntime {
     if (this.pollTimer) return;
     this.lifecycle += 1;
     this.history.load();
+    this.attention.load();
+    this.reportAttentionHealth();
     this.history.checkpoint();
     this.historyTimer = setInterval(
       () => this.history.checkpoint(),
@@ -53,7 +73,10 @@ export class MonitorRuntime {
       () => void this.refreshInventory(),
       PROVIDER_POLL_MS
     );
-    this.tickTimer = setInterval(() => this.service.tick(), FRESHNESS_TICK_MS);
+    this.tickTimer = setInterval(() => {
+      this.service.tick();
+      this.reportAttentionHealth();
+    }, FRESHNESS_TICK_MS);
   }
 
   stop(): void {
@@ -72,6 +95,32 @@ export class MonitorRuntime {
 
   ingestAgentEvent(event: AgentEvent): void {
     this.service.ingestAgentEvent(event);
+  }
+
+  updateAttention(req: UpdateAttentionRequest): void {
+    try {
+      this.service.updateAttention(req);
+    } finally {
+      this.reportAttentionHealth();
+    }
+  }
+
+  private reportAttentionHealth(): void {
+    if (
+      !this.attention.warning ||
+      this.attention.warning === this.reportedAttentionWarning
+    )
+      return;
+    this.reportedAttentionWarning = this.attention.warning;
+    this.service.setIntegrationHealth({
+      sourceId: "attention-preferences",
+      sourceKind: "realmkeeper-event",
+      label: "Attention preferences",
+      status: "degraded",
+      configured: true,
+      lastError: this.attention.warning,
+      capabilities: [],
+    });
   }
 
   subscribe(listener: (delta: MonitorDelta) => void): () => void {
