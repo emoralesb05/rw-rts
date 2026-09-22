@@ -58,7 +58,7 @@ export const ORCHESTRATION_TEMPLATES: Record<
     },
     stopRules: [
       "Pause when the target provider cannot accept a new turn.",
-      "Pause when the source trace has unresolved permission or input waits.",
+      "Source trace is context only; review its unresolved requests before starting.",
       "Stop after the review response is captured.",
     ],
     promptPayloads: ["sourceTraceId", "handoffPrompt"],
@@ -83,7 +83,8 @@ export const ORCHESTRATION_TEMPLATES: Record<
   [FIX_THEN_TEST_TEMPLATE_ID]: {
     id: FIX_THEN_TEST_TEMPLATE_ID,
     title: "Fix Then Test",
-    description: "Iterate on a focused task until the declared test passes.",
+    description:
+      "Send one fix-and-test request, then pause for manual verification. Test success is not automatically verified.",
     requiredControls: ["send"],
     defaultBudget: {
       maxIterations: 8,
@@ -92,8 +93,8 @@ export const ORCHESTRATION_TEMPLATES: Record<
     },
     stopRules: [
       "Pause on permission or user-input waits.",
-      "Pause on repeated failing test output without new file changes.",
-      "Complete only after the declared verification command passes.",
+      "Pause after a response or session end; neither proves tests passed.",
+      "Review provider output and verify tests manually; no automatic retry loop.",
     ],
     promptPayloads: ["taskPrompt", "verificationCommand"],
   },

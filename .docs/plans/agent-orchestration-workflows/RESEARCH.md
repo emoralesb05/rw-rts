@@ -3,6 +3,14 @@
 > Backs the decision. Findings labeled; each maps to a probe; each tagged
 > measured / decided / asserted / build-gated.
 
+## Release audit — 2026-09-22
+
+Source/test review at `96c8013` is recorded in the
+[release audit](../RELEASE-0.9.0-AUDIT.md). H1–H3 are historical literature
+summaries, not refreshed executable measurements; their original probe/stamp
+conventions need migration before reusing this plan as Ready. H4 is superseded
+below. No external product documentation was reverified in this pass.
+
 ## Findings
 
 ### H1 — Durable agent orchestration centers on explicit state and checkpoints [probe R1 · measured]
@@ -48,6 +56,8 @@ Sources:
 
 ### H4 — Realmkeeper already has an embryonic workflow: Standing Orders [probe L1 · measured]
 
+> **SUPERSEDED** by H5 — this paragraph describes the pre-migration implementation.
+
 Local code shows Standing Orders persist in renderer state, schedule recurring
 prompts, stop after configured iterations, and halt after repeated failures.
 The implementation is useful but renderer-owned: timers and prompt sends are
@@ -58,6 +68,19 @@ Sources:
 - `src/renderer/src/standing-orders.ts`
 - `src/renderer/src/store.ts`
 - `src/shared/schemas/persisted.ts`
+
+### H5 — Main owns durable local runs, but template outcomes are not verified
+
+> **asserted** · `96c8013` · 2026-09-22 · **LIVE** · supersedes H4
+
+Tier 3 inspection: `src/main/orchestration-engine.ts` owns recurring execution
+and one-shot prompt dispatch; `src/main/orchestration-store.ts` owns durable
+runs and pauses running work on restart for manual validation. H4 looked right
+before that migration; the earlier decision to move timers to main is now
+implemented. The independent audit also found that fix-then-test completion
+does not prove the verification command passed, source-trace handoff guards
+are not enforced, and trace-monitor pause wiring remains absent. These gaps
+invalidate the former blanket claim of no remaining implementation work.
 
 ### D1 — Main-process local runs before external workflow engines [probe R1/R2/L1 · decided]
 
@@ -83,11 +106,27 @@ known feature instead of inventing an unrelated workflow.
 
 ## Coverage gaps
 
-- No real restart-recovery probe exists yet. The first implementation must
-  simulate main-process restart with an isolated temp state directory.
+- Current safety-slice verification: parameterized engine regressions cover
+  response/end after failed, claimed-passing, or absent tool output; scheduler
+  resume and disk reload/recovery re-pause without another send or completion
+  event. Source-build Electron checks cover visible unverified status and Resume.
+  Independent code/test review found no defect in this bounded change. Full
+  automated verification and provider-faithful live execution are not validated.
+
+- Post-release safety slice: fix/test response capture now pauses for manual
+  verification; no new certification API or automated command execution is
+  introduced. A completed capture step means evidence collection finished,
+  not that the task or tests succeeded. Source-trace guard copy is corrected
+  to describe context only; the stronger guard remains proposed.
+- Historical completed runs are not rewritten or retroactively certified.
+  This gate applies to active runs handled by the updated engine.
+
+- Temp-store restart recovery is covered by `src/main/orchestration-store.test.ts`.
+  Real process/provider restart continuity still needs a dedicated E2E test;
+  automatic validated resumption is not implemented.
 - No provider budget completeness probe exists. Cost/token budgets remain
   optional until the observability plan measures provider payload coverage.
-- No UX prototype has been tested for run board density. The implementation
-  needs Playwright coverage to ensure controls stay legible and non-overlapping.
+- Run Board fixture E2E exists in `tests/e2e/specs/orchestration-runs.spec.ts`.
+  A broad density/resize matrix is not established by those interaction tests.
 - Automated quality evaluation for provider outputs is intentionally out of
   scope; orchestration can collect outputs before it can rank them.

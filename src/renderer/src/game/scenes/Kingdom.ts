@@ -1050,7 +1050,7 @@ export class KingdomScene extends Phaser.Scene {
           );
           return [
             {
-              activity: sessionActivity(unit, storeState.letters),
+              activity: sessionActivity(unit),
               displayName: unit.displayName,
               courtyardSlot: this.missionSlotFor(ref) % 12,
               settled:
@@ -2911,11 +2911,8 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private hasMissionStatus(unit: UnitState) {
-    return (
-      unit.status === "working" ||
-      unit.status === "casting" ||
-      unit.status === "fallen"
-    );
+    const state = sessionActivity(unit).state;
+    return state === "working" || state === "blocked" || state === "attention";
   }
 
   private shouldStandAtMission(unit: UnitState, ref?: WielderRef) {
@@ -4186,7 +4183,7 @@ export class KingdomScene extends Phaser.Scene {
     if (this.terrainRegions.size) {
       const state = useStore.getState();
       const emphasis = agentEmphasis(
-        sessionActivity(unit, state.letters).state,
+        sessionActivity(unit).state,
         state.selectedUnitId === unit.id
       );
       if (!emphasis.effects) ref.jobGfx.setVisible(false);
@@ -4337,7 +4334,7 @@ export class KingdomScene extends Phaser.Scene {
   ) {
     const active =
       this.isWielderVisiblyWorking(ref, unit) &&
-      sessionActivity(unit, useStore.getState().letters).state === "working";
+      sessionActivity(unit).state === "working";
     const g = ref.jobGfx;
     g.clear();
     g.setVisible(active);
@@ -4837,7 +4834,7 @@ export class KingdomScene extends Phaser.Scene {
     if (this.terrainRegions.size) {
       const state = useStore.getState();
       const emphasis = agentEmphasis(
-        sessionActivity(unit, state.letters).state,
+        sessionActivity(unit).state,
         state.selectedUnitId === unit.id
       );
       ref.orderLine.clear();

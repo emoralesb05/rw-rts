@@ -1,0 +1,12 @@
+{
+  "kind": "snapshot-record",
+  "schemaVersion": "1",
+  "runId": "solo-c1c47d667edac1e9",
+  "mode": "solo",
+  "plan": ".docs/plans/session-control-plane",
+  "headSha": "96c8013",
+  "workspaceHeadSha": "96c8013",
+  "workspaceDiffHash": "c1c47d667edac1e9f822791f97f835fd61d22179",
+  "snapshotMode": "materialized",
+  "snapshotId": "96c8013+c1c47d667eda"
+}

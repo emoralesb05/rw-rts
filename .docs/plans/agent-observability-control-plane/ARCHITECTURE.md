@@ -4,6 +4,31 @@
 > single-user, and provider-native: this layer observes and routes controls; it
 > does not become the agents' runtime or terminal.
 
+## Delivery boundary — 0.9.0
+
+This document includes target mechanisms, not only shipped behavior. The live
+service, event/inventory/Herdr sources, snapshot/delta IPC, Monitor UI, and
+capability-backed actions exist. Journal writes, attention mutation/history
+IPC, restart hydration, retention, daily usage rollups, and secondary history
+views below remain proposed. Realm still derives operational activity from its
+renderer unit model; sharing the reconciled state is follow-on work. See the
+[release audit](../RELEASE-0.9.0-AUDIT.md).
+
+Post-release working tree: Monitor and Realm agent activity now consume one
+app-lifetime snapshot/delta replica. Realm uses main's exact operational state
+and reason, with themed presentation; missing identity/evidence is unknown.
+Game pressure/HP/MP and historical event poses remain separate.
+
+A subsequent bounded first persistence slice writes `monitor/last-seen.json`:
+at most 200 latest-per-session metadata records, 30-day retention, and 20 restart
+gaps. Read-only historical rows are separate from the live fleet and never
+restore permissions or controls. Checkpoints run every 15 seconds and on shutdown;
+uncheckpointed crash-tail data can be lost. Gaps are conservatively measured from
+the last checkpoint to restart, with no replay. Invalid/oversized/future-schema
+files are quarantined; failure to quarantine disables writes. See
+[state ownership](../../architecture/state.md). The journal, attention lifecycle,
+configurable retention, and rollups below remain targets, not implemented features.
+
 ## Engineer context
 
 Read `.docs/vision.md`, `.docs/architecture/processes.md`,

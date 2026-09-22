@@ -3,6 +3,15 @@
 > Backs the decision. Findings labeled; each maps to a probe; each tagged
 > measured / decided / asserted / build-gated.
 
+## Release audit — 2026-09-22
+
+Current code/test review at `96c8013` is recorded in the
+[release audit](../RELEASE-0.9.0-AUDIT.md). H1–H4 and H6–H9 retain historical
+July evidence, not refreshed CLI/auth compatibility. Their old measured labels
+do not satisfy current executable-probe/snapshot conventions. H5 is superseded
+below; the controls proposed by H6/H7/D2 have shipped. New provider extensions
+must refresh relevant probes before ticketing.
+
 ## Findings
 
 ### H1 — Modern agent UIs model bidirectional control as events plus capabilities [probe R1 · measured]
@@ -61,6 +70,8 @@ Sources:
 - `.docs/providers/probes/gemini/`
 
 ### H5 — Realmkeeper already has control entry points, but not a capability model [probe L4 · measured]
+
+> **SUPERSEDED** by H10 — this paragraph describes the pre-capability implementation.
 
 `AgentManager` supports spawn, list, send, send-to-observed, and kill. IPC has
 `rw:spawn-agent`, `rw:send-prompt`, `rw:kill-agent`, and `rw:list-units`.
@@ -152,6 +163,17 @@ Sources:
 - <https://geminicli.com/docs/cli/tutorials/session-management/>
 - <https://geminicli.com/docs/get-started/authentication/>
 
+### H10 — Capability-backed controls and initial native inventory have shipped
+
+> **asserted** · `96c8013` · 2026-09-22 · **LIVE** · supersedes H5
+
+Tier 3 inspection of `src/shared/session-capabilities.ts`,
+`src/main/provider-sessions.ts`, and `src/main/provider-session-actions.ts`
+confirms the capability model, Claude/Codex inventory, Codex fork, and Claude
+attach/logs. H5 described the code before this migration; the decision to add
+a shared control seam is implemented. Focused tests exercise adapter dispatch
+and fail-closed behavior, not today's live upstream contracts.
+
 ### D1 — Capability-driven controls before workflow automation [probe R1/L4 · decided]
 
 Higher-level orchestration needs reliable primitive controls. Ship the
@@ -180,11 +202,11 @@ IDE attach/injection and Gemini ACP/cancel behind explicit future probes.
 - No disposable Claude background-control probe was run. Treat stop/respawn as
   gated until a background-owned session is started and stopped under a fixture.
 - No Codex live `thread/list` or `thread/fork` request was sent to a running
-  app-server in P1. The schema and docs prove shape; a mocked or local
-  app-server fixture should prove runtime behavior before UI exposure.
+  app-server in P1. Mocked inventory/fork dispatch coverage now exists; the
+  original probe still does not prove current live-provider behavior.
 - No Cursor IDE injection API was found in local docs or CLI help; observed IDE
   sessions remain limited by design.
 - Gemini account-tier behavior remains externally dependent. ACP should wait
   for a supported API key, Vertex configuration, or eligible Google sign-in.
-- Capability UI copy needs design QA once controls are implemented, because
-  disabled controls must stay understandable without adding clutter.
+- Controls and fail-closed fixture E2E are implemented. Fresh provider-specific
+  UX checks are still needed when extending the supported action matrix.

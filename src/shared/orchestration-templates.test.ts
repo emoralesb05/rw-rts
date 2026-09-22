@@ -40,4 +40,13 @@ describe("orchestration templates", () => {
       defaultBudgetForTemplate(STANDING_ORDER_TEMPLATE_ID).maxIterations
     ).toBe(24);
   });
+
+  it("does not promise automated verification or source-trace guards", () => {
+    const fix = ORCHESTRATION_TEMPLATES["fix-then-test"];
+    expect(fix.description).toContain("manual verification");
+    expect(fix.stopRules.join(" ")).toContain("no automatic retry loop");
+    expect(
+      ORCHESTRATION_TEMPLATES["provider-handoff-review"].stopRules.join(" ")
+    ).toContain("Source trace is context only");
+  });
 });

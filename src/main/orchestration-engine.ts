@@ -388,6 +388,9 @@ export class MainOrchestrationEngine {
   private async tickFixThenTest(
     run: OrchestrationRun
   ): Promise<OrchestrationRun | undefined> {
+    // Resuming a captured response cannot turn it into verified test evidence.
+    const checked = await completeIfAllCapturesFinished(this.store, run);
+    if (checked?.status !== "running") return checked;
     const parsed = FixThenTestRunParamsSchema.safeParse(run.params ?? {});
     if (!parsed.success) {
       return this.store.pauseRun(
@@ -558,6 +561,10 @@ export class MainOrchestrationEngine {
       return (
         run.steps.length === 0 ||
         hasPendingCaptureStep(run) ||
+        (run.template === FIX_THEN_TEST_TEMPLATE_ID &&
+          oneShotCaptureSteps(run).some(
+            (step) => step.status === "completed"
+          )) ||
         Boolean(runtimeBudgetPauseReason(run, this.now()))
       );
     }
@@ -800,6 +807,12 @@ async function completeIfAllCapturesFinished(
     captureSteps.length > 0 &&
     captureSteps.every((step) => step.status === "completed")
   ) {
+    if (latest.template === FIX_THEN_TEST_TEMPLATE_ID) {
+      return store.pauseRun(
+        latest.id,
+        "Response captured; test success is unverified. Review provider output and run the verification command before starting another run. Automatic verification is not supported."
+      );
+    }
     return store.completeRun(latest.id);
   }
   return latest;

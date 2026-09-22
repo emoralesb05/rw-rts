@@ -10,6 +10,7 @@ it("maps observed activity to furniture without implying task completion", () =>
     worldId: "w",
     label: "Reading",
     state: "working",
+    monitorState: "working",
     symbol: "",
     color: "",
     detail: "",

@@ -12,9 +12,12 @@ import { Button } from "../components/kit/Button";
 import { EmptyState } from "../components/kit/EmptyState";
 import { TooltipHint } from "../components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
+import { useMonitorStore } from "../../monitoring/monitor-store";
+import { sessionActivity } from "../../game/session-activity";
 
 export function WielderHUD() {
   const units = useStore((s) => s.units);
+  const snapshot = useMonitorStore((s) => s.snapshot);
   const openPanel = usePanels((s) => s.openPanel);
   // Hide completed/fallen wielders by default — they accumulate but
   // can't be acted on. Toggle persists so the user's preference sticks.
@@ -23,11 +26,10 @@ export function WielderHUD() {
     (a, b) => (a.spawnedAt ?? a.lastActivity) - (b.spawnedAt ?? b.lastActivity)
   );
   const active = all.filter(
-    (u) => u.status !== "complete" && u.status !== "fallen"
+    (u) =>
+      !["done", "failed"].includes(sessionActivity(u, snapshot).monitorState)
   );
-  const ghostedCount = all.filter(
-    (u) => u.status === "complete" || u.status === "fallen"
-  ).length;
+  const ghostedCount = all.length - active.length;
   const list = showGhosted ? all : active;
   const headerExtra = (
     <>

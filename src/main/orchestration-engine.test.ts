@@ -497,94 +497,133 @@ describe("MainOrchestrationEngine", () => {
     });
   });
 
-  it("executes fix-then-test runs as bounded provider prompts", async () => {
-    const time = clock(70_000);
-    const store = new LocalOrchestrationStore({
-      rootDir: await tempRoot(),
-      idFactory: ids(),
-      now: time.now,
-    });
-    const controlSession = vi.fn(() =>
-      Promise.resolve({ action: "send" as const, ok: true })
-    );
-    const run = await store.createRun({
-      template: "fix-then-test",
-      title: "Fix failing tests",
-      status: "running",
-      params: {
-        target: providerTarget({ tool: "codex" }),
-        taskPrompt: "Fix the failing renderer test.",
-        verificationCommand: "bun run test",
-      },
-    });
-    const engine = new MainOrchestrationEngine({
-      store,
-      controlSession,
-      now: time.now,
-    });
+  it.each(
+    (["assistant_text", "session_end"] as const).flatMap((completionKind) =>
+      ["FAIL renderer.spec.ts", "PASS all tests", undefined].map((output) => ({
+        completionKind,
+        output,
+      }))
+    )
+  )(
+    "keeps $completionKind unverified with tool output $output, including resume and restart",
+    async ({ completionKind, output }) => {
+      const time = clock(70_000);
+      const store = new LocalOrchestrationStore({
+        rootDir: await tempRoot(),
+        idFactory: ids(),
+        now: time.now,
+      });
+      const controlSession = vi.fn(() =>
+        Promise.resolve({ action: "send" as const, ok: true })
+      );
+      const run = await store.createRun({
+        template: "fix-then-test",
+        title: "Fix failing tests",
+        status: "running",
+        params: {
+          target: providerTarget({ tool: "codex" }),
+          taskPrompt: "Fix the failing renderer test.",
+          verificationCommand: "bun run test",
+        },
+      });
+      const engine = new MainOrchestrationEngine({
+        store,
+        controlSession,
+        now: time.now,
+      });
 
-    await engine.tickOnce(run.id);
+      await engine.tickOnce(run.id);
 
-    expect(controlSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tool: "codex",
-        prompt:
-          "[Fix Then Test]\n\nTask:\nFix the failing renderer test.\n\nVerification:\nbun run test",
-      })
-    );
-    await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "running",
-      steps: [
-        { kind: "fix-then-test-send", status: "completed" },
-        { kind: "fix-then-test-result", status: "running" },
-      ],
-      checkpoints: [{ label: "Fix-then-test prompt sent" }],
-    });
+      expect(controlSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tool: "codex",
+          prompt:
+            "[Fix Then Test]\n\nTask:\nFix the failing renderer test.\n\nVerification:\nbun run test",
+        })
+      );
+      await expect(store.getRun(run.id)).resolves.toMatchObject({
+        status: "running",
+        steps: [
+          { kind: "fix-then-test-send", status: "completed" },
+          { kind: "fix-then-test-result", status: "running" },
+        ],
+        checkpoints: [{ label: "Fix-then-test prompt sent" }],
+      });
 
-    await engine.ingestAgentEvent(
-      providerEvent({
-        tool: "codex",
-        kind: "tool_result",
-        timestamp: 70_100,
-        payload: { output: "FAIL renderer.spec.ts" },
-      })
-    );
-    await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "running",
-      steps: [
-        { kind: "fix-then-test-send", status: "completed" },
-        {
-          kind: "fix-then-test-result",
+      if (output !== undefined)
+        await engine.ingestAgentEvent(
+          providerEvent({
+            tool: "codex",
+            kind: "tool_result",
+            timestamp: 70_100,
+            payload: { output },
+          })
+        );
+      if (output !== undefined)
+        await expect(store.getRun(run.id)).resolves.toMatchObject({
           status: "running",
-          outputSummary: "FAIL renderer.spec.ts",
-        },
-      ],
-      checkpoints: [
-        { label: "Fix-then-test prompt sent" },
-        { label: "Provider tool result captured" },
-      ],
-    });
+          steps: [
+            { kind: "fix-then-test-send", status: "completed" },
+            {
+              kind: "fix-then-test-result",
+              status: "running",
+              outputSummary: output,
+            },
+          ],
+          checkpoints: [
+            { label: "Fix-then-test prompt sent" },
+            { label: "Provider tool result captured" },
+          ],
+        });
 
-    await engine.ingestAgentEvent(
-      providerEvent({
-        tool: "codex",
-        kind: "assistant_text",
-        timestamp: 70_200,
-        payload: { text: "Fixed the renderer test and reran bun run test." },
-      })
-    );
-    await expect(store.getRun(run.id)).resolves.toMatchObject({
-      status: "completed",
-      steps: [
-        { kind: "fix-then-test-send", status: "completed" },
-        {
-          kind: "fix-then-test-result",
-          status: "completed",
-          outputSummary: "Fixed the renderer test and reran bun run test.",
-        },
-      ],
-    });
-  });
+      await engine.ingestAgentEvent(
+        providerEvent({
+          tool: "codex",
+          kind: completionKind,
+          timestamp: 70_200,
+          payload: { text: "Fixed the renderer test and reran bun run test." },
+        })
+      );
+      await expect(store.getRun(run.id)).resolves.toMatchObject({
+        status: "paused",
+        pauseReason: expect.stringContaining("test success is unverified"),
+        steps: [
+          { kind: "fix-then-test-send", status: "completed" },
+          {
+            kind: "fix-then-test-result",
+            status: "completed",
+          },
+        ],
+      });
+      await store.resumeRun(run.id);
+      await engine.tickDueRuns();
+      await expect(store.getRun(run.id)).resolves.toMatchObject({
+        status: "paused",
+        pauseReason: expect.stringContaining("test success is unverified"),
+      });
+
+      // Simulate a crash after Resume persisted but before the scheduler tick.
+      await store.resumeRun(run.id);
+      const restartedStore = new LocalOrchestrationStore({
+        rootDir: root!,
+        now: time.now,
+      });
+      await restartedStore.recoverAfterRestart();
+      await restartedStore.resumeRun(run.id);
+      const restartedEngine = new MainOrchestrationEngine({
+        store: restartedStore,
+        controlSession,
+        now: time.now,
+      });
+      await restartedEngine.tickDueRuns();
+      const restored = await restartedStore.getRun(run.id);
+      expect(restored?.status).toBe("paused");
+      expect(restored?.events.some((event) => event.kind === "completed")).toBe(
+        false
+      );
+      expect(controlSession).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it("does not resend one-shot prompts while waiting for provider output", async () => {
     const time = clock(75_000);

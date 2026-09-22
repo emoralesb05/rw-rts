@@ -246,7 +246,40 @@ test("world commands remain clickable and the map renders at two scales", async 
     contentType: "image/png",
   });
   // The amber activity site opens session evidence, not a district or an approval.
-  await page.mouse.click(621, 684);
+  // Use the rendered label bounds: blocked agents now stand at their mission
+  // site even when an old game status still says idle.
+  const sitePoint = await page.evaluate(() => {
+    const scene = (
+      window as unknown as {
+        __phaser: {
+          scene: {
+            getScene(key: string): {
+              activitySites: {
+                markers: Map<
+                  string,
+                  {
+                    text: { getBounds(): { centerX: number; centerY: number } };
+                  }
+                >;
+              };
+              cameras: {
+                main: { zoom: number; worldView: { x: number; y: number } };
+              };
+            };
+          };
+        };
+      }
+    ).__phaser.scene.getScene("kingdom");
+    const bounds = scene.activitySites.markers
+      .get("session:qa-mira")!
+      .text.getBounds();
+    const camera = scene.cameras.main;
+    return {
+      x: (bounds.centerX - camera.worldView.x) * camera.zoom,
+      y: (bounds.centerY - camera.worldView.y) * camera.zoom,
+    };
+  });
+  await page.mouse.click(sitePoint.x, sitePoint.y);
   await expect(
     page.getByRole("region", { name: "Session activity site" })
   ).toBeVisible();

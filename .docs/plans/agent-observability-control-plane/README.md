@@ -1,8 +1,8 @@
 # Agent monitoring control plane — see every agent, notice what needs attention, and intervene safely
 
-> **Status:** 🚧 In implementation — the first Monitor vertical slice is built and verified; persistence, Herdr, and richer attention/usage remain.
+> **Status:** 🚧 Partially shipped in 0.9.0 — Monitor, Herdr, and packaged smoke coverage are delivered; durable attention/history/usage and cross-view consistency remain.
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-09-21 (closed three audit failures; re-verified H6–H9)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-09-22 (reconciled release scope; reran probes 01/03; live evidence not refreshed)
 > **Scope:** Unified local fleet state, attention, usage, history, integration health, and safe intervention; not a terminal multiplexer or autonomous project manager.
 > **Effort:** 5 PRs, large
 > **Start here:** README.md, ARCHITECTURE.md, RESEARCH.md, probes/README.md
@@ -11,26 +11,22 @@
 
 ## What this is and why now
 
-Realmkeeper can already normalize events, project traces, raise four monitor
-signals, list some provider sessions, and issue capability-gated controls. The
-pieces do not yet form a dependable monitor: the Observatory only sees the
-renderer’s 500-event window, does not hydrate history after restart, truncates
-its most important lists, and discovers provider-native sessions only for
-Claude and Codex.
+Realmkeeper now has a primary Monitor workspace backed by main-process
+reconciliation. Its live fleet is not the legacy Observatory's 500-event
+projection, but monitoring state still disappears on restart. Native inventory
+is implemented for Claude and Codex; other providers can arrive through events
+or optional presence sources without gaining unsupported controls.
 
-The next product slice makes monitoring the primary operational surface. A
-single fleet view answers: what is running, what needs me, what changed, what
-did it consume, how trustworthy is that state, and what can I do now? The Star
-Chart remains available as the atmospheric Realm view. Existing provider CLIs
-remain the execution authority.
+The next slice makes that monitor durable and keeps Realm status consistent
+with its evidence. Existing provider CLIs remain the execution authority.
 
 Herdr is an optional high-quality presence source for agents running in its
 panes. Realmkeeper does not require it and does not reproduce its terminal,
 worktree, or remote-session substrate.
 
-## Implementation checkpoint — 2026-09-21
+## Implementation checkpoint — 0.9.0
 
-Shipped in the working tree:
+Shipped in release 0.9.0:
 
 - typed observation, agent, attention, integration-health, snapshot, and delta
   contracts;
@@ -43,11 +39,29 @@ Shipped in the working tree:
   Monitor / Realm switch;
 - an optional, metadata-only Herdr 0.9.1 source with native-session merging,
   heartbeat freshness, integration health, and pane focus;
-- live verification against 36 local Claude/Codex sessions, six Herdr panes,
-  and a blocking permission fixture at 1280×720.
+- Monitor fixture E2E for fleet, blocking attention, evidence, filtering, and
+  switching back to Realm, exercised in both source and packaged release runs.
 
-Next: durable attention/history/usage persistence and packaged
-Monitor-specific E2E coverage.
+Earlier live-session checks are dated evidence, not refreshed compatibility
+claims. Remaining: durable attention/history, usage rollups, and expanded
+restart/intervention/privacy/performance coverage.
+See the [release audit](../RELEASE-0.9.0-AUDIT.md) for evidence and sequencing.
+
+Post-release working tree: shared Monitor/Realm agent activity is implemented,
+including main-owned freshness, blocking state, and snapshot recovery. Game
+pressure and historical stats remain separate. A bounded last-seen checkpoint
+now retains up to 200 session metadata rows for 30 days, exposes restart gaps,
+and keeps history separate from live agents and permission controls. This is
+not the full journal: durable acknowledgement/snooze, backfill, configurable
+retention, and usage rollups remain pending. No new release is implied.
+
+The last-seen slice has source-build Electron restart coverage: a saved blocker
+is visible only in history after relaunch, live permission attention stays empty,
+and a fresh fixture session appears separately. Unit coverage exercises metadata
+allowlisting, identity deduplication, retention/caps, quarantine, write failure,
+checkpoint timers, shutdown cleanup, and same-session recovery with fresh evidence.
+This does not establish provider replay, crash-tail recovery, the 100,000-event
+scale target, or packaged verification of these post-release changes.
 
 ## What we decided
 
@@ -61,6 +75,9 @@ Monitor-specific E2E coverage.
 | 6 | ✅ Show reported, derived, and unavailable usage separately; never present unknown as zero. | [H14](./RESEARCH.md#h14) |
 
 ## What ships, in order
+
+Original sequence: PRs 1–3 shipped; PR 4 remains; PR 5 is partial (integration
+health and packaged smoke shipped, full acceptance matrix remains).
 
 | PR | Size | What it delivers | Why now |
 |---|---|---|---|
@@ -90,6 +107,12 @@ Monitor-specific E2E coverage.
 
 ## What we don't know yet
 
+- The original five-second provider-lifecycle target is not met by the
+  15-second inventory polling interval. Resolve this with a bounded polling
+  design and latency test; do not silently weaken the target.
+- Shared agent activity is implemented in the post-release working tree.
+  World pressure, stats, and historical poses remain game mechanics rather than
+  operational evidence; do not interpret them as verified task outcomes.
 - Cursor, Gemini, Antigravity, and a genuinely blocked Herdr agent were not
   present in the live seven-agent sample; those adapters need fixtures plus
   post-build live validation.

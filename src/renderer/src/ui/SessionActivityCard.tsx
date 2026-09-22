@@ -5,9 +5,10 @@ import { participantsForRun } from "../game/run-sites";
 import { useStore } from "../store";
 import { usePanels } from "./floating/panel-store";
 import { inspectRealmAgent } from "./inspect-realm-agent";
+import { useMonitorStore } from "../monitoring/monitor-store";
 
 export function SessionActivityCard({ unit }: { unit: UnitState }) {
-  const letters = useStore((s) => s.letters);
+  const snapshot = useMonitorStore((s) => s.snapshot);
   const units = useStore((s) => s.units);
   const runs = useStore((s) => s.orchestrationRuns);
   const district = useStore((s) => s.worlds[unit.worldId]);
@@ -18,7 +19,7 @@ export function SessionActivityCard({ unit }: { unit: UnitState }) {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const activity = sessionActivity(unit, letters, now);
+  const activity = sessionActivity(unit, snapshot);
   const linkedRuns = Object.values(runs).filter(
     (run) => participantsForRun(run, { [unit.id]: unit }).length > 0
   );
@@ -49,7 +50,9 @@ export function SessionActivityCard({ unit }: { unit: UnitState }) {
       </button>
       <p className="text-muted mt-1 font-mono text-[10px]">
         Session {unit.sessionId.slice(0, 12)} · last signal{" "}
-        {Math.max(0, Math.floor((now - unit.lastActivity) / 1000))}s ago
+        {activity.lastObservedAt === undefined
+          ? "unknown"
+          : `${Math.max(0, Math.floor((now - activity.lastObservedAt) / 1000))}s ago`}
       </p>
       {activity.state === "blocked" && (
         <button

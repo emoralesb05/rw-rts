@@ -5,6 +5,11 @@ import type { UnitState, Letter } from "@shared/events";
 import { useStore } from "../../store";
 import { NextRealmAsk } from "./NextRealmAsk";
 import { inspectRealmAgent } from "../inspect-realm-agent";
+import { MonitorService } from "../../../../main/monitoring/monitor-service";
+import {
+  EMPTY_MONITOR_SNAPSHOT,
+  useMonitorStore,
+} from "../../monitoring/monitor-store";
 
 vi.mock("../inspect-realm-agent", () => ({ inspectRealmAgent: vi.fn() }));
 const unit = (id: string): UnitState => ({
@@ -33,6 +38,18 @@ const ask = (id: string): Letter => ({
 });
 
 it("cycles only sessions with real unresolved asks, even when stale", () => {
+  const monitor = new MonitorService(() => Date.now());
+  for (const sessionId of ["a", "b"])
+    monitor.ingestAgentEvent({
+      sessionId,
+      tool: "codex",
+      cwd: "/repo",
+      timestamp: 0,
+      kind: "permission_request",
+      payload: {},
+      source: "hook",
+    });
+  useMonitorStore.setState({ snapshot: monitor.getSnapshot() });
   useStore.setState({
     units: { a: unit("a"), b: unit("b"), c: unit("c") },
     letters: [ask("a"), ask("b")],
@@ -44,6 +61,7 @@ it("cycles only sessions with real unresolved asks, even when stale", () => {
 });
 
 it("disables navigation when no session has an unresolved ask", () => {
+  useMonitorStore.setState({ snapshot: EMPTY_MONITOR_SNAPSHOT });
   useStore.setState({
     units: { a: unit("a") },
     letters: [],

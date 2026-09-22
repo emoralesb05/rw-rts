@@ -20,6 +20,8 @@ import { TooltipHint } from "../components/kit/TooltipHint";
 import { publicAsset } from "../../public-asset";
 import { cn } from "@/lib/cn";
 import type { UnitState } from "@shared/events";
+import { useMonitorStore } from "../../monitoring/monitor-store";
+import { sessionActivity } from "../../game/session-activity";
 
 function statusIconClass(cls: string) {
   switch (cls) {
@@ -44,7 +46,9 @@ function statusIconClass(cls: string) {
  * Renders only while status is "casting" or "working". Re-renders
  * once a second so the elapsed-time text stays current. */
 function CastBar({ unit }: { unit: UnitState }) {
-  const isCasting = unit.status === "casting" || unit.status === "working";
+  const snapshot = useMonitorStore((s) => s.snapshot);
+  const activity = sessionActivity(unit, snapshot);
+  const isCasting = activity.state === "working";
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!isCasting) return;
@@ -52,9 +56,9 @@ function CastBar({ unit }: { unit: UnitState }) {
     return () => window.clearInterval(id);
   }, [isCasting]);
   if (!isCasting) return null;
-  const elapsedMs = Math.max(0, now - unit.lastActivity);
+  const elapsedMs = Math.max(0, now - (activity.lastObservedAt ?? now));
   const elapsedSec = Math.floor(elapsedMs / 1000);
-  const label = `${unit.lastTool ?? unit.status} · ${elapsedSec}s`;
+  const label = `Working · last signal ${elapsedSec}s ago`;
   return (
     <TooltipHint label={label}>
       <div className="text-text relative mt-0.5 flex h-2 items-center overflow-hidden rounded-sm border border-black/50 bg-black/45 font-mono text-[7.5px] leading-none">
@@ -75,6 +79,8 @@ function StatusIcons({
   unit: UnitState;
   hasOrder: boolean;
 }) {
+  const snapshot = useMonitorStore((s) => s.snapshot);
+  const activity = sessionActivity(unit, snapshot);
   const icons: { key: string; glyph: string; title: string; cls: string }[] =
     [];
   if (unit.auraState) {
@@ -90,11 +96,11 @@ function StatusIcons({
       cls: `aura-${unit.auraState}`,
     });
   }
-  if (unit.status === "casting" || unit.status === "working") {
+  if (activity.state === "working") {
     icons.push({
       key: "casting",
       glyph: "◐",
-      title: `${unit.status}…`,
+      title: "Working…",
       cls: "casting",
     });
   }
@@ -109,9 +115,15 @@ function StatusIcons({
   if (unit.hp < 25 && unit.status !== "fallen") {
     icons.push({ key: "low", glyph: "!", title: "HP critical", cls: "danger" });
   }
-  if (icons.length === 0) return null;
   return (
     <span className="ml-auto flex shrink-0 gap-0.5">
+      <span
+        title={activity.detail}
+        style={{ color: activity.color }}
+        className="text-[10px]"
+      >
+        {activity.label}
+      </span>
       {icons.map((i) => (
         <TooltipHint key={i.key} label={i.title}>
           <span
@@ -129,6 +141,7 @@ function StatusIcons({
 }
 
 export function PartyRow({ unit }: { unit: UnitState }) {
+  const snapshot = useMonitorStore((s) => s.snapshot);
   const palette = ROLE_PALETTE[unit.role];
   const selectUnit = useStore((s) => s.selectUnit);
   const openPanel = usePanels((s) => s.openPanel);
@@ -146,7 +159,9 @@ export function PartyRow({ unit }: { unit: UnitState }) {
     hasActiveStandingOrderRunForUnit(orchestrationRuns, unit.id);
   const hpPct = Math.max(0, Math.min(100, unit.hp));
   const mpPct = Math.max(0, Math.min(100, unit.mp));
-  const ghosted = unit.status === "complete" || unit.status === "fallen";
+  const ghosted = ["done", "failed"].includes(
+    sessionActivity(unit, snapshot).monitorState
+  );
   const hasPanelOpen = panels.some(
     (p) => p.kind === "wielder" && p.key === unit.id
   );

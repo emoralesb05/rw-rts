@@ -1,9 +1,34 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { createVisualQaSeed, visualQaThemeCoverage } from "./visual-qa-seed";
+import {
+  createVisualQaSeed,
+  visualQaThemeCoverage,
+  seedVisualQaState,
+} from "./visual-qa-seed";
+import { useMonitorStore } from "../monitoring/monitor-store";
+import { sessionActivity } from "../game/session-activity";
 import { themeFor } from "../game/realm-worlds";
 
 describe("visual QA seed", () => {
+  it.each([
+    [false, false, 2],
+    [true, false, 6],
+    [true, true, 3],
+  ] as const)(
+    "seeds both views for busy=%s overflow=%s",
+    (busy, overflow, blocked) => {
+      const seed = seedVisualQaState(1000, busy, overflow);
+      const snapshot = useMonitorStore.getState().snapshot;
+      expect(
+        snapshot.agents.filter((agent) => agent.state === "blocked")
+      ).toHaveLength(blocked);
+      expect(
+        Object.values(seed.units).filter(
+          (unit) => sessionActivity(unit, snapshot).state === "blocked"
+        )
+      ).toHaveLength(blocked);
+    }
+  );
   it("creates a deterministic board that covers major world states", () => {
     const seed = createVisualQaSeed(1_800_000_000_000);
     const worlds = Object.values(seed.worlds);

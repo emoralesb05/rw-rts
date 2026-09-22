@@ -15,6 +15,7 @@ import { useStore } from "../../store";
 
 function installRw() {
   const rw = {
+    savePersisted: vi.fn(() => Promise.resolve()),
     controlSession: vi.fn(() =>
       Promise.resolve({ action: "interrupt", ok: true })
     ),

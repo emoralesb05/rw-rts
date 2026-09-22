@@ -1,13 +1,14 @@
 import { useStore } from "../../store";
 import { sessionActivity } from "../../game/session-activity";
 import { inspectRealmAgent } from "../inspect-realm-agent";
+import { useMonitorStore } from "../../monitoring/monitor-store";
 
 export function NextRealmAsk() {
   const units = useStore((s) => s.units);
-  const letters = useStore((s) => s.letters);
+  const snapshot = useMonitorStore((s) => s.snapshot);
   const selected = useStore((s) => s.selectedUnitId);
   const waiting = Object.values(units)
-    .filter((unit) => sessionActivity(unit, letters).state === "blocked")
+    .filter((unit) => sessionActivity(unit, snapshot).state === "blocked")
     .sort((a, b) => a.id.localeCompare(b.id));
   return (
     <button

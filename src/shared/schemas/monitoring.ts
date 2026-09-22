@@ -191,6 +191,27 @@ export type MonitorIntegrationHealth = z.infer<
   typeof MonitorIntegrationHealthSchema
 >;
 
+// Deliberately excludes free-text content, permissions, and control targets.
+export const MonitorHistoryEntrySchema = z.object({
+  agentId: z.string().min(1).max(512),
+  providerId: z.string().min(1).max(128),
+  state: MonitorAgentStateSchema,
+  lastObservedAt: z.number().finite().nonnegative(),
+});
+export const MonitorHistorySchema = z.object({
+  entries: z.array(MonitorHistoryEntrySchema).max(200),
+  gaps: z
+    .array(
+      z.object({
+        from: z.number().finite().nonnegative(),
+        to: z.number().finite().nonnegative(),
+      })
+    )
+    .max(20),
+  warning: z.string().max(256).optional(),
+});
+export type MonitorHistory = z.infer<typeof MonitorHistorySchema>;
+
 export const MonitorSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   version: z.number().int().nonnegative(),
@@ -198,6 +219,7 @@ export const MonitorSnapshotSchema = z.object({
   agents: z.array(AgentMonitorRecordSchema),
   attention: z.array(MonitorAttentionItemSchema),
   integrations: z.array(MonitorIntegrationHealthSchema),
+  history: MonitorHistorySchema.optional(),
 });
 export type MonitorSnapshot = z.infer<typeof MonitorSnapshotSchema>;
 
@@ -209,5 +231,6 @@ export const MonitorDeltaSchema = z.object({
   removedAgentIds: z.array(z.string().min(1)),
   attention: z.array(MonitorAttentionItemSchema),
   integrations: z.array(MonitorIntegrationHealthSchema),
+  history: MonitorHistorySchema.optional(),
 });
 export type MonitorDelta = z.infer<typeof MonitorDeltaSchema>;

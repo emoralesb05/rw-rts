@@ -1,8 +1,8 @@
 # Agent Orchestration Workflows
 
-> **Status:** 📋 Plan
+> **Status:** 🚧 Core shipped; hardening remains — durable local runs are delivered, but monitor-driven pauses and verified workflow outcomes are not.
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (packaged-app orchestration e2e shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-09-22 (working-tree manual verification safety gate; historical research not refreshed)
 > **Engineer profile:** Senior TypeScript/Electron engineer — local schedulers, persisted state, provider control APIs; read `.docs/architecture/state.md`, `.docs/architecture/events.md`, `.docs/architecture/ipc.md`, `src/renderer/src/standing-orders.ts`, `src/renderer/src/store.ts`, `src/shared/schemas/persisted.ts`, `src/main/persistent-state.ts`, `src/main/agent-manager.ts`, and `.docs/plans/session-control-plane/` first
 > **Effort:** 5 PRs, large
 > **Scope:** Add durable local orchestration runs that coordinate provider sessions through checkpoints, budgets, and human intervention · **Origin:** Follow-on from observability/session-control planning
@@ -10,15 +10,10 @@
 
 ## TL;DR
 
-Realmkeeper should not replace Claude, Codex, Cursor, or Gemini with a custom
-agent runtime. It should orchestrate them as local workers: launch or reuse
-sessions, send prompts, wait for checkpoints, pause for human decisions, stop
-on budgets/loops/errors, and keep a durable run record tied to traces.
-
-The first orchestration unit should be a local `OrchestrationRun`, not a graph
-framework dependency. Current Standing Orders are the migration target: keep
-the useful loop behavior, move the runner out of fragile renderer-only control,
-and make every step observable and interruptible.
+Realmkeeper coordinates provider-native workers, not a replacement agent
+runtime. Durable local runs send prompts, record checkpoints, and pause for
+human decisions or supported budget/error conditions. Standing Orders now run
+in main; stronger outcome and monitor-pause contracts remain below.
 
 ## Decision
 
@@ -104,12 +99,11 @@ Shipped on `main`:
   missing.
 - Main-process engine executes provider handoff review, parallel provider
   comparison, and fix-then-test templates as checkpointed one-shot sends
-  through `rw:control-session`, completing on success and pausing visibly when
-  required target metadata or provider control is unavailable.
-- One-shot templates now wait for provider output after sending, record compact
-  assistant/tool/error/session-end result checkpoints against the provider
-  trace, complete only after every target produces a response, and pause if
-  provider output emits an error.
+  through `rw:control-session`, with captured outputs and provider error pauses.
+  Handoff/comparison completion means response capture, not verified task success.
+- Post-release working tree: fix-then-test pauses after a response/end for manual
+  verification. Resume/restart cannot certify success or resend that prompt.
+  Automatic verification loops and source-trace handoff guards remain unbuilt.
 - Run Board rows link to related provider sessions, provider traces, and
   pending permission/input letters when the run record or draft params carry
   enough target metadata.
@@ -118,9 +112,12 @@ Shipped on `main`:
   pause, permission/input pause, and runtime budget pause in the packaged app
   path.
 
-No active implementation gaps remain for this plan's first local orchestration
-slice. Future work belongs in follow-on plans for cross-provider result
-judging, richer budget/cost signals, or external workflow-engine adoption.
+Remaining: proposed slow-tool/stuck/repeated-loop monitor pauses are not wired
+into the engine. One-shot templates collect responses, not verified successful
+outcomes: fix-then-test sends a composed prompt rather than running a validated
+test loop; handoff does not validate unresolved requests on the source trace.
+See the [release audit](../RELEASE-0.9.0-AUDIT.md). Automated judging, cost budgets,
+and external engines remain deferred, not required parity work.
 
 ## Acceptance gate
 
@@ -130,6 +127,8 @@ judging, richer budget/cost signals, or external workflow-engine adoption.
   current max-iteration/failure-stop behavior.
 - Run engine tests prove capability checks happen before provider actions and
   unsupported actions pause with a visible reason.
+- Fix/test response/end, resume, and restart cannot mark the run completed or
+  resend; captured output remains available and the UI explains unverified status.
 - UI tests cover run board states, links to wielders/traces/letters, and
   pause/resume/stop actions.
 - Fixture e2e covers at least one recurring prompt run, one provider error

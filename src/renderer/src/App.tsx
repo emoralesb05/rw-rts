@@ -16,6 +16,7 @@ import { CommandPalette } from "./ui/CommandPalette";
 import { TooltipProvider } from "./ui/components/primitives/Tooltip";
 import { AppToastProvider } from "./ui/components/kit/ToastLayer";
 import { MonitorWorkspace } from "./monitoring/MonitorWorkspace";
+import { useMonitorConnection } from "./monitoring/use-monitor-snapshot";
 
 type WorkspaceMode = "monitor" | "realm";
 const WORKSPACE_MODE_KEY = "realmkeeper:workspace-mode";
@@ -39,6 +40,7 @@ const WORKSPACE_MODE_KEY = "realmkeeper:workspace-mode";
  * wielder). Window-drag is the thin strip at top.
  */
 export function App() {
+  useMonitorConnection();
   const [mode, setModeState] = useState<WorkspaceMode>(initialWorkspaceMode);
   const setMode = (next: WorkspaceMode) => {
     setModeState(next);

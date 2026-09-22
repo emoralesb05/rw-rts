@@ -10,6 +10,40 @@ const RUN_ID = "e2e-run-board-manual-control";
 const RUN_TEMPLATE = "manual-e2e-control";
 const RUN_TITLE = "Manual Control - E2E durable run";
 
+test("keeps fix-then-test unverified after a response and resume", async ({
+  appPage: page,
+}) => {
+  await waitForRealmkeeper(page);
+  await playFixture(page, "gemini-turn");
+  const target = await fixtureTarget(page, "gemini-fixture-");
+  const title = "E2E manual verification required";
+  await page.evaluate(
+    async ({ target, title }) => {
+      await (window as unknown as RwE2eWindow).rw.createOrchestrationRun({
+        id: "e2e-unverified-fix",
+        title,
+        template: "fix-then-test",
+        status: "running",
+        params: {
+          target,
+          taskPrompt: "Inspect fixture output",
+          verificationCommand: "bun run test",
+        },
+      });
+    },
+    { target, title }
+  );
+  await waitForRunStatus(page, "e2e-unverified-fix", "paused");
+  await page.getByRole("button", { name: "Open Kingdom panel" }).click();
+  const kingdom = page.getByRole("dialog", { name: "Kingdom" });
+  await kingdom.getByRole("tab", { name: /runs/i }).click();
+  const row = kingdom.getByRole("listitem").filter({ hasText: title }).first();
+  await expect(row.getByText(/test success is unverified/)).toBeVisible();
+  await row.getByRole("button", { name: `Resume run ${title}` }).click();
+  await expect(row.getByText(/test success is unverified/)).toBeVisible();
+  await waitForRunStatus(page, "e2e-unverified-fix", "paused");
+});
+
 async function fixtureTarget(
   page: Parameters<typeof waitForRealmkeeper>[0],
   sessionPrefix: string

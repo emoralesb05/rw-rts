@@ -7,6 +7,7 @@ import { FleetTable } from "./FleetTable";
 import { Inspector } from "./Inspector";
 import { useNow } from "./monitor-format";
 import { useMonitorSnapshot } from "./use-monitor-snapshot";
+import { MonitorHistory } from "./MonitorHistory";
 
 type MonitorWorkspaceProps = {
   onOpenRealm(): void;
@@ -122,6 +123,7 @@ export function MonitorWorkspace({ onOpenRealm }: MonitorWorkspaceProps) {
         </div>
       ) : null}
 
+      <MonitorHistory history={snapshot.history} />
       <main className="grid min-h-0 flex-1 grid-cols-[280px_minmax(420px,1fr)_360px]">
         <AttentionRail
           items={snapshot.attention}

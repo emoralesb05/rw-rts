@@ -7,9 +7,14 @@ import type {
   WorldAlertLevel,
   WorldState,
 } from "@shared/events";
-import type { AgentTool } from "@shared/schemas";
+import type { AgentTool, AgentMonitorRecord } from "@shared/schemas";
 import { WORLD_THEMES, themeFor, type WorldTheme } from "../game/realm-worlds";
 import { unitIdentityForUnit, useStore } from "../store";
+import {
+  EMPTY_MONITOR_SNAPSHOT,
+  useMonitorStore,
+} from "../monitoring/monitor-store";
+import { isBlockingLetter } from "../ui/hud/world-command";
 
 type SeedUnit = Pick<
   UnitState,
@@ -516,6 +521,52 @@ export function seedVisualQaState(
     ? createBusyVisualQaSeed(now, overflow)
     : createVisualQaSeed(now);
   useStore.setState(seed);
+  // Explicit synthetic read replica for visual QA only. Production activity
+  // never derives authority or freshness from the game store.
+  const agents: AgentMonitorRecord[] = Object.values(seed.units).map((unit) => {
+    const blocked = seed.letters.some(
+      (letter) =>
+        letter.sessionId === unit.sessionId && isBlockingLetter(letter)
+    );
+    const state = blocked
+      ? "blocked"
+      : unit.status === "complete"
+        ? "done"
+        : unit.status === "fallen"
+          ? "failed"
+          : unit.status === "idle"
+            ? "idle"
+            : "working";
+    return {
+      agentId: `${unit.tool}:${unit.sessionId}`,
+      providerId: unit.tool,
+      tool: unit.tool,
+      nativeSessionId: unit.sessionId,
+      displayName: unit.displayName,
+      cwd: unit.cwd,
+      repoRoot: unit.repoRoot,
+      state,
+      stateReason: `Visual QA fixture: ${state}`,
+      authority: blocked ? "blocking" : "provider",
+      confidence: "high",
+      lastObservedAt: now,
+      spawnedHere: false,
+      sources: ["visual-qa"],
+      evidence: [],
+      controls: [],
+      usage: { coverage: "unavailable" },
+    };
+  });
+  useMonitorStore.setState({
+    snapshot: {
+      ...EMPTY_MONITOR_SNAPSHOT,
+      version: useMonitorStore.getState().snapshot.version,
+      generatedAt: now,
+      agents,
+    },
+    loading: false,
+    error: undefined,
+  });
   const scene = (
     window as unknown as {
       __phaser?: {

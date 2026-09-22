@@ -1,8 +1,8 @@
 # Session Control Plane
 
-> **Status:** 📋 Plan
+> **Status:** 🚧 Core shipped; extensions probe-gated — capability controls, Codex list/fork, and Claude discovery/attach/logs are delivered.
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-06 (Claude provider-session attach/logs shipped)
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-09-22 (reconciled release scope; July provider probes remain historical)
 > **Engineer profile:** Senior TypeScript/Electron engineer — provider adapters, IPC schemas, renderer controls; read `.docs/architecture/ipc.md`, `.docs/architecture/events.md`, `.docs/providers/{claude,codex,cursor,gemini}.md`, `src/main/agent-manager.ts`, `src/main/index.ts`, `src/shared/schemas/ipc.ts`, `src/renderer/src/ui/WielderChatInput.tsx`, and `src/renderer/src/ui/floating/WielderPanelBody.tsx` first
 > **Effort:** 4 PRs, medium
 > **Scope:** Add provider-aware in-app controls for active and observed sessions · **Origin:** Follow-on from provider parity work and the request for more session control from the app
@@ -10,20 +10,18 @@
 
 ## TL;DR
 
-Realmkeeper can already spawn, resume/send prompts to observed sessions, and
-kill sessions it owns. The next step is to make the app a real session command
-room: show exactly which controls each provider/session supports, expose those
-controls in the wielder panel and chat drawer, and route every command through
-typed IPC with visible success/failure events.
+Realmkeeper now exposes capability-backed controls through typed IPC with
+visible results. It can spawn, resume/send where supported, and stop sessions
+it owns. The remaining work extends proven provider contracts, not the core
+capability UI. See the [release audit](../RELEASE-0.9.0-AUDIT.md).
 
 Do this with a capability model, not by pretending Claude, Codex, Cursor, and
 Gemini all support the same live-control surface.
 
-The 2026-07-03 provider-native probe upgrades part of the watchlist into
-ticketable work: Codex app-server list/fork and Claude background
-discovery/attach/logs are concrete enough to implement behind capability gates.
-Cursor stays observe/resume only, and Gemini ACP stays auth-gated until a
-supported headless credential path is verified.
+Codex list/fork and Claude discovery/attach/logs shipped after the July probe.
+Cursor stays observe/resume only; Gemini ACP and additional Claude background
+controls need fresh disposable-session evidence. July CLI versions and auth
+results are not a claim about the latest releases or today's credentials.
 
 ## Decision
 
@@ -61,11 +59,8 @@ supported headless credential path is verified.
   diagnostics so the observability plan can turn them into trace spans and
   monitor signals.
 
-- ✅ **Promote only proven provider-native controls.** Codex app-server
-  `thread/list` and `thread/fork` plus Claude `agents --json --all` discovery
-  and background attach/logs are now probed enough for follow-up tickets.
-  Cursor IDE injection and Gemini ACP interrupt remain unavailable until their
-  provider contracts and auth paths are proven.
+- ✅ **Promote only proven provider-native controls.** Codex list/fork and
+  Claude discovery/attach/logs shipped; other extensions remain probe-gated.
 
 ## PR sequence
 
@@ -123,14 +118,6 @@ Still active:
   disposable live probe before wiring.
 - Cursor `cursor-agent ls` discovery and Gemini ACP remain blocked behind the
   deferred probes described below.
-
-Deferred watchlist:
-
-- Wire additional provider-native controls only after focused probes prove
-  stable contracts: Claude background stop/respawn live semantics, Cursor
-  authoritative attach/injection, and Gemini ACP/live interrupt.
-- Keep Cursor permission/control behavior observe-only unless provider docs or
-  probes prove an authoritative control path.
 
 ## Acceptance gate
 

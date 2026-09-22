@@ -8,7 +8,7 @@ export const WORKSTATION_SCALE = 0.13;
 export function workstationFrame(activity: SessionActivity): number {
   if (activity.state === "blocked" || activity.state === "attention") return 4;
   if (activity.state !== "working") return 5;
-  switch (activity.label) {
+  switch (activity.toolLabel ?? activity.label) {
     case "Reading":
     case "Searching":
       return 0;

@@ -4,6 +4,8 @@ The external CLI agents Realmkeeper integrates with: Claude, Cursor, Codex, Gemi
 
 For our internal architecture, see [`../architecture/`](../architecture/).
 For vocabulary (RW terms + technical), see [`../glossary.md`](../glossary.md).
+For shipped controls and probe-gated extensions, see the
+[session-control plan](../plans/session-control-plane/).
 
 ## Files
 

@@ -11,15 +11,44 @@ evidence. Main publishes a typed snapshot plus versioned deltas through
 preload. The renderer may filter and select rows, but it does not infer source
 authority or freshness.
 
-This first slice is intentionally ephemeral. Durable metadata history,
-attention acknowledgement/snoozing, and usage rollups remain the next
-implementation phase described by the active monitoring plan. Prompt bodies,
-tool input/output, transcript content, and terminal scrollback are not monitor
-state.
+The renderer's `monitoring/monitor-store.ts` is a shared read replica, connected
+once by `App` across Monitor/Realm switches. It buffers deltas until initial
+hydration, ignores old versions, and requests a full snapshot on version gaps.
+Failed synchronization exposes unavailable data instead of a partial fleet.
+Cleanup prevents an obsolete connection's response from replacing a new one.
+
+Realm session activity captions, inspector cards, ask navigation, work effects,
+and party activity use this same snapshot. Matching requires provider plus
+native session ID, never repository or session ID alone. Unknown/offline labels
+come from main; there is no separate two-minute Realm freshness timer. Historical
+HP/MP, world pressure, seals, and event-driven cinematic poses remain game state,
+not operational evidence or proof of task success.
+
+Live reconciliation remains ephemeral. A separate main-owned
+`monitor-history.ts` checkpoint at `~/.realmkeeper/monitor/last-seen.json`
+remembers only agent identity, provider, last observed state, and observation
+timestamp. Monitor shows these in a read-only **Last seen history** section;
+they never hydrate live agents, controls, or permissions. Fresh source evidence
+is required to reappear in the live fleet.
+
+This bounded first slice retains at most 200 latest-per-session records for
+30 days and 20 restart-gap markers. It is not a complete event journal. Atomic
+replacement runs every 15 seconds and on normal shutdown; a crash can lose the
+uncheckpointed tail. Restart marks the interval from the last checkpoint to
+startup as unverified, not as inactivity. No backfill is performed. Files over
+512 KiB, invalid JSON, or unsupported schemas are quarantined before replacement;
+if quarantine fails, persistence stays disabled and the original is untouched.
+Read/write failures are visible in history, without disabling live monitoring.
+
+Attention acknowledgement/snoozing, observation journaling, configurable
+retention, and usage rollups remain future work. Prompt bodies, tool input/output,
+free-text activity/reasons, transcript content, and terminal scrollback are not
+included in monitoring checkpoints. Characters and Realm game state are unchanged.
 
 ## Live state — renderer (Zustand)
 
-`src/renderer/src/store.ts` is the single source of truth for what the UI shows.
+`src/renderer/src/store.ts` owns game state and historical events. Reconciled
+operational activity comes from the shared monitor read replica above.
 
 | Slice | What it holds |
 |---|---|
@@ -132,6 +161,11 @@ We persist `unit.repoRoot` (not just `cwd`) so that "standing orders" (auto-rebi
 `resolveRepoRoot()` lives in `src/main/repo-root.ts` — see [`workspace.md`](./workspace.md) for the resolution strategy.
 
 ## Standing orders
+
+Current execution is main-owned through durable runs. The renderer shape below
+describes legacy state retained for migration, not the active timer runner.
+See the [orchestration plan](../plans/agent-orchestration-workflows/) for shipped
+behavior and remaining outcome/monitor-pause contracts.
 
 `src/renderer/src/standing-orders.ts` + reducer in `store.ts`. A standing order is a recurring auto-prompt:
 

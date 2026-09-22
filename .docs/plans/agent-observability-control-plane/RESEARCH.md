@@ -6,6 +6,17 @@
 > lifecycle now records what the implementation changed. Final independent
 > audit at `7a9f781+ebb949c81de6`: seven mechanical and six graded boxes passed.
 
+## Release audit — 2026-09-22
+
+The earlier Ready audit is historical, not a current badge. At `96c8013`,
+probes 01 and 03 were rerun: the legacy Observatory limits still hold, native
+inventory remains two-provider, and synthetic amplification remains 97.96×.
+H6 describes Observatory, not the newly shipped main-owned Monitor workspace.
+H8 and the real-data half of H9 were not rerun; their September 21 samples must
+not be described as today's population. H6/H7/H9 retain their original
+provenance below and are not promoted by this partial rerun. Current status,
+remaining implementation, and audit limits: [release audit](../RELEASE-0.9.0-AUDIT.md).
+
 ## Findings
 
 ### H1 — Production observability products converge on trace/span records <a id="h1"></a>
@@ -60,7 +71,7 @@ status evidence. Prompt text, tool arguments/results, terminal scrollback, and
 file contents are excluded unless a future explicit setting says otherwise.
 
 ### H6 — The shipped Observatory is limited to the renderer's 500-event window <a id="h6"></a>
-> `probe 01` · **measured** · `7a9f781+8cd863dc9ce0` · 2026-09-21 · **LIVE**
+> `probe 01` · **measured** · `7a9f781+8cd863dc9ce0` · 2026-09-21 · **STALE**
 
 Source inspection found four hard-coded monitor kinds, a 500-event renderer
 cap, bounded Observatory lists, `projectTraces(events)` in the renderer, and no
@@ -69,7 +80,7 @@ appends the entire projected trace after every event. A restart therefore loses
 the active Observatory model even though JSONL files remain on disk.
 
 ### H7 — Provider discovery is partial, but safe intervention already has a typed seam <a id="h7"></a>
-> `probe 01` · **measured** · `7a9f781+8cd863dc9ce0` · 2026-09-21 · **LIVE**
+> `probe 01` · **measured** · `7a9f781+8cd863dc9ce0` · 2026-09-21 · **STALE**
 
 `listProviderSessions()` implements Claude and Codex and emits
 `not_implemented` for Cursor and Gemini. The shared capability registry already
@@ -91,7 +102,7 @@ can therefore use it as an optional presence/focus source without reading or
 controlling terminal content. Sources: [agents](https://herdr.dev/docs/agents/), [socket API](https://herdr.dev/docs/socket-api/), [CLI reference](https://herdr.dev/docs/cli-reference/).
 
 ### H9 — Whole-trace snapshots amplify bytes 97.96× synthetic and 1.51× on real transcript shapes <a id="h9"></a>
-> `probe 03/04` · **measured** · `7a9f781+8f746947cfd5` · 2026-09-21 · **LIVE**
+> `probe 03/04` · **measured** · `7a9f781+8f746947cfd5` · 2026-09-21 · **STALE**
 
 For 12 deterministic sessions with 25 four-event turns, appending each event
 once used 245,321 bytes; appending the current whole trace after every event

@@ -64,6 +64,7 @@ it("reuses markers, ignores drags, and destroys removed sites", () => {
     unitId: "u",
     worldId: "w",
     state: "blocked",
+    monitorState: "blocked",
     label: "Needs you",
     symbol: "!",
     color: "#ffd18a",

@@ -1,0 +1,12 @@
+{
+  "kind": "snapshot-record",
+  "schemaVersion": "1",
+  "runId": "solo-e5642b6eb93f4d17",
+  "mode": "solo",
+  "plan": ".docs/plans/agent-orchestration-workflows",
+  "headSha": "96c8013",
+  "workspaceHeadSha": "96c8013",
+  "workspaceDiffHash": "e5642b6eb93f4d171a0947f4bbba6db779fd55e8",
+  "snapshotMode": "materialized",
+  "snapshotId": "96c8013+e5642b6eb93f"
+}
