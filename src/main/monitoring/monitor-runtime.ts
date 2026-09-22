@@ -7,18 +7,28 @@ import { MonitorService } from "./monitor-service";
 const PROVIDER_POLL_MS = 15_000;
 const FRESHNESS_TICK_MS = 1_000;
 
+type MonitorRuntimeOptions = {
+  herdrEnabled?: boolean;
+};
+
 export class MonitorRuntime {
   private readonly service = new MonitorService();
-  private readonly herdr = new HerdrMonitorSource(this.service);
+  private readonly herdr: HerdrMonitorSource;
+  private readonly herdrEnabled: boolean;
   private pollTimer: NodeJS.Timeout | undefined;
   private tickTimer: NodeJS.Timeout | undefined;
   private pollRunning = false;
   private lifecycle = 0;
 
+  constructor(options: MonitorRuntimeOptions = {}) {
+    this.herdrEnabled = options.herdrEnabled ?? true;
+    this.herdr = new HerdrMonitorSource(this.service);
+  }
+
   start(): void {
     if (this.pollTimer) return;
     this.lifecycle += 1;
-    this.herdr.start();
+    if (this.herdrEnabled) this.herdr.start();
     void this.refreshInventory();
     this.pollTimer = setInterval(
       () => void this.refreshInventory(),
@@ -29,7 +39,7 @@ export class MonitorRuntime {
 
   stop(): void {
     this.lifecycle += 1;
-    this.herdr.stop();
+    if (this.herdrEnabled) this.herdr.stop();
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.tickTimer) clearInterval(this.tickTimer);
     this.pollTimer = undefined;

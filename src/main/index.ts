@@ -114,7 +114,9 @@ import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
-const monitorRuntime = new MonitorRuntime();
+// Desktop tests must not discover or focus the developer's live Herdr panes.
+// Herdr normalization and lifecycle behavior have isolated source-level tests.
+const monitorRuntime = new MonitorRuntime({ herdrEnabled: !isE2E });
 const orchestrationStore = new LocalOrchestrationStore({
   onRunEvent: (run, event) => {
     const agentEvent = agentEventForOrchestrationRun(run, event);
