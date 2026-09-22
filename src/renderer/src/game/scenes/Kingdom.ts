@@ -81,6 +81,7 @@ const AURA_COLORS: Record<WardenAura, number> = {
 };
 
 const SCANLINE_TEX = "rw-realm-scanlines";
+const SCANLINE_ALPHA = 0.16;
 
 // Per-world iso plane geometry. Smaller than the legacy WorldScene grid
 // (was 12×12 with TILE_W=96/TILE_H=48); shrunk to fit cluster spacing.
@@ -385,6 +386,7 @@ type WorldRef = {
   isoPlane: Phaser.GameObjects.Container;
   biome: Phaser.GameObjects.Graphics;
   stateGfx: Phaser.GameObjects.Graphics;
+  focusGfx: Phaser.GameObjects.Graphics;
   workGfx: Phaser.GameObjects.Graphics;
   missionPads: Phaser.GameObjects.Arc[];
   todOverlay: Phaser.GameObjects.Ellipse;
@@ -394,6 +396,8 @@ type WorldRef = {
   selectionRing: Phaser.GameObjects.Arc;
   stateLabelBg: Phaser.GameObjects.Rectangle;
   stateLabel: Phaser.GameObjects.Text;
+  nameLabel: Phaser.GameObjects.Text;
+  themeText: Phaser.GameObjects.Text;
   countText: Phaser.GameObjects.Text;
   countBg: Phaser.GameObjects.Rectangle;
   theme: WorldTheme;
@@ -565,7 +569,7 @@ export class KingdomScene extends Phaser.Scene {
       4,
       8
     );
-    this.cameras.main.filters.internal.addVignette(0.5, 0.5, 0.85, 0.5);
+    this.cameras.main.filters.internal.addVignette(0.5, 0.5, 0.92, 0.3);
 
     // Tier 3 — event-driven filters held at neutral until pulsed.
     // Barrel.amount=1 is identity; pinch (<1) for KO impact distortion.
@@ -624,7 +628,7 @@ export class KingdomScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(1000)
       .setScrollFactor(0)
-      .setAlpha(0.4);
+      .setAlpha(SCANLINE_ALPHA);
 
     // Wielder animations — must run after spritesheet preload completes,
     // before any spawnWielder call.
@@ -806,6 +810,8 @@ export class KingdomScene extends Phaser.Scene {
           .setStrokeStyle(2.2, 0xffd86b, 0.56 + pulse * 0.26)
           .setScale(1.02 + pulse * 0.04);
       }
+      this.tickWorldFocus(ref, selected);
+      this.updateWorldHudScale(ref);
       this.tickWorldStateLayer(ref, w, units);
 
       // Sync wielders + riftling for this world.
@@ -1940,11 +1946,13 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private drawBaseRealm(g: Phaser.GameObjects.Graphics) {
-    g.fillStyle(0x07101f, 0.78);
+    g.fillStyle(0x07101f, 0.9);
     g.fillEllipse(0, 34, BASE_RADIUS * 1.7, BASE_RADIUS * 0.72);
-    g.lineStyle(2.4, 0xffd86b, 0.24);
+    g.fillStyle(0x18376d, 0.22);
+    g.fillEllipse(0, 26, BASE_RADIUS * 1.5, BASE_RADIUS * 0.6);
+    g.lineStyle(2.6, 0xffd86b, 0.42);
     g.strokeEllipse(0, 34, BASE_RADIUS * 1.48, BASE_RADIUS * 0.6);
-    g.lineStyle(1.2, 0x6cc6ff, 0.16);
+    g.lineStyle(1.3, 0x6cc6ff, 0.28);
     for (let i = 0; i < 14; i++) {
       const a = (i / 14) * Math.PI * 2;
       g.lineBetween(
@@ -2665,6 +2673,7 @@ export class KingdomScene extends Phaser.Scene {
     const biome = this.add.graphics();
     this.drawWorldBiomeBackdrop(biome, theme, ringRadius);
     const stateGfx = this.add.graphics();
+    const focusGfx = this.add.graphics();
     const workGfx = this.add.graphics();
     const missionPads = this.spawnMissionPads(theme);
     const alertRing = this.add
@@ -2676,7 +2685,7 @@ export class KingdomScene extends Phaser.Scene {
       .setVisible(false);
 
     const labelY = ringRadius + 6;
-    const label = this.add
+    const nameLabel = this.add
       .text(0, labelY, world.label, {
         fontSize: "13px",
         color: "#cfd9f0",
@@ -2754,7 +2763,8 @@ export class KingdomScene extends Phaser.Scene {
       eventOverlay,
       alertRing,
       selectionRing,
-      label,
+      focusGfx,
+      nameLabel,
       themeText,
       stateLabelBg,
       stateLabel,
@@ -2789,6 +2799,7 @@ export class KingdomScene extends Phaser.Scene {
       isoPlane,
       biome,
       stateGfx,
+      focusGfx,
       workGfx,
       missionPads,
       todOverlay,
@@ -2798,6 +2809,8 @@ export class KingdomScene extends Phaser.Scene {
       selectionRing,
       stateLabelBg,
       stateLabel,
+      nameLabel,
+      themeText,
       countText,
       countBg,
       theme,
@@ -2822,15 +2835,15 @@ export class KingdomScene extends Phaser.Scene {
   ) {
     const palette = THEME_BIOMES[theme];
     g.clear();
-    g.fillStyle(0x000000, 0.34);
+    g.fillStyle(0x000000, 0.24);
     g.fillEllipse(0, 34, ringRadius * 2.52, ringRadius * 1.3);
-    g.fillStyle(palette.shadow, 0.86);
+    g.fillStyle(palette.shadow, 0.74);
     g.fillEllipse(0, 24, ringRadius * 2.42, ringRadius * 1.26);
-    g.fillStyle(palette.ground, 0.5);
+    g.fillStyle(palette.ground, 0.64);
     g.fillEllipse(0, 10, ringRadius * 2.22, ringRadius * 1.12);
-    g.lineStyle(2.4, palette.accent, 0.42);
+    g.lineStyle(2.6, palette.accent, 0.58);
     g.strokeEllipse(0, 10, ringRadius * 2.06, ringRadius);
-    g.lineStyle(1.4, palette.lane, 0.32);
+    g.lineStyle(1.5, palette.lane, 0.42);
     g.strokeEllipse(0, 10, ringRadius * 1.56, ringRadius * 0.68);
 
     if (theme === "tide") {
@@ -2880,6 +2893,62 @@ export class KingdomScene extends Phaser.Scene {
         );
       }
     }
+  }
+
+  private updateWorldHudScale(worldRef: WorldRef) {
+    // World labels live in the panning camera, but should not collapse into
+    // unreadable pixels at strategy zoom. Keep a bounded amount of inverse
+    // scaling so the map preserves its hierarchy without turning labels into
+    // a screen-space overlay.
+    const scale = Phaser.Math.Clamp(0.9 / this.cameras.main.zoom, 1, 1.42);
+    worldRef.nameLabel.setScale(scale);
+    worldRef.themeText.setScale(scale);
+    worldRef.stateLabelBg.setScale(scale);
+    worldRef.stateLabel.setScale(scale);
+    worldRef.countBg.setScale(scale);
+    worldRef.countText.setScale(scale);
+  }
+
+  private tickWorldFocus(worldRef: WorldRef, selected: boolean) {
+    const g = worldRef.focusGfx;
+    g.clear();
+    g.setVisible(selected);
+    worldRef.nameLabel.setColor(selected ? "#fff4c7" : "#e4ecff");
+    worldRef.themeText.setColor(selected ? "#ffd86b" : "#9eb2dc");
+    if (!selected) return;
+
+    const radius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 30;
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * 2.8);
+    const sweep = (this.t * 0.42) % (Math.PI * 2);
+
+    g.fillStyle(0xffd86b, 0.025 + pulse * 0.018);
+    g.fillEllipse(0, 10, radius * 2.18, radius * 1.02);
+    g.lineStyle(2.4, 0xffd86b, 0.5 + pulse * 0.28);
+    for (let i = 0; i < 4; i++) {
+      const start = sweep + i * (Math.PI / 2);
+      g.beginPath();
+      g.arc(0, 4, radius, start, start + Math.PI * 0.24);
+      g.strokePath();
+    }
+
+    g.lineStyle(1.4, 0x6cc6ff, 0.35 + pulse * 0.18);
+    const cornerX = radius * 0.92;
+    const cornerY = radius * 0.46;
+    const arm = 16 + pulse * 3;
+    for (const [x, y, sx, sy] of [
+      [-cornerX, -cornerY, 1, 1],
+      [cornerX, -cornerY, -1, 1],
+      [-cornerX, cornerY, 1, -1],
+      [cornerX, cornerY, -1, -1],
+    ] as const) {
+      g.lineBetween(x, y, x + sx * arm, y);
+      g.lineBetween(x, y, x, y + sy * arm * 0.55);
+    }
+
+    g.fillStyle(0xffd86b, 0.72 + pulse * 0.2);
+    const markerX = Math.cos(sweep) * radius;
+    const markerY = 4 + Math.sin(sweep) * radius * 0.48;
+    g.fillCircle(markerX, markerY, 3.2 + pulse * 1.4);
   }
 
   private spawnMissionPads(theme: WorldTheme) {
@@ -5450,6 +5519,20 @@ export class KingdomScene extends Phaser.Scene {
     const h = this.scale.height;
     g.clear();
 
+    // Broad translucent fields establish depth behind the constellation.
+    // They are viewport-locked and deliberately low contrast so live state
+    // remains the brightest layer.
+    g.fillStyle(0x0a1730, 0.72);
+    g.fillEllipse(w * 0.28, h * 0.34, w * 1.08, h * 0.82);
+    g.fillStyle(0x241441, 0.34);
+    g.fillEllipse(w * 0.8, h * 0.28, w * 0.82, h * 0.72);
+    g.fillStyle(0x071f2b, 0.3);
+    g.fillEllipse(w * 0.62, h * 0.84, w * 1.1, h * 0.62);
+    g.lineStyle(1.2, 0x6cc6ff, 0.07);
+    g.strokeEllipse(w * 0.52, h * 0.54, w * 0.88, h * 0.72);
+    g.lineStyle(1, 0xc9a4ff, 0.055);
+    g.strokeEllipse(w * 0.54, h * 0.52, w * 0.68, h * 0.52);
+
     g.lineStyle(2, 0x6cc6ff, 0.08);
     g.beginPath();
     g.moveTo(-w * 0.1, h * 0.72);
@@ -5496,7 +5579,7 @@ export class KingdomScene extends Phaser.Scene {
     this.skyGfx?.setScale(scale).setAlpha(skyAlpha);
     if (this.scanline) {
       this.scanline.setScale(scale);
-      this.scanline.setAlpha(cam.zoom < 0.72 ? 0 : 0.4);
+      this.scanline.setAlpha(cam.zoom < 0.72 ? 0 : SCANLINE_ALPHA);
     }
   }
 
