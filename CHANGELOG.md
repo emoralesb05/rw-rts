@@ -2,6 +2,62 @@
 
 All notable changes to realmkeeper. Format follows [Keep a Changelog](https://keepachangelog.com/) section names and [Conventional Commits](https://www.conventionalcommits.org/) `type(scope): subject` bullets. Hashes link to the commit on GitHub.
 
+## [0.8.0] (2026-09-21)
+
+This release turns Realmkeeper into a monitor-first local agent operations
+workspace. It adds a trustworthy fleet and attention view, durable orchestration
+and traces, provider-native session controls, and an optional Herdr presence
+bridge while preserving the Realm Star Chart as the atmospheric view of the
+same work.
+
+### Features
+
+- **monitoring:** added the default Monitor workspace with Attention, Fleet,
+  Inspector, source evidence, freshness, integration health, and
+  capability-gated controls.
+- **monitoring:** reconciled Realmkeeper events, Claude and Codex native session
+  inventories, and optional metadata-only Herdr pane presence into validated
+  snapshots and incremental updates.
+- **orchestration:** added durable runs, templates, standing-order migration,
+  runtime budgets, run controls, provider-question pauses, linked sessions,
+  trace context, and captured one-shot results.
+- **observability:** added persistent local traces, waiting and failure signals,
+  reported token and cost totals, monitor letters, and manual trace export.
+- **sessions:** added provider-native inventories, fail-closed session controls,
+  chat interrupt support, Codex session forking, and Claude attach/log actions.
+- **permissions:** added Realmkeeper-local saved approval rules and actionable
+  Claude question, Codex form/MCP, and Gemini permission flows.
+- **providers:** expanded Claude, Codex, Cursor, and Gemini diagnostics and
+  capability disclosure so unsupported controls remain visibly unavailable.
+
+### Architecture & Maintenance
+
+- **security:** enabled Electron renderer sandboxing and completed runtime IPC
+  request/response validation for the new control-plane boundaries.
+- **performance:** lazy-loaded the Streamdown markdown renderer and its heavy
+  syntax, diagram, and math plugins.
+- **dependencies:** refreshed the supported stable Electron, Phaser, React,
+  Vite, testing, styling, and renderer packages without unsupported application
+  framework migrations.
+- **skills:** synchronized repository skills, added provenance auditing, and
+  introduced a Realmkeeper-specific architecture skill.
+
+### Bug Fixes
+
+- **codex:** preserved app-server input metadata and exposed unsupported request
+  context instead of silently losing provider details.
+- **gemini:** respected disabled hooks in the managed permission gate.
+- **ui:** kept selected-world commands clear of HUD regions and fixed panel/tab
+  overflow exposed by the dependency refresh.
+
+### Tests
+
+- **coverage:** expanded unit and Electron smoke coverage across monitor state,
+  orchestration, traces, provider controls, permission cards, chat, dispatch,
+  world commands, and visual regression.
+
+---
+
 ## [0.7.0] (2026-05-11)
 
 This release batch finishes the world-aliveness pass: the Star Chart now reads more like an RTS command map, selected worlds get a dedicated command surface, and the tactical map is a real navigation control instead of a passive decoration.

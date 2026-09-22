@@ -1,6 +1,6 @@
 {
   "name": "realmkeeper",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "license": "MIT",
   "description": "Realm Wardens themed agent watch room — Sims-style spectator strategy for Claude / Cursor / Codex sessions",
