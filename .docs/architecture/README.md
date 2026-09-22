@@ -14,7 +14,7 @@ Vocabulary (RW terms + technical) is centralized in [`.docs/glossary.md`](../glo
 - [`state.md`](./state.md) — live (Zustand), persisted, pending permissions, saved permission rules, spawn provenance, standing orders, agent manager
 - [`bridge.md`](./bridge.md) — the unix-socket hook bridge: dispatch, dedup, normalization
 - [`renderer.md`](./renderer.md) — Phaser + DOM coexistence, HUD, floating panels, conversation stream, activity log
-- [`build.md`](./build.md) — stack (Bun, Electron 41, Vite, React 19, Phaser 4), scripts, hot-reload caveats, debugging
+- [`build.md`](./build.md) — stack (Bun, Electron 44, Vite, React 19, Phaser 4), scripts, hot-reload caveats, debugging
 - [`workspace.md`](./workspace.md) — settings file, repo-root resolution, workspace scanning
 - [`letters.md`](./letters.md) — the player-facing async message system + decree modal
 

@@ -77,6 +77,8 @@ Started in `app.whenReady()` and cleaned up by the Electron app lifecycle:
 | `startHookBridge()` | UNIX socket listener (the spine) |
 | `startClaudeTranscriptWatcher()` | polls `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl` |
 | `startCodexTranscriptWatcher()` | polls `~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<thread-id>.jsonl` |
+| `MonitorRuntime` | reconciles event, provider-inventory, and optional Herdr observations; publishes validated snapshots/deltas |
+| `HerdrMonitorSource` | runs bounded, non-overlapping metadata-only polls and exposes pane focus when Herdr is installed |
 
 Each watcher keeps a `Map<path, FileState>` with `{size, carry, emittedItemIds}`. New files start at current size (don't replay history). On each ~2s tick it reads appended bytes, splits lines, parses JSON, emits events.
 

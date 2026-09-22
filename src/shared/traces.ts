@@ -1,9 +1,7 @@
 import type { AgentEvent, AgentTool } from "./events";
 
 export type TraceRedactionPolicy =
-  | "metadata-only"
-  | "summaries"
-  | "full-content";
+  "metadata-only" | "summaries" | "full-content";
 
 export type SpanKind =
   | "session"

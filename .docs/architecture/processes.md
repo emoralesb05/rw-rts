@@ -14,6 +14,8 @@ agent-manager     (child procs)    HUD overlay (DOM, on top)
 *-transcript      (file polling)   IPC client via preload
 event-bus         (in-process)
 persistent-state  (autosave)
+monitor-runtime   (polling + reconciliation)
+herdr-source      (optional metadata/focus)
                               ↑           ↓
                               IPC via preload (contextIsolation: true)
 ```

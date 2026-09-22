@@ -104,6 +104,18 @@ export type ListProviderSessionsResponse = z.infer<
   typeof ListProviderSessionsResponseSchema
 >;
 
+export const FocusMonitorAgentRequestSchema = z.object({
+  agentId: z.string().min(1),
+});
+export type FocusMonitorAgentRequest = z.infer<
+  typeof FocusMonitorAgentRequestSchema
+>;
+
+export const FocusMonitorAgentResponseSchema = z.boolean();
+export type FocusMonitorAgentResponse = z.infer<
+  typeof FocusMonitorAgentResponseSchema
+>;
+
 export const KillAgentRequestSchema = z.string().min(1);
 export type KillAgentRequest = z.infer<typeof KillAgentRequestSchema>;
 

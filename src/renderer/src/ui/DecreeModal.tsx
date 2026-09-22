@@ -431,8 +431,7 @@ function extractRecentFiles(events: AgentEvent[], sessionId: string): string[] {
     if (ev.sessionId !== sessionId) continue;
     if (ev.kind !== "tool_use") continue;
     const input = ev.payload.input as
-      | { file_path?: unknown; pattern?: unknown }
-      | undefined;
+      { file_path?: unknown; pattern?: unknown } | undefined;
     const candidate =
       typeof input?.file_path === "string"
         ? input.file_path

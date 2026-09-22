@@ -64,7 +64,11 @@ bun run dev          # electron-vite dev with hot reload
 bun run typecheck
 bun run test         # Vitest unit/component tests
 bun run test:e2e     # Playwright Electron smoke, isolated temp home
+bun run maintenance:audit # dependency drift + repository skill provenance
 ```
+
+See [`.docs/maintenance.md`](./.docs/maintenance.md) for the stable-release
+policy and skill review workflow.
 
 The dev launch will offer to install Claude Code hooks the first time —
 this lets Realmkeeper watch any other Claude session running on your

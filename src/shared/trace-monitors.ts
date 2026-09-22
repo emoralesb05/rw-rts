@@ -2,10 +2,7 @@ import type { AgentTool } from "./events";
 import type { SpanRecord, TraceRecord } from "./traces";
 
 export type TraceMonitorKind =
-  | "waiting"
-  | "slow_tool"
-  | "stale_trace"
-  | "error_trace";
+  "waiting" | "slow_tool" | "stale_trace" | "error_trace";
 
 export type TraceMonitorSeverity = "warning" | "critical";
 

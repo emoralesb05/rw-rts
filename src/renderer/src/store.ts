@@ -32,11 +32,7 @@ import { unitIdentityForUnit } from "./unit-identity";
 export { unitIdentityFor, unitIdentityForUnit } from "./unit-identity";
 
 export type ComfortReceipt =
-  | "ok"
-  | "no-glimmer"
-  | "cooldown"
-  | "full-hp"
-  | "fallen";
+  "ok" | "no-glimmer" | "cooldown" | "full-hp" | "fallen";
 
 export type WorldCommandAnchor = {
   worldId: string;

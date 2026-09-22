@@ -1,12 +1,11 @@
 ---
 name: phaser-gamedev
 description: >
-  Build 2D games with Phaser 3 framework. Covers scene lifecycle, sprites, physics (Arcade/Matter),
-  tilemaps, animations, input handling, and game architecture. Trigger: "create phaser game",
-  "add phaser scene", "phaser sprite", "phaser physics", "game development with phaser".
+  Legacy Phaser 3 reference for projects that explicitly use Phaser 3. Do not use for Phaser 4;
+  select the focused Phaser 4 setup, scene, rendering, input, or physics skill instead.
 ---
 
-# Phaser Game Development
+# Phaser 3 Game Development (Legacy)
 
 Build fast, polished 2D browser games using Phaser 3's scene-based architecture and physics systems.
 

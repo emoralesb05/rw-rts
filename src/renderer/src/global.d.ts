@@ -20,6 +20,8 @@ import type {
   AppSettings,
   WorkspaceRootValidation,
   PermissionRule,
+  MonitorDelta,
+  MonitorSnapshot,
 } from "@shared/schemas";
 import type { OrchestrationRun } from "@shared/orchestration";
 import type { AgentEvent, PersistedState } from "@shared/events";
@@ -30,6 +32,9 @@ declare global {
   interface Window {
     rw: {
       onEvent(listener: (event: AgentEvent) => void): () => void;
+      onMonitorDelta(listener: (delta: MonitorDelta) => void): () => void;
+      getMonitorSnapshot(): Promise<MonitorSnapshot>;
+      focusMonitorAgent(req: { agentId: string }): Promise<boolean>;
       spawnAgent(req: SpawnAgentRequest): Promise<SpawnAgentResponse>;
       sendPrompt(req: SendPromptRequest): Promise<void>;
       killAgent(unitId: string): Promise<void>;

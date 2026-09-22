@@ -2,11 +2,7 @@ import type { AgentEvent, Letter, UnitState, WorldState } from "@shared/events";
 import { canControl, capabilitiesForUnit } from "@shared/session-capabilities";
 
 export type WorldCommandReadState =
-  | "calm"
-  | "active"
-  | "hold"
-  | "pressure"
-  | "sealed";
+  "calm" | "active" | "hold" | "pressure" | "sealed";
 
 export type WorldCommandBrief = {
   readState: WorldCommandReadState;

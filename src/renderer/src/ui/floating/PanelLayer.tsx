@@ -9,7 +9,7 @@ import { usePanels } from "./panel-store";
 import { FloatingPanel } from "./FloatingPanel";
 import { WielderPanelBody } from "./WielderPanelBody";
 import { SettingsPanelBody } from "./SettingsPanelBody";
-import { KingdomPanelBody } from "./KingdomPanelBody";
+import { KingdomPanelBody, type KingdomTabKey } from "./KingdomPanelBody";
 import { DispatchPanelBody } from "./DispatchPanelBody";
 import { ChatDrawer } from "./ChatDrawer";
 
@@ -29,14 +29,7 @@ export function PanelLayer() {
             />
           ) : p.kind === "kingdom" ? (
             <KingdomPanelBody
-              initialTab={
-                p.data?.initialTab as
-                  | "overview"
-                  | "settings"
-                  | "connection"
-                  | "demos"
-                  | undefined
-              }
+              initialTab={p.data?.initialTab as KingdomTabKey | undefined}
             />
           ) : p.kind === "dispatch" ? (
             <DispatchPanelBody />

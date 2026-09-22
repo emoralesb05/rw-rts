@@ -5315,8 +5315,7 @@ export class KingdomScene extends Phaser.Scene {
     const state = this.tacticalMapState;
     if (!state) return undefined;
     let nearest:
-      | { worldId: string; distance: number; radius: number }
-      | undefined;
+      { worldId: string; distance: number; radius: number } | undefined;
     for (const marker of state.worldPoints) {
       const distance = Math.hypot(
         point.x - marker.point.x,

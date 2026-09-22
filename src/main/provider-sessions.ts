@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { listCodexAppServerProviderSessions } from "./adapters/codex-app-server";
 import type {
   AgentTool,
@@ -9,6 +10,7 @@ import type {
 } from "@shared/schemas";
 
 const DEFAULT_TOOLS: AgentTool[] = ["claude", "codex", "cursor", "gemini"];
+const execFileAsync = promisify(execFile);
 
 export async function listProviderSessions(
   req: ListProviderSessionsRequest = {}
@@ -20,7 +22,7 @@ export async function listProviderSessions(
   for (const tool of tools) {
     try {
       if (tool === "claude") {
-        sessions.push(...listClaudeProviderSessions());
+        sessions.push(...(await listClaudeProviderSessions()));
       } else if (tool === "codex") {
         sessions.push(
           ...(await listCodexAppServerProviderSessions({ cwd: req?.cwd }))
@@ -48,13 +50,19 @@ export async function listProviderSessions(
   };
 }
 
-export function listClaudeProviderSessions(): ProviderSessionEntry[] {
-  const output = execFileSync("claude", ["agents", "--json", "--all"], {
-    encoding: "utf8",
-    timeout: 8_000,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  return normalizeClaudeProviderSessions(JSON.parse(output));
+export async function listClaudeProviderSessions(): Promise<
+  ProviderSessionEntry[]
+> {
+  const { stdout } = await execFileAsync(
+    "claude",
+    ["agents", "--json", "--all"],
+    {
+      encoding: "utf8",
+      timeout: 8_000,
+      maxBuffer: 4 * 1024 * 1024,
+    }
+  );
+  return normalizeClaudeProviderSessions(JSON.parse(stdout));
 }
 
 export function normalizeClaudeProviderSessions(

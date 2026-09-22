@@ -139,7 +139,9 @@ export function FloatingPanel({ panel, children }: Props) {
           <X size={14} aria-hidden />
         </IconButton>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }

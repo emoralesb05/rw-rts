@@ -11,11 +11,7 @@ import { usePersistedBool } from "./hud-prefs";
 import { cn } from "@/lib/cn";
 
 export type HudAnchor =
-  | "top-left"
-  | "top-right"
-  | "bottom-left"
-  | "bottom-right"
-  | "top-center";
+  "top-left" | "top-right" | "bottom-left" | "bottom-right" | "top-center";
 
 type Props = {
   anchor: HudAnchor;

@@ -100,7 +100,7 @@ import type {
   ProviderSessionEntry,
 } from "@shared/schemas";
 
-type TabKey =
+export type KingdomTabKey =
   | "overview"
   | "observatory"
   | "sessions"
@@ -2418,15 +2418,19 @@ function DemosTab() {
   );
 }
 
-export function KingdomPanelBody({ initialTab }: { initialTab?: TabKey }) {
-  const [tab, setTab] = useState<TabKey>(initialTab ?? "overview");
+export function KingdomPanelBody({
+  initialTab,
+}: {
+  initialTab?: KingdomTabKey;
+}) {
+  const [tab, setTab] = useState<KingdomTabKey>(initialTab ?? "overview");
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
   return (
     <Tabs
       value={tab}
-      onValueChange={(value) => setTab(value as TabKey)}
+      onValueChange={(value) => setTab(value as KingdomTabKey)}
       className="font-ui flex flex-col"
     >
       <TabsList aria-label="kingdom panel">

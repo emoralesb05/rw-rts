@@ -150,11 +150,7 @@ export type Letter = {
 };
 
 export type WorldAlertLevel =
-  | "idle"
-  | "active"
-  | "warning"
-  | "danger"
-  | "cleared";
+  "idle" | "active" | "warning" | "danger" | "cleared";
 
 export const EMPTY_PERSISTED: PersistedState = {
   schemaVersion: 2,

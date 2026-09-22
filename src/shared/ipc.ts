@@ -1,5 +1,8 @@
 export const IPC = {
   EventStream: "rw:event-stream",
+  GetMonitorSnapshot: "rw:get-monitor-snapshot",
+  MonitorDelta: "rw:monitor-delta",
+  FocusMonitorAgent: "rw:focus-monitor-agent",
   SpawnAgent: "rw:spawn-agent",
   KillAgent: "rw:kill-agent",
   SendPrompt: "rw:send-prompt",

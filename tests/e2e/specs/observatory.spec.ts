@@ -47,9 +47,7 @@ test("shows fixture trace health in the Observatory tab", async ({
   await expect(
     sessions.getByText(/claude · \d+ spans · active/i)
   ).toBeVisible();
-  await expect(
-    sessions.getByText(/claude · \d+ spans · error/i)
-  ).toBeVisible();
+  await expect(sessions.getByText(/claude · \d+ spans · error/i)).toBeVisible();
 
   await expect(
     kingdom.getByText(/Completed traces: [1-9]\d*\. Error traces: [1-9]\d*\./)

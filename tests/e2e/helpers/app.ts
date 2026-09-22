@@ -3,12 +3,7 @@ import { expect } from "../fixtures/electron";
 
 export type ProviderTool = "claude" | "cursor" | "codex" | "gemini";
 export type OrchestrationRunStatus =
-  | "queued"
-  | "running"
-  | "paused"
-  | "completed"
-  | "failed"
-  | "stopped";
+  "queued" | "running" | "paused" | "completed" | "failed" | "stopped";
 export type OrchestrationRun = {
   id: string;
   template: string;

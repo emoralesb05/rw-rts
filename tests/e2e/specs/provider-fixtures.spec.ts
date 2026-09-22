@@ -51,6 +51,10 @@ test("sends chat follow-ups through Realmkeeper prompt IPC", async ({
     name: "Wielder chats",
   });
   await expect(chatDrawer).toBeVisible();
+  // `playFixture` streams asynchronously. Wait for the fixture's initial
+  // prompt so our follow-up is not mistaken for an interrupted prompt when
+  // that scripted prompt arrives on faster or slower Electron runtimes.
+  await expect(chatDrawer.getByText("rename App to KhApp")).toBeVisible();
 
   const prompt = "Please summarize the fixture follow-up.";
   const input = page.getByPlaceholder(/Message .+⌘↵ to send/i);

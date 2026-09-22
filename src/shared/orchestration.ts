@@ -106,9 +106,7 @@ export const OrchestrationRunEventSchema = z.object({
   stepId: z.string().min(1).optional(),
   checkpointId: z.string().min(1).optional(),
 });
-export type OrchestrationRunEvent = z.infer<
-  typeof OrchestrationRunEventSchema
->;
+export type OrchestrationRunEvent = z.infer<typeof OrchestrationRunEventSchema>;
 
 export const OrchestrationRunSchema = z.object({
   id: z.string().min(1),

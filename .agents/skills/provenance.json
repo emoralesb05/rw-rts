@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-21",
+  "policy": "Track latest stable dependencies. Review project skills when their compatibility package changes; do not silently replace project-specific guidance with upstream content.",
+  "groups": [
+    {
+      "id": "agent-browser-runtime",
+      "sourceKind": "cli-bundled",
+      "source": "agent-browser skills get core",
+      "reviewedVersions": {
+        "agent-browser": "0.34.0"
+      },
+      "members": ["agent-browser"]
+    },
+    {
+      "id": "electron",
+      "sourceKind": "official-docs-derived",
+      "source": "https://www.electronjs.org/docs/latest/",
+      "reviewedVersions": {
+        "electron": "44.4.3"
+      },
+      "members": ["electron"]
+    },
+    {
+      "id": "phaser-4",
+      "sourceKind": "official-docs-derived",
+      "source": "https://github.com/phaserjs/phaser/tree/v4.2.1/skills",
+      "reviewedVersions": {
+        "phaser": "4.2.1"
+      },
+      "members": [
+        "actions-and-utilities",
+        "animations",
+        "audio-and-sound",
+        "cameras",
+        "curves-and-paths",
+        "data-manager",
+        "events-system",
+        "filters-and-postfx",
+        "game-object-components",
+        "game-setup-and-config",
+        "geometry-and-math",
+        "graphics-and-shapes",
+        "groups-and-containers",
+        "input-keyboard-mouse-touch",
+        "loading-assets",
+        "particles",
+        "physics-arcade",
+        "physics-matter",
+        "render-textures",
+        "scale-and-responsive",
+        "scenes",
+        "sprites-and-images",
+        "text-and-bitmaptext",
+        "tilemaps",
+        "time-and-timers",
+        "tweens",
+        "v3-to-v4-migration",
+        "v4-new-features"
+      ]
+    },
+    {
+      "id": "phaser-3-legacy",
+      "sourceKind": "legacy-reference",
+      "source": "https://github.com/phaserjs/phaser/tree/v3.90.0",
+      "reviewedVersions": {},
+      "members": ["phaser-gamedev"]
+    },
+    {
+      "id": "streamdown",
+      "sourceKind": "package-derived",
+      "source": "https://github.com/vercel/streamdown",
+      "reviewedVersions": {
+        "streamdown": "2.6.0",
+        "@streamdown/code": "1.1.1",
+        "@streamdown/mermaid": "1.0.2",
+        "@streamdown/math": "1.0.2",
+        "@streamdown/cjk": "1.0.3"
+      },
+      "members": ["streamdown"]
+    },
+    {
+      "id": "realmkeeper",
+      "sourceKind": "project-maintained",
+      "source": ".docs/architecture/",
+      "reviewedVersions": {},
+      "members": ["realmkeeper-architecture"]
+    }
+  ]
+}

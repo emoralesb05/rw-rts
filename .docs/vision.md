@@ -14,24 +14,30 @@ For vocabulary, see [`./glossary.md`](./glossary.md).
 
 ## North Star
 
-Realmkeeper is a Realm Wardens-themed agent watch room: a Sims-style spectator
-strategy app where the King watches autonomous AI sessions clear repo-worlds,
-steps in when attention is needed, and keeps durable memory across work.
+Realmkeeper is a Realm Wardens-themed agent watch room: a local monitoring
+cockpit where the King sees every coding agent, notices which sessions need
+attention, inspects what happened, and intervenes safely. The Realm Wardens
+Star Chart remains the atmospheric view of the same real state.
 
 It should feel like a quiet command room, not a terminal wrapper and not a
-traditional RTS. The player nudges, dispatches, approves, comforts, recalls, and
-seals work. Agents keep their own agency.
+traditional RTS. Monitoring is the primary workflow; the player nudges,
+dispatches, approves, comforts, recalls, and seals work only when needed.
+Agents keep their own agency.
 
 ## Product Shape
 
 - **Audience**: personal-tidy, macOS-first, built for one power user running
   multiple local AI coding tools.
-- **Primary screen**: one unified Phaser Star Chart with repo-worlds, wardens,
+- **Primary operational screen**: a React Monitor workspace with Attention,
+  Fleet, Inspector, Usage, and Integrations views.
+- **Realm view**: the unified Phaser Star Chart with repo-worlds, wardens,
   riftlings, ambient effects, and camera pan/zoom.
 - **HUD**: React overlay with party roster, alerts, activity log, letters,
   selected-world commands, floating panels, and right-edge chat drawer.
 - **Providers**: Claude, Codex, Cursor, and Gemini through installed hooks,
-  transcript/watch streams, and provider-specific spawn/resume adapters.
+  transcript/watch streams, and provider-specific spawn/resume adapters;
+  optional metadata-only sources may surface other agents without granting
+  provider controls.
 - **Permissions**: Realmkeeper-local saved rules in
   `~/.realmkeeper/permissions.json`; Claude/Codex/Gemini can be answered
   directly, Cursor remains observe-only in normal allowlist mode.
@@ -51,7 +57,8 @@ Survey -> Notice -> Dive -> Intervene -> Witness -> Survey
 - **Witness**: read results, follow subagents, and seal completed worlds.
 
 The app should work from peripheral vision. If the user has to stare at it to
-understand whether anything needs action, the design failed.
+understand whether anything needs action—or cannot tell why Realmkeeper thinks
+an agent is blocked, working, done, or unknown—the design failed.
 
 ## Player Verbs
 
@@ -74,6 +81,10 @@ first-class because it blocks real tools.
 - Camera movement is explicit: drag, scroll, world selection, or row/card focus.
 - The app stays single-user and local-first until a real shared-workflow need
   appears.
+- Monitoring state must name its source, freshness, and confidence. Missing
+  evidence is unknown, not idle or successful.
+- The Star Chart is an optional Realm view of the same monitor state, not the
+  only place to understand the fleet.
 - Cursor permissions are observe-only unless Cursor exposes an authoritative
   external approval contract for the mode we use.
 - Provider-native permission config mirroring is deferred and must be an
@@ -99,12 +110,18 @@ state instead of becoming decorative noise.
 
 ## Current Status
 
-No active implementation plan is open. Completed provider hardening decisions
-now live in [`./providers/`](./providers/), and durable architecture behavior
-lives in [`./architecture/`](./architecture/).
+The active [agent monitoring control-plane plan](./plans/agent-observability-control-plane/)
+makes Monitor the primary operational workspace while retaining the Star Chart
+as Realm view. Completed provider hardening decisions live in
+[`./providers/`](./providers/), and durable architecture behavior lives in
+[`./architecture/`](./architecture/).
 
 Shipped foundations:
 
+- primary React Monitor workspace with Attention, Fleet, Inspector, source
+  evidence, capability-gated controls, and a remembered Realm switch
+- main-process monitor reconciliation across Realmkeeper events, Claude/Codex
+  inventories, and optional metadata-only Herdr presence/focus
 - unified Star Chart and HUD layout
 - local provider hooks and installers
 - saved Realmkeeper-local permission rules
@@ -126,6 +143,10 @@ Shipped foundations:
 
 Highest-value follow-ups:
 
+- add durable metadata history, attention acknowledgement/snoozing, and
+  provider-reported usage rollups to the shipped monitoring control plane
+- add an Antigravity inventory adapter as Google's personal CLI workflow moves
+  away from Gemini CLI; retain Gemini support for enterprise/API-key users
 - expand Electron smoke coverage into failure states and visual regression
   snapshots
 - capture or synthesize a provider-faithful Claude deferred

@@ -9,11 +9,14 @@ import {
   ListOrchestrationRunsResponseSchema,
   OrchestrationRunResponseSchema,
   ExportTracesResponseSchema,
+  FocusMonitorAgentResponseSchema,
   HooksStatusSchema,
   ListProviderSessionsResponseSchema,
   ListPermissionRulesResponseSchema,
   ListUnitsResponseSchema,
   ListWorkspaceReposResponseSchema,
+  MonitorDeltaSchema,
+  MonitorSnapshotSchema,
   OpenPathResponseSchema,
   PersistedStateSchema,
   RemovePermissionRuleResponseSchema,
@@ -28,7 +31,9 @@ import {
   type ControlSessionRequest,
   type CreateOrchestrationRunRequest,
   type ExportTracesRequest,
+  type FocusMonitorAgentRequest,
   type ListProviderSessionsRequest,
+  type MonitorDelta,
   type SpawnAgentRequest,
   type SendPromptRequest,
   type PlayFixtureRequest,
@@ -83,6 +88,30 @@ const api = {
     };
     ipcRenderer.on(IPC.EventStream, wrapped);
     return () => ipcRenderer.off(IPC.EventStream, wrapped);
+  },
+  onMonitorDelta(listener: (delta: MonitorDelta) => void) {
+    const wrapped = (_e: IpcRendererEvent, value: unknown) => {
+      const parsed = MonitorDeltaSchema.safeParse(value);
+      if (parsed.success) {
+        listener(parsed.data);
+        return;
+      }
+      console.warn(
+        `[realmkeeper] dropped invalid ${IPC.MonitorDelta} payload: ${formatSchemaIssues(parsed.error)}`
+      );
+    };
+    ipcRenderer.on(IPC.MonitorDelta, wrapped);
+    return () => ipcRenderer.off(IPC.MonitorDelta, wrapped);
+  },
+  getMonitorSnapshot() {
+    return invokeParsed(IPC.GetMonitorSnapshot, MonitorSnapshotSchema);
+  },
+  focusMonitorAgent(req: FocusMonitorAgentRequest) {
+    return invokeParsed(
+      IPC.FocusMonitorAgent,
+      FocusMonitorAgentResponseSchema,
+      req
+    );
   },
   spawnAgent(req: SpawnAgentRequest) {
     return invokeParsed(IPC.SpawnAgent, SpawnAgentResponseSchema, req);

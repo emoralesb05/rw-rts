@@ -156,8 +156,7 @@ function normalizeClaudePayload(
   const ts = Date.now();
   const requestId = p?.__rw_permission_request_id as string | undefined;
   const userInputRequestId = p?.__rw_user_input_request_id as
-    | string
-    | undefined;
+    string | undefined;
   // Use the raw session_id for both Claude and Codex. Codex's CLI
   // adapter (codex-cli.ts) registers spawned sessions under their raw
   // thread_id; the bridge must match so a hooked Codex session and a

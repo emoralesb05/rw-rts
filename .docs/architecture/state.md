@@ -1,6 +1,21 @@
 # State
 
-Three flavors of state live in different places, with different durability guarantees.
+Four flavors of state live in different places, with different durability guarantees.
+
+## Reconciled monitor state — main (in-memory)
+
+`src/main/monitoring/` owns the operational fleet view. Provider inventory,
+normalized events, and optional Herdr metadata become validated observations;
+the reconciler selects an explainable state while retaining all source
+evidence. Main publishes a typed snapshot plus versioned deltas through
+preload. The renderer may filter and select rows, but it does not infer source
+authority or freshness.
+
+This first slice is intentionally ephemeral. Durable metadata history,
+attention acknowledgement/snoozing, and usage rollups remain the next
+implementation phase described by the active monitoring plan. Prompt bodies,
+tool input/output, transcript content, and terminal scrollback are not monitor
+state.
 
 ## Live state — renderer (Zustand)
 

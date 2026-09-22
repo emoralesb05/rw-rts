@@ -1,13 +1,7 @@
-import type {
-  SpanRecord,
-  TraceAttributeValue,
-  TraceRecord,
-} from "./traces";
+import type { SpanRecord, TraceAttributeValue, TraceRecord } from "./traces";
 
 export type TraceExportContentMode =
-  | "metadata-only"
-  | "summaries"
-  | "full-content";
+  "metadata-only" | "summaries" | "full-content";
 
 export type TraceExportOptions = {
   serviceName?: string;

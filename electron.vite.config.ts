@@ -8,12 +8,12 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ include: ["electron"] })],
     resolve: {
       alias: {
-        "@shared": resolve(__dirname, "src/shared"),
+        "@shared": resolve(import.meta.dirname, "src/shared"),
       },
     },
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, "src/main/index.ts") },
+        input: { index: resolve(import.meta.dirname, "src/main/index.ts") },
         external: ["electron"],
       },
     },
@@ -22,7 +22,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({ include: ["electron"] })],
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, "src/preload/index.ts") },
+        input: { index: resolve(import.meta.dirname, "src/preload/index.ts") },
         external: ["electron"],
         output: {
           format: "cjs",
@@ -33,19 +33,21 @@ export default defineConfig({
     },
   },
   renderer: {
-    root: resolve(__dirname, "src/renderer"),
+    root: resolve(import.meta.dirname, "src/renderer"),
     base: "./",
-    publicDir: resolve(__dirname, "assets"),
+    publicDir: resolve(import.meta.dirname, "assets"),
     resolve: {
       alias: {
-        "@": resolve(__dirname, "src/renderer/src"),
-        "@shared": resolve(__dirname, "src/shared"),
+        "@": resolve(import.meta.dirname, "src/renderer/src"),
+        "@shared": resolve(import.meta.dirname, "src/shared"),
       },
     },
     plugins: [react(), tailwindcss()],
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, "src/renderer/index.html") },
+        input: {
+          index: resolve(import.meta.dirname, "src/renderer/index.html"),
+        },
       },
     },
   },

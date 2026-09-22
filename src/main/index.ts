@@ -45,6 +45,7 @@ import {
 } from "./gemini-hook-installer";
 import { listWorkspaceRepos } from "./workspace-scan";
 import { listProviderSessions } from "./provider-sessions";
+import { MonitorRuntime } from "./monitoring/monitor-runtime";
 import { runClaudeProviderSessionAction } from "./provider-session-actions";
 import { loadSettings, saveSettings, validateWorkspaceRoot } from "./settings";
 import { sessionControlEventFor } from "./session-control-events";
@@ -79,8 +80,11 @@ import {
   CreateOrchestrationRunRequestSchema,
   ExportTracesRequestSchema,
   ExportTracesResponseSchema,
+  FocusMonitorAgentRequestSchema,
+  FocusMonitorAgentResponseSchema,
   ListPermissionRulesResponseSchema,
   ListOrchestrationRunsResponseSchema,
+  MonitorSnapshotSchema,
   RemovePermissionRuleRequestSchema,
   RemovePermissionRuleResponseSchema,
   OrchestrationRunResponseSchema,
@@ -110,6 +114,7 @@ import { parseIpcPayload, parseIpcResponse } from "./ipc-validation";
 let mainWindow: BrowserWindow | null = null;
 let runtimeStopped = false;
 const isE2E = process.env.REALMKEEPER_E2E === "1";
+const monitorRuntime = new MonitorRuntime();
 const orchestrationStore = new LocalOrchestrationStore({
   onRunEvent: (run, event) => {
     const agentEvent = agentEventForOrchestrationRun(run, event);
@@ -121,7 +126,13 @@ const orchestrationEngine = new MainOrchestrationEngine({
   controlSession,
 });
 bus.onAgentEvent((event) => {
+  monitorRuntime.ingestAgentEvent(event);
   void orchestrationEngine.ingestAgentEvent(event);
+});
+monitorRuntime.subscribe((delta) => {
+  const wc = mainWindow?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.send(IPC.MonitorDelta, delta);
 });
 
 function isE2EFixtureSession(sessionId: string): boolean {
@@ -143,6 +154,7 @@ function stopRuntimeServices() {
   stopClaudeTranscriptWatcher();
   stopCodexTranscriptWatcher();
   stopAllFixtures();
+  monitorRuntime.stop();
 }
 
 function createWindow() {
@@ -474,6 +486,7 @@ void app.whenReady().then(async () => {
     startCodexTranscriptWatcher();
   }
   createWindow();
+  monitorRuntime.start();
 
   process.on("SIGUSR1", () => {
     if (!mainWindow) return;
@@ -490,6 +503,26 @@ void app.whenReady().then(async () => {
   });
 
   if (!isE2E) await offerHookInstall();
+
+  safeHandle(
+    IPC.GetMonitorSnapshot,
+    () => monitorRuntime.getSnapshot(),
+    MonitorSnapshotSchema
+  );
+
+  safeHandle(
+    IPC.FocusMonitorAgent,
+    async (_e, raw: unknown) => {
+      const req = parseIpcPayload(
+        IPC.FocusMonitorAgent,
+        FocusMonitorAgentRequestSchema,
+        raw
+      );
+      await monitorRuntime.focusAgent(req.agentId);
+      return true;
+    },
+    FocusMonitorAgentResponseSchema
+  );
 
   safeHandle(
     IPC.SpawnAgent,

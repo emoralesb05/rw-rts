@@ -118,10 +118,14 @@ Auto-added buttons for images, tables, code, and Mermaid.
 ```tsx
 <Streamdown
   controls={{
-    table: true,
-    code: false, // No copy/download on code blocks
+    table: {
+      copy: true,
+      download: { filename: "report" },
+      csvSeparator: "auto",
+    },
+    code: { copy: true, download: { filename: "myScript" } },
     mermaid: {
-      download: true,
+      download: { filename: "flowchart" },
       copy: true,
       fullscreen: true,
       panZoom: false,
@@ -134,7 +138,7 @@ Auto-added buttons for images, tables, code, and Mermaid.
 - **Images:** Download (auto-detected format, alt text as filename)
 - **Tables:** Copy (CSV/TSV/HTML), Download (CSV/Markdown)
 - **Code blocks:** Copy (raw code), Download (with correct extension)
-- **Mermaid:** Copy (source), Download (SVG), Fullscreen, Pan/zoom
+- **Mermaid:** Copy (source), Download (SVG/PNG/MMD), Fullscreen, Pan/zoom
 
 All buttons disabled during streaming when `isAnimating={true}`.
 

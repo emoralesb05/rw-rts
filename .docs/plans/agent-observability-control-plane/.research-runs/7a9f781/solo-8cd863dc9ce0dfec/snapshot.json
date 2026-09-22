@@ -1,0 +1,12 @@
+{
+  "kind": "snapshot-record",
+  "schemaVersion": "1",
+  "runId": "solo-8cd863dc9ce0dfec",
+  "mode": "solo",
+  "plan": ".docs/plans/agent-observability-control-plane",
+  "headSha": "7a9f781",
+  "workspaceHeadSha": "7a9f781",
+  "workspaceDiffHash": "8cd863dc9ce0dfec6b26b6b39528f7f0dac8ef8d",
+  "snapshotMode": "materialized",
+  "snapshotId": "7a9f781+8cd863dc9ce0"
+}

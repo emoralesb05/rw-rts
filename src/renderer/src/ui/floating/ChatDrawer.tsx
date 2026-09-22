@@ -307,7 +307,7 @@ export function ChatDrawer() {
           className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList
-            className="border-accent-alt/20 bg-surface-1/95 min-h-10 flex-none items-stretch overflow-x-auto p-0 pr-1 [scrollbar-width:thin]"
+            className="border-accent-alt/20 bg-surface-1/95 min-h-10 flex-none [scrollbar-width:thin] items-stretch overflow-x-auto p-0 pr-1"
             aria-label="Wielder chats"
           >
             {drawer.openTabs.map((unitId) => {

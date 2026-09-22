@@ -124,7 +124,9 @@ describe("exportTracesToOtel", () => {
       JSON.stringify(exportTracesToOtel(traces, { contentMode: "summaries" }))
     ).toContain("secret prompt value");
     expect(
-      JSON.stringify(exportTracesToOtel(traces, { contentMode: "full-content" }))
+      JSON.stringify(
+        exportTracesToOtel(traces, { contentMode: "full-content" })
+      )
     ).toContain("secret prompt value");
   });
 
@@ -134,8 +136,8 @@ describe("exportTracesToOtel", () => {
       event("cursor", "s1", 2, "error", { error: "provider failed" }),
     ]);
 
-    const spans = exportTracesToOtel(traces).resourceSpans[0].scopeSpans[0]
-      .spans;
+    const spans =
+      exportTracesToOtel(traces).resourceSpans[0].scopeSpans[0].spans;
 
     expect(spans.find((span) => span.name === "error")).toMatchObject({
       status: { code: "STATUS_CODE_ERROR" },
@@ -158,8 +160,8 @@ describe("exportTracesToOtel", () => {
       }),
     ]);
 
-    const rootSpan = exportTracesToOtel(traces).resourceSpans[0].scopeSpans[0]
-      .spans[0];
+    const rootSpan =
+      exportTracesToOtel(traces).resourceSpans[0].scopeSpans[0].spans[0];
     const attrs = new Map(
       rootSpan.attributes.map((attr) => [attr.key, attr.value])
     );

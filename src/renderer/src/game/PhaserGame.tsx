@@ -37,6 +37,10 @@ export function PhaserGame() {
       backgroundColor: "#04060d",
       pixelArt: true,
       roundPixels: true,
+      // Realmkeeper owns audio through audio/music.ts and audio/synth.ts.
+      // Avoid a second Phaser AudioContext that is closed on Monitor/Realm
+      // unmounts and can reject during a later remount.
+      audio: { noAudio: true },
       scale: {
         mode: Phaser.Scale.RESIZE,
         width: "100%",

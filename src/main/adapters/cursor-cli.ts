@@ -295,8 +295,7 @@ export function normalizeCursorStreamMessage(
         (msg as { tool_call?: Record<string, unknown> }).tool_call ?? {};
       const firstKey = Object.keys(tc)[0];
       const inner = (tc as Record<string, unknown>)[firstKey] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const name = firstKey?.replace(/ToolCall$/, "") ?? "tool";
       out.push({
         ...base,

@@ -1,140 +1,109 @@
-# Agent Observability Control Plane
+# Agent monitoring control plane — see every agent, notice what needs attention, and intervene safely
 
-> **Status:** 📋 Plan
+> **Status:** 🚧 In implementation — the first Monitor vertical slice is built and verified; persistence, Herdr, and richer attention/usage remain.
 > **Owner:** TBD
-> **Drafted:** 2026-07-03 · **Last updated:** 2026-07-03 (collector probe shipped)
-> **Engineer profile:** Senior TypeScript/Electron engineer — event modeling, local persistence, renderer state; read `.docs/architecture/events.md`, `.docs/architecture/bridge.md`, `.docs/architecture/state.md`, `src/shared/schemas/events.ts`, `src/main/event-bus.ts`, and `src/renderer/src/store-domain/event-reducer.ts` first
-> **Effort:** 4 PRs, medium
-> **Scope:** Add local-first trace/session observability on top of Realmkeeper's existing event bus · **Origin:** Follow-on from provider hardening and parity work
-> **Related:** [`../session-control-plane/`](../session-control-plane/), [`../agent-orchestration-workflows/`](../agent-orchestration-workflows/), [`../../architecture/events.md`](../../architecture/events.md), [`../../architecture/bridge.md`](../../architecture/bridge.md), [`../../providers/`](../../providers/), [`./RESEARCH.md`](./RESEARCH.md), `src/shared/schemas/events.ts`, `src/main/event-bus.ts`, `src/renderer/src/store.ts`
+> **Drafted:** 2026-07-03 · **Last updated:** 2026-09-21 (closed three audit failures; re-verified H6–H9)
+> **Scope:** Unified local fleet state, attention, usage, history, integration health, and safe intervention; not a terminal multiplexer or autonomous project manager.
+> **Effort:** 5 PRs, large
+> **Start here:** README.md, ARCHITECTURE.md, RESEARCH.md, probes/README.md
+> **Detail:** [ARCHITECTURE](./ARCHITECTURE.md) · [RESEARCH](./RESEARCH.md) · [DECISIONS](./DECISIONS.md) · [probes](./probes/README.md)
+> **Related:** [session control](../session-control-plane/) · [orchestration workflows](../agent-orchestration-workflows/)
 
-## TL;DR
+## What this is and why now
 
-Realmkeeper already observes agent activity as a live flat event stream. The
-industry pattern has moved toward trace/span views, grouped conversations,
-durable checkpoints, cost/latency metrics, and human-intervention monitors.
+Realmkeeper can already normalize events, project traces, raise four monitor
+signals, list some provider sessions, and issue capability-gated controls. The
+pieces do not yet form a dependable monitor: the Observatory only sees the
+renderer’s 500-event window, does not hydrate history after restart, truncates
+its most important lists, and discovers provider-native sessions only for
+Claude and Codex.
 
-Build a local-first observability layer before adding any cloud exporter:
-derive spans from existing provider events, persist redacted trace records,
-show session health in the Kingdom panel, and only then add optional
-OTel-shaped export.
+The next product slice makes monitoring the primary operational surface. A
+single fleet view answers: what is running, what needs me, what changed, what
+did it consume, how trustworthy is that state, and what can I do now? The Star
+Chart remains available as the atmospheric Realm view. Existing provider CLIs
+remain the execution authority.
 
-## Decision
+Herdr is an optional high-quality presence source for agents running in its
+panes. Realmkeeper does not require it and does not reproduce its terminal,
+worktree, or remote-session substrate.
 
-- ✅ **Use Realmkeeper's event bus as the source of truth, not a new
-  orchestrator runtime.** The app's north star is to watch and intervene in
-  provider-native sessions, not replace Claude/Codex/Cursor/Gemini control
-  flow. LangGraph-style explicit workflows are relevant as a mental model
-  for state, interrupts, and recovery, but Realmkeeper should remain a
-  local observability/control plane over heterogeneous CLIs.
+## Implementation checkpoint — 2026-09-21
 
-- ✅ **Model traces locally as derived records first.** LangSmith, Langfuse,
-  Phoenix, and OpenAI Agents all center on trace/span records, but
-  Realmkeeper should not require a hosted account or API key. Add an
-  internal `TraceRecord`/`SpanRecord` projection from `AgentEvent` and persist
-  it under `~/.realmkeeper/traces/` before considering external export.
+Shipped in the working tree:
 
-- ✅ **Adopt OTel-compatible naming where it fits, without blocking on full
-  compliance.** Use concepts like `traceId`, `spanId`, `parentSpanId`,
-  `gen_ai.operation.name`, provider, conversation id, tool name, error type,
-  token usage, and duration. Store sensitive prompt/tool content separately
-  and make full-content capture opt-in.
+- typed observation, agent, attention, integration-health, snapshot, and delta
+  contracts;
+- a main-process `MonitorService` with identity reconciliation, authority,
+  fixed freshness transitions, provider inventory polling, metadata-only
+  privacy, and capability projection;
+- validated snapshot/delta IPC across main, preload, and renderer;
+- the default full-size Monitor workspace with Attention, Fleet, Inspector,
+  filtering, source evidence, capability-gated controls, and a remembered
+  Monitor / Realm switch;
+- an optional, metadata-only Herdr 0.9.1 source with native-session merging,
+  heartbeat freshness, integration health, and pane focus;
+- live verification against 36 local Claude/Codex sessions, six Herdr panes,
+  and a blocking permission fixture at 1280×720.
 
-- ✅ **Start with monitoring signals the King can act on.** First-class
-  signals: waiting approval/input age, stuck running session, repeated errors,
-  slow tool, loop-like tool repetition, subagent tree, provider exit/error,
-  and token/cost totals when providers expose them. Avoid dashboard noise that
-  does not map to a player action.
+Next: durable attention/history/usage persistence and packaged
+Monitor-specific E2E coverage.
 
-- ✅ **Export is a later adapter.** Once local traces are useful, add an
-  OTel-ish JSON export and possibly OTLP/third-party processors. Do not wire
-  LangSmith/Langfuse/Phoenix/OpenAI as required runtime dependencies.
+## What we decided
 
-## PR sequence
+| # | Decision | Settled by |
+|---|---|---|
+| 1 | ✅ Make Monitor the primary operational workspace; retain Star Chart as Realm view. | [H11](./RESEARCH.md#h11) |
+| 2 | ✅ Reconcile observations in Electron main with explicit source authority and freshness. | [H12](./RESEARCH.md#h12) |
+| 3 | ✅ Support Herdr as optional read-only presence/focus integration, never a runtime requirement. | [H8](./RESEARCH.md#h8), [H10](./RESEARCH.md#h10) |
+| 4 | ✅ Reuse typed session-control and permission paths for interventions. | [H7](./RESEARCH.md#h7), [H15](./RESEARCH.md#h15) |
+| 5 | ✅ Persist compact metadata observations and rollups once; do not use whole-trace snapshots as the monitoring history. | [H9](./RESEARCH.md#h9), [H13](./RESEARCH.md#h13) |
+| 6 | ✅ Show reported, derived, and unavailable usage separately; never present unknown as zero. | [H14](./RESEARCH.md#h14) |
 
-1. **Trace projection schema** — Add `src/shared/traces.ts` with
-   `TraceRecord`, `SpanRecord`, and redaction policy types. Add a pure
-   projector that maps `AgentEvent[]` into traces grouped by
-   `(tool, sessionId)` and spans for session, prompt turn, tool execution,
-   permission/input wait, subagent, and error.
+## What ships, in order
 
-2. **Durable local trace store** — Add an append-only JSONL trace store under
-   `~/.realmkeeper/traces/YYYY-MM-DD.jsonl` plus in-memory indexes for current
-   sessions. Keep raw `AgentEvent` unchanged at first; persist projected
-   trace records with stable event ids and redacted content metadata.
+| PR | Size | What it delivers | Why now |
+|---|---|---|---|
+| 1 | L | Product-vision update, monitoring schemas, main-process `MonitorService`, source authority, and snapshot IPC | Establishes one truthful model before another UI reads competing state |
+| 2 | L | Event-bus/provider-inventory sources, optional Herdr source, identity reconciliation, and integration health | Gives the fleet view broad, explainable coverage |
+| 3 | L | Full-size Monitor workspace with Attention, Fleet, Inspector, and capability-backed actions | Delivers the daily workflow the product currently lacks |
+| 4 | L | Durable attention lifecycle, compact metadata history, restart hydration, and usage rollups | Makes the monitor useful beyond the current renderer session |
+| 5 | M | Provider/version diagnostics, degraded-source behavior, privacy/performance gates, and packaged-app E2E | Makes the cockpit trustworthy enough for daily use |
 
-3. **Kingdom Observatory view** — Add a compact Kingdom panel tab or section
-   showing active traces, blocked/waiting sessions, slow tools, error streaks,
-   subagent trees, and provider cost/token totals when known. Link each row to
-   existing world/wielder focus and chat drawer behavior.
+## How we'll know it worked
 
-4. **Monitor rules and export seam** — Add local monitor rules that emit
-   low-noise letters for actionable anomalies. Add a manual export command
-   that writes OTel-shaped JSON for a selected session/day, with full content
-   excluded unless an explicit setting enables it.
+- A deterministic 100-agent fixture reconciles a snapshot in under 50 ms; a
+  100,000-observation/30-day fixture hydrates in under 500 ms and occupies less
+  than 50 MB on the project reference machine.
+- A permission or user-input request appears in Attention within one second;
+  Herdr/provider lifecycle changes appear within five seconds.
+- Every fleet row displays provider, repo/worktree when known, state, state
+  reason, source, freshness, and only the controls currently supported.
+- Fixture E2E proves approve/deny, send, interrupt, stop, attach/logs, and
+  Herdr focus either succeed or fail closed with an actionable reason.
+- Restart E2E preserves acknowledgement/snooze state and 30-day usage rollups,
+  while stale agents become `unknown` or `offline` instead of falsely `idle`.
+- A sentinel secret in prompt/tool content is absent from all monitor files and
+  exports under the default metadata-only policy.
+- Monitor renders without clipping at 1280×720 and 1440×900. `bun run
+  typecheck`, plain `bun run test`, build, and relevant Electron E2E pass.
 
-## Implementation progress
+## What we don't know yet
 
-Shipped on `main`:
+- Cursor, Gemini, Antigravity, and a genuinely blocked Herdr agent were not
+  present in the live seven-agent sample; those adapters need fixtures plus
+  post-build live validation.
+- Reliable token and cost fields vary by provider. The UI can prove coverage,
+  not manufacture missing usage.
+- The scale and latency targets are build-gated. If compact JSON metadata misses
+  them, a follow-on can justify SQLite with measured data instead of assumption.
+- Herdr is versioned independently. Its adapter must negotiate protocol/schema
+  support and disable itself cleanly on incompatibility.
+- Full-text prompt/output search, remote/mobile control, eval scoring, and
+  autonomous workflow ranking are explicitly outside this slice.
 
-- `TraceRecord`/`SpanRecord` projection from the flat AgentEvent stream,
-  covering sessions, prompt turns, tools, permission waits, user-input waits,
-  subagents, session-control events, errors, and orchestration run events.
-- Local trace store under `~/.realmkeeper/traces/` with day export support.
-- Kingdom Observatory tab with trace counts, active waits, monitor signals,
-  recent errors, trace sessions, and manual metadata-only OTel-shaped export.
-- Monitor signals for waiting, slow tool, stale trace, and recent error states.
-- Low-noise monitor letters for actionable anomalies. Permission/input waits
-  reuse the existing blocking letters when present; slow tools, stale traces,
-  and recent trace errors produce bounded, dismissible letters with send-word
-  and recall actions where a wielder is known.
-- Packaged-app Observatory e2e coverage that opens the Kingdom panel and
-  verifies fixture-backed active, waiting, completed, and error/monitor-signal
-  trace states.
-- Known provider usage from `session_end` payloads is normalized into trace
-  and export attributes, then shown as conditional Observatory token/cost stats
-  only when providers emit reliable values.
-- OTel-shaped export was validated against a Dockerized OpenTelemetry
-  Collector OTLP HTTP receiver in
-  [`probes/otel-collector-validation-2026-07-03.md`](./probes/otel-collector-validation-2026-07-03.md).
-- Orchestration lifecycle/checkpoint/budget events flow through the same
-  AgentEvent/trace/export path.
+## Where the detail lives
 
-Still active:
-
-- None requiring implementation with current provider streams.
-
-Deferred watchlist:
-
-- Revalidate strict GenAI semantic-convention compliance if the OTel GenAI
-  spec stabilizes or Realmkeeper adds a direct OTLP exporter.
-- Extend provider token/cost coverage if Codex app-server or Gemini streams
-  expose reliable usage values.
-
-## Acceptance gate
-
-- Unit tests cover trace projection for all four providers, including
-  permissions, user input, subagents, errors, session end, and Codex app-server
-  MCP elicitations.
-- E2E fixture run shows an Observatory surface with at least one active trace,
-  one waiting permission/input state, one completed trace, and one error or
-  blocked state.
-- Trace persistence survives app restart in an isolated temp home and does not
-  corrupt existing `~/.realmkeeper/state.json` or permission rules.
-- Exported trace JSON for fixture data contains stable trace/span hierarchy,
-  provider/session/repo attributes, duration fields, and no raw prompt/tool
-  content unless the explicit content-capture setting is enabled.
-- No provider-specific live path regresses: `bun run typecheck`,
-  `bun run test`, and `bun run test:e2e` pass.
-
-## Coverage gaps — what this does NOT validate
-
-- Live provider cost/token metadata is inconsistent. The first pass can only
-  surface values providers already emit in stream/hook payloads.
-- OTel GenAI conventions are still in development. We should use their
-  vocabulary but avoid claiming strict compliance until an export probe
-  validates against a real collector.
-- This plan does not add cloud dashboards. External systems remain optional
-  export targets after local traces prove useful.
-- This does not implement provider-native orchestration. Realmkeeper still
-  steers through existing spawn/resume/prompt/permission paths.
+- **Mechanism and touchpoints** → [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Evidence, lifecycle, and blind spots** → [RESEARCH.md](./RESEARCH.md) · [probes](./probes/README.md)
+- **Decision history** → [DECISIONS.md](./DECISIONS.md)

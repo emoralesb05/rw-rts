@@ -4,6 +4,10 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Active
 
+- [`agent-observability-control-plane/`](./agent-observability-control-plane/) —
+  monitoring-first follow-on: reconcile native events, provider inventory, and
+  optional Herdr presence into a full-size Attention / Fleet / Inspector
+  workspace with durable metadata history, usage coverage, and safe controls.
 - [`session-control-plane/`](./session-control-plane/) — follow-up
   provider-native controls are now partially unblocked by focused probes:
   Codex provider-session list/fork and Claude provider-session discovery,
@@ -12,11 +16,6 @@ Tactical implementation plans. These are more volatile than architecture docs an
 
 ## Completed / Watchlist
 
-- [`agent-observability-control-plane/`](./agent-observability-control-plane/) —
-  local-first traces, session health, monitor letters, conditional usage
-  totals, and OTel Collector validation shipped. Watchlist: strict GenAI
-  semantic-convention revalidation and Codex/Gemini usage if providers expose
-  reliable values.
 - [`session-control-plane/`](./session-control-plane/) — provider-aware
   in-app send/interject, interrupt/recall gating, typed fail-closed IPC, and
   packaged-app failure coverage shipped. Follow-up: Codex list/fork and

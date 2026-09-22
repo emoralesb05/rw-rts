@@ -148,16 +148,27 @@ interface RemendOptions {
 
 ```tsx
 type ControlsConfig = boolean | {
-  table?: boolean;
-  code?: boolean;
+  table?: boolean | {
+    copy?: boolean;
+    download?: boolean | { filename: string };
+    fullscreen?: boolean;
+    csvSeparator?: "," | ";" | "\t" | "auto";
+  };
+  code?: boolean | {
+    copy?: boolean;
+    download?: boolean | { filename: string };
+  };
   mermaid?: boolean | {
-    download?: boolean;
+    download?: boolean | { filename: string };
     copy?: boolean;
     fullscreen?: boolean;
     panZoom?: boolean;
   };
 };
 ```
+
+Use `download: { filename: "customName" }` to set a custom base filename. The
+file extension is appended automatically.
 
 ## LinkSafetyConfig
 

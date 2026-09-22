@@ -37,6 +37,24 @@ Phaser 4 is a complete overhaul of the WebGL rendering engine. The v3 renderer l
 
 ---
 
+## Additions in Phaser 4.2
+
+- `Mesh2D` renders textured triangles and can precompute quad-friendly ordered
+  indices with `buildOrderedIndices()`.
+- `CustomContext` changes the renderer `DrawingContext` at a precise display
+  list position for advanced operations such as stencil or scissor control.
+- Cone lights are configured with `Light.setCone()`,
+  `Light.setConeRotation()`, `Light.setConeAngles()`, or
+  `LightsManager.addConeLight()`.
+- `render.alphaStrategy`, `render.stencil`, and
+  `render.stencilAlphaStrategy` are available in game configuration.
+- Tint mode `MULTIPLY_TWO` uses a second tint color for dark texture regions.
+
+These are 4.2 APIs. Confirm exact signatures against the installed Phaser
+types before using the low-level rendering hooks.
+
+---
+
 ## Filters System (Replacing FX and BitmapMask)
 
 > Full reference: `filters-and-postfx.md`

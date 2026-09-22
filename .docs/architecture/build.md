@@ -3,7 +3,7 @@
 ## Stack
 
 - **Bun** — package manager + script runner (`bun run dev`)
-- **Electron 41** + **electron-vite** — wraps Vite for main / preload / renderer
+- **Electron 44** + **electron-vite** — wraps Vite for main / preload / renderer
 - **Vite** — bundler, with `@vitejs/plugin-react` for JSX and `@tailwindcss/vite` for utility classes
 - **TypeScript** — split tsconfigs (`tsconfig.node.json` for main+preload, `tsconfig.web.json` for renderer)
 - **Phaser 4** — game engine (canvas)
@@ -120,7 +120,7 @@ The user-dir copy is what Claude/Cursor/Codex/Gemini actually invoke. Repo and `
 
 ## Version constraints
 
-- **Electron 41** — latest stable as of 2026-Q1; required for current Phaser 4 + React 19 compat
+- **Electron 44** — current stable runtime; keep Electron security boundaries and packaging checks version-aligned
 - **Phaser 4** — major version jump from Phaser 3; scene API and renderer differ
 - **React 19** — concurrent mode, new fiber. Some libraries (incl. some Streamdown plugins) lagged briefly during the transition
 - **Bun** — chosen over npm/pnpm for install speed and ts script execution. Scripts in `package.json` are bun-runnable but should also work with `npm run` if needed

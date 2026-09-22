@@ -48,8 +48,7 @@ export class LocalOrchestrationStore {
   private readonly now: () => number;
   private readonly idFactory: () => string;
   private readonly onRunEvent:
-    | ((run: OrchestrationRun, event: OrchestrationRunEvent) => void)
-    | undefined;
+    ((run: OrchestrationRun, event: OrchestrationRunEvent) => void) | undefined;
   private cache: OrchestrationStoreFile | null = null;
 
   constructor(options: OrchestrationStoreOptions = {}) {

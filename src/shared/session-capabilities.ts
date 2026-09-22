@@ -27,9 +27,7 @@ export const SESSION_CONTROL_NAMES = [
 ] as const satisfies readonly SessionControlName[];
 
 export type PermissionAuthority =
-  | "realmkeeper"
-  | "provider-native"
-  | "observe-only";
+  "realmkeeper" | "provider-native" | "observe-only";
 
 export type SessionCapability = {
   available: boolean;

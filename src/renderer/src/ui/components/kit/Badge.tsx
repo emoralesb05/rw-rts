@@ -2,13 +2,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 
 type BadgeTone =
-  | "default"
-  | "muted"
-  | "accent"
-  | "gold"
-  | "success"
-  | "warning"
-  | "danger";
+  "default" | "muted" | "accent" | "gold" | "success" | "warning" | "danger";
 
 export type BadgeProps = ComponentProps<"span"> & {
   tone?: BadgeTone;
