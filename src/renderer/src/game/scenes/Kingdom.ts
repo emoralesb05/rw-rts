@@ -72,6 +72,12 @@ import {
 } from "../tactical-map";
 import type { Riftling } from "@shared/events";
 import { publicAsset } from "../../public-asset";
+import {
+  drawWorldMapEnvironment,
+  WORLD_MAP_GRID,
+  worldTileTint,
+  worldTileTone,
+} from "../world-map-design";
 
 // Aura-state colors — match the RW visual language.
 const AURA_COLORS: Record<WardenAura, number> = {
@@ -87,7 +93,7 @@ const SCANLINE_ALPHA = 0.16;
 // (was 12×12 with TILE_W=96/TILE_H=48); shrunk to fit cluster spacing.
 const ISO_TILE_W = 64;
 const ISO_TILE_H = 32;
-const ISO_GRID = 6;
+const ISO_GRID = WORLD_MAP_GRID;
 // Container scale to fit a per-world iso plane in roughly a 230×230 box,
 // matching the cluster inner-ring spacing. Worlds are positioned by the
 // cluster layout; this scale just makes their internal renderings fit.
@@ -207,69 +213,9 @@ const THEME_BIOMES: Record<WorldTheme, BiomePalette> = {
   },
 };
 
-const THEME_TILE_TINT: Record<WorldTheme, [number, number]> = {
-  citadel: [0xc9ddff, 0x9fc2ff],
-  bastion: [0x7a5db7, 0x4b367f],
-  crossroads: [0xd08a4f, 0x9d5f36],
-  tide: [0xf4d5a4, 0x8ed5ff],
-  dusk: [0xf2a0ad, 0xb77aa0],
-  lantern: [0x7c5a9f, 0x4c2c66],
-};
-
 // Per-theme landmark: at the center of the iso plane. Texture key
 // matches the loader pattern landmark-${theme}.
 const LANDMARK_TEX = (theme: WorldTheme) => `landmark-${theme}`;
-
-// Themed accent positions per theme (offsets from the iso center, in
-// per-world iso coordinates). Bumped from 2 to 4-5 per theme so each
-// world reads as populated rather than sparse (Phase 2A — per-world
-// signature decorations beyond MVP one-each).
-const THEME_ACCENTS: Record<
-  WorldTheme,
-  { tx: number; ty: number; scale: number; alpha: number }[]
-> = {
-  citadel: [
-    { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
-    { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
-    { tx: 0.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
-    { tx: 4.5, ty: 1.5, scale: 0.45, alpha: 0.6 },
-    { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
-  ],
-  bastion: [
-    { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
-    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
-    { tx: 1.2, ty: 1.2, scale: 0.5, alpha: 0.75 },
-    { tx: 3.8, ty: 1.2, scale: 0.5, alpha: 0.75 },
-  ],
-  crossroads: [
-    { tx: 1, ty: 4, scale: 0.7, alpha: 0.85 },
-    { tx: 4, ty: 4, scale: 0.7, alpha: 0.85 },
-    { tx: 0.6, ty: 0.6, scale: 0.5, alpha: 0.7 },
-    { tx: 4.4, ty: 0.6, scale: 0.5, alpha: 0.7 },
-    { tx: 2.5, ty: 5.5, scale: 0.55, alpha: 0.75 },
-  ],
-  tide: [
-    { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
-    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
-    { tx: 0.4, ty: 2.5, scale: 0.4, alpha: 0.65 },
-    { tx: 4.6, ty: 2.5, scale: 0.4, alpha: 0.65 },
-    { tx: 2.5, ty: 5.6, scale: 0.5, alpha: 0.7 },
-  ],
-  dusk: [
-    { tx: 1, ty: 4, scale: 0.6, alpha: 0.85 },
-    { tx: 4, ty: 4, scale: 0.6, alpha: 0.85 },
-    { tx: 1.2, ty: 1.5, scale: 0.45, alpha: 0.65 },
-    { tx: 3.8, ty: 1.5, scale: 0.45, alpha: 0.65 },
-    { tx: 2.5, ty: 5.2, scale: 0.5, alpha: 0.7 },
-  ],
-  lantern: [
-    { tx: 1, ty: 4, scale: 0.6, alpha: 0.9 },
-    { tx: 4, ty: 4, scale: 0.6, alpha: 0.9 },
-    { tx: 0.5, ty: 1, scale: 0.5, alpha: 0.8 },
-    { tx: 4.5, ty: 1, scale: 0.5, alpha: 0.8 },
-    { tx: 2.5, ty: 5.5, scale: 0.55, alpha: 0.85 },
-  ],
-};
 
 // Per-theme particle palette: small drifting motes inside the world's
 // iso footprint. Color + count + speed varies per theme to give each
@@ -4925,115 +4871,10 @@ export class KingdomScene extends Phaser.Scene {
     return undefined;
   }
 
-  private drawIsoThemeDressing(
-    plane: Phaser.GameObjects.Container,
-    theme: WorldTheme,
-    isoToLocal: (tx: number, ty: number) => { x: number; y: number }
-  ) {
-    const g = this.add.graphics();
-    const palette = THEME_BIOMES[theme];
-    const center = isoToLocal(ISO_GRID / 2, ISO_GRID / 2);
-    if (theme === "tide") {
-      g.fillStyle(0x6cc6ff, 0.2);
-      g.fillEllipse(center.x, center.y + 46, 190, 26);
-      g.lineStyle(1.4, 0xb3e0ff, 0.58);
-      for (let i = 0; i < 4; i++) {
-        const y = center.y + 34 + i * 7;
-        g.beginPath();
-        for (let x = center.x - 95; x <= center.x + 95; x += 14) {
-          const yy = y + Math.sin(x * 0.06 + i) * 3;
-          if (x === center.x - 95) g.moveTo(x, yy);
-          else g.lineTo(x, yy);
-        }
-        g.strokePath();
-      }
-    } else if (theme === "crossroads") {
-      g.lineStyle(5, 0x2a1720, 0.42);
-      g.lineBetween(
-        center.x - 114,
-        center.y + 10,
-        center.x + 112,
-        center.y + 10
-      );
-      g.lineBetween(center.x, center.y - 58, center.x, center.y + 76);
-      g.lineStyle(1.4, 0xffd86b, 0.42);
-      for (let i = -2; i <= 2; i++) {
-        g.lineBetween(
-          center.x - 82,
-          center.y + i * 18,
-          center.x + 82,
-          center.y + i * 18
-        );
-      }
-    } else if (theme === "bastion") {
-      for (let i = 0; i < 6; i++) {
-        const a = i * ((Math.PI * 2) / 6);
-        const x = center.x + Math.cos(a) * 78;
-        const y = center.y + Math.sin(a) * 36;
-        g.fillStyle(i % 2 === 0 ? palette.accent : palette.lane, 0.34);
-        g.fillTriangle(x, y - 20, x - 9, y + 12, x + 10, y + 10);
-        g.lineStyle(1, 0xffd86b, 0.3);
-        g.strokeTriangle(x, y - 20, x - 9, y + 12, x + 10, y + 10);
-      }
-    } else if (theme === "dusk") {
-      g.lineStyle(1.5, palette.accent, 0.4);
-      g.strokeCircle(center.x, center.y - 10, 44);
-      g.strokeCircle(center.x, center.y - 10, 66);
-      g.lineStyle(3, 0x6b4423, 0.38);
-      g.lineBetween(center.x - 92, center.y + 52, center.x + 92, center.y - 18);
-      g.lineStyle(1, 0xffd86b, 0.38);
-      for (let i = 0; i < 7; i++) {
-        const x = center.x - 72 + i * 24;
-        g.lineBetween(x, center.y + 42 - i * 4, x + 10, center.y + 34 - i * 4);
-      }
-    } else if (theme === "lantern") {
-      g.lineStyle(1.6, 0xff7a4a, 0.48);
-      for (let i = 0; i < 7; i++) {
-        const x = center.x - 92 + i * 30;
-        g.beginPath();
-        g.moveTo(x, center.y + 48);
-        g.lineTo(x + 10, center.y + 12);
-        g.lineTo(x - 5, center.y - 20);
-        g.strokePath();
-      }
-      g.fillStyle(0x05050a, 0.52);
-      g.fillTriangle(
-        center.x - 44,
-        center.y - 60,
-        center.x - 32,
-        center.y - 54,
-        center.x - 39,
-        center.y - 49
-      );
-      g.fillTriangle(
-        center.x + 58,
-        center.y - 46,
-        center.x + 70,
-        center.y - 40,
-        center.x + 63,
-        center.y - 35
-      );
-    } else {
-      g.lineStyle(1.5, palette.accent, 0.34);
-      for (let i = 0; i < 10; i++) {
-        const a = i * ((Math.PI * 2) / 10);
-        g.lineBetween(
-          center.x + Math.cos(a) * 28,
-          center.y + Math.sin(a) * 12,
-          center.x + Math.cos(a) * 104,
-          center.y + Math.sin(a) * 52
-        );
-      }
-      g.lineStyle(2, 0xffd86b, 0.36);
-      g.strokeEllipse(center.x, center.y + 18, 138, 44);
-    }
-    plane.add(g);
-  }
-
   /**
    * Build a small iso plane (ISO_GRID × ISO_GRID tiles) into the given
-   * container, centered on the container origin, with the theme's
-   * landmark sprite at center + small accent landmarks at fixed offsets.
+   * container, centered on the container origin, with a theme-specific
+   * footprint, districts, environmental props, and central landmark.
    * Falls back to drawn polygons if the tile texture didn't load.
    */
   private buildIsoPlane(
@@ -5051,12 +4892,14 @@ export class KingdomScene extends Phaser.Scene {
     if (haveTiles) {
       for (let x = 0; x < ISO_GRID; x++) {
         for (let y = 0; y < ISO_GRID; y++) {
+          const tone = worldTileTone(theme, x, y);
+          if (tone === ".") continue;
           const c = isoToLocal(x + 0.5, y + 0.5);
           const tex = (x + y) % 2 === 0 ? "tile-iso-a" : "tile-iso-b";
           const tile = this.add.image(c.x, c.y, tex);
           tile.setOrigin(0.5, 0.5);
-          tile.setTint(THEME_TILE_TINT[theme][(x + y) % 2]);
-          tile.setAlpha(0.96);
+          tile.setTint(worldTileTint(theme, tone));
+          tile.setAlpha(tone === "a" ? 1 : 0.96);
           plane.add(tile);
         }
       }
@@ -5066,11 +4909,13 @@ export class KingdomScene extends Phaser.Scene {
       g.lineStyle(1, 0x1d2851, 0.6);
       for (let x = 0; x < ISO_GRID; x++) {
         for (let y = 0; y < ISO_GRID; y++) {
+          const tone = worldTileTone(theme, x, y);
+          if (tone === ".") continue;
           const a = isoToLocal(x, y);
           const b = isoToLocal(x + 1, y);
           const c = isoToLocal(x + 1, y + 1);
           const d = isoToLocal(x, y + 1);
-          g.fillStyle((x + y) % 2 === 0 ? 0x0a1130 : 0x0d1638, 1);
+          g.fillStyle(worldTileTint(theme, tone), tone === "a" ? 1 : 0.92);
           g.fillPoints([a, b, c, d] as Phaser.Math.Vector2[], true);
           g.strokePoints([a, b, c, d, a] as Phaser.Math.Vector2[]);
         }
@@ -5078,7 +4923,7 @@ export class KingdomScene extends Phaser.Scene {
       plane.add(g);
     }
 
-    this.drawIsoThemeDressing(plane, theme, isoToLocal);
+    drawWorldMapEnvironment(this, plane, theme, isoToLocal);
 
     // Center landmark (themed). Anchored bottom-center so the building
     // sits on the central tile; lifted slightly so it doesn't intersect
@@ -5090,16 +4935,6 @@ export class KingdomScene extends Phaser.Scene {
       lm.setOrigin(0.5, 1);
       lm.setScale(1.4);
       plane.add(lm);
-
-      // Small accent decorations scattered around.
-      for (const a of THEME_ACCENTS[theme]) {
-        const p = isoToLocal(a.tx + 0.5, a.ty + 0.5);
-        const acc = this.add.image(p.x, p.y - 2, tex);
-        acc.setOrigin(0.5, 1);
-        acc.setScale(a.scale);
-        acc.setAlpha(a.alpha);
-        plane.add(acc);
-      }
     }
   }
 
