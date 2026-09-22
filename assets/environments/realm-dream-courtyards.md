@@ -1,0 +1,10 @@
+# Courtyard surfaces
+
+Generated with the built-in image-generation tool. Original atlas preserved as
+1536×1024 RGBA, six 512×512 frames. Loaded as scenery only; no navigation,
+agent size, session state, or seat identity changes. Existing paving remains
+the missing-texture fallback and an underlay for recessed silhouettes.
+
+## Generation prompt
+
+Use case: stylized-concept. Asset type: production 2D fantasy RTS ground decal spritesheet, genuinely transparent RGBA background. Generate a 1536x1024 atlas in an exact 3-column by 2-row grid of six 512x512 cells. Each cell contains ONE flat courtyard paving surface centered at (256,256), occupying roughly x=16..496 and y=50..462. High angle three-quarter overhead painted game art, luminous ivory/blue/gold dream kingdom, refined Japanese fantasy aesthetic, not medieval rustic. All six have the SAME large unobstructed central walking surface, with subtle low-contrast paving texture; decorative differences only at outer edges. No raised platforms, no cliffs, no tall objects, no buildings, no characters, no text, no gridlines. Edges irregular but walkable central area broad; entirely transparent outside each decal. Cell order: top-left warm ivory octagonal workshop courtyard, restrained brass geometric inlay and tiny inset cobalt corner beds; top-middle pale blue archive court with rectangular fan paving and fine navy/gold border; top-right crossroads plaza ivory angular cobblestone with subtle branching path inlays; bottom-left garden court with soft irregular perimeter and very low moss/lilac flower edging, warm pale paving; bottom-middle observatory courtyard with elegant subtle star mosaic in muted pearl and lavender, no giant glowing rune; bottom-right waterfront court with pale blue curved wave paving and restrained turquoise edge accents. Keep surfaces light enough for tiny dark characters to read clearly but not white glowing. No shadows outside cells; no overlapping cell boundaries. Professional crisp painterly textures and delicately weathered stone, not photoreal, not pixel art. All six surfaces must be flat ground decals without vertical sides or thick rims. Transparent background.

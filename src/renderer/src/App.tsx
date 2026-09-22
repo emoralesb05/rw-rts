@@ -3,11 +3,15 @@ import { DecreeModal } from "./ui/DecreeModal";
 import { ActivityLog } from "./ui/ActivityLog";
 import { PanelLayer } from "./ui/floating/PanelLayer";
 import { PhaserGame } from "./game/PhaserGame";
+import { NextRealmAsk } from "./ui/hud/NextRealmAsk";
+import { RealmGuide } from "./ui/hud/RealmGuide";
+import { FIT_REALM_EVENT } from "./game/realm-framing";
 import { WielderHUD } from "./ui/hud/WielderHUD";
 import { AlertsHUD } from "./ui/hud/AlertsHUD";
 import { LettersHUD } from "./ui/hud/LettersHUD";
 import { KingdomHeader } from "./ui/hud/KingdomHeader";
 import { WorldCommandHUD } from "./ui/hud/WorldCommandHUD";
+import { CompactHudContext, usePersistedBool } from "./ui/hud/hud-prefs";
 import { CommandPalette } from "./ui/CommandPalette";
 import { TooltipProvider } from "./ui/components/primitives/Tooltip";
 import { AppToastProvider } from "./ui/components/kit/ToastLayer";
@@ -59,8 +63,14 @@ export function App() {
 }
 
 function RealmWorkspace({ onOpenMonitor }: { onOpenMonitor(): void }) {
+  const [expandedHud, setExpandedHud] = usePersistedBool(
+    "expanded-realm-hud",
+    false
+  );
   return (
-    <div className="grid h-screen grid-cols-1 grid-rows-1">
+    <div
+      className={`realm-workspace grid h-screen grid-cols-1 grid-rows-1 ${expandedHud ? "" : "realm-immersive"}`}
+    >
       <div className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-8 [-webkit-app-region:drag]" />
       <div className="fixed top-3 left-1/2 z-[250] flex -translate-x-1/2 rounded-md border border-[#2a3a6c] bg-[#0a0e1a]/90 p-0.5 shadow-lg backdrop-blur [-webkit-app-region:no-drag]">
         <button
@@ -76,15 +86,34 @@ function RealmWorkspace({ onOpenMonitor }: { onOpenMonitor(): void }) {
         >
           Realm
         </button>
+        <button
+          type="button"
+          aria-pressed={expandedHud}
+          onClick={() => setExpandedHud((v) => !v)}
+          className="px-3 py-1 text-[11px] font-semibold text-[#c7ba93]"
+        >
+          {expandedHud ? "Compact HUD" : "Expand HUD"}
+        </button>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(FIT_REALM_EVENT))}
+          className="px-3 py-1 text-[11px] font-semibold text-[#c7ba93]"
+        >
+          Recenter realm
+        </button>
+        <NextRealmAsk />
+        <RealmGuide />
       </div>
       <div className="relative block min-h-0 min-w-0 overflow-hidden bg-[#04060d] [&_canvas]:block">
         <PhaserGame />
         <KingdomHeader />
-        <WielderHUD />
-        <AlertsHUD />
-        <ActivityLog />
+        <CompactHudContext.Provider value={!expandedHud}>
+          <WielderHUD />
+          <AlertsHUD />
+          <ActivityLog />
+          <LettersHUD />
+        </CompactHudContext.Provider>
         <WorldCommandHUD />
-        <LettersHUD />
       </div>
       <DecreeModal />
       <PanelLayer />

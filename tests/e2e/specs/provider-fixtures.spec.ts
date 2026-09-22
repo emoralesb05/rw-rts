@@ -27,6 +27,7 @@ test("renders activity for all provider fixture turns", async ({
   await waitForTools(page, ["claude", "cursor", "codex", "gemini"]);
 
   const wielders = page.getByRole("region", { name: "Wielders" });
+  await wielders.getByRole("button", { name: "Expand Wielders" }).click();
   for (const label of ["Claude", "Cursor", "Codex", "Gemini"]) {
     await expect(wielders.getByText(label).first()).toBeVisible();
   }
@@ -43,6 +44,7 @@ test("sends chat follow-ups through Realmkeeper prompt IPC", async ({
   await playFixture(page, "cursor-turn");
   await waitForTools(page, ["cursor"]);
 
+  await page.getByRole("button", { name: "Expand Wielders" }).click();
   await page
     .getByRole("button", { name: /Open chat with /i })
     .first()

@@ -64,9 +64,14 @@ export type RwE2eWindow = Window & {
     }): Promise<OrchestrationRun>;
     listOrchestrationRuns(): Promise<OrchestrationRun[]>;
   };
-  __rwSeedVisualQa?: () => { activeWorldId: string | null };
+  __rwSeedVisualQa?: (
+    now?: number,
+    busy?: boolean,
+    overflow?: boolean
+  ) => { activeWorldId: string | null };
   __rwStore?: {
     getState(): {
+      orchestrationRuns: Record<string, OrchestrationRun>;
       events: Array<{
         sessionId: string;
         kind: string;

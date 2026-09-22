@@ -25,32 +25,42 @@ export function computeClusterLayout(
   }
 
   const sortedKeys = [...clusters.keys()].sort();
+  const shelfWidth = Math.max(960, Math.ceil(Math.sqrt(worlds.length)) * 530);
+  let clusterLeft = 420;
+  let shelfTop = 0;
+  let shelfHeight = 0;
 
   for (const key of sortedKeys) {
     const members = clusters
       .get(key)!
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
-    const ch = hashString(key);
-    const outerRadius = 520 + (Math.abs(ch) % 320);
-    const outerAngle = ((Math.abs(ch >> 8) % 360) * Math.PI) / 180;
-    const cx = Math.cos(outerAngle) * outerRadius;
-    const cy = Math.sin(outerAngle) * outerRadius;
+    const columns = Math.ceil(Math.sqrt(members.length));
+    const rows = Math.ceil(members.length / columns);
+    const districtWidth = columns * 430 + 100;
+    if (clusterLeft > 420 && clusterLeft + districtWidth > 420 + shelfWidth) {
+      clusterLeft = 420;
+      shelfTop += shelfHeight + 100;
+      shelfHeight = 0;
+    }
+    const cx = clusterLeft;
+    const cy = shelfTop;
+    shelfHeight = Math.max(shelfHeight, rows * 370);
 
     if (members.length === 1) {
       out.set(members[0].id, { x: cx, y: cy, clusterKey: key });
+      clusterLeft += districtWidth;
       continue;
     }
 
-    const innerRadius = Math.min(280, 145 + members.length * 20);
     members.forEach((w, i) => {
-      const angle = (i / members.length) * Math.PI * 2 - Math.PI / 2;
       out.set(w.id, {
-        x: cx + Math.cos(angle) * innerRadius,
-        y: cy + Math.sin(angle) * innerRadius,
+        x: cx + (i % columns) * 430,
+        y: cy + Math.floor(i / columns) * 370,
         clusterKey: key,
       });
     });
+    clusterLeft += districtWidth;
   }
 
   return out;

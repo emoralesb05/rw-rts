@@ -7,6 +7,8 @@ import { Crosshair, Play, ShieldCheck, Swords, X } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore, type WorldCommandAnchor } from "../../store";
 import { themeFor, themeLabel } from "../../game/realm-worlds";
+import { computeTerrainLayout } from "../../game/realm-terrain";
+import { DistrictRunSites } from "./DistrictRunSites";
 import { summarizeEvent, shortAgo } from "../event-summary";
 import { AgentToolBadge } from "../AgentToolBadge";
 import { usePanels } from "../floating/panel-store";
@@ -48,7 +50,7 @@ const COMMAND_POPOVER_MARGIN = 12;
 // Reserve the fixed HUD lanes on desktop so this contextual popover never
 // steals clicks from the roster, activity log, alerts, or top command bar.
 const COMMAND_POPOVER_TOP_MARGIN = 116;
-const COMMAND_POPOVER_LEFT_GUTTER = 548;
+const COMMAND_POPOVER_LEFT_GUTTER = 360;
 const COMMAND_POPOVER_RIGHT_GUTTER = 360;
 const COMMAND_POPOVER_GAP = 18;
 
@@ -378,6 +380,7 @@ export function WorldCommandHUD() {
   const openPanel = usePanels((state) => state.openPanel);
   const focusAlerts = usePanels((state) => state.focusAlerts);
   const world = activeWorldId ? worlds[activeWorldId] : undefined;
+  const terrainLayout = useMemo(() => computeTerrainLayout(worlds), [worlds]);
   const worldCommandAnchor = useStore((state) => state.worldCommandAnchor);
   const viewport = useViewportSize();
   const [panelRef, panelSize] = useMeasuredSize<HTMLElement>();
@@ -400,7 +403,9 @@ export function WorldCommandHUD() {
 
   if (!world || !brief) return null;
 
-  const themeName = themeLabel(themeFor(world.id));
+  const themeName = themeLabel(
+    terrainLayout.get(world.id)?.theme ?? themeFor(world.id)
+  );
 
   const openDispatch = () => {
     selectWorld(world.id);
@@ -519,9 +524,10 @@ export function WorldCommandHUD() {
         </div>
 
         <aside className="flex min-w-0 flex-col gap-2">
+          <DistrictRunSites worldId={world.id} />
           <div className="flex items-center justify-between gap-2">
             <span className="text-muted font-mono text-[9px] tracking-[0.7px] uppercase">
-              mission line
+              agent sessions
             </span>
           </div>
           <div className="flex max-h-[126px] min-w-0 flex-col gap-1 overflow-y-auto pr-1">

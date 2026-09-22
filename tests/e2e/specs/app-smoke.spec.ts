@@ -46,6 +46,7 @@ test("covers the core Electron shell flows", async ({ appPage: page }) => {
   await page.getByRole("button", { name: "Close Kingdom" }).click();
   await expect(kingdom).toBeHidden();
 
+  await page.getByRole("button", { name: "Expand Wielders" }).click();
   await page.getByRole("button", { name: "Dispatch a wielder" }).click();
   const dispatch = page.getByRole("dialog", { name: "Dispatch" });
   await expect(dispatch).toBeVisible();

@@ -35,7 +35,12 @@ export const test = base.extend<ElectronFixtures>({
     const home = mkdtempSync(join(tmpdir(), "realmkeeper-e2e-home-"));
     const userData = mkdtempSync(join(tmpdir(), "realmkeeper-e2e-user-data-"));
     const app = await electron.launch({
-      args: [join(repoRoot, "out/main/index.js")],
+      ...(process.env.REALMKEEPER_E2E_EXECUTABLE
+        ? {
+            executablePath: resolve(process.env.REALMKEEPER_E2E_EXECUTABLE),
+            args: [],
+          }
+        : { args: [join(repoRoot, "out/main/index.js")] }),
       env: {
         ...process.env,
         ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
@@ -54,6 +59,8 @@ export const test = base.extend<ElectronFixtures>({
     });
 
     try {
+      if (process.env.REALMKEEPER_E2E_EXECUTABLE)
+        expect(await app.evaluate(({ app }) => app.isPackaged)).toBe(true);
       await runFixture(app);
     } finally {
       await app.close().catch(() => {});

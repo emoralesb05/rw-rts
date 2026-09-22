@@ -2,6 +2,40 @@
 
 All notable changes to realmkeeper. Format follows [Keep a Changelog](https://keepachangelog.com/) section names and [Conventional Commits](https://www.conventionalcommits.org/) `type(scope): subject` bullets. Hashes link to the commit on GitHub.
 
+## [0.9.0] (2026-09-22)
+
+The Realm becomes a connected, readable fantasy watch room with district-specific
+scenery, grounded agent activity, and inspection that keeps the selected agent
+visible. Monitor remains the primary operational workspace.
+
+### Features
+
+- **realm:** connected terrain, six painted districts, scaled landmarks,
+  integrated courtyard paving, workstations, and restrained contact shading.
+- **realm:** stable courtyard seats and overflow annexes for dense fleets;
+  tactical navigation, full-screen framing, and compact HUD controls.
+- **activity:** evidence-backed working, blocked, stale, quiet, attention, and
+  ended sites; explicit run links and brief observed-session acknowledgements.
+- **inspection:** character/workstation hover and inspection, next-ask navigation,
+  selected-label priority, and agent focus beside floating inspectors.
+
+### Fixes
+
+- Prevent HUD clicks from selecting scenery through overlays.
+- Preserve actor placement during region expansion and contraction.
+- Keep urgent captions clear of map obstacles and readable at overview zoom.
+- Keep ended-session inspectors readable without implying task success.
+- Isolate optional Herdr integration in desktop fixtures.
+
+### Verification and distribution
+
+- Expanded unit, asset, compact-layout, dense-fleet, and Electron regressions.
+- E2E harness can exercise the packaged executable as well as the source build.
+- macOS Apple Silicon build only; unsigned and not notarized. No dependency or
+  persistence migration is introduced by this release.
+
+---
+
 ## [0.8.0] (2026-09-21)
 
 This release turns Realmkeeper into a monitor-first local agent operations

@@ -213,3 +213,64 @@
  * to the top when a new permission letter arrives or on click, then
  * sits at the default HUD z (50) until the next focus. See
  * AlertsHUD.tsx for the trigger logic. */
+
+/* Realm is a landscape first. The full operational workspace remains Monitor. */
+.realm-immersive .hud-top-left {
+  top: 96px;
+  width: 280px;
+  max-height: 202px;
+}
+
+.realm-immersive .hud-top-right {
+  top: 96px;
+  width: 280px;
+  max-height: 258px;
+}
+
+.realm-immersive .hud-bottom-right {
+  width: 280px;
+  max-height: 174px;
+}
+
+.realm-immersive .activity-log {
+  width: 280px;
+  max-height: 134px;
+}
+
+.realm-immersive .hud-collapsed {
+  width: 156px;
+}
+
+.realm-immersive .activity-collapsed {
+  width: 156px;
+}
+
+.realm-immersive .hud-collapsed header {
+  min-height: 34px;
+}
+
+.realm-workspace button:focus-visible {
+  outline: 2px solid #a4deef;
+  outline-offset: 3px;
+}
+
+.realm-workspace .hud {
+  border-color: #c2b2ef43;
+  background-color: #14152ce8;
+}
+
+/* Quiet collapsed chrome; amber remains reserved for operational attention. */
+.realm-immersive .hud-collapsed:not(.hud-tone-alert) {
+  border-color: #abcbe833;
+  background-color: #101a2cd9;
+  box-shadow: 0 4px 14px #070d1926;
+}
+
+.realm-immersive .hud-collapsed:not(.hud-tone-alert) header .text-accent-alt {
+  color: #bcd3e9;
+}
+
+.realm-immersive .hud-collapsed:focus-within,
+.realm-immersive .hud-collapsed:hover {
+  border-color: #a4deef88;
+}

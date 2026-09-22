@@ -12,6 +12,7 @@ import { SettingsPanelBody } from "./SettingsPanelBody";
 import { KingdomPanelBody, type KingdomTabKey } from "./KingdomPanelBody";
 import { DispatchPanelBody } from "./DispatchPanelBody";
 import { ChatDrawer } from "./ChatDrawer";
+import { RunSitePanelBody } from "./RunSitePanelBody";
 
 export function PanelLayer() {
   const panels = usePanels((s) => s.panels);
@@ -21,6 +22,8 @@ export function PanelLayer() {
         <FloatingPanel key={p.id} panel={p}>
           {p.kind === "wielder" && p.key ? (
             <WielderPanelBody unitId={p.key} />
+          ) : p.kind === "run" && p.key ? (
+            <RunSitePanelBody runId={p.key} />
           ) : p.kind === "settings" ? (
             <SettingsPanelBody
               onSaved={() =>

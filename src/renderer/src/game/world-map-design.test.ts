@@ -43,6 +43,13 @@ describe("world map designs", () => {
       expect(prop.at[0]).toBeLessThan(WORLD_MAP_GRID);
       expect(prop.at[1]).toBeGreaterThanOrEqual(0);
       expect(prop.at[1]).toBeLessThan(WORLD_MAP_GRID);
+      expect(
+        worldTileTone(
+          theme,
+          Math.floor(prop.at[0] + 0.5),
+          Math.floor(prop.at[1] + 0.5)
+        )
+      ).not.toBe(".");
     }
   });
 

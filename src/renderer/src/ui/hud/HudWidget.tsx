@@ -7,7 +7,7 @@
  */
 import { useEffect } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { usePersistedBool } from "./hud-prefs";
+import { useHudCollapse } from "./hud-prefs";
 import { cn } from "@/lib/cn";
 
 export type HudAnchor =
@@ -47,10 +47,7 @@ export function HudWidget({
 }: Props) {
   // Persist collapsed state per widget — the title doubles as a stable
   // key since each HUD has a unique one (Wielders, Alerts, Letters, …).
-  const [collapsed, setCollapsed] = usePersistedBool(
-    `collapsed:${title}`,
-    defaultCollapsed
-  );
+  const [collapsed, setCollapsed] = useHudCollapse(title, defaultCollapsed);
   // Listen for `rw:expand-hud` events that target this widget by title
   // (e.g. ActivityLog → AlertsHUD when a permission row is clicked).
   // Force-expand so the highlighted letter card is actually in the DOM.
@@ -141,6 +138,7 @@ export function HudWidget({
           collapsed && "grid-rows-[0fr] opacity-0"
         )}
         aria-hidden={collapsed}
+        inert={collapsed}
       >
         <div className={cn("min-h-0 overflow-y-auto p-2", collapsed && "p-0")}>
           {children}

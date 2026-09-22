@@ -7,6 +7,7 @@
  * body shows a stub instead of crashing — the user can close the panel.
  */
 import { useEffect, useState } from "react";
+import { SessionActivityCard } from "../SessionActivityCard";
 import {
   ChevronRight,
   CornerDownRight,
@@ -162,7 +163,8 @@ export function WielderPanelBody({ unitId }: Props) {
   };
 
   return (
-    <div className={cn("flex flex-col gap-2.5 p-3", ghosted && "opacity-50")}>
+    <div className="flex flex-col gap-2.5 p-3">
+      <SessionActivityCard unit={unit} />
       <div className="flex items-start gap-3">
         <TooltipHint label={`${unit.displayName} — ${palette.faction}`}>
           <div

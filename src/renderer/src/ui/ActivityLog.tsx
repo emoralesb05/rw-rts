@@ -17,7 +17,7 @@ import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useStore } from "../store";
 import { ROLE_HEX } from "../game/units";
 import { usePanels } from "./floating/panel-store";
-import { usePersistedBool } from "./hud/hud-prefs";
+import { useHudCollapse } from "./hud/hud-prefs";
 import { summarizeEvent, shortAgo } from "./event-summary";
 import { TooltipHint } from "./components/kit/TooltipHint";
 import { cn } from "@/lib/cn";
@@ -80,10 +80,7 @@ export function ActivityLog() {
   const units = useStore((s) => s.units);
   const letters = useStore((s) => s.letters);
   const openDrawerTab = usePanels((s) => s.openDrawerTab);
-  const [collapsed, setCollapsed] = usePersistedBool(
-    "collapsed:Activity",
-    false
-  );
+  const [collapsed, setCollapsed] = useHudCollapse("Activity");
   const scrollRef = useRef<HTMLDivElement>(null);
   // Take the newest VISIBLE events (store stores newest-first), then
   // reverse so the oldest of the visible window sits at the top of the
@@ -124,7 +121,8 @@ export function ActivityLog() {
         "border-accent-alt/20 flex-col overflow-hidden rounded-md border",
         "text-text bg-[#0a1130]/80 font-mono shadow-2xl backdrop-blur-md",
         "duration-base transition-[width] ease-out",
-        collapsed && "max-h-8 w-[180px]"
+        collapsed && "max-h-8 w-[180px]",
+        collapsed && "activity-collapsed"
       )}
       role="log"
       aria-label="Activity log"
@@ -159,6 +157,7 @@ export function ActivityLog() {
           collapsed && "grid-rows-[0fr] opacity-0"
         )}
         aria-hidden={collapsed}
+        inert={collapsed}
       >
         <div
           className={cn("min-h-0 overflow-y-auto py-1", collapsed && "p-0")}

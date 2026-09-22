@@ -71,6 +71,17 @@ out/
 
 ## Packaging (.app + .dmg)
 
+Release verification can run the full isolated E2E suite against the actual
+packaged executable, including an `app.isPackaged` assertion:
+
+```bash
+REALMKEEPER_E2E_EXECUTABLE="$PWD/dist/mac-arm64/Realmkeeper.app/Contents/MacOS/Realmkeeper" bunx playwright test -c playwright.config.ts
+```
+
+Run this after packaging and separately from source-build E2E, since both suites
+share the screenshot output directory. The harness retains isolated fixture
+profiles and provider controls; this is not a live-provider compatibility probe.
+
 `electron-builder` 26.x bundles `out/` into a distributable macOS `.app` (and optionally a `.dmg`). Config lives in `package.json` under the `build` field.
 
 | Script | Output | Use |

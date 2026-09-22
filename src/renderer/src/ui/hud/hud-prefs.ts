@@ -7,7 +7,19 @@
  * Errors swallowed silently — a corrupted/disabled localStorage just
  * falls back to the default value.
  */
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+
+export const CompactHudContext = createContext(false);
+
+/** Compact peeks are temporary; the expanded layout retains its saved preferences. */
+export function useHudCollapse(title: string, defaultCollapsed = false) {
+  const compact = useContext(CompactHudContext);
+  const [peekCollapsed, setPeekCollapsed] = useState(true);
+  const expanded = usePersistedBool(`collapsed:${title}`, defaultCollapsed);
+  return compact && title !== "Alerts"
+    ? ([peekCollapsed, setPeekCollapsed] as const)
+    : expanded;
+}
 
 const PREFIX = "realmkeeper:hud:";
 

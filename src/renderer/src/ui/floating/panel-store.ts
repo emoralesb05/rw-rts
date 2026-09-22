@@ -13,7 +13,7 @@
  */
 import { create } from "zustand";
 
-export type PanelKind = "wielder" | "settings" | "kingdom" | "dispatch";
+export type PanelKind = "wielder" | "settings" | "kingdom" | "dispatch" | "run";
 
 export type DrawerState = {
   /** Wielder ids with an open chat tab, in browser-style order (most-

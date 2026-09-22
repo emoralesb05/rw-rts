@@ -18,6 +18,16 @@
  */
 
 import * as Phaser from "phaser";
+import { ActivitySiteLayer } from "../activity-site-layer";
+import { arrivalKey, courtyardRoute } from "../courtyard-route";
+import { assignCourtyardSeats } from "../courtyard-seating";
+import { districtCourtyard } from "../district-overflow";
+import { AnnexLabelLayer, type AnnexLabel } from "../annex-label-layer";
+import { RunSiteLayer } from "../run-site-layer";
+import { runsForWorld, visibleRunSites } from "../run-sites";
+import { sessionActivity } from "../session-activity";
+import { usePanels } from "../../ui/floating/panel-store";
+import { agentFocusCenter } from "../agent-focus";
 import { unitIdentityForUnit, useStore } from "../../store";
 import type {
   AgentEvent,
@@ -29,6 +39,29 @@ import type {
   WardenAura,
 } from "@shared/events";
 import { themeFor, themeLabel, type WorldTheme } from "../realm-worlds";
+import { inspectRealmAgent } from "../../ui/inspect-realm-agent";
+import {
+  FIT_REALM_EVENT,
+  overviewZoom,
+  zoomScrollDelta,
+} from "../realm-framing";
+import { WORKSTATION_KEY, WORKSTATION_FRAME_SIZE } from "../realm-workstations";
+import {
+  TERRACE_KEY,
+  COURTYARD_ATLAS_KEY,
+  COURTYARD_FRAME_SIZE,
+} from "../courtyard-terrace";
+import { TerrainJoinLayer } from "../terrain-join-layer";
+import { screenRectToLabelObstacle } from "../site-label-layout";
+import { isCanvasClick } from "../canvas-click";
+import { agentEmphasis } from "../agent-emphasis";
+import {
+  createRealmLandmarks,
+  courtyardSlot,
+  paintLandmarkThumbnail,
+  LANDMARK_KEY,
+  LANDMARK_FRAME_SIZE,
+} from "../realm-landmarks";
 import {
   clusterDisplayName,
   computeClusterLayout,
@@ -72,8 +105,19 @@ import {
 } from "../tactical-map";
 import type { Riftling } from "@shared/events";
 import { publicAsset } from "../../public-asset";
+import { createWorldCommandBrief } from "../../ui/hud/world-command";
+import { paintTerrainAmbience } from "../terrain-ambience";
+import {
+  computeTerrainLayout,
+  terrainOrigin,
+  TERRAIN_KEY,
+  TERRAIN_SCALE,
+  TERRAIN_WIDTH,
+  TERRAIN_HEIGHT,
+} from "../realm-terrain";
 import {
   drawWorldMapEnvironment,
+  drawWorldMapCliffs,
   WORLD_MAP_GRID,
   worldTileTint,
   worldTileTone,
@@ -87,7 +131,7 @@ const AURA_COLORS: Record<WardenAura, number> = {
 };
 
 const SCANLINE_TEX = "rw-realm-scanlines";
-const SCANLINE_ALPHA = 0.16;
+const SCANLINE_ALPHA = 0;
 
 // Per-world iso plane geometry. Smaller than the legacy WorldScene grid
 // (was 12×12 with TILE_W=96/TILE_H=48); shrunk to fit cluster spacing.
@@ -116,10 +160,10 @@ const WORLD_REALM_PAD_X = 240;
 const WORLD_REALM_PAD_Y = 175;
 const ABSOLUTE_MIN_ZOOM = 0.18;
 const STRATEGY_ZOOM_EXTRA_ROOM = 0.92;
-const CAMERA_SAFE_LEFT_PX = 330;
-const CAMERA_SAFE_RIGHT_PX = 330;
+const CAMERA_SAFE_LEFT_PX = 80;
+const CAMERA_SAFE_RIGHT_PX = 80;
 const CAMERA_SAFE_TOP_PX = 110;
-const CAMERA_SAFE_BOTTOM_PX = 270;
+const CAMERA_SAFE_BOTTOM_PX = 150;
 const CAMERA_WORLD_PAD_X = 140;
 const CAMERA_WORLD_PAD_Y = 120;
 const TACTICAL_MAP_MIN_W = 176;
@@ -301,6 +345,7 @@ type WielderRef = {
   label: Phaser.GameObjects.Text;
   homeIndex: number;
   formationSlot?: number;
+  courtyardIndex?: number;
   locationMode: "base" | "mission";
   locationTargetKey?: string;
   isTraveling: boolean;
@@ -327,6 +372,7 @@ type WielderRef = {
 };
 
 type WorldRef = {
+  annotations?: Phaser.GameObjects.Container;
   worldId: string;
   container: Phaser.GameObjects.Container;
   isoPlane: Phaser.GameObjects.Container;
@@ -409,6 +455,9 @@ export class KingdomScene extends Phaser.Scene {
   private clusters = new Map<string, ClusterRef>();
   private base?: BaseRef;
   private agentLayer?: Phaser.GameObjects.Container;
+  private groundObjects?: Phaser.GameObjects.Container;
+  private overflowRegionsKey = "";
+  private annexLabels?: AnnexLabelLayer;
   private realmGfx?: Phaser.GameObjects.Graphics;
   private routeGfx?: Phaser.GameObjects.Graphics;
   private routeTrafficGfx?: Phaser.GameObjects.Graphics;
@@ -420,8 +469,25 @@ export class KingdomScene extends Phaser.Scene {
   private tacticalMapDragMode: "pan" | null = null;
   private layout = new Map<
     string,
-    { x: number; y: number; clusterKey: string }
+    {
+      x: number;
+      y: number;
+      clusterKey: string;
+      region?: number;
+      theme?: WorldTheme;
+    }
   >();
+  private terrainRegions = new Map<number, Phaser.GameObjects.Image>();
+  private terrainJoins?: TerrainJoinLayer;
+  private activitySites?: ActivitySiteLayer;
+  private runSites?: RunSiteLayer;
+  private nextActivitySiteSync = 0;
+  private terrainLandmarks = new Map<
+    number,
+    ReturnType<typeof createRealmLandmarks>
+  >();
+  private miniMapTerrain?: Phaser.GameObjects.Image;
+  private terrainAmbience?: Phaser.GameObjects.Graphics;
   private skyGfx?: Phaser.GameObjects.Graphics;
   private scanline?: Phaser.GameObjects.TileSprite;
   private stars: StarRef[] = [];
@@ -435,6 +501,10 @@ export class KingdomScene extends Phaser.Scene {
   private renownTiers = new Map<string, RenownTier>();
   private lastUserCamMs = 0;
   private t = 0;
+  private worldReads = new Map<
+    string,
+    { color: number; intensity: number; state: WorldReadState }
+  >();
   private lastCameraPunctuationAt = -CAMERA_PUNCTUATION_COOLDOWN_MS;
   // Tier 3 filter handles — held so KO + seal pulses can tween amplitudes.
   private bloomFilter?: Phaser.Filters.Glow;
@@ -446,6 +516,38 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.spritesheet(
+      WORKSTATION_KEY,
+      publicAsset("environments/realm-dream-workstations.png"),
+      {
+        frameWidth: WORKSTATION_FRAME_SIZE,
+        frameHeight: WORKSTATION_FRAME_SIZE,
+      }
+    );
+    this.load.image(
+      TERRAIN_KEY,
+      publicAsset("environments/realm-dream-ground-districts.png")
+    );
+    this.load.image(
+      TERRACE_KEY,
+      publicAsset("environments/realm-dream-paving.png")
+    );
+    this.load.spritesheet(
+      COURTYARD_ATLAS_KEY,
+      publicAsset("environments/realm-dream-courtyards-integrated.png"),
+      {
+        frameWidth: COURTYARD_FRAME_SIZE,
+        frameHeight: COURTYARD_FRAME_SIZE,
+      }
+    );
+    this.load.spritesheet(
+      LANDMARK_KEY,
+      publicAsset("environments/realm-dream-landmarks.png"),
+      {
+        frameWidth: LANDMARK_FRAME_SIZE,
+        frameHeight: LANDMARK_FRAME_SIZE,
+      }
+    );
     // Pixel-art landmarks (one per theme) + iso ground tiles. Same files
     // the legacy WorldScene loaded; KingdomScene now owns them.
     const themes: WorldTheme[] = [
@@ -501,7 +603,7 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#04060d");
+    this.cameras.main.setBackgroundColor("#11162d");
 
     // Tier 1 filter stack — shared across the whole map
     const cm = this.cameras.main.filters.internal.addColorMatrix();
@@ -519,9 +621,11 @@ export class KingdomScene extends Phaser.Scene {
 
     // Tier 3 — event-driven filters held at neutral until pulsed.
     // Barrel.amount=1 is identity; pinch (<1) for KO impact distortion.
-    // Pixelate.amount=0 is identity; spike briefly for KO screen-thump.
+    // Pixelate.amount=0 still makes 2px blocks in Phaser 4. Keep it inactive
+    // outside impact pulses so terrain and labels retain their actual detail.
     this.barrelFilter = this.cameras.main.filters.internal.addBarrel(1);
     this.pixelateFilter = this.cameras.main.filters.internal.addPixelate(0);
+    this.pixelateFilter.setActive(false);
 
     // Sky + stars (viewport-locked so they don't pan with the world)
     this.drawSky();
@@ -565,7 +669,69 @@ export class KingdomScene extends Phaser.Scene {
       this.miniMapHitArea,
     ]);
     this.base = this.spawnKingdomBase();
-    this.agentLayer = this.add.container(0, 0).setDepth(60);
+    if (this.textures.exists(TERRAIN_KEY))
+      this.base.container.setVisible(false);
+    this.groundObjects = this.add.container(0, 0).setDepth(60);
+    this.annexLabels = new AnnexLabelLayer(this);
+    this.agentLayer = this.add.container(0, 0).setDepth(61);
+    this.activitySites = new ActivitySiteLayer(
+      this,
+      (unitId) => {
+        if (this.didDrag) return;
+        inspectRealmAgent(unitId);
+      },
+      this.groundObjects
+    );
+    this.nextActivitySiteSync = 0;
+    this.runSites = new RunSiteLayer(this, (runId) => {
+      if (this.didDrag) return;
+      const run = useStore.getState().orchestrationRuns[runId];
+      if (run)
+        usePanels.getState().openPanel({
+          kind: "run",
+          key: runId,
+          title: `Run · ${run.title}`,
+          width: 560,
+        });
+    });
+    this.syncTerrainRegions();
+    this.terrainAmbience = this.add.graphics().setDepth(-60);
+    if (this.textures.exists(TERRAIN_KEY)) {
+      const thumbnailKey = `${TERRAIN_KEY}-minimap`;
+      if (!this.textures.exists(thumbnailKey)) {
+        const thumbnail = this.textures.createCanvas(thumbnailKey, 384, 256);
+        if (thumbnail) {
+          thumbnail.context.imageSmoothingEnabled = true;
+          thumbnail.context.imageSmoothingQuality = "high";
+          thumbnail.context.drawImage(
+            this.textures.get(TERRAIN_KEY).getSourceImage() as HTMLImageElement,
+            0,
+            0,
+            384,
+            256
+          );
+          paintLandmarkThumbnail(
+            thumbnail.context,
+            this.textures
+              .get(LANDMARK_KEY)
+              .getSourceImage() as HTMLImageElement,
+            0.25
+          );
+          thumbnail.refresh();
+          thumbnail.setFilter(Phaser.Textures.FilterMode.LINEAR);
+        }
+      }
+      this.miniMapTerrain = this.add
+        .image(
+          0,
+          0,
+          this.textures.exists(thumbnailKey) ? thumbnailKey : TERRAIN_KEY,
+          "__BASE"
+        )
+        .setOrigin(0)
+        .setDepth(1299)
+        .setScrollFactor(0);
+    }
 
     // Scanline overlay — viewport-locked, depth above worlds
     this.ensureScanlineTexture();
@@ -596,6 +762,8 @@ export class KingdomScene extends Phaser.Scene {
       this.syncWorlds(initialState.worlds);
       this.lastWorldsKey = initialWorldsKey;
       this.drawTacticalMiniMap(initialState.worlds, initialState.units);
+    } else if (this.terrainRegions.size) {
+      this.cameras.main.setZoom(this.strategyMinZoom()).centerOn(0, 0);
     }
 
     // Camera control
@@ -685,15 +853,34 @@ export class KingdomScene extends Phaser.Scene {
       });
     };
     window.addEventListener("rw:event", eventHandler as EventListener);
+    const fitRealm = () => {
+      this.cameras.main.panEffect.reset();
+      this.cameras.main.zoomEffect.reset();
+      this.fitCameraToWorlds();
+      this.lastUserCamMs = performance.now();
+    };
+    window.addEventListener(FIT_REALM_EVENT, fitRealm);
 
     this.events.once("shutdown", () => {
       window.removeEventListener("rw:event", eventHandler as EventListener);
+      window.removeEventListener(FIT_REALM_EVENT, fitRealm);
       this.worlds.clear();
       this.stars = [];
       this.base = undefined;
       this.agentLayer = undefined;
+      this.groundObjects = undefined;
       this.realmGfx = undefined;
       this.skyGfx = undefined;
+      this.terrainRegions.clear();
+      this.terrainJoins?.destroy();
+      this.terrainJoins = undefined;
+      this.activitySites?.destroy();
+      this.activitySites = undefined;
+      this.runSites?.destroy();
+      this.runSites = undefined;
+      this.terrainLandmarks.clear();
+      this.miniMapTerrain = undefined;
+      this.terrainAmbience = undefined;
       this.routeGfx = undefined;
       this.routeTrafficGfx = undefined;
       this.miniMapGfx = undefined;
@@ -705,6 +892,9 @@ export class KingdomScene extends Phaser.Scene {
       useStore.getState().setWorldCommandAnchor(null);
       this.scanline = undefined;
       this.lastWorldsKey = "";
+      this.overflowRegionsKey = "";
+      this.annexLabels?.destroy();
+      this.annexLabels = undefined;
       this.lastCameraTargetVersion = 0;
       this.seenLetterIds.clear();
       this.seenLetterCounts.clear();
@@ -713,8 +903,24 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    this.worldReads.clear();
     this.t += delta * 0.001;
     this.updateViewportBackdrops();
+    if (this.terrainAmbience && this.terrainRegions.size) {
+      const view = this.cameras.main.worldView;
+      const visible = [...this.terrainRegions]
+        .filter(
+          ([, image]) =>
+            image.x < view.right &&
+            image.y < view.bottom &&
+            image.x + TERRAIN_WIDTH > view.x &&
+            image.y + TERRAIN_HEIGHT > view.y
+        )
+        .map(([region]) => region);
+      paintTerrainAmbience(this.terrainAmbience, visible, this.t);
+      for (const [region, landmarks] of this.terrainLandmarks)
+        landmarks.setVisible(visible.includes(region));
+    }
 
     // Sync world planets
     const storeState = useStore.getState();
@@ -731,6 +937,7 @@ export class KingdomScene extends Phaser.Scene {
     for (const [id, ref] of this.worlds) {
       const w = worlds[id];
       if (!w) continue;
+      ref.annotations?.setPosition(ref.container.x, ref.container.y);
       ref.countText.setText(String(w.unitIds.length));
       ref.countBg.setVisible(w.unitIds.length > 0);
       ref.countText.setVisible(w.unitIds.length > 0);
@@ -746,7 +953,7 @@ export class KingdomScene extends Phaser.Scene {
         const pulse = 0.5 + 0.5 * Math.sin(this.t * 4);
         ref.alertRing.setAlpha(0.6 + 0.4 * pulse);
       } else {
-        ref.alertRing.setAlpha(1);
+        ref.alertRing.setAlpha(0.12);
       }
       const selected = storeState.activeWorldId === id;
       ref.selectionRing.setVisible(selected);
@@ -757,6 +964,11 @@ export class KingdomScene extends Phaser.Scene {
           .setScale(1.02 + pulse * 0.04);
       }
       this.tickWorldFocus(ref, selected);
+      if (this.textures.exists(TERRAIN_KEY)) {
+        ref.alertRing.setAlpha(0);
+        ref.selectionRing.setScale(1, 0.42);
+        ref.selectionRing.setVisible(false);
+      }
       this.updateWorldHudScale(ref);
       this.tickWorldStateLayer(ref, w, units);
 
@@ -779,6 +991,125 @@ export class KingdomScene extends Phaser.Scene {
       }
     }
 
+    const overflowKey = [...this.worlds.values()]
+      .flatMap((world) =>
+        [...world.wielders.values()].map(
+          (ref) =>
+            this.courtyardFor(world, this.missionSlotFor(ref)).region ?? 0
+        )
+      )
+      .sort((a, b) => a - b)
+      .join(",");
+    if (overflowKey !== this.overflowRegionsKey) {
+      this.overflowRegionsKey = overflowKey;
+      this.syncTerrainRegions();
+    }
+
+    // Physical objects share foot-point ordering; effects and operational
+    // labels remain above them so attention cues cannot disappear behind props.
+    for (const worldRef of this.worlds.values()) {
+      for (const ref of worldRef.wielders.values()) {
+        // Wielder artwork is bottom-anchored at body-local y=8.
+        ref.container.setDepth(ref.container.y + 8);
+      }
+    }
+    this.groundObjects?.sort("depth");
+
+    if (
+      this.terrainRegions.size &&
+      this.time.now >= this.nextActivitySiteSync
+    ) {
+      this.nextActivitySiteSync = this.time.now + 250;
+      const annexes = new Map<string, AnnexLabel>();
+      for (const worldRef of this.worlds.values()) {
+        for (const ref of worldRef.wielders.values()) {
+          const court = this.courtyardFor(worldRef, this.missionSlotFor(ref));
+          if (!court.annex) continue;
+          const id = `${worldRef.worldId}:${court.annex}`;
+          const prior = annexes.get(id);
+          if (prior) prior.count++;
+          else
+            annexes.set(id, {
+              id,
+              x: court.x,
+              y: court.y,
+              count: 1,
+              title: `${storeState.worlds[worldRef.worldId]?.label ?? "Project"} · Annex ${court.annex}`,
+            });
+        }
+      }
+      const annexObstacles =
+        this.annexLabels?.sync([...annexes.values()]) ?? [];
+      const placements = [...this.worlds.values()].flatMap((worldRef) =>
+        [...worldRef.wielders.values()].flatMap((ref) => {
+          const unit = units[ref.unitId];
+          if (!unit) return [];
+          const position = this.missionSlotPosition(
+            worldRef,
+            this.missionSlotFor(ref)
+          );
+          return [
+            {
+              activity: sessionActivity(unit, storeState.letters),
+              displayName: unit.displayName,
+              courtyardSlot: this.missionSlotFor(ref) % 12,
+              settled:
+                !ref.isTraveling &&
+                Math.hypot(
+                  ref.container.x - position.x,
+                  ref.container.y - position.y
+                ) < 12,
+              agentPosition: { x: ref.container.x, y: ref.container.y },
+              x: position.x,
+              y: position.y + 24,
+            },
+          ];
+        })
+      );
+      this.activitySites?.sync(placements, storeState.selectedUnitId, [
+        ...(this.tacticalMapState
+          ? [
+              screenRectToLabelObstacle(
+                {
+                  x: this.tacticalMapState.screenX - 6,
+                  y: this.tacticalMapState.screenY - 6,
+                  width: this.tacticalMapState.layout.width + 12,
+                  height: this.tacticalMapState.layout.height + 12,
+                },
+                this.mainCameraWorldView(),
+                this.cameras.main
+              ),
+            ]
+          : []),
+        ...annexObstacles,
+        ...[...this.worlds.values()].map((worldRef) => ({
+          x: worldRef.container.x,
+          y: worldRef.container.y + 148,
+          width: Math.max(
+            worldRef.nameLabel.displayWidth,
+            145 * worldRef.nameLabel.scaleX
+          ),
+          height: 44 * worldRef.nameLabel.scaleY,
+        })),
+      ]);
+      this.runSites?.sync(
+        [...this.worlds.values()].flatMap((worldRef) =>
+          visibleRunSites(
+            runsForWorld(
+              worldRef.worldId,
+              storeState.orchestrationRuns,
+              storeState.worlds,
+              units
+            )
+          ).map((run, index) => ({
+            run,
+            x: worldRef.container.x + 160,
+            y: worldRef.container.y - 70 + index * 44,
+          }))
+        ),
+        storeState.orchestrationRunsMissing
+      );
+    }
     this.tickKingdomBase(delta, units);
     this.syncLetterSignals(storeState.letters, units);
     this.syncRenownSignals(units, storeState.persisted.wielders);
@@ -813,9 +1144,44 @@ export class KingdomScene extends Phaser.Scene {
       if (target) {
         const ref = this.worlds.get(target);
         if (ref) {
-          const focusX = Phaser.Math.Linear(0, ref.container.x, 0.6);
-          const focusY = Phaser.Math.Linear(0, ref.container.y, 0.6);
-          this.cameras.main.pan(focusX, focusY, 400, "Sine.easeInOut");
+          const selected = state.selectedUnitId
+            ? ref.wielders.get(state.selectedUnitId)
+            : undefined;
+          const court =
+            selected && this.terrainRegions.size
+              ? this.courtyardFor(ref, this.missionSlotFor(selected))
+              : ref.container;
+          const focusX = this.textures.exists(TERRAIN_KEY)
+            ? court.x
+            : Phaser.Math.Linear(0, ref.container.x, 0.6);
+          const focusY = this.textures.exists(TERRAIN_KEY)
+            ? court.y
+            : Phaser.Math.Linear(0, ref.container.y, 0.6);
+          const camera = this.cameras.main;
+          const targetZoom = Math.max(camera.zoom, WORLD_FOCUS_ZOOM);
+          const panels = usePanels.getState();
+          const occluders = [...panels.panels];
+          const focused =
+            selected && this.terrainRegions.size
+              ? agentFocusCenter(
+                  selected.container,
+                  camera.width,
+                  camera.height,
+                  targetZoom,
+                  [
+                    ...occluders,
+                    ...(panels.drawer && !panels.drawer.minimized
+                      ? [
+                          {
+                            x: camera.width - panels.drawer.width,
+                            width: panels.drawer.width,
+                          },
+                        ]
+                      : []),
+                  ]
+                )
+              : { x: focusX, y: focusY };
+          camera.pan(focused.x, focused.y, 400, "Sine.easeInOut", true);
           // Zoom in enough for the selected mission to be legible while
           // keeping the central base in context.
           const cam = this.cameras.main;
@@ -835,6 +1201,7 @@ export class KingdomScene extends Phaser.Scene {
     if (!barrel || !px) return;
     this.tweens.killTweensOf(barrel);
     this.tweens.killTweensOf(px);
+    px.setActive(true);
     this.tweens.add({
       targets: barrel,
       amount: { from: 0.85, to: 1 },
@@ -846,6 +1213,7 @@ export class KingdomScene extends Phaser.Scene {
       amount: { from: 4, to: 0 },
       duration: 380,
       ease: "Cubic.easeOut",
+      onComplete: () => px.setActive(false),
     });
   }
 
@@ -1551,42 +1919,85 @@ export class KingdomScene extends Phaser.Scene {
   private syncWorlds(worlds: Record<string, WorldState>) {
     const seen = new Set(Object.keys(worlds));
     const prevCount = this.worlds.size;
+    // Capture both home and annex origins before replacing the layout. Actors
+    // retain their local position when scenery moves, including failed sessions.
+    const previousCourts = new Map<WielderRef, { x: number; y: number }>();
+    if (this.terrainRegions.size) {
+      for (const world of this.worlds.values())
+        for (const ref of world.wielders.values()) {
+          const court = this.courtyardFor(world, this.missionSlotFor(ref));
+          previousCourts.set(ref, { x: court.x, y: court.y });
+        }
+    }
 
     // Recompute the cluster layout from the full world set. Cheap (O(N))
     // and only fires when the world set actually changed.
-    this.layout = computeClusterLayout(worlds);
+    this.layout = this.textures.exists(TERRAIN_KEY)
+      ? computeTerrainLayout(worlds)
+      : computeClusterLayout(worlds);
+    this.syncTerrainRegions();
     this.syncClusterLabels();
 
     for (const [id, ref] of this.worlds) {
       if (!seen.has(id)) {
         for (const wielder of ref.wielders.values()) {
+          wielder.locationTargetKey = undefined;
+          this.tweens.killTweensOf(wielder.container);
           wielder.tether?.destroy();
           wielder.orderLine.destroy();
           wielder.container.destroy(true);
         }
+        ref.annotations?.destroy(true);
         ref.container.destroy(true);
         this.worlds.delete(id);
       } else {
-        // Existing world might have moved when the cluster set changed
-        // (e.g., a sibling repo was added). Reposition smoothly.
+        // Terrain is authored scenery: relayout atomically, never slide an
+        // invisible courtyard anchor (and its agents) across bridges or water.
+        // The legacy star chart retains its animated layout transition.
         const pos = this.layout.get(id);
+        if (pos?.theme) {
+          ref.theme = pos.theme;
+          ref.themeText.setText(themeLabel(pos.theme).toUpperCase());
+        }
         if (pos && (ref.container.x !== pos.x || ref.container.y !== pos.y)) {
           for (const wielder of ref.wielders.values()) {
             wielder.locationTargetKey = undefined;
           }
-          this.tweens.add({
-            targets: ref.container,
-            x: pos.x,
-            y: pos.y,
-            duration: 600,
-            ease: "Sine.easeInOut",
-          });
+          this.tweens.killTweensOf(ref.container);
+          if (this.terrainRegions.size) {
+            ref.container.setPosition(pos.x, pos.y);
+          } else {
+            this.tweens.add({
+              targets: ref.container,
+              x: pos.x,
+              y: pos.y,
+              duration: 600,
+              ease: "Sine.easeInOut",
+            });
+          }
         }
       }
     }
     for (const id of seen) {
       if (this.worlds.has(id)) continue;
       this.worlds.set(id, this.spawnWorld(id, worlds[id]));
+    }
+    for (const world of this.worlds.values()) {
+      for (const ref of world.wielders.values()) {
+        const before = previousCourts.get(ref);
+        if (!before) continue;
+        const after = this.courtyardFor(world, this.missionSlotFor(ref));
+        if (before.x === after.x && before.y === after.y) continue;
+        ref.locationTargetKey = undefined;
+        this.tweens.killTweensOf(ref.container);
+        ref.container.setPosition(
+          ref.container.x + after.x - before.x,
+          ref.container.y + after.y - before.y
+        );
+        ref.isTraveling = false;
+        ref.patrolTarget = undefined;
+        ref.patrolState = "arrived";
+      }
     }
     this.drawWorldRoutes();
     this.drawRealmMap();
@@ -1603,6 +2014,7 @@ export class KingdomScene extends Phaser.Scene {
     const g = this.routeGfx;
     if (!g) return;
     g.clear();
+    if (this.textures.exists(TERRAIN_KEY)) return;
 
     const grouped = new Map<string, { id: string; x: number; y: number }[]>();
     for (const [id, layout] of this.layout) {
@@ -1697,6 +2109,7 @@ export class KingdomScene extends Phaser.Scene {
     const g = this.routeTrafficGfx;
     if (!g) return;
     g.clear();
+    if (this.textures.exists(TERRAIN_KEY)) return;
     if (this.worlds.size === 0) return;
 
     const zoom = this.cameras.main.zoom;
@@ -1825,6 +2238,7 @@ export class KingdomScene extends Phaser.Scene {
     const g = this.realmGfx;
     if (!g) return;
     g.clear();
+    if (this.textures.exists(TERRAIN_KEY)) return;
 
     const worldRefs = [...this.worlds.values()];
     const bounds = this.getRealmBounds(worldRefs);
@@ -1878,6 +2292,10 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private getRealmBounds(worldRefs: WorldRef[]) {
+    if (this.terrainRegions.size) {
+      const b = this.cameras.main.getBounds();
+      return { minX: b.x, minY: b.y, maxX: b.right, maxY: b.bottom };
+    }
     let minX = -BASE_RADIUS * 1.05;
     let minY = -BASE_RADIUS * 0.7;
     let maxX = BASE_RADIUS * 1.05;
@@ -2064,6 +2482,11 @@ export class KingdomScene extends Phaser.Scene {
    * Used on first-spawn and on a future "recenter" verb.
    */
   private fitCameraToWorlds() {
+    if (this.terrainRegions.size) {
+      this.cameras.main.setZoom(this.strategyMinZoom());
+      this.centerCameraOnRealm();
+      return;
+    }
     const metrics = this.realmCameraMetrics();
     if (!metrics) return;
     const cam = this.cameras.main;
@@ -2113,6 +2536,15 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private strategyMinZoom() {
+    if (this.terrainRegions.size) {
+      const bounds = this.cameras.main.getBounds();
+      return overviewZoom(
+        this.cameras.main.width,
+        this.cameras.main.height,
+        bounds.width,
+        bounds.height
+      );
+    }
     const metrics = this.realmCameraMetrics();
     if (!metrics) return 0.35;
     return Phaser.Math.Clamp(
@@ -2123,6 +2555,12 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private centerCameraOnRealm() {
+    if (this.terrainRegions.size) {
+      const bounds = this.cameras.main.getBounds();
+      this.cameras.main.useBounds = true;
+      this.cameras.main.centerOn(bounds.centerX, bounds.centerY);
+      return;
+    }
     const metrics = this.realmCameraMetrics();
     if (!metrics) return;
     this.cameras.main.centerOn(metrics.centerX, metrics.centerY);
@@ -2131,6 +2569,9 @@ export class KingdomScene extends Phaser.Scene {
   private enforceStrategyZoomFloor() {
     const cam = this.cameras.main;
     const minZoom = this.strategyMinZoom();
+    if (this.terrainRegions.size) {
+      cam.useBounds = true;
+    }
     if (cam.zoom >= minZoom) return;
     cam.setZoom(minZoom);
     this.centerCameraOnRealm();
@@ -2304,7 +2745,25 @@ export class KingdomScene extends Phaser.Scene {
     };
   }
 
-  private baseSlotPosition(slot: number) {
+  private courtyardFor(worldRef: WorldRef, slot: number) {
+    const ids = [...this.layout.keys()].sort();
+    const regions =
+      Math.max(0, ...[...this.layout.values()].map((p) => p.region ?? 0)) + 1;
+    return districtCourtyard(
+      slot,
+      worldRef.container,
+      Math.max(0, ids.indexOf(worldRef.worldId)),
+      ids.length,
+      regions
+    );
+  }
+
+  private baseSlotPosition(slot: number, worldRef?: WorldRef) {
+    if (this.terrainRegions.size && worldRef) {
+      const court = this.courtyardFor(worldRef, slot);
+      const p = courtyardSlot(court.slot, true);
+      return { x: court.x + p.x, y: court.y + p.y };
+    }
     const slots = [
       [4.4, 5.5],
       [5.4, 5.5],
@@ -2331,7 +2790,14 @@ export class KingdomScene extends Phaser.Scene {
     };
   }
 
-  private basePatrolPosition(slot: number) {
+  private basePatrolPosition(slot: number, worldRef: WorldRef) {
+    if (this.terrainRegions.size) {
+      const home = this.baseSlotPosition(slot, worldRef);
+      return {
+        x: home.x + Math.random() * 20 - 10,
+        y: home.y + Math.random() * 10 - 5,
+      };
+    }
     const tx = 2 + Math.random() * 6;
     const ty = 2.4 + Math.random() * 4.2;
     const p = this.baseIsoToLocal(tx, ty);
@@ -2343,6 +2809,11 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private missionSlotPosition(worldRef: WorldRef, slot: number) {
+    if (this.terrainRegions.size) {
+      const court = this.courtyardFor(worldRef, slot);
+      const p = courtyardSlot(court.slot);
+      return { x: court.x + p.x, y: court.y + p.y };
+    }
     const radius = this.missionRingRadius();
     const normalized = Number.isFinite(slot)
       ? Math.abs(Math.floor(slot)) % MISSION_PAD_COUNT
@@ -2360,7 +2831,7 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private missionSlotFor(ref: WielderRef) {
-    return ref.formationSlot ?? ref.homeIndex;
+    return ref.courtyardIndex ?? ref.formationSlot ?? ref.homeIndex;
   }
 
   private refreshMissionFormation(
@@ -2411,6 +2882,32 @@ export class KingdomScene extends Phaser.Scene {
         ref.formationSlot = undefined;
       }
     }
+    if (this.terrainRegions.size) {
+      const refs = [
+        ...activeRefs.map(({ ref }) => ref),
+        ...[...worldRef.wielders.values()].filter((ref) => !assigned.has(ref)),
+      ];
+      const seats = assignCourtyardSeats(
+        refs.map((ref) => ({
+          id: ref.unitId,
+          previous: ref.courtyardIndex,
+          preferred: ref.formationSlot ?? ref.homeIndex,
+        }))
+      );
+      for (const ref of refs) {
+        const firstPlacement = ref.courtyardIndex === undefined;
+        ref.courtyardIndex = seats.get(ref.unitId)!;
+        ref.homeIndex = ref.courtyardIndex;
+        if (firstPlacement && ref.courtyardIndex >= 12) {
+          const unit = units[ref.unitId];
+          const target =
+            unit && this.shouldStandAtMission(unit, ref)
+              ? this.missionSlotPosition(worldRef, ref.courtyardIndex)
+              : this.baseSlotPosition(ref.courtyardIndex, worldRef);
+          ref.container.setPosition(target.x, target.y);
+        }
+      }
+    }
   }
 
   private hasMissionStatus(unit: UnitState) {
@@ -2455,38 +2952,60 @@ export class KingdomScene extends Phaser.Scene {
   private ensureWielderLocation(
     worldRef: WorldRef,
     ref: WielderRef,
-    unit: UnitState,
-    now: number
+    unit: UnitState
   ) {
+    // A failed session stays where it stopped; recovery can choose a new route.
+    if (unit.status === "fallen") {
+      if (ref.isTraveling || ref.patrolState === "walking") {
+        this.tweens.killTweensOf(ref.container);
+        ref.isTraveling = false;
+        ref.patrolState = "arrived";
+      }
+      ref.locationTargetKey = undefined;
+      return;
+    }
     const mode: WielderRef["locationMode"] = this.shouldStandAtMission(
       unit,
       ref
     )
       ? "mission"
       : "base";
-    const key = this.locationKeyFor(mode, worldRef.worldId);
-    if (ref.locationTargetKey === key) return;
-
     const target =
       mode === "mission"
         ? this.missionSlotPosition(worldRef, this.missionSlotFor(ref))
-        : this.baseSlotPosition(ref.homeIndex);
+        : this.baseSlotPosition(ref.homeIndex, worldRef);
+    const key = arrivalKey(mode, worldRef.worldId, target);
+    if (ref.locationTargetKey === key) return;
     ref.locationTargetKey = key;
     ref.locationMode = mode;
     ref.isTraveling = true;
     ref.patrolTarget = undefined;
     ref.patrolState = "walking";
     this.tweens.killTweensOf(ref.container);
-    if (unit.status !== "fallen") {
-      ref.container.setAngle(0);
-      ref.container.setAlpha(1);
+    ref.container.setAngle(0);
+    ref.container.setAlpha(1);
+    // Region reassignment is a visual relayout, not a walk across water.
+    if (
+      this.terrainRegions.size &&
+      Math.hypot(target.x - ref.container.x, target.y - ref.container.y) > 400
+    ) {
+      ref.container.setPosition(target.x, target.y);
     }
     const dist = Math.hypot(
       target.x - ref.container.x,
       target.y - ref.container.y
     );
+    const route = this.terrainRegions.size
+      ? courtyardRoute(
+          ref.container,
+          target,
+          this.courtyardFor(worldRef, this.missionSlotFor(ref))
+        )
+      : dist < 1
+        ? []
+        : [target];
     const duration = Phaser.Math.Clamp(dist * 4.2, 420, 1900);
-    if (dist > 72) {
+    if (dist > 72 && !this.terrainRegions.size) {
       const color =
         mode === "mission"
           ? THEME_BIOMES[worldRef.theme].accent
@@ -2498,22 +3017,36 @@ export class KingdomScene extends Phaser.Scene {
         duration
       );
     }
-    this.playWalkAnimation(ref, unit.role);
-    this.tweens.add({
-      targets: ref.container,
-      x: target.x,
-      y: target.y,
-      duration,
-      ease: "Sine.easeInOut",
-      onComplete: () => {
+    const walkNext = (index: number) => {
+      if (ref.locationTargetKey !== key || !ref.container.active) return;
+      const point = route[index];
+      if (!point) {
         ref.isTraveling = false;
         ref.patrolState = "arrived";
-        ref.patrolNextSwitchAt = now + 900 + Math.random() * 1800;
-        if (unit.status !== "fallen") {
-          this.playIdleAnimation(ref, unit.role);
+        ref.patrolNextSwitchAt = this.time.now + 900 + Math.random() * 1800;
+        const current = useStore.getState().units[unit.id];
+        if (current && current.status !== "fallen") {
+          this.playIdleAnimation(ref, current.role);
         }
-      },
-    });
+        return;
+      }
+      const distance = Math.hypot(
+        point.x - ref.container.x,
+        point.y - ref.container.y
+      );
+      this.playWalkAnimation(ref, unit.role);
+      this.tweens.add({
+        targets: ref.container,
+        x: point.x,
+        y: point.y,
+        duration: this.terrainRegions.size
+          ? Math.max(80, distance * 8)
+          : duration,
+        ease: this.terrainRegions.size ? "Linear" : "Sine.easeInOut",
+        onComplete: () => walkNext(index + 1),
+      });
+    };
+    walkNext(0);
   }
 
   private playWalkAnimation(ref: WielderRef, role: UnitState["role"]) {
@@ -2602,8 +3135,76 @@ export class KingdomScene extends Phaser.Scene {
     });
   }
 
+  private syncTerrainRegions() {
+    if (!this.textures.exists(TERRAIN_KEY) || !this.groundObjects) return;
+    const regions = new Set(
+      [...this.layout.values()].map((p) => p.region ?? 0)
+    );
+    for (const world of this.worlds.values()) {
+      if (!this.layout.has(world.worldId)) continue;
+      for (const ref of world.wielders.values()) {
+        const region = this.courtyardFor(
+          world,
+          this.missionSlotFor(ref)
+        ).region;
+        if (region !== undefined) regions.add(region);
+      }
+    }
+    if (!regions.size) regions.add(0);
+    const occupiedCount = Math.max(...regions) + 1;
+    const rectangleCount =
+      occupiedCount <= 3 ? occupiedCount : Math.ceil(occupiedCount / 3) * 3;
+    for (let id = 0; id < rectangleCount; id++) regions.add(id);
+    for (const [id, image] of this.terrainRegions) {
+      if (!regions.has(id)) {
+        image.destroy();
+        this.terrainRegions.delete(id);
+        this.terrainLandmarks.get(id)?.destroy();
+        this.terrainLandmarks.delete(id);
+      }
+    }
+    this.textures.get(TERRAIN_KEY).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures
+      .get(WORKSTATION_KEY)
+      .setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures
+      .get(LANDMARK_KEY)
+      .setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures.get(TERRACE_KEY).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    if (this.textures.exists(COURTYARD_ATLAS_KEY))
+      this.textures
+        .get(COURTYARD_ATLAS_KEY)
+        .setFilter(Phaser.Textures.FilterMode.LINEAR);
+    for (const id of regions) {
+      if (this.terrainRegions.has(id)) continue;
+      const origin = terrainOrigin(id);
+      this.terrainLandmarks.set(
+        id,
+        createRealmLandmarks(this, id, this.groundObjects)
+      );
+      this.terrainRegions.set(
+        id,
+        this.add
+          .image(origin.x, origin.y, TERRAIN_KEY, "__BASE")
+          .setOrigin(0)
+          .setScale(TERRAIN_SCALE)
+          .setDepth(-65)
+      );
+    }
+    const origin = terrainOrigin(0);
+    const count = Math.max(...regions) + 1;
+    this.terrainJoins ??= new TerrainJoinLayer(this);
+    this.terrainJoins.sync(regions);
+    this.cameras.main.setBounds(
+      origin.x,
+      origin.y,
+      Math.min(3, count) * TERRAIN_WIDTH,
+      Math.ceil(count / 3) * TERRAIN_HEIGHT
+    );
+  }
+
   private spawnWorld(worldId: string, world: WorldState): WorldRef {
-    const theme = themeFor(worldId);
+    const theme = this.layout.get(worldId)?.theme ?? themeFor(worldId);
     const pos = this.layout.get(worldId) ?? { x: 0, y: 0 };
     const container = this.add.container(pos.x, pos.y);
 
@@ -2630,10 +3231,11 @@ export class KingdomScene extends Phaser.Scene {
       .setStrokeStyle(2.2, 0xffd86b, 0)
       .setVisible(false);
 
-    const labelY = ringRadius + 6;
+    const labelY = this.textures.exists(TERRAIN_KEY) ? 148 : ringRadius + 6;
     const nameLabel = this.add
       .text(0, labelY, world.label, {
         fontSize: "13px",
+        resolution: 3,
         color: "#cfd9f0",
         fontFamily: "system-ui, sans-serif",
         fontStyle: "bold",
@@ -2653,13 +3255,16 @@ export class KingdomScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
-    const stateLabelY = -ringRadius - 18;
+    const stateLabelY = this.textures.exists(TERRAIN_KEY)
+      ? 173
+      : -ringRadius - 18;
     const stateLabelBg = this.add
       .rectangle(0, stateLabelY + 7, 76, 18, 0x06101f, 0.86)
       .setStrokeStyle(1, WORLD_STATE_COLORS.idle, 0.45);
     const stateLabel = this.add
       .text(0, stateLabelY, WORLD_STATE_LABELS.idle, {
         fontSize: "9px",
+        resolution: 3,
         color: "#dce8ff",
         fontFamily: "ui-monospace, monospace",
         fontStyle: "bold",
@@ -2675,6 +3280,7 @@ export class KingdomScene extends Phaser.Scene {
     const countText = this.add
       .text(badgeX, badgeY, String(world.unitIds.length), {
         fontSize: "11px",
+        resolution: 3,
         color: "#ffd86b",
         fontFamily: "ui-monospace, monospace",
         fontStyle: "bold",
@@ -2717,23 +3323,54 @@ export class KingdomScene extends Phaser.Scene {
       countBg,
       countText,
     ]);
+    let annotations: Phaser.GameObjects.Container | undefined;
+    if (this.textures.exists(TERRAIN_KEY)) {
+      biome.setVisible(false);
+      workGfx.setVisible(false);
+      for (const pad of missionPads) pad.setVisible(false);
+      todOverlay.setVisible(false);
+      breathOverlay.setVisible(false);
+      eventOverlay.setVisible(false);
+      themeText.setVisible(false);
+      countBg.setPosition(58, 180);
+      countText.setPosition(58, 180);
+      annotations = this.add
+        .container(pos.x, pos.y, [
+          nameLabel,
+          themeText,
+          stateLabelBg,
+          stateLabel,
+          countBg,
+          countText,
+        ])
+        .setDepth(64);
+    }
 
-    // Click → select world's first wielder + pan camera here.
-    // Hit area is the alert ring (covers the world's footprint).
-    alertRing.setInteractive({ useHandCursor: true });
-    alertRing.on("pointerup", (p: Phaser.Input.Pointer) => {
-      if (p.button !== 0 || this.didDrag) return;
+    // Terrain selection is independent of visible effects. Alpha-zero shapes
+    // are skipped by Phaser's input hit test, so use a dedicated Zone.
+    const hitSurface = this.textures.exists(TERRAIN_KEY)
+      ? this.add.zone(0, 0, 300, 200)
+      : alertRing;
+    if (hitSurface !== alertRing) container.add(hitSurface);
+    hitSurface.setInteractive({ useHandCursor: true });
+    const select = (p: Phaser.Input.Pointer) => {
+      if (!isCanvasClick(p, this.game.canvas) || this.didDrag) return;
       const w = useStore.getState().worlds[worldId];
       const firstUnit = w?.unitIds?.[0];
       if (firstUnit) useStore.getState().selectUnit(firstUnit);
       useStore.getState().selectWorld(worldId);
-    });
+    };
+    hitSurface.on("pointerup", select);
+    nameLabel.setInteractive({ useHandCursor: true }).on("pointerup", select);
 
     // Tier 2 — per-theme signature atmosphere on the iso plane.
     // Drawn into a Graphics that's redrawn each frame from the theme's
     // routine. Themes without a signature treatment leave this undefined.
     let atmospherics: Phaser.GameObjects.Graphics | undefined;
-    if (theme === "tide" || theme === "lantern" || theme === "bastion") {
+    if (
+      !this.textures.exists(TERRAIN_KEY) &&
+      (theme === "tide" || theme === "lantern" || theme === "bastion")
+    ) {
       atmospherics = this.add.graphics();
       atmospherics.setDepth(-12);
       isoPlane.add(atmospherics);
@@ -2741,6 +3378,7 @@ export class KingdomScene extends Phaser.Scene {
 
     return {
       worldId,
+      annotations,
       container,
       isoPlane,
       biome,
@@ -2783,13 +3421,13 @@ export class KingdomScene extends Phaser.Scene {
     g.clear();
     g.fillStyle(0x000000, 0.24);
     g.fillEllipse(0, 34, ringRadius * 2.52, ringRadius * 1.3);
-    g.fillStyle(palette.shadow, 0.74);
+    g.fillStyle(palette.shadow, 0.18);
     g.fillEllipse(0, 24, ringRadius * 2.42, ringRadius * 1.26);
-    g.fillStyle(palette.ground, 0.64);
+    g.fillStyle(palette.ground, 0.12);
     g.fillEllipse(0, 10, ringRadius * 2.22, ringRadius * 1.12);
-    g.lineStyle(2.6, palette.accent, 0.58);
+    g.lineStyle(1, palette.accent, 0.12);
     g.strokeEllipse(0, 10, ringRadius * 2.06, ringRadius);
-    g.lineStyle(1.5, palette.lane, 0.42);
+    g.lineStyle(1, palette.lane, 0.08);
     g.strokeEllipse(0, 10, ringRadius * 1.56, ringRadius * 0.68);
 
     if (theme === "tide") {
@@ -2846,13 +3484,32 @@ export class KingdomScene extends Phaser.Scene {
     // unreadable pixels at strategy zoom. Keep a bounded amount of inverse
     // scaling so the map preserves its hierarchy without turning labels into
     // a screen-space overlay.
-    const scale = Phaser.Math.Clamp(0.9 / this.cameras.main.zoom, 1, 1.42);
+    const zoom = this.cameras.main.zoom;
+    const overview = zoom < 0.65;
+    const scale = Phaser.Math.Clamp(0.9 / zoom, 1, 4.5);
+    const label = useStore.getState().worlds[worldRef.worldId]?.label ?? "";
+    const maxCharacters = zoom < 0.25 ? 14 : 28;
+    worldRef.nameLabel.setText(
+      overview && label.length > maxCharacters
+        ? `${label.slice(0, maxCharacters - 1)}…`
+        : label
+    );
     worldRef.nameLabel.setScale(scale);
-    worldRef.themeText.setScale(scale);
+    worldRef.themeText
+      .setVisible(!overview && !this.textures.exists(TERRAIN_KEY))
+      .setScale(scale);
+    worldRef.themeText.setY(worldRef.nameLabel.y + 20 * scale);
     worldRef.stateLabelBg.setScale(scale);
     worldRef.stateLabel.setScale(scale);
     worldRef.countBg.setScale(scale);
     worldRef.countText.setScale(scale);
+    if (this.textures.exists(TERRAIN_KEY)) {
+      const stateY = worldRef.nameLabel.y + 22 * scale;
+      worldRef.stateLabel.setY(stateY);
+      worldRef.stateLabelBg.setY(stateY + 7 * scale);
+      worldRef.countBg.setPosition(62 * scale, stateY + 7 * scale);
+      worldRef.countText.setPosition(62 * scale, stateY + 7 * scale);
+    }
   }
 
   private tickWorldFocus(worldRef: WorldRef, selected: boolean) {
@@ -2862,6 +3519,20 @@ export class KingdomScene extends Phaser.Scene {
     worldRef.nameLabel.setColor(selected ? "#fff4c7" : "#e4ecff");
     worldRef.themeText.setColor(selected ? "#ffd86b" : "#9eb2dc");
     if (!selected) return;
+
+    if (this.terrainRegions.size) {
+      g.lineStyle(2, 0xf3db9c, 0.9);
+      for (const [x, y, sx, sy] of [
+        [-100, -46, 1, 1],
+        [100, -46, -1, 1],
+        [-100, 46, 1, -1],
+        [100, 46, -1, -1],
+      ]) {
+        g.lineBetween(x, y, x + sx * 20, y);
+        g.lineBetween(x, y, x, y + sy * 12);
+      }
+      return;
+    }
 
     const radius = (ISO_GRID * ISO_TILE_W * ISO_CONTAINER_SCALE) / 2 + 30;
     const pulse = 0.5 + 0.5 * Math.sin(this.t * 2.8);
@@ -2915,66 +3586,28 @@ export class KingdomScene extends Phaser.Scene {
   }
 
   private worldReadState(
-    worldRef: WorldRef,
+    _worldRef: WorldRef,
     world: WorldState,
     units: Record<string, UnitState>
   ): { color: number; intensity: number; state: WorldReadState } {
-    const activeCount = world.unitIds.filter((id) => {
-      const unit = units[id];
-      return unit?.status === "working" || unit?.status === "casting";
-    }).length;
-    const fallenCount = world.unitIds.filter(
-      (id) => units[id]?.status === "fallen"
-    ).length;
-    const recentKind =
-      this.time.now - worldRef.lastActivityAt < ACTIVITY_MOOD_MS
-        ? worldRef.lastActivityKind
-        : undefined;
-    if (world.alertLevel === "cleared") {
-      return {
-        state: "sealed",
-        color: WORLD_STATE_COLORS.sealed,
-        intensity: 0.58,
-      };
-    }
-    if (
-      world.alertLevel === "danger" ||
-      world.riftling.length >= 3 ||
-      fallenCount > 0 ||
-      recentKind === "error"
-    ) {
-      return {
-        state: "pressure",
-        color: WORLD_STATE_COLORS.pressure,
-        intensity: Phaser.Math.Clamp(
-          0.42 + world.riftling.length * 0.08 + fallenCount * 0.14,
-          0.42,
-          0.9
-        ),
-      };
-    }
-    if (recentKind === "permission" || recentKind === "prompt") {
-      return {
-        state: "hold",
-        color: WORLD_STATE_COLORS.hold,
-        intensity: 0.62,
-      };
-    }
-    if (
-      world.alertLevel === "warning" ||
-      world.riftling.length > 0 ||
-      activeCount > 0
-    ) {
-      return {
-        state: activeCount > 0 ? "active" : "pressure",
-        color:
-          activeCount > 0
-            ? WORLD_STATE_COLORS.active
-            : WORLD_STATE_COLORS.pressure,
-        intensity: Phaser.Math.Clamp(0.34 + activeCount * 0.1, 0.34, 0.7),
-      };
-    }
-    return { state: "idle", color: WORLD_STATE_COLORS.idle, intensity: 0.24 };
+    const cached = this.worldReads.get(world.id);
+    if (cached) return cached;
+    const store = useStore.getState();
+    const brief = createWorldCommandBrief({
+      world,
+      units,
+      letters: store.letters,
+      events: store.events,
+    });
+    const state: WorldReadState =
+      brief.readState === "calm" ? "idle" : brief.readState;
+    const read = {
+      state,
+      color: WORLD_STATE_COLORS[state],
+      intensity: state === "idle" ? 0.24 : 0.42 + brief.pressureScore * 0.0048,
+    };
+    this.worldReads.set(world.id, read);
+    return read;
   }
 
   private tickWorldStateLayer(
@@ -2989,7 +3622,10 @@ export class KingdomScene extends Phaser.Scene {
       0.5 + 0.5 * Math.sin(this.t * (read.state === "pressure" ? 4.8 : 2.2));
     const fineAlpha = Math.max(this.fineDetailAlpha(), 0.32);
     g.clear();
-    g.setAlpha(fineAlpha);
+    g.setAlpha(
+      fineAlpha *
+        (read.state === "pressure" || read.state === "hold" ? 0.5 : 0.18)
+    );
 
     worldRef.stateLabel.setText(WORLD_STATE_LABELS[read.state]);
     worldRef.stateLabel.setColor(
@@ -3000,6 +3636,7 @@ export class KingdomScene extends Phaser.Scene {
       .setStrokeStyle(1.2, read.color, 0.5 + read.intensity * 0.3);
     worldRef.stateLabelBg.width =
       read.state === "pressure" ? 92 : read.state === "sealed" ? 78 : 72;
+    if (this.textures.exists(TERRAIN_KEY)) return;
 
     if (read.state === "idle") {
       g.lineStyle(1.1, read.color, 0.08 + pulse * 0.04);
@@ -3417,6 +4054,8 @@ export class KingdomScene extends Phaser.Scene {
     // Remove gone
     for (const [id, w] of worldRef.wielders) {
       if (!seen.has(id)) {
+        w.locationTargetKey = undefined;
+        this.tweens.killTweensOf(w.container);
         w.tether?.destroy();
         w.orderLine.destroy();
         w.container.destroy(true);
@@ -3458,6 +4097,19 @@ export class KingdomScene extends Phaser.Scene {
     const now = this.time.now;
     ref.jobPhase += delta * 0.001;
     ref.idleQuirkPhase += delta * 0.001;
+    const detailed =
+      !this.terrainRegions.size ||
+      useStore.getState().selectedUnitId === unit.id;
+    // Terrain captions own identity + activity as one collision-aware label.
+    ref.label.setVisible(!this.terrainRegions.size);
+    for (const bar of [
+      ref.hpBarBg,
+      ref.hpBarFill,
+      ref.mpBarBg,
+      ref.mpBarFill,
+    ]) {
+      bar.setVisible(detailed || (unit.hp > 0 && unit.hp < 25));
+    }
 
     // ── HP / MP bars ────────────────────────────────────────────────
     // FF14 nameplate look — scale the fill rectangle horizontally by
@@ -3526,17 +4178,27 @@ export class KingdomScene extends Phaser.Scene {
         now + MISSION_DWELL_MS
       );
     }
-    this.ensureWielderLocation(worldRef, ref, unit, now);
+    this.ensureWielderLocation(worldRef, ref, unit);
     this.updateWielderOrder(worldRef, ref, unit);
     this.updateWielderJobChoreography(worldRef, ref, unit);
     this.updateWielderIdleQuirk(ref, unit);
     this.updateWielderResultPose(worldRef, ref, unit);
+    if (this.terrainRegions.size) {
+      const state = useStore.getState();
+      const emphasis = agentEmphasis(
+        sessionActivity(unit, state.letters).state,
+        state.selectedUnitId === unit.id
+      );
+      if (!emphasis.effects) ref.jobGfx.setVisible(false);
+      ref.idleGfx.setVisible(false);
+      ref.auraRing.setVisible(detailed && !!unit.auraState);
+      ref.glow.setAlpha(detailed ? 1 : 0.2);
+    }
 
     // ── Status pose (death / victory) ───────────────────────────────
     if (unit.status !== ref.lastStatus) {
       if (unit.status === "fallen") {
-        // Tilt + fade slightly. Movement is already owned by the
-        // base/mission location tween, so only animate pose properties.
+        // Movement has stopped; animate only the failure pose.
         ref.isTraveling = false;
         this.tweens.add({
           targets: ref.container,
@@ -3550,15 +4212,16 @@ export class KingdomScene extends Phaser.Scene {
         // Tier 3 — screen impact.
         this.pulseKO();
       } else if (unit.status === "complete") {
-        // Victory pulse — small scale up/down + label tints gold.
-        this.tweens.add({
-          targets: ref.container,
-          scale: { from: 1, to: 1.15 },
-          yoyo: true,
-          duration: 240,
-          ease: "Sine.easeInOut",
-        });
-        ref.label.setColor("#ffd86b");
+        // Terrain uses a brief station acknowledgement, not a success celebration.
+        if (this.terrainRegions.size === 0)
+          this.tweens.add({
+            targets: ref.container,
+            scale: { from: 1, to: 1.15 },
+            yoyo: true,
+            duration: 240,
+            ease: "Sine.easeInOut",
+          });
+        ref.label.setColor(this.terrainRegions.size ? "#a3d9cb" : "#ffd86b");
       } else if (ref.lastStatus === "fallen" || ref.lastStatus === "complete") {
         // Recovered (rare — typically fixtures only).
         ref.container.setAngle(0);
@@ -3577,7 +4240,7 @@ export class KingdomScene extends Phaser.Scene {
       ref.locationMode === "base" &&
       !ref.isTraveling;
     if (canPatrol && now >= ref.patrolNextSwitchAt) {
-      const target = this.basePatrolPosition(ref.homeIndex);
+      const target = this.basePatrolPosition(ref.homeIndex, worldRef);
       ref.patrolTarget = target;
       ref.patrolState = "walking";
       this.tweens.killTweensOf(ref.container);
@@ -3660,6 +4323,7 @@ export class KingdomScene extends Phaser.Scene {
       } else if (ref.compositeBanner.text !== formName) {
         ref.compositeBanner.setText(formName);
       }
+      ref.compositeBanner.setVisible(!this.terrainRegions.size);
     } else if (ref.compositeBanner) {
       ref.compositeBanner.destroy();
       ref.compositeBanner = undefined;
@@ -3671,7 +4335,9 @@ export class KingdomScene extends Phaser.Scene {
     ref: WielderRef,
     unit: UnitState
   ) {
-    const active = this.isWielderVisiblyWorking(ref, unit);
+    const active =
+      this.isWielderVisiblyWorking(ref, unit) &&
+      sessionActivity(unit, useStore.getState().letters).state === "working";
     const g = ref.jobGfx;
     g.clear();
     g.setVisible(active);
@@ -4168,6 +4834,25 @@ export class KingdomScene extends Phaser.Scene {
     ref: WielderRef,
     unit: UnitState
   ) {
+    if (this.terrainRegions.size) {
+      const state = useStore.getState();
+      const emphasis = agentEmphasis(
+        sessionActivity(unit, state.letters).state,
+        state.selectedUnitId === unit.id
+      );
+      ref.orderLine.clear();
+      ref.orderLabel.setVisible(false);
+      ref.orderRing
+        .setVisible(emphasis.ring)
+        .setAlpha(1)
+        .setStrokeStyle(
+          emphasis.width / Math.min(1, Math.max(0.4, this.cameras.main.zoom)),
+          emphasis.color,
+          0.95
+        )
+        .setScale(1.08, 0.5);
+      return;
+    }
     const color = this.commandColorForUnit(worldRef, unit);
     const active =
       ref.isTraveling ||
@@ -4180,7 +4865,10 @@ export class KingdomScene extends Phaser.Scene {
     const fineAlpha = this.fineDetailAlpha();
     ref.orderLine.clear();
     ref.orderRing.setVisible(active);
-    ref.orderLabel.setVisible(active && fineAlpha > 0.22);
+    // Session activity owns the terrain worksite caption; avoid duplicate badges.
+    ref.orderLabel.setVisible(
+      !this.terrainRegions.size && active && fineAlpha > 0.22
+    );
     if (!active) return;
     ref.orderLine.setAlpha(fineAlpha);
     ref.orderRing.setAlpha(0.45 + fineAlpha * 0.55);
@@ -4188,7 +4876,7 @@ export class KingdomScene extends Phaser.Scene {
     const target =
       ref.locationMode === "mission"
         ? this.missionSlotPosition(worldRef, this.missionSlotFor(ref))
-        : this.baseSlotPosition(ref.homeIndex);
+        : this.baseSlotPosition(ref.homeIndex, worldRef);
     const alpha = ref.isTraveling ? 0.58 : 0.28;
     this.strokeDashedLine(
       ref.orderLine,
@@ -4200,7 +4888,7 @@ export class KingdomScene extends Phaser.Scene {
       alpha,
       ref.isTraveling ? 2.2 : 1.3
     );
-    if (ref.locationMode === "mission") {
+    if (ref.locationMode === "mission" && !this.terrainRegions.size) {
       ref.orderLine.lineStyle(1.1, color, 0.2 + wave * 0.12);
       ref.orderLine.lineBetween(
         ref.container.x,
@@ -4296,7 +4984,7 @@ export class KingdomScene extends Phaser.Scene {
     const start =
       locationMode === "mission"
         ? this.missionSlotPosition(worldRef, homeIndex)
-        : this.baseSlotPosition(homeIndex);
+        : this.baseSlotPosition(homeIndex, worldRef);
 
     const glow = this.add.circle(0, 6, 16, palette.color, 0.28);
 
@@ -4344,6 +5032,8 @@ export class KingdomScene extends Phaser.Scene {
 
     const label = this.add
       .text(0, -32, unit.displayName, {
+        fontFamily: "system-ui, sans-serif",
+        resolution: 3,
         fontSize: "9px",
         color: "#e6ecff",
         backgroundColor: "rgba(0,0,0,0.55)",
@@ -4394,6 +5084,21 @@ export class KingdomScene extends Phaser.Scene {
       orderLabel,
     ]);
     container.setData("unitId", unit.id);
+    container.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-24, -64, 48, 82),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
+    container.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      if (!this.didDrag && isCanvasClick(pointer, this.game.canvas))
+        inspectRealmAgent(unit.id);
+    });
+    container.on("pointerover", () =>
+      this.activitySites?.hoverAgent(unit.id, true)
+    );
+    container.on("pointerout", () =>
+      this.activitySites?.hoverAgent(unit.id, false)
+    );
 
     // Ambient breathing glow pulse
     this.tweens.add({
@@ -4404,7 +5109,8 @@ export class KingdomScene extends Phaser.Scene {
       duration: 1200 + Math.random() * 400,
     });
 
-    this.agentLayer?.add([orderLine, container]);
+    this.agentLayer?.add(orderLine);
+    this.groundObjects?.add(container);
 
     return {
       unitId: unit.id,
@@ -4881,6 +5587,7 @@ export class KingdomScene extends Phaser.Scene {
     plane: Phaser.GameObjects.Container,
     theme: WorldTheme
   ) {
+    if (this.textures.exists(TERRAIN_KEY)) return;
     const haveTiles =
       this.textures.exists("tile-iso-a") && this.textures.exists("tile-iso-b");
     const offsetY = -(ISO_GRID * ISO_TILE_H) / 2;
@@ -4889,6 +5596,7 @@ export class KingdomScene extends Phaser.Scene {
       y: offsetY + (tx + ty) * (ISO_TILE_H / 2),
     });
 
+    drawWorldMapCliffs(this, plane, theme, isoToLocal);
     if (haveTiles) {
       for (let x = 0; x < ISO_GRID; x++) {
         for (let y = 0; y < ISO_GRID; y++) {
@@ -4897,7 +5605,7 @@ export class KingdomScene extends Phaser.Scene {
           const c = isoToLocal(x + 0.5, y + 0.5);
           const tex = (x + y) % 2 === 0 ? "tile-iso-a" : "tile-iso-b";
           const tile = this.add.image(c.x, c.y, tex);
-          tile.setOrigin(0.5, 0.5);
+          tile.setOrigin(0.5, 0.5).setDepth(-1500);
           tile.setTint(worldTileTint(theme, tone));
           tile.setAlpha(tone === "a" ? 1 : 0.96);
           plane.add(tile);
@@ -4905,7 +5613,7 @@ export class KingdomScene extends Phaser.Scene {
       }
     } else {
       // Fallback: drawn iso diamonds (tile textures missing).
-      const g = this.add.graphics();
+      const g = this.add.graphics().setDepth(-1500);
       g.lineStyle(1, 0x1d2851, 0.6);
       for (let x = 0; x < ISO_GRID; x++) {
         for (let y = 0; y < ISO_GRID; y++) {
@@ -4934,8 +5642,10 @@ export class KingdomScene extends Phaser.Scene {
       const lm = this.add.image(center.x, center.y - 4, tex);
       lm.setOrigin(0.5, 1);
       lm.setScale(1.4);
+      lm.setDepth(center.y);
       plane.add(lm);
     }
+    plane.sort("depth");
   }
 
   private fineDetailAlpha() {
@@ -5042,6 +5752,7 @@ export class KingdomScene extends Phaser.Scene {
     const label = this.miniMapLabel;
     g.clear();
     if (this.worlds.size === 0) {
+      this.miniMapTerrain?.setVisible(false);
       label?.setVisible(false);
       this.miniMapHitArea?.setVisible(false);
       this.tacticalMapState = undefined;
@@ -5086,10 +5797,19 @@ export class KingdomScene extends Phaser.Scene {
     const plot = (wx: number, wy: number) => ({
       ...projectWorldToTacticalMap({ x: wx, y: wy }, bounds, layout),
     });
+    if (this.miniMapTerrain) {
+      const origin = terrainOrigin(0);
+      const a = plot(origin.x, origin.y);
+      const b = plot(origin.x + TERRAIN_WIDTH, origin.y + TERRAIN_HEIGHT);
+      this.miniMapTerrain
+        .setVisible(this.terrainRegions.size === 1)
+        .setPosition(screenX + a.x, screenY + a.y)
+        .setDisplaySize(b.x - a.x, b.y - a.y);
+    }
 
     g.fillStyle(0x000000, 0.5);
     g.fillRoundedRect(x - 5, y - 5, width + 10, height + 10, 10);
-    g.fillStyle(0x04060d, 0.97);
+    g.fillStyle(0x04060d, this.terrainRegions.size === 1 ? 0.18 : 0.97);
     g.fillRoundedRect(x, y, width, height, 8);
     g.fillStyle(0x0a1221, 0.94);
     g.fillRoundedRect(x + 8, y + 8, width - 16, 18, 6);
@@ -5102,12 +5822,13 @@ export class KingdomScene extends Phaser.Scene {
     g.lineStyle(2.2, 0x6cc6ff, 0.92);
     g.strokeRoundedRect(x, y, width, height, 8);
     g.lineStyle(1, 0xffd86b, 0.28);
-    g.strokeEllipse(
-      x + width / 2,
-      y + height / 2 + 7,
-      width * 0.72,
-      height * 0.58
-    );
+    if (!this.terrainRegions.size)
+      g.strokeEllipse(
+        x + width / 2,
+        y + height / 2 + 7,
+        width * 0.72,
+        height * 0.58
+      );
 
     const base = plot(0, 0);
     g.fillStyle(0xffd86b, 0.95);
@@ -5127,13 +5848,27 @@ export class KingdomScene extends Phaser.Scene {
         radius: read.state === "pressure" ? 13 : 11,
       });
       g.lineStyle(1.2, read.color, read.state === "idle" ? 0.24 : 0.42);
-      g.lineBetween(base.x, base.y, p.x, p.y);
+      if (!this.terrainRegions.size) g.lineBetween(base.x, base.y, p.x, p.y);
       g.fillStyle(read.color, read.state === "idle" ? 0.62 : 0.95);
       g.fillCircle(p.x, p.y, read.state === "pressure" ? 5.6 : 4.2);
       g.lineStyle(1.4, read.color, read.state === "idle" ? 0.52 : 0.78);
       g.strokeCircle(p.x, p.y, read.state === "sealed" ? 7.6 : 6.4);
     }
 
+    // Annex markers use the minimap's existing click-to-pan surface.
+    for (const worldRef of this.worlds.values()) {
+      const seen = new Set<number>();
+      for (const ref of worldRef.wielders.values()) {
+        const court = this.courtyardFor(worldRef, this.missionSlotFor(ref));
+        if (!court.annex || seen.has(court.annex)) continue;
+        seen.add(court.annex);
+        const p = plot(court.x, court.y);
+        g.fillStyle(0x6cc6ff, 0.95);
+        g.fillCircle(p.x, p.y, 3.5);
+        g.lineStyle(1, 0xffd86b, 0.7);
+        g.strokeCircle(p.x, p.y, 5.5);
+      }
+    }
     const view = this.tacticalCameraWorldView();
     const viewport = projectViewportToTacticalMap(view, bounds, layout);
     const vx = viewport.x;
@@ -5207,6 +5942,7 @@ export class KingdomScene extends Phaser.Scene {
   private handleTacticalMapPointer(point: TacticalPoint): "world" | "pan" {
     const worldId = this.pickTacticalMapWorld(point);
     if (worldId) {
+      useStore.getState().selectUnit(null);
       useStore.getState().selectWorld(worldId);
       this.lastUserCamMs = performance.now();
       return "world";
@@ -5282,9 +6018,12 @@ export class KingdomScene extends Phaser.Scene {
     const hitArea = this.miniMapHitArea;
     if (!hudCam || !miniMap || !label) return;
 
-    const hudObjectsList = [miniMap, label, hitArea].filter(
-      Boolean
-    ) as Phaser.GameObjects.GameObject[];
+    const hudObjectsList = [
+      miniMap,
+      label,
+      hitArea,
+      this.miniMapTerrain,
+    ].filter(Boolean) as Phaser.GameObjects.GameObject[];
     this.cameras.main.ignore(hudObjectsList);
 
     const hudObjects = new Set<Phaser.GameObjects.GameObject>(hudObjectsList);
@@ -5333,10 +6072,17 @@ export class KingdomScene extends Phaser.Scene {
         const factor = dy > 0 ? 1 / 1.1 : 1.1;
         const minZoom = this.strategyMinZoom();
         const nextZoom = Phaser.Math.Clamp(cam.zoom * factor, minZoom, 2.5);
+        const dx = zoomScrollDelta(_p.x - cam.x, cam.width, cam.zoom, nextZoom);
+        const dyScroll = zoomScrollDelta(
+          _p.y - cam.y,
+          cam.height,
+          cam.zoom,
+          nextZoom
+        );
+        cam.panEffect.reset();
+        cam.zoomEffect.reset();
         cam.setZoom(nextZoom);
-        if (nextZoom <= minZoom + 0.001) {
-          this.centerCameraOnRealm();
-        }
+        cam.setScroll(cam.scrollX + dx, cam.scrollY + dyScroll);
         this.lastUserCamMs = performance.now();
       }
     );
@@ -5411,7 +6157,9 @@ export class KingdomScene extends Phaser.Scene {
       cam.zoom < 0.72
         ? Phaser.Math.Clamp((cam.zoom - minZoom) / (0.72 - minZoom), 0, 1)
         : 1;
-    this.skyGfx?.setScale(scale).setAlpha(skyAlpha);
+    this.skyGfx
+      ?.setScale(scale)
+      .setAlpha(this.terrainRegions.size ? 0.7 : skyAlpha);
     if (this.scanline) {
       this.scanline.setScale(scale);
       this.scanline.setAlpha(cam.zoom < 0.72 ? 0 : SCANLINE_ALPHA);

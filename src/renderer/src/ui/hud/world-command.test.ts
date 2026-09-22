@@ -86,6 +86,23 @@ function event(overrides: Partial<AgentEvent> = {}): AgentEvent {
 }
 
 describe("createWorldCommandBrief", () => {
+  it.each([permissionLetter(), questionLetter()])(
+    "keeps unresolved $title held after event effects expire",
+    (letter) => {
+      const args = {
+        world: world(),
+        units: { "unit-1": unit() },
+        events: [event({ kind: "permission_request", payload: {} })],
+        now: 600_000,
+      };
+      expect(
+        createWorldCommandBrief({ ...args, letters: [letter] }).readState
+      ).toBe("hold");
+      expect(createWorldCommandBrief({ ...args, letters: [] }).readState).toBe(
+        "calm"
+      );
+    }
+  );
   it("marks a selected world as held when a permission letter targets it", () => {
     const brief = createWorldCommandBrief({
       world: world(),

@@ -443,8 +443,78 @@ export function createVisualQaSeed(now = Date.now()) {
   };
 }
 
-export function seedVisualQaState(now = Date.now()) {
+/** Synthetic density fixture; never starts providers or resolves real requests. */
+export function createBusyVisualQaSeed(now = Date.now(), overflow = false) {
   const seed = createVisualQaSeed(now);
+  const units: Record<string, UnitState> = {};
+  const letters: Letter[] = [];
+  const counts = overflow ? [30, 0, 0, 0, 0, 0] : [12, 4, 4, 4, 3, 3];
+  Object.values(seed.worlds).forEach((world, worldIndex) => {
+    const template = seed.units[world.unitIds[0]];
+    world.unitIds = [];
+    world.alertLevel = "warning";
+    for (let index = 0; index < counts[worldIndex]; index++) {
+      const id = `busy-${worldIndex}-${index}`;
+      const unit: UnitState = {
+        ...template,
+        id,
+        sessionId: id,
+        displayName: `Agent ${worldIndex + 1}.${index + 1}`,
+        status: !overflow && index % 4 === 3 ? "idle" : "working",
+        lastActivity: now,
+        spawnedAt: now - 60_000 + index * 100,
+        lastTool: index % 2 ? "Read" : "Edit",
+        parentSessionId: undefined,
+        auraState: undefined,
+        auraUntil: undefined,
+        hp: 100,
+        mp: 100,
+      };
+      units[id] = unit;
+      world.unitIds.push(id);
+      if (index === 0 || (overflow && index % 12 === 0))
+        letters.push({
+          id: `busy-ask-${worldIndex}-${index}`,
+          sessionId: id,
+          worldId: unit.worldId,
+          title: `${unit.displayName} needs input`,
+          createdAt: now,
+          severity: "critical",
+          actions: [
+            {
+              label: "Allow",
+              action: {
+                kind: "permission-allow",
+                requestId: `synthetic-${id}`,
+              },
+            },
+          ],
+        });
+    }
+  });
+  if (overflow) {
+    for (const [id, world] of Object.entries(seed.worlds)) {
+      if (!world.unitIds.length) delete seed.worlds[id];
+    }
+  }
+  return {
+    ...seed,
+    units,
+    letters,
+    events: [],
+    eventCount: 0,
+    selectedUnitId: "busy-0-0",
+  };
+}
+
+export function seedVisualQaState(
+  now = Date.now(),
+  busy = false,
+  overflow = false
+) {
+  const seed = busy
+    ? createBusyVisualQaSeed(now, overflow)
+    : createVisualQaSeed(now);
   useStore.setState(seed);
   const scene = (
     window as unknown as {

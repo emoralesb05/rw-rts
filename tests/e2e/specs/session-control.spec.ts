@@ -94,6 +94,7 @@ test("fails closed for unsupported and stale session controls", async ({
   );
 
   const activity = page.getByRole("log", { name: "Activity log" });
+  await activity.getByRole("button", { name: /activity/i }).click();
   await expect(activity.getByText(/fork failed/i)).toBeVisible();
   await expect(
     activity.getByText(/send failed · Observed session metadata is missing/i)

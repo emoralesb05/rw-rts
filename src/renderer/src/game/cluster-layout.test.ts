@@ -19,6 +19,24 @@ function world(id: string, path: string): WorldState {
 }
 
 describe("cluster layout", () => {
+  it("separates crowded districts and leaves the base clear", () => {
+    const worlds = Object.fromEntries(
+      Array.from({ length: 60 }, (_, i) => {
+        const id = `world-${i}`;
+        return [id, world(id, `/projects/group-${i % 3}/${id}`)];
+      })
+    );
+    const points = [...computeClusterLayout(worlds).values()];
+    for (let i = 0; i < points.length; i++) {
+      expect(Math.hypot(points[i].x, points[i].y)).toBeGreaterThan(350);
+      for (const other of points.slice(i + 1)) {
+        expect(
+          Math.abs(points[i].x - other.x) >= 400 ||
+            Math.abs(points[i].y - other.y) >= 350
+        ).toBe(true);
+      }
+    }
+  });
   it("groups sibling repos by parent directory", () => {
     expect(clusterKeyFor("/Users/ed/Github/rw-rts")).toBe("/Users/ed/Github");
     expect(clusterKeyFor("/repo")).toBe("/repo");

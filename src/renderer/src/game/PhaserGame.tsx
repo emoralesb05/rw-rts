@@ -24,7 +24,10 @@ export function PhaserGame() {
     if (!hostRef.current || gameRef.current) return;
     const host = hostRef.current;
     const devWindow = window as PhaserDevWindow;
-    if (import.meta.env.DEV) {
+    const debugHooks =
+      import.meta.env.DEV ||
+      new URLSearchParams(window.location.search).has("e2e");
+    if (debugHooks) {
       devWindow.__realmkeeperPhaser?.destroy(true);
       devWindow.__realmkeeperPhaser = undefined;
       devWindow.__phaser = undefined;
@@ -49,7 +52,7 @@ export function PhaserGame() {
       scene: [KingdomScene],
     });
     gameRef.current = game;
-    if (import.meta.env.DEV) {
+    if (debugHooks) {
       devWindow.__phaser = game;
       devWindow.__realmkeeperPhaser = game;
     }
@@ -67,7 +70,7 @@ export function PhaserGame() {
 
     return () => {
       ro.disconnect();
-      if (import.meta.env.DEV && devWindow.__realmkeeperPhaser === game) {
+      if (debugHooks && devWindow.__realmkeeperPhaser === game) {
         devWindow.__realmkeeperPhaser = undefined;
         devWindow.__phaser = undefined;
       }

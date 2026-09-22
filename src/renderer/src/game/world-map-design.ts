@@ -366,7 +366,6 @@ export function drawWorldMapEnvironment(
 ) {
   const design = WORLD_MAP_DESIGNS[theme];
   const district = scene.add.graphics();
-  const props = scene.add.graphics();
 
   for (let y = 0; y < WORLD_MAP_GRID; y++) {
     for (let x = 0; x < WORLD_MAP_GRID; x++) {
@@ -407,9 +406,63 @@ export function drawWorldMapEnvironment(
   district.lineStyle(1, PROP_COLORS[theme].glow, 0.28);
   district.strokeEllipse(plaza.x, plaza.y + 13, 126, 48);
 
-  for (const prop of design.props) {
-    drawWorldProp(props, prop, theme, isoToLocal);
+  plane.add(district.setDepth(-1000));
+  for (const [index, prop] of design.props.entries()) {
+    const key = `realm-prop-${theme}-${index}`;
+    const foot = isoToLocal(prop.at[0] + 0.5, prop.at[1] + 0.5);
+    if (!scene.textures.exists(key)) {
+      const ink = scene.add.graphics();
+      drawWorldProp(ink, prop, theme, () => ({ x: 64, y: 96 }));
+      ink.generateTexture(key, 128, 128);
+      ink.destroy();
+    }
+    plane.add(
+      scene.add
+        .image(foot.x - 64, foot.y - 96, key)
+        .setOrigin(0)
+        .setDepth(foot.y)
+    );
   }
+}
 
-  plane.add([district, props]);
+/** Exposed southern tile faces give the island a physical cliff silhouette. */
+export function drawWorldMapCliffs(
+  scene: Phaser.Scene,
+  plane: Phaser.GameObjects.Container,
+  theme: WorldTheme,
+  iso: IsoToLocal
+) {
+  const key = `realm-cliffs-${theme}`;
+  if (!scene.textures.exists(key)) {
+    const g = scene.add.graphics();
+    g.translateCanvas(256, 160);
+    const colors = PROP_COLORS[theme];
+    for (let y = 0; y < WORLD_MAP_GRID; y++) {
+      for (let x = 0; x < WORLD_MAP_GRID; x++) {
+        if (worldTileTone(theme, x, y) === ".") continue;
+        const depth = 22 + ((x * 7 + y * 11) % 13);
+        for (const [dx, dy, a, b, color] of [
+          [1, 0, iso(x + 1, y), iso(x + 1, y + 1), colors.right],
+          [0, 1, iso(x + 1, y + 1), iso(x, y + 1), colors.left],
+        ] as const) {
+          if (worldTileTone(theme, x + dx, y + dy) !== ".") continue;
+          g.fillStyle(color, 1);
+          g.beginPath();
+          g.moveTo(a.x, a.y);
+          g.lineTo(b.x, b.y);
+          g.lineTo(b.x, b.y + depth);
+          g.lineTo(a.x, a.y + depth);
+          g.closePath();
+          g.fillPath();
+          g.lineStyle(1, colors.top, 0.5);
+          g.lineBetween(a.x, a.y + 1, b.x, b.y + 1);
+          g.lineStyle(1, colors.right, 0.7);
+          g.lineBetween(b.x, b.y + 3, b.x, b.y + depth - 2);
+        }
+      }
+    }
+    g.generateTexture(key, 512, 320);
+    g.destroy();
+  }
+  plane.add(scene.add.image(-256, -160, key).setOrigin(0).setDepth(-2000));
 }
